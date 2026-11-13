@@ -5,9 +5,25 @@ import type { ServerIssue } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, NodeTypeInfo } from './graph/types'
 
 // Root-absolute on purpose: Aurora's REST API ignores the editor's base.
+// A GET the server answered with an error carries its status and the body's `error` code
+// (unknown_effect, unreadable_effect), else code ''. A network failure or an unparseable
+// success body is fetch's / json()'s own error, as before.
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string
+  constructor(path: string, status: number, code: string) {
+    super(`${path}: ${status}`)
+    this.status = status
+    this.code = code
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path)
-  if (!res.ok) throw new Error(`${path}: ${res.status}`)
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: unknown }
+    throw new ApiError(path, res.status, typeof body.error === 'string' ? body.error : '')
+  }
   return (await res.json()) as T
 }
 

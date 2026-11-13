@@ -20,6 +20,7 @@ export function TitleMenu({
   isBuiltin,
   busy,
   blocked,
+  nothingOpen,
   editedSinceTest,
   effects,
   currentId,
@@ -36,6 +37,8 @@ export function TitleMenu({
   busy: boolean
   // No Aurora to talk to: nothing here can run.
   blocked: boolean
+  // The effect would not load: there is no document, so only Open and New apply.
+  nothingOpen: boolean
   editedSinceTest: boolean
   effects: EffectListEntry[]
   currentId: string
@@ -79,7 +82,7 @@ export function TitleMenu({
             <MenuItem id="save" isDisabled={off}>Save</MenuItem>
             {isBuiltin ? null : <MenuItem id="save-as-new" isDisabled={off}>Save as new</MenuItem>}
             <MenuItem id="save-and-apply" isDisabled={off}>Save and apply</MenuItem>
-            {isBuiltin ? null : <MenuItem id="rename">Rename</MenuItem>}
+            {isBuiltin ? null : <MenuItem id="rename" isDisabled={nothingOpen}>Rename</MenuItem>}
             <MenuItem id="revert" isDisabled={!unsaved}>Revert to saved</MenuItem>
             <MenuSeparator />
             <SubmenuItem id="new" label="New" aria-label="New effect" onAction={pick}>

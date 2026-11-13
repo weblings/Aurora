@@ -67,3 +67,25 @@ export function draftShellNote(putError: string | null): string | null {
   if (!putError || putError === 'draft_too_large') return null
   return putError === 'too_many_drafts' ? TOO_MANY_DRAFTS_MESSAGE : CHECK_FAILED_MESSAGE
 }
+
+// Why an effect or the catalog would not load although Aurora answered (Aurora-u68h.9): a shell
+// row with no Retry and no action, since rerunning the same GETs fixes none of these.
+export type OpenFailure = 'not_found' | 'unreadable' | 'other'
+
+/** The cause from the failed GET: 404 unknown_effect and 422 unreadable_effect (EffectsRoutes.cpp), else other. */
+export function openFailureCause(status: number | null, code: string | null): OpenFailure {
+  if (status === 404 && code === 'unknown_effect') return 'not_found'
+  if (status === 422 && code === 'unreadable_effect') return 'unreadable'
+  return 'other'
+}
+
+export function openFailedNote(cause: OpenFailure, title: string): string {
+  switch (cause) {
+    case 'not_found':
+      return `${title} no longer exists.`
+    case 'unreadable':
+      return `${title}'s file can't be read.`
+    default:
+      return "Couldn't open the editor."
+  }
+}

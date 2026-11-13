@@ -3,7 +3,7 @@ import { initialLoop, type LoopState } from './loop'
 import { initialTest, testReducer, type TestState } from './lightTest'
 import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
 
-const base: StatusInput = { openError: null, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null, writeTrouble: null }
+const base: StatusInput = { openError: false, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null, writeTrouble: null }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
 const withTest = (t: Partial<TestState>): StatusInput => ({ ...base, test: { ...initialTest, ...t } })
 
@@ -12,8 +12,9 @@ describe('status priority', () => {
     expect(pickStatus(base)).toMatchObject({ rank: 7, label: 'Live preview' })
   })
   it('rank 1: unreachable and cannot open beat everything', () => {
-    const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: "Cannot open 'x'", writeTrouble: 'w' }
-    expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: "Cannot open 'x'" })
+    const all = { ...withLoop({ putError: 'x', stream: 'replaced' }), openError: true, writeTrouble: 'w' }
+    expect(pickStatus(all)).toMatchObject({ rank: 1, where: 'button', label: 'No effect is open' })
+    expect(pickStatus({ ...all, unreachable: true })).toMatchObject({ rank: 1, label: 'Cannot reach Aurora' })
     expect(pickStatus({ ...base, unreachable: true })).toMatchObject({ rank: 1, where: 'button', label: 'Cannot reach Aurora', detail: 'Retrying.' })
   })
   it('a lost preview stream alone is not rank 1: the host poll owns reachable', () => {
@@ -27,7 +28,7 @@ describe('status priority', () => {
   it('draft would not load is a Whole graph problem, not a banner', () => {
     const loop = { reloadError: 'bad' }
     expect(pickStatus(withLoop(loop))).toMatchObject({ rank: 7, where: 'none' })
-    expect(pickBanner(null, false, pickStatus(withLoop(loop)))).toBeNull()
+    expect(pickBanner(false, pickStatus(withLoop(loop)))).toBeNull()
   })
   it('a reload error alongside problems reads Preview paused', () => {
     expect(pickStatus(withLoop({ valid: false, reloadError: 'bad', issues: [{ node: null, message: 'm' }] }))).toMatchObject({ rank: 7, label: 'Preview paused' })
@@ -92,13 +93,12 @@ describe('Stop label and banner', () => {
   })
   it('banner: persistent errors (rank 6) show under the bar', () => {
     const s = pickStatus({ ...base, writeTrouble: 'Fix the 2 problems before saving' })
-    expect(pickBanner(null, false, s)).toEqual({ kind: 'notice', message: 'Fix the 2 problems before saving', detail: null })
-    expect(pickBanner(null, false, pickStatus(base))).toBeNull()
+    expect(pickBanner(false, s)).toEqual({ kind: 'notice', message: 'Fix the 2 problems before saving', detail: null })
+    expect(pickBanner(false, pickStatus(base))).toBeNull()
   })
-  it('banner: unreachable beats restore; nothing otherwise', () => {
-    expect(pickBanner('Cannot reach Aurora', true)).toMatchObject({ kind: 'unreachable' })
-    expect(pickBanner(null, true)).toEqual({ kind: 'restore' })
-    expect(pickBanner(null, false)).toBeNull()
+  it('banner: restore, else nothing', () => {
+    expect(pickBanner(true)).toEqual({ kind: 'restore' })
+    expect(pickBanner(false)).toBeNull()
   })
 })
 

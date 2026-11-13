@@ -347,6 +347,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u68h3-test-outcomes` | [log/2026-11-13-u68h3-test-outcomes.md](log/2026-11-13-u68h3-test-outcomes.md) | Graph editor stage 6c: test outcomes the user did not cause, and the live region |
 | `u68h4-refused-saves` | [log/2026-11-13-u68h4-refused-saves.md](log/2026-11-13-u68h4-refused-saves.md) | Graph editor stage 6d: refused saves point at the problems chip, unsaved dots |
 | `u68h5-draft-load-problem` | [log/2026-11-12-u68h5-draft-load-problem.md](log/2026-11-12-u68h5-draft-load-problem.md) | Draft would not load is a Whole graph problem; DesktopNote dropped |
+| `u68h9-open-failure-row` | [log/2026-11-13-u68h9-open-failure-row.md](log/2026-11-13-u68h9-open-failure-row.md) | Graph editor stage 6h: a failed effect or catalog load is an error-shell row without Retry |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
 | `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |

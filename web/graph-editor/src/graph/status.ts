@@ -21,8 +21,8 @@ export type Status = {
 }
 
 export type StatusInput = {
-  // The effect or catalog would not load although Aurora answers (rank 1, a banner with Retry).
-  openError: string | null
+  // The effect or catalog would not load although Aurora answers (rank 1; the error shell says why).
+  openError: boolean
   // Aurora cannot be reached: the one verdict, from the host-state poll that also raises
   // the shell's takeover (rank 1; the Test button is off with it).
   unreachable: boolean
@@ -91,10 +91,11 @@ export function stopLabel(test: TestState): string {
 const at = (rank: StatusRank, where: Status['where'], label: string, detail: string | null = null, action: Status['action'] = null): Status => ({ rank, where, label, detail, action })
 
 export function pickStatus({ openError, unreachable, loop, test, otherHolder, writeTrouble }: StatusInput): Status {
-  // Rank 1: the takeover (or the banner for an effect that would not open) says it; the button
-  // is disabled with this as its tooltip. A lost preview stream alone is not this: it only
+  // Rank 1: the takeover (or the shell row for an effect that would not open) says it; the button
+  // is disabled with this as its tooltip, and nothing is open to save. A lost preview stream alone is not this: it only
   // asks the host poll to look (useDraftLoop), which owns the verdict.
-  if (unreachable || openError) return at(1, 'button', 'Cannot reach Aurora', openError ?? 'Retrying.')
+  if (unreachable) return at(1, 'button', 'Cannot reach Aurora', 'Retrying.')
+  if (openError) return at(1, 'button', 'No effect is open', 'The error above says why.')
   // Draft not sent is split by the server's error code: the error shell shows the editor-supplied
   // rows (graph/hostState.ts draftShellNote), and a too-large draft is a Whole graph problem.
   // Draft would not load is a problem with the graph: it is a Whole graph row in
@@ -114,10 +115,9 @@ export function pickStatus({ openError, unreachable, loop, test, otherHolder, wr
 }
 
 // The banner under the bar: only what blocks work or waits for an answer.
-export type Banner = { kind: 'unreachable'; message: string } | { kind: 'restore' } | { kind: 'notice'; message: string; detail: string | null }
+export type Banner = { kind: 'restore' } | { kind: 'notice'; message: string; detail: string | null }
 
-export function pickBanner(openError: string | null, hasOffer: boolean, status?: Status): Banner | null {
-  if (openError) return { kind: 'unreachable', message: openError }
+export function pickBanner(hasOffer: boolean, status?: Status): Banner | null {
   if (hasOffer) return { kind: 'restore' }
   if (status?.where === 'banner') return { kind: 'notice', message: status.label, detail: status.detail }
   return null

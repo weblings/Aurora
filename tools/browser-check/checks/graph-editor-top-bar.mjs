@@ -2,7 +2,7 @@
 // menu, and the status rule's places (the Test button, the banner and the toast; the bar has no status text).
 //
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
-//   checked here:       rank 1 + Retry banner, kept copy restores silently (no banner; kept-copy check has the rest),
+//   checked here:       rank 1 shell rows (404, 422, 500; no Retry), kept copy restores silently (no banner; kept-copy check has the rest),
 //                       rank 7 default, Edited since the test, Stop-only bar
 //   checked elsewhere:  draft refusals and the takeover (error-shell), rank 4 Reconnect (gate),
 //                       rank 5/6 test outcomes (graph-editor edit loop), problems
@@ -222,23 +222,64 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press('Escape')
     step('the split button: Live from the menu runs untimed under a bare Stop; the current mode is the checked item')
 
-    // Rank 1: the effect cannot be opened. Banner with Retry, status says so, Test is off.
-    await page.route('**/api/effects/builtin.audio', (route) => route.abort())
+    // Rank 1: the effect cannot be opened although Aurora answers (Aurora-u68h.9). An error-shell row worded by
+    // cause, no Retry and no action, Test off with its own tooltip, and Open still leaves.
+    const shots = process.env.SHOTS ?? ''
+    const row = page.locator('#shell-banner-slot .shell-banner-row')
+    const testTip = async () => {
+      await page.mouse.move(700, 400)
+      await page.locator('.editor-split').hover({ force: true })
+      return page.locator('.ui-tooltip').first()
+    }
+    const leaveThroughOpen = async (id) => {
+      await openTitleMenu(page)
+      for (const item of ['Save', 'Save and apply']) assert.equal(await page.getByRole('menuitem', { name: item, exact: true }).isDisabled(), true, `${item} is off with nothing open`)
+      await page.getByRole('menuitem', { name: 'Open', exact: true }).click()
+      await page.getByRole('menu', { name: 'Open', exact: true }).getByRole('menuitem', { name: /^Screen colors/ }).click()
+      await waitEffect(page, id)
+      await page.waitForSelector('.aurora-node')
+      await row.waitFor({ state: 'detached' })
+      await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview !== 'No effect is open')
+    }
+    const { effects } = await (await fetch(new URL('/api/effects', editorUrl))).json()
+    const audio = effects.find((e) => e.id === 'builtin.audio').title
+
+    await page.route('**/api/effects/builtin.audio', (route) =>
+      route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'unknown_effect' }) }),
+    )
     await page.goto(`${editorUrl}?effect=builtin.audio`)
-    const alert = page.getByRole('alert')
-    await alert.waitFor()
-    assert.match(await alert.innerText(), /Cannot open 'builtin.audio'/)
-    assert.equal(await status().getAttribute('data-preview'), 'Cannot reach Aurora')
+    await row.first().waitFor()
+    // The title is the effects list's, which arrives with the catalog: the row words itself again when it does.
+    await row.filter({ hasText: `${audio} no longer exists.` }).waitFor()
+    assert.equal(await row.count(), 1)
+    assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0, 'no Retry, no action on the row')
+    assert.equal(await page.locator('.editor-banner').count(), 0, 'the old banner is gone')
+    assert.equal(await status().getAttribute('data-preview'), 'No effect is open')
     assert.equal(await button('Test on lights').isDisabled(), true)
-    await page.mouse.move(700, 400)
-    await page.locator('.editor-split').hover({ force: true })
-    assert.equal(await page.locator('.ui-tooltip').first().innerText(), 'Cannot reach Aurora')
+    assert.equal(await (await testTip()).innerText(), 'No effect is open')
+    if (shots) await page.screenshot({ path: `${shots}/404-row-test-tooltip.png` })
     await page.unroute('**/api/effects/builtin.audio')
-    await alert.getByRole('button', { name: 'Retry' }).click()
-    await page.waitForSelector('.aurora-node')
-    await alert.waitFor({ state: 'detached' })
-    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview !== 'Cannot reach Aurora')
-    step('an effect that will not open: banner with Retry, status Aurora unreachable, Test off; Retry recovers')
+    await leaveThroughOpen('builtin.video')
+    step('an effect that is gone (404 unknown_effect): shell row, no Retry, Test off with its tooltip; Open leaves and the row clears')
+
+    await page.route('**/api/effects/builtin.audio', (route) =>
+      route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ error: 'unreadable_effect', message: 'bad json' }) }),
+    )
+    await page.goto(`${editorUrl}?effect=builtin.audio`)
+    await row.first().waitFor()
+    await row.filter({ hasText: `${audio}'s file can't be read.` }).waitFor()
+    assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0)
+    assert.equal(await button('Test on lights').isDisabled(), true)
+    if (shots) await page.screenshot({ path: `${shots}/422-row.png` })
+    await page.unroute('**/api/effects/builtin.audio')
+
+    // Anything else (a 500, or the catalog failing) is the generic row.
+    await page.route('**/api/effects/builtin.audio', (route) => route.fulfill({ status: 500, body: 'oops' }))
+    await page.goto(`${editorUrl}?effect=builtin.audio`)
+    await row.first().waitFor()
+    assert.equal((await row.innerText()).trim(), "Couldn't open the editor.")
+    await page.unroute('**/api/effects/builtin.audio')
+    step('an unreadable file (422) and any other failure (500): their own shell rows, no Retry')
   } finally {
     await page.evaluate(() => localStorage.clear()).catch(() => {})
     await browser.close()

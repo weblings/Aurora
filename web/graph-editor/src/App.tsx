@@ -14,7 +14,7 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import { applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, putDraft, saveGraph, type WriteResult } from './api'
+import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, putDraft, saveGraph, type WriteResult } from './api'
 import { EditorContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
@@ -35,7 +35,7 @@ import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZonesIsland } from './ZonesIsland'
 import { ErrorShell } from './ErrorShell'
 import { useHostState } from './useHostState'
-import { draftShellNote, otherTest } from './graph/hostState'
+import { draftShellNote, openFailedNote, openFailureCause, otherTest, type OpenFailure } from './graph/hostState'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
 import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './graph/autosave'
@@ -85,9 +85,10 @@ export function App() {
   const [outdated, setOutdated] = useState<GraphDoc | null>(null)
   // What the last Revert to saved or Load saved threw away; 6g's Undo toast puts it back.
   const discarded = useRef<{ id: string; doc: GraphDoc } | null>(null)
-  // The effect or the catalog would not load although Aurora answered: a banner with Retry.
-  // (When Aurora does not answer, the error shell's takeover says so and nothing is set here.)
-  const [openError, setOpenError] = useState<string | null>(null)
+  // The effect or the catalog would not load although Aurora answered: a row in the error shell,
+  // worded by cause, with no Retry (Aurora-u68h.9). When Aurora does not answer, the shell's takeover
+  // says so and nothing is set here. `id` is the effect that failed; null for the catalog.
+  const [openError, setOpenError] = useState<{ cause: OpenFailure; id: string | null } | null>(null)
   const [attempt, setAttempt] = useState(0)
   // A Save or Save and apply that failed; cleared by the next edit or write.
   const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
@@ -98,9 +99,10 @@ export function App() {
   const [platform, setPlatform] = useState('')
   // A load that failed for want of Aurora runs again once it answers.
   const retryOnRecovery = useRef(false)
-  const loadFailed = (message: string) => {
+  const loadFailed = (e: Error, id: string | null) => {
     retryOnRecovery.current = true
-    void host.checkNow().then((answered) => answered && setOpenError(message))
+    const cause = e instanceof ApiError ? openFailureCause(e.status, e.code) : 'other'
+    void host.checkNow().then((answered) => answered && setOpenError({ cause, id }))
   }
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
@@ -143,8 +145,9 @@ export function App() {
       .then(([c, e]) => {
         setCatalog(c)
         setEffects(e)
+        setOpenError((current) => (current?.id === null ? null : current))
       })
-      .catch((e: Error) => loadFailed(`Cannot reach Aurora: ${e.message}`))
+      .catch((e: Error) => loadFailed(e, null))
   }, [attempt])
 
   useEffect(() => {
@@ -168,7 +171,7 @@ export function App() {
         setOutdated(kept.kind === 'newer' ? kept.doc : null)
         setOpenError(null)
       })
-      .catch((e: Error) => !stale && loadFailed(`Cannot open '${effectId}': ${e.message}`))
+      .catch((e: Error) => !stale && loadFailed(e, effectId))
     return () => {
       stale = true
     }
@@ -336,10 +339,16 @@ export function App() {
   // The shell's light-test row is another session's test: this tab's own shows as Stop on the Test button.
   const otherHeld = otherTest(host.host.test, session)
   const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
-  const status = pickStatus({ openError, unreachable: !host.reachable, loop: loop.state, test: lights.state, otherHolder: otherHeld?.holder ?? null, writeTrouble })
-  const banner = pickBanner(openError, false, status)
+  const status = pickStatus({ openError: openError !== null, unreachable: !host.reachable, loop: loop.state, test: lights.state, otherHolder: otherHeld?.holder ?? null, writeTrouble })
+  const banner = pickBanner(false, status)
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
+  // The error shell's editor-supplied rows: a refused draft PUT, and an effect or catalog that would not open.
+  // <title> is the effects-list title for the id when known, else the id (as the title label).
+  const failedTitle = openError?.id ? effects.find((e) => e.id === openError.id)?.title || openError.id : ''
+  const shellNotes = [draftShellNote(loop.state.putError), openError ? openFailedNote(openError.cause, failedTitle) : null].filter(
+    (n): n is string => n !== null,
+  )
 
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
 
@@ -703,7 +712,7 @@ export function App() {
         platform={platform}
         conditions={host.host.conditions}
         errors={host.host.errors}
-        notes={[draftShellNote(loop.state.putError)].filter((n): n is string => n !== null)}
+        notes={shellNotes}
         lightTest={otherLightTest}
         onRetry={(source) => void host.retry(source)}
         onDismiss={(error) => void host.dismiss(error)}
@@ -724,7 +733,8 @@ export function App() {
           aria-expanded={titleMenuOpen}
           data-effect={effectId}
           data-unsaved={dirty ? 'true' : 'false'}
-          disabled={!doc}
+          // Open stays reachable when the effect would not load, so the user can leave through it.
+          disabled={!doc && !openError}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
           <span className="editor-title-label">{shownTitle || (isDraftId(effectId) ? NEW_EFFECT_TITLE : effectId)}</span>
@@ -747,6 +757,7 @@ export function App() {
           isBuiltin={isBuiltin}
           busy={writing}
           blocked={blocked}
+          nothingOpen={!doc}
           editedSinceTest={editedSinceTest}
           effects={effects}
           currentId={effectId}
@@ -816,7 +827,7 @@ export function App() {
           stopText={stopLabel(lights.state)}
           action={status.action}
           disabledReason={
-            blocked ? 'Cannot reach Aurora' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
+            blocked ? status.label : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
           }
           busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
           outcome={outcome}
@@ -825,14 +836,6 @@ export function App() {
           onReconnect={loop.reconnect}
         />
       </header>
-      {banner?.kind === 'unreachable' ? (
-        <div className="editor-banner" role="alert">
-          <span>{banner.message}</span>
-          <button type="button" className="btn btn-secondary" onClick={() => setAttempt((n) => n + 1)}>
-            Retry
-          </button>
-        </div>
-      ) : null}
       {banner?.kind === 'notice' ? (
         <div className="editor-banner" role="alert" data-rank={status.rank}>
           <span>

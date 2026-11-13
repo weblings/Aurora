@@ -130,6 +130,14 @@ describe('ErrorShell page parts', () => {
     expect(html).not.toContain('shell-banner-dismiss')
   })
 
+  it('the open-failure notes are rows too', () => {
+    for (const note of ['Rainbow no longer exists.', "Rainbow's file can't be read.", "Couldn't open the editor."]) {
+      const html = normal(renderToStaticMarkup(<ErrorShell {...props} unreachable={false} notes={[note]} />))
+      expect(html).toContain(`<span class="warn-glyph" aria-hidden="true"></span> ${note}</p>`)
+      expect(html).not.toContain('Retry')
+    }
+  })
+
   it('a host row and an editor row together are two problems', () => {
     const html = renderToStaticMarkup(<ErrorShell {...props} unreachable={false} errors={[reload]} notes={['x']} />)
     expect(html).toContain('2 problems')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FAILURE_THRESHOLD, TOO_MANY_DRAFTS_MESSAGE, CHECK_FAILED_MESSAGE, draftShellNote, otherTest, parseHostState, reachAfter, reachable } from './hostState'
+import { FAILURE_THRESHOLD, TOO_MANY_DRAFTS_MESSAGE, CHECK_FAILED_MESSAGE, draftShellNote, openFailedNote, openFailureCause, otherTest, parseHostState, reachAfter, reachable } from './hostState'
 
 describe('parseHostState', () => {
   it('reads the fields the shell uses and never throws on a bad body', () => {
@@ -52,5 +52,18 @@ describe('draftShellNote', () => {
     expect(draftShellNote('http_500')).toBe(CHECK_FAILED_MESSAGE)
     expect(draftShellNote('draft_too_large')).toBeNull()
     expect(draftShellNote(null)).toBeNull()
+  })
+})
+
+describe('openFailedNote', () => {
+  it('words the row by cause, with the title', () => {
+    expect(openFailedNote('not_found', 'Rainbow')).toBe('Rainbow no longer exists.')
+    expect(openFailedNote('unreadable', 'Rainbow')).toBe("Rainbow's file can't be read.")
+    expect(openFailedNote('other', 'Rainbow')).toBe("Couldn't open the editor.")
+  })
+  it('the cause comes from the status and the body code together', () => {
+    expect(openFailureCause(404, 'unknown_effect')).toBe('not_found')
+    expect(openFailureCause(422, 'unreadable_effect')).toBe('unreadable')
+    for (const [s, c] of [[404, ''], [404, 'other'], [500, 'unreadable_effect'], [503, ''], [null, null]] as const) expect(openFailureCause(s, c)).toBe('other')
   })
 })
