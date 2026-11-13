@@ -345,6 +345,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u68h1-grille-mock-frame` | [log/2026-11-13-u68h1-grille-mock-frame.md](log/2026-11-13-u68h1-grille-mock-frame.md) | Graph editor stage 6.0: Grille mock frame, owner review applied |
 | `u68h2-kept-copies` | [log/2026-11-13-u68h2-kept-copies.md](log/2026-11-13-u68h2-kept-copies.md) | Graph editor stage 6b: kept copies restore silently, Revert to saved, own ids for new effects |
 | `u68h3-test-outcomes` | [log/2026-11-13-u68h3-test-outcomes.md](log/2026-11-13-u68h3-test-outcomes.md) | Graph editor stage 6c: test outcomes the user did not cause, and the live region |
+| `u68h4-refused-saves` | [log/2026-11-13-u68h4-refused-saves.md](log/2026-11-13-u68h4-refused-saves.md) | Graph editor stage 6d: refused saves point at the problems chip, unsaved dots |
 | `u68h5-draft-load-problem` | [log/2026-11-12-u68h5-draft-load-problem.md](log/2026-11-12-u68h5-draft-load-problem.md) | Draft would not load is a Whole graph problem; DesktopNote dropped |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |

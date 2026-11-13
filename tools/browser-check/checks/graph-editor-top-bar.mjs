@@ -170,10 +170,10 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // A kept copy from an earlier visit comes back without asking (Aurora-u68h.2): no banner, no buttons.
     await makeEdit(page)
-    await page.getByText('Unsaved', { exact: true }).waitFor()
+    await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    await page.getByText('Unsaved', { exact: true }).waitFor()
+    await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
     assert.equal(await page.locator('.editor-banner').count(), 0, 'no banner for a kept copy')
     assert.equal(await button('Restore').count() + (await button('Discard').count()), 0, 'no Restore or Discard')
     await openTitleMenu(page)
@@ -181,7 +181,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitToast(page, 'Reverted to the saved version')
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    assert.equal(await page.getByText('Unsaved', { exact: true }).count(), 0, 'the reverted copy is gone')
+    assert.equal(await page.locator('.editor-title-menu[data-unsaved="true"]').count(), 0, 'the reverted copy is gone')
     step('a kept copy restores silently and Revert to saved drops it')
 
     // Edited since the test: the bar says so and the title menu warns.

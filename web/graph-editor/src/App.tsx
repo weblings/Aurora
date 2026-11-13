@@ -23,13 +23,14 @@ import { ControlsDrawer } from './ControlsDrawer'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
-import { ProblemsChip } from './ProblemsChip'
+import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, dotIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
-import { TitleMenu, type TitleMenuAction } from './TitleMenu'
+import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
+import { NEW_EFFECT_TITLE } from './graph/titleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
 import { ZonesIsland } from './ZonesIsland'
 import { ErrorShell } from './ErrorShell'
@@ -111,6 +112,12 @@ export function App() {
     { kind: 'save' | 'apply'; asNew: boolean; initial: string } | { kind: 'rename'; initial: string } | null
   >(null)
   const titleMenuTrigger = useRef<HTMLButtonElement>(null)
+  // A write refused for problems points at the problems chip (Aurora-u68h.4); `focusAfter` tells the popup that
+  // just closed where focus goes (the chip, or a problem's node) instead of back to where it was.
+  const problemsChip = useRef<HTMLButtonElement>(null)
+  const focusAfter = useRef<(() => HTMLElement | null) | null>(null)
+  const [refusal, setRefusal] = useState<Refusal | null>(null)
+  const refusals = useRef(0)
   const [minimap, setMinimap] = useState(false)
   // One drawer at a time, non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
   const [drawer, setDrawer] = useState<'details' | 'controls' | null>(null)
@@ -212,8 +219,19 @@ export function App() {
   // open (a built-in is never overwritten). Save as new forks a custom the
   // same way, leaving the original file as it was.
   // A write that creates a new effect asks for its name first; `named` is the answer.
+  const refuseWrite = (n: number, plain: boolean) => {
+    focusAfter.current = () => problemsChip.current
+    const text = `Couldn't save. Fix ${n} ${n === 1 ? 'problem' : 'problems'} first.${plain ? ' Your changes are kept in this browser.' : ''}`
+    setRefusal({ id: ++refusals.current, text })
+  }
   const write = async (kind: 'save' | 'apply', asNew = false, named?: string) => {
     if (!doc || !baseline || writing) return
+    // A saved effect is always runnable: with problems nothing is written (and nothing is asked first).
+    // The draft's own problems count: a graph the server cannot build is in the chip too.
+    if (problemCount(problems) > 0) {
+      refuseWrite(problemCount(problems), kind === 'save' && !asNew)
+      return
+    }
     if ((isBuiltin || asNew) && named === undefined) {
       setNaming({ kind, asNew, initial: titleOf(doc) })
       return
@@ -229,8 +247,8 @@ export function App() {
     try {
       const verdict = await putDraft(session, sent)
       if (!verdict.valid) {
-        const n = verdict.errors.length
-        setWriteTrouble(`Fix the ${n} ${n === 1 ? 'problem' : 'problems'} before saving`)
+        // The server found problems the editor had not shown yet: the same refusal.
+        refuseWrite(verdict.errors.length, kind === 'save' && !asNew)
         return
       }
       const result: WriteResult = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
@@ -450,6 +468,8 @@ export function App() {
   const selectNode = useCallback(
     (id: string) => {
       setNodeView(nodes.map((n) => ({ ...n, selected: n.id === id })))
+      // After the popup closes its own way: keyboard focus goes to the node (Delete and its keys act on it).
+      focusAfter.current = () => canvas.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`) ?? null
       void flow.current?.fitView({ nodes: [{ id }], maxZoom: 1, duration: 200 })
     },
     [nodes],
@@ -699,7 +719,7 @@ export function App() {
           ref={titleMenuTrigger}
           type="button"
           className="ui-button editor-title-menu" data-size="sm"
-          aria-label={dirty && compactBar ? 'Effect menu, unsaved changes' : 'Effect menu'}
+          aria-label={dirty ? `Effect menu, ${UNSAVED_TEXT}` : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
           data-effect={effectId}
@@ -707,11 +727,10 @@ export function App() {
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
-          {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true" /> : null}
-          <span className="editor-title-label">{shownTitle || (isDraftId(effectId) ? 'New empty effect' : effectId)}</span>
+          <span className="editor-title-label">{shownTitle || (isDraftId(effectId) ? NEW_EFFECT_TITLE : effectId)}</span>
+          {dirty ? <Icon icon={dotIcon} size="sm" /> : null}
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
-        {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
         {catalog ? (
           <AddNodeMenu
             isOpen={addMenuOpen}
@@ -733,6 +752,7 @@ export function App() {
           currentId={effectId}
           hasAudio={hasAudio}
           unsaved={dirty}
+          focusAfter={focusAfter}
           onAction={(action: TitleMenuAction) => {
             if (action === 'save') void write('save')
             else if (action === 'save-as-new') void write('save', true)
@@ -762,6 +782,9 @@ export function App() {
         <span className="editor-bar-end" />
         <ProblemsChip
           problems={problems}
+          chipRef={problemsChip}
+          refusal={refusal}
+          focusAfter={focusAfter}
           onSelectNode={selectNode}
           onAddNode={() => setAddMenuOpen(true)}
         />
@@ -793,7 +816,7 @@ export function App() {
           stopText={stopLabel(lights.state)}
           action={status.action}
           disabledReason={
-            blocked ? 'Cannot reach Aurora' : loop.state.valid === false ? 'Fix the problems before testing' : null
+            blocked ? 'Cannot reach Aurora' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
           }
           busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
           outcome={outcome}

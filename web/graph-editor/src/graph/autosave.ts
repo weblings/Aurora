@@ -67,6 +67,25 @@ export function loadKept(effectId: string, storage: Storage | null = store()): K
   }
 }
 
+// Every effect id that has a kept copy, with the copy: what Open marks as unsaved (Aurora-u68h.4).
+// A copy exists only while it differs from the saved graph (syncUnsaved clears it otherwise).
+export function keptCopies(storage: Storage | null = store()): Map<string, GraphDoc> {
+  const out = new Map<string, GraphDoc>()
+  try {
+    if (!storage) return out
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i)
+      if (!key?.startsWith(PREFIX)) continue
+      const id = key.slice(PREFIX.length)
+      const kept = loadKept(id, storage)
+      if (kept) out.set(id, kept.doc)
+    }
+  } catch {
+    // Storage unreadable: nothing is marked.
+  }
+  return out
+}
+
 export function loadUnsaved(effectId: string, storage: Storage | null = store()): GraphDoc | null {
   return loadKept(effectId, storage)?.doc ?? null
 }

@@ -1,13 +1,12 @@
-import type { RefObject } from 'react'
-import { Dialog, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem } from '@weblings/grille'
+import { useMemo, type MutableRefObject, type ReactNode, type RefObject } from 'react'
+import { Dialog, Icon, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem, dotIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
-import { Hint } from './Hint'
+import { keptCopies } from './graph/autosave'
 import { openGroups, startPoints } from './graph/titleMenu'
 import type { EffectListEntry } from './graph/types'
 
-// Titles past this may be cut off by the ellipsis (editor-menu-title, 30ch); only they get a Hint, because the
-// Hint makes its child a tab stop inside the menu item.
-const LONG_TITLE = 24
+// The screen-reader text of every unsaved dot: MenuItem `description` on an item, hidden text on a heading.
+export const UNSAVED_TEXT = 'unsaved changes'
 
 export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'revert'
 
@@ -26,6 +25,7 @@ export function TitleMenu({
   currentId,
   hasAudio,
   unsaved,
+  focusAfter,
   onAction,
   onOpenEffect,
 }: {
@@ -43,18 +43,25 @@ export function TitleMenu({
   hasAudio: boolean
   // The open graph differs from the saved one: only then is there anything to revert.
   unsaved: boolean
+  focusAfter: MutableRefObject<(() => HTMLElement | null) | null>
   onAction: (action: TitleMenuAction) => void
   // New and Open both land here; App's openEffect decides where it opens.
   onOpenEffect: (id: string) => void
 }) {
+  // Save, Save as new and Save and apply are never disabled for problems (Aurora-u68h.4): React Aria skips
+  // disabled items on arrow keys, so a reason on one would never reach a keyboard user. With problems
+  // they refuse and point at the chip instead (App's write).
   const off = busy || blocked
-  const groups = openGroups(effects, currentId)
+  // Read when the menu opens: kept copies change while editing, the open effect's is not listed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const kept = useMemo(() => (isOpen ? keptCopies() : new Map()), [isOpen, effects])
+  const groups = openGroups(effects, currentId, kept)
   const pick = (id: string) => {
     onClose()
     onOpenEffect(id)
   }
   return (
-    <EditorPopup isOpen={isOpen} onClose={onClose} label="Effect menu" triggerRef={triggerRef}>
+    <EditorPopup isOpen={isOpen} onClose={onClose} label="Effect menu" triggerRef={triggerRef} focusAfter={focusAfter}>
       <Dialog aria-label="Effect menu">
         <div className="editor-title-dialog">
           {editedSinceTest ? (
@@ -85,10 +92,19 @@ export function TitleMenu({
             {groups.length > 0 ? (
               <SubmenuItem id="open" label="Open" aria-label="Open another effect" onAction={pick}>
                 {groups.map((g) => (
-                  <MenuSection key={g.name} title={g.name}>
+                  <MenuSection key={g.name} title={headingOf(g.name, g.unsaved)}>
                     {g.items.map((e) => (
-                      <MenuItem key={e.id} id={e.id}>
-                        <Hint text={e.title.length > LONG_TITLE ? e.title : null}><span className="editor-menu-title">{e.title}</span></Hint>
+                      <MenuItem
+                        key={e.id}
+                        id={e.id}
+                        description={e.unsaved ? UNSAVED_TEXT : undefined}
+                        tooltip={e.title}
+                        tooltipOnlyWhenTruncated
+                      >
+                        <span className="editor-menu-line">
+                          <span className="editor-menu-title">{e.title}</span>
+                          {e.unsaved ? <Icon icon={dotIcon} size="sm" /> : null}
+                        </span>
                       </MenuItem>
                     ))}
                   </MenuSection>
@@ -100,4 +116,19 @@ export function TitleMenu({
       </Dialog>
     </EditorPopup>
   )
+}
+
+// "Not saved yet" ends with the dot, with the same screen-reader text as an item's. Grille types a
+// MenuSection title as a string but draws it as the Header's children, so a node works (reported on
+// the bead for Grille to type as ReactNode).
+function headingOf(name: string, unsaved: boolean): string {
+  if (!unsaved) return name
+  const node: ReactNode = (
+    <span className="editor-heading-dot">
+      {name}
+      <Icon icon={dotIcon} size="sm" />
+      <span className="visually-hidden">, {UNSAVED_TEXT}</span>
+    </span>
+  )
+  return node as unknown as string
 }

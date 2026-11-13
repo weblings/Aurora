@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, type MutableRefObject, type ReactNode, type RefObject } from 'react'
 import { Popover, type PopoverPoint, type PopoverProps } from '@weblings/grille'
 
 // The editor's popup layer, over Grille's Popover. Every editor menu (title,
@@ -12,7 +12,8 @@ import { Popover, type PopoverPoint, type PopoverProps } from '@weblings/grille'
 // - A press anywhere outside closes it, so a pane drag dismisses the menu too.
 // - Esc closes it even while focus is outside the popup.
 // - Focus goes back to the element that had it when the popup opened (or the
-//   trigger); the popup never leaves it on <body>.
+//   trigger), unless the choice named another target (`focusAfter`); the popup never
+//   leaves it on <body>.
 // - Menu items do not commit on arrow keys: the menu only moves focus there.
 export function EditorPopup({
   isOpen,
@@ -22,6 +23,7 @@ export function EditorPopup({
   point,
   placement,
   className,
+  focusAfter,
   children,
 }: {
   isOpen: boolean
@@ -31,11 +33,18 @@ export function EditorPopup({
   point?: PopoverPoint
   placement?: PopoverProps['placement']
   className?: string
+  // Where focus goes when this popup closes, if the choice made in it said so (a refused Save points at the
+  // problems chip, a problems row at its node): read once at restore time, which is after the popup's own
+  // restore would have run, so the choice wins. Cleared each time the popup opens.
+  focusAfter?: MutableRefObject<(() => HTMLElement | null) | null>
   children: ReactNode
 }) {
   const close = useRef(onClose)
   close.current = onClose
   const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (isOpen && focusAfter) focusAfter.current = null
+  }, [isOpen, focusAfter])
 
   useEffect(() => {
     if (!isOpen) return
@@ -67,7 +76,12 @@ export function EditorPopup({
       placement={placement}
       isNonModal
       aria-label={label}
-      onRestoreFocus={(previous) => (previous ?? triggerRef?.current)?.focus()}
+      onRestoreFocus={(previous) => {
+        const chosen = focusAfter?.current?.() ?? null
+        if (focusAfter) focusAfter.current = null
+        // preventScroll: a node inside React Flow's viewport must not scroll the pane away from its transform.
+        ;(chosen ?? previous ?? triggerRef?.current)?.focus({ preventScroll: true })
+      }}
     >
       <div
         ref={box}

@@ -663,7 +663,7 @@ Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of 
 
 ## Decisions (owner, stage 6 scope, 2026-11-12)
 
-Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; 6c (test outcomes the user did not cause, the live region, one source for Take over, `Aurora-u68h.3`) built 2026-11-13, see [[u68h3-test-outcomes]]; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
+Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; 6c (test outcomes the user did not cause, the live region, one source for Take over, `Aurora-u68h.3`) built 2026-11-13, see [[u68h3-test-outcomes]]; 6d (refused saves point at the problems chip, unsaved dots with Grille's `dotIcon`, Grille `dev.12`, `Aurora-u68h.4` and `.8`) built 2026-11-13, see [[u68h4-refused-saves]]; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
 
 The editor's banner under the bar held five kinds of message: Aurora unreachable, a question (Restore or Discard), refused Save clicks, test outcomes the user did not cause, and advice (the window-size note). It was a catch-all, not a pattern, so stage 6 retires it and gives each kind its own home.
 
@@ -681,7 +681,7 @@ Outside the stages: kept copies stored in Aurora instead of the browser (`Aurora
 
 ## Decisions (owner, refused saves and unsaved marks, 2026-11-12)
 
-Status: decided, not built (`Aurora-u68h.4`). Tried in the Grille mock first (`#s6-apply`, `#s6-menu`, `#s6-openpath`, `Aurora-u68h.1`). Replaces the stage 6 plan to put reasons and states in the title menu as visible description lines, which was filed on Grille as `Grille-cou`.
+Status: built 2026-11-13 (`Aurora-u68h.4`, see [[u68h4-refused-saves]]). Tried in the Grille mock first (`#s6-apply`, `#s6-menu`, `#s6-openpath`, `Aurora-u68h.1`). Replaces the stage 6 plan to put reasons and states in the title menu as visible description lines, which was filed on Grille as `Grille-cou`.
 
 Why it changed: the user needs to learn why a save did not happen, which effects have unsaved changes, and how to fix the problems. The first plan asked Grille for a visual (a second line under a menu row) instead. Building it showed four things. The owner found the two-line rows cramped. Research found no support for status or error text inside menu rows; blocking problems usually sit in a toolbar count with a popover, which the editor already has. React Aria's Menu skips disabled items on arrow keys and has no `disabledBehavior` option (react-aria-components 1.22.1), so the reason on a disabled Save and apply would never reach a keyboard or screen-reader user. And a tooltip on the Open row clashes with its flyout, which opens on hover.
 
@@ -690,10 +690,10 @@ Why it changed: the user needs to learn why a save did not happen, which effects
 - **Picking a problem goes to its node.** A popover row already selects the node and fits the view to it. 6d also moves keyboard focus to the node: today focus returns to the chip (browser check, 2026-11-12).
 - **Unsaved changes are a dot.** It sits next to the name on the title (replacing the word `Unsaved`) and on items inside Open ▸, never on the Open row itself, with the screen-reader text `unsaved changes` (Grille MenuItem `description`). No problem count in Open: a kept copy's problems show on the chip once it is open. Every Open entry still runs as saved, so there is no error state to show there.
 - **Opening an effect is silent.** Its kept copy restores with the dot and the chip; no toast and no ping, since nothing was refused.
-- **Long titles in Open ▸** cut off at 30ch and show the whole title as a row tooltip on hover or arrow-key focus, only when cut off (Grille-cou's `tooltip` and `tooltipOnlyWhenTruncated`). Aurora's `Hint` and its 24-character guess stay until that Grille release.
+- **Long titles in Open ▸** cut off at 30ch and show the whole title as a row tooltip on hover or arrow-key focus, only when cut off (Grille `dev.12`'s `tooltip` and `tooltipOnlyWhenTruncated`, in use since 6d; Aurora's `Hint` and its 24-character guess are gone from the menu).
 - **What Aurora needs from Grille's menu:** only the row `tooltip` and `tooltipOnlyWhenTruncated`. Not the visible description line, `warning`, warnings on submenu rows, or a focusable blocked item.
 
-Open: whether "Not saved yet" items show the dot, since every one is unsaved by definition (mock switch **Dots in Not saved yet**).
+Settled by the owner on 2026-11-13: "Not saved yet" items carry no dot; the group heading ends with it (`Not saved yet •`, screen-reader text `unsaved changes`).
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
