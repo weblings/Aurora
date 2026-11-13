@@ -302,3 +302,13 @@ Applies-when: placing a React Flow panel or the attribution credit at top-centre
 `.react-flow__panel.bottom.center` is `left: 50%` with `transform: translateX(-15px) translateX(-50%)` to offset its default margin. Setting only `margin` leaves the panel 15 px left of centre (found by a position check, `Aurora-s1t7.3`).
 
 **Fix:** zero the margin and set `transform: translateX(-50%)` together.
+
+---
+
+## A right-anchored popover "slides in" while its content wraps and re-measures
+Tags: webui, css, popover, react-aria, grille, graph-editor
+Applies-when: a Grille `Popover` or menu opens with `placement` ending in `end`, or near the right edge, and appears to animate
+
+Grille's popover has no animation (`ui.css` has no keyframes or transitions on `.ui-popover`). The Test caret menu (`bottom end`) still appeared to slide in from the right over about 5 frames (found by sampling its bounding box every frame, `Aurora-u8jx.4.3`): the popover is absolutely positioned, so its shrink-to-fit width is capped by the room to its right. React Aria first places it at the trigger's left, the items wrap at that narrow width (129 px), and each re-position, which anchors the right edge, lets it widen a little until it settles at 179 px with its left edge moved 62 px. Left-anchored menus never meet the cap.
+
+**Fix:** give the popup box `width: max-content` (or `white-space: nowrap`) so its width does not depend on where its left edge is (`.editor-test-popup`). Sample the box per frame to find this; computed `animation` and `transition` are `none` throughout.

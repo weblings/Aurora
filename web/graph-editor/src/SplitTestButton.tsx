@@ -80,7 +80,7 @@ export function SplitTestButton({
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
       )}
-      <EditorPopup isOpen={open} onClose={close} label="Test mode" triggerRef={group} placement="bottom end">
+      <EditorPopup isOpen={open} onClose={close} label="Test mode" triggerRef={group} placement="bottom end" className="editor-test-popup">
         <Dialog aria-label="Test mode">
           <Menu
             aria-label="Test mode"

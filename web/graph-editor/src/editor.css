@@ -520,6 +520,25 @@ button.editor-problem-row:hover {
   padding: 4px;
 }
 
+/* Bar menus, one block (Aurora-u8jx.4.3).
+   Padding: a bar button (data-size="sm") pads 6px 10px (space-sm, space-lg); Grille's
+   .ui-menu-item pads 6px 12px (space-sm, control-pad-x), so item text sat 2px further in
+   than the bar's labels. Grille gap: its menu item has no size that matches its small
+   buttons; fixed here, for every menu popover (title, Test, View, Add node, their submenus).
+   Motion: the Test menu is anchored to the right ("bottom end"). A popover is absolutely
+   positioned, so its shrink-to-fit width is capped by the room to its right; React Aria
+   first places it at the trigger's left, the items wrap at that narrow width, and each
+   re-position (anchoring the right edge) widens it a little, so it appeared to slide in
+   from the right over ~5 frames. Grille has no popover animation. Sizing the box to its
+   content makes the width independent of the left edge, so it opens in one frame. */
+.ui-popover .ui-menu-item {
+  padding-inline: var(--ui-size-space-lg);
+}
+
+.editor-test-popup {
+  width: max-content;
+}
+
 .drawer-ports,
 .drawer-controls {
   margin: 0;
