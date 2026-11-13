@@ -1,6 +1,6 @@
 import { Hint } from './Hint'
 import type { CSSProperties } from 'react'
-import { Icon, minusIcon, warningIcon } from '@weblings/grille'
+import { Button, Icon, minusIcon, warningIcon } from '@weblings/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
 
 const MAX_STOPS = 16
@@ -211,23 +211,19 @@ function GradientInput({
               if (Number.isFinite(e.target.valueAsNumber)) replace(i, { pos: clampStopPos(stops, i, e.target.valueAsNumber) })
             }}
           />
-          <button
-            type="button" className="btn btn-secondary"
+          <Button
+            icon
             aria-label={`remove stop ${i + 1}`}
-            disabled={stops.length <= MIN_STOPS}
-            onClick={() => onDiscrete(stops.filter((_, j) => j !== i))}
+            isDisabled={stops.length <= MIN_STOPS}
+            onPress={() => onDiscrete(stops.filter((_, j) => j !== i))}
           >
             <Icon icon={minusIcon} size="sm" />
-          </button>
+          </Button>
         </span>
       ))}
-      <button
-        type="button" className="btn btn-secondary"
-        disabled={stops.length >= MAX_STOPS}
-        onClick={() => onDiscrete(addStop(stops))}
-      >
+      <Button isDisabled={stops.length >= MAX_STOPS} onPress={() => onDiscrete(addStop(stops))}>
         + stop
-      </button>
+      </Button>
     </span>
   )
 }

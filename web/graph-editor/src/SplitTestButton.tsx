@@ -60,7 +60,6 @@ export function SplitTestButton({
       <button
         type="button"
         className="ui-button editor-split-main"
-        data-size="sm"
         onClick={main.onPress}
         disabled={main.off}
         aria-label={main.name}
@@ -73,7 +72,6 @@ export function SplitTestButton({
         <button
           type="button"
           className="ui-button editor-split-caret"
-          data-size="sm"
           aria-label="Test mode"
           aria-haspopup="menu"
           aria-expanded={open}

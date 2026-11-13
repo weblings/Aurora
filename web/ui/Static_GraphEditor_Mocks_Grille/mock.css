@@ -531,3 +531,20 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 /* Open path: titles cut off at 30ch like the editor's .editor-menu-title; the tooltip shows only when one is cut off. */
 .ge-item .s6-trunc { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ui-tooltip.s6-tip { position: fixed; z-index: 35; }
+
+.s6-summary-err { color: var(--ui-color-text-error); }
+.s6-summary-quiet { color: var(--ui-color-text-secondary); }
+.ge-problems .ui-icon[data-chevron] { color: var(--ui-color-text-default); margin-inline: -2px; }
+.s7-w { overflow: hidden; border: 1px dashed var(--ui-color-border-subtle); }
+.s7-compact .ge-bar { gap: var(--ui-size-space-xs); padding: 0 var(--ui-size-space-md); }
+.s7-compact .ge-sep { display: none; }
+.s7-compact .ge-title { max-width: 18ch; } /* editor.css .editor-title-menu at max-width 649px */
+.s7-compact .ge-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s7-compact .ge-title { min-width: 9ch; flex: 0 1 auto; }
+.s7-cnt { display: inline-flex; align-items: center; gap: 4px; }
+.s7-cnt-err { color: var(--ui-color-text-error); }
+.s7-dot { color: var(--ui-color-text-muted); margin: 0 2px; }
+.ge-title { min-width: 0; }
+.ge-title-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.s7-compact .ge-bar { overflow: hidden; }
+.s7-compact .ge-spacer { min-width: 0; }

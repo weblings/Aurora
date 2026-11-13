@@ -1,0 +1,15 @@
+/* Aurora-u8jx.11: button size frame. */
+.sz-table { border-collapse: collapse; margin: var(--ui-size-space-xl) 0; font-size: 12px; }
+.sz-table th, .sz-table td { padding: 8px 24px 8px 0; text-align: left; font-weight: 400; vertical-align: middle; color: var(--ui-color-text-default); }
+.sz-table th small { display: block; color: var(--ui-color-text-muted); margin-top: 2px; }
+.sz-h { font-variant-numeric: tabular-nums; color: var(--ui-color-text-secondary); }
+.sz-bars { display: grid; grid-template-columns: repeat(2, minmax(480px, 1fr)); gap: var(--ui-size-space-2xl); }
+.sz-bars figure { margin: 0; }
+.sz-bars figcaption { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--ui-size-space-md); font-size: 12px; color: var(--ui-color-text-secondary); line-height: 1.4; }
+.sz-bars figcaption b { font-size: 14px; color: var(--ui-color-text-default); }
+.sz-bar-h { font-variant-numeric: tabular-nums; color: var(--ui-color-text-default); }
+/* The bar: 8px above and below the buttons, 1px rule under. The dotted guides mark the 31px band the text buttons fill. */
+.sz-bar { position: relative; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--ui-color-border-default); background: var(--ui-color-surface-page); }
+.sz-bar::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 31px; pointer-events: none;
+  border-block: 1px dotted var(--ui-color-focus-ring); opacity: 0.7; }
+.sz-grow { flex: 1; }

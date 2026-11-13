@@ -38,13 +38,14 @@ await withEditorStack(async ({ editorUrl }) => {
     for (const name of ['Effect menu', 'Undo', 'Redo', 'Test on lights']) assert.equal(await page.locator('.editor-header').getByRole('button', { name }).count(), 1, name)
     step('one bar: Dashboard, title menu, status, Undo, Redo, Test on lights; no controls, minimap off')
 
-    // Grille bar (Aurora-s1t7.1): every bar control is a ui-button, 32 px tall, two dividers.
+    // Grille bar (Aurora-s1t7.1): every bar control is a ui-button, 31 px tall (Grille's default size, no data-size), two dividers.
     const bar = await page.locator('.editor-header > .ui-button, .editor-header > .editor-split > .ui-button').evaluateAll((els) => els.map((e) => ({ h: e.getBoundingClientRect().height, size: e.dataset.size, legacy: e.classList.contains('btn') })))
     assert.ok(bar.length >= 5, `bar buttons: ${bar.length}`)
-    for (const b of bar) assert.deepEqual(b, { h: 32, size: 'sm', legacy: false })
+    // Icon-only Undo and Redo are Grille's 31 px square (data-icon, dev.16), like the text buttons.
+    for (const b of bar) assert.deepEqual(b, { h: 31, size: undefined, legacy: false }, JSON.stringify(bar))
     assert.equal(await page.locator('.editor-header > .btn').count(), 0)
     assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
-    step('bar controls are Grille ui-buttons, 32 px tall, with two dividers')
+    step('bar controls are Grille ui-buttons, 31 px tall, with two dividers')
 
     // Title menu: file actions, then New and Open submenus; no Name field, no second menu.
     await openTitleMenu(page)
@@ -52,9 +53,9 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.getByRole('menu', { name: 'Open', exact: true }).count(), 0, 'the Open list is closed until asked for')
     const menuWidth = (await titleMenu(page).boundingBox()).width
     assert.ok(menuWidth < 280, `menu is narrower than the old 280 px (${menuWidth})`)
-    // Menu items pad like the bar's buttons (Aurora-u8jx.4.3): Grille's item is 12px wide, its small button 10px.
+    // Menu items pad like the bar's buttons (Aurora-u8jx.4.3): Grille's item is 12px wide, its default button 8px; editor.css sets the item to 8px.
     const sidePad = (loc) => loc.first().evaluate((e) => getComputedStyle(e).paddingLeft + ' ' + getComputedStyle(e).paddingRight)
-    assert.equal(await sidePad(titleMenu(page).getByRole('menuitem')), await sidePad(page.getByRole('button', { name: 'Undo' })), 'menu item side padding equals the bar button')
+    assert.equal(await sidePad(titleMenu(page).getByRole('menuitem')), await sidePad(page.locator('.editor-back')), 'menu item side padding equals the bar button')
     const open = page.getByRole('menuitem', { name: 'Open', exact: true })
     await open.hover()
     const list = page.getByRole('menu', { name: 'Open', exact: true })

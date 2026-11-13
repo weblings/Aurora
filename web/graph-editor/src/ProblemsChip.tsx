@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
-import { Dialog, Icon, warningIcon } from '@weblings/grille'
+import { Button, Dialog, Icon, warningIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
@@ -141,7 +141,6 @@ export function ProblemsChip({
           ref={chipRef}
           type="button"
           className="ui-button editor-problems-chip"
-          data-size="sm"
           data-pinging={pinging ? 'true' : undefined}
           aria-haspopup="dialog"
           aria-expanded={open}
@@ -189,16 +188,14 @@ export function ProblemsChip({
                   <strong>Whole graph</strong>
                   <span>{m}</span>
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
+                <Button
+                  onPress={() => {
                     close()
                     onAddNode()
                   }}
                 >
                   Add node…
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

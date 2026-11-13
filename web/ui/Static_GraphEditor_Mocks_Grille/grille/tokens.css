@@ -24,6 +24,9 @@
   --ui-color-primary-bg: #dadada;
   --ui-color-primary-bg-hover: #bebebe;
   --ui-color-primary-bg-active: #9c9c9c;
+  --ui-color-strong-bg: #8b8b8b;
+  --ui-color-strong-bg-hover: #7c7c7c;
+  --ui-color-strong-bg-active: #6c6c6c;
   --ui-color-popup-bg: #1a1a1a;
   --ui-color-popup-bg-hover: #2a2a2a;
   --ui-color-popup-border: #333333;
@@ -31,6 +34,7 @@
   --ui-shadow-popup: 0 4px 16px rgba(0, 0, 0, 0.5);
   --ui-size-focus-ring-width: 2px;
   --ui-size-focus-ring-offset: 2px;
+  --ui-size-radius-xs: 5px;
   --ui-size-radius-sm: 6px;
   --ui-size-radius-md: 8px;
   --ui-size-radius-pill: 20px;
@@ -51,7 +55,9 @@
   --ui-size-callout-pad-x: 16px;
   --ui-size-callout-pad-y: 12px;
   --ui-size-tab-pad-x: 20px;
-  --ui-size-button-pad-x: 14px;
+  --ui-size-button-action-width: 150px;
+  --ui-size-button-action-height: 36px;
+  --ui-size-button-icon-size: 31px;
   --ui-size-icon: 16px;
   --ui-size-icon-sm: 12px;
   --ui-size-icon-overhang: 4px;

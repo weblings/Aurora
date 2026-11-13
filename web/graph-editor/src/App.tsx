@@ -742,7 +742,7 @@ export function App() {
         onStopTest={() => void host.stopTest()}
       />
       <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
-        <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
+        <a className="ui-button editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <Icon icon={arrowLeftIcon} size="sm" />
           {tightBar ? null : 'Dashboard'}
         </a>
@@ -750,7 +750,7 @@ export function App() {
         <button
           ref={titleMenuTrigger}
           type="button"
-          className="ui-button editor-title-menu" data-size="sm"
+          className="ui-button editor-title-menu"
           aria-label={dirty ? `Effect menu, ${UNSAVED_TEXT}` : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
@@ -824,7 +824,7 @@ export function App() {
         />
         <Hint text="Undo (Ctrl/Cmd+Z)" placement="bottom">
           <button
-            type="button" className="ui-button" data-size="sm"
+            type="button" className="ui-button" data-icon
             onClick={undo}
             disabled={past.length === 0}
             aria-label="Undo"
@@ -834,7 +834,7 @@ export function App() {
         </Hint>
         <Hint text="Redo (Shift+Ctrl/Cmd+Z)" placement="bottom">
           <button
-            type="button" className="ui-button" data-size="sm"
+            type="button" className="ui-button" data-icon
             onClick={redo}
             disabled={future.length === 0}
             aria-label="Redo"
@@ -911,7 +911,7 @@ export function App() {
                 <button
                   ref={addMenuTrigger}
                   type="button"
-                  className="ui-button editor-add-node" data-size="sm"
+                  className="ui-button editor-add-node"
                   aria-label="Add node"
                   aria-haspopup="dialog"
                   aria-expanded={addMenuOpen}
@@ -925,7 +925,7 @@ export function App() {
             <Panel position="bottom-right">
               <button
                 type="button"
-                className="ui-button" data-size="sm"
+                className="ui-button"
                 aria-haspopup="dialog"
                 aria-expanded={drawer === 'controls'}
                 disabled={!doc}

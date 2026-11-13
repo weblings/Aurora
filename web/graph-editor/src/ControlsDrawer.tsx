@@ -1,4 +1,4 @@
-import { Drawer, Icon, arrowDownIcon, arrowUpIcon, xMarkIcon } from '@weblings/grille'
+import { Button, Drawer, Icon, arrowDownIcon, arrowUpIcon, xMarkIcon } from '@weblings/grille'
 import { controlsOf, moveControl, removeControl } from './graph/controls'
 import type { Catalog, GraphDoc } from './graph/types'
 
@@ -30,21 +30,20 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit 
               <span>
                 {titleOf(c.node)} · {c.param}
               </span>
-              <button type="button" className="btn btn-secondary" aria-label={`Move ${c.param} up`} disabled={i === 0} onClick={() => edit((d) => moveControl(d, i, -1))}>
+              <Button icon aria-label={`Move ${c.param} up`} isDisabled={i === 0} onPress={() => edit((d) => moveControl(d, i, -1))}>
                 <Icon icon={arrowUpIcon} size="sm" />
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
+              </Button>
+              <Button
+                icon
                 aria-label={`Move ${c.param} down`}
-                disabled={i === controls.length - 1}
-                onClick={() => edit((d) => moveControl(d, i, 1))}
+                isDisabled={i === controls.length - 1}
+                onPress={() => edit((d) => moveControl(d, i, 1))}
               >
                 <Icon icon={arrowDownIcon} size="sm" />
-              </button>
-              <button type="button" className="btn btn-secondary" aria-label={`Remove ${c.param} from the Dashboard`} onClick={() => edit((d) => removeControl(d, i))}>
+              </Button>
+              <Button icon aria-label={`Remove ${c.param} from the Dashboard`} onPress={() => edit((d) => removeControl(d, i))}>
                 <Icon icon={xMarkIcon} size="sm" />
-              </button>
+              </Button>
             </div>
             <div className="drawer-control-summary">
               {[c.label, c.section].filter((t) => typeof t === 'string' && t).join(' · ') || 'No label'}

@@ -112,17 +112,13 @@ body {
   color: var(--aurora-text-secondary);
 }
 
-/* Aurora component styles (Aurora-daaa.2): forms.css supplies .btn, .text-input
-   and .slider-input; these rules only size them for the editor's dense panels. */
+/* Aurora component styles (Aurora-daaa.2): forms.css supplies .text-input and
+   .slider-input (and the shell's .btn, which ErrorShell keeps for markup parity with
+   web/ui/shell.js); these rules only size them for the editor's dense panels. */
 button,
 input,
 select {
   font-family: inherit;
-}
-
-.editor .btn {
-  padding: var(--aurora-space-1) var(--aurora-space-3);
-  font-size: 12px;
 }
 
 .editor .text-input {
@@ -521,9 +517,8 @@ button.editor-problem-row:hover {
 }
 
 /* Bar menus, one block (Aurora-u8jx.4.3).
-   Padding: a bar button (data-size="sm") pads 6px 10px (space-sm, space-lg); Grille's
-   .ui-menu-item pads 6px 12px (space-sm, control-pad-x), so item text sat 2px further in
-   than the bar's labels. Grille gap: its menu item has no size that matches its small
+   Padding: a bar button pads 8px (space-md); Grille's .ui-menu-item pads 6px 12px
+   (space-sm, control-pad-x), so item text sat 4px further in than the bar's labels. Grille gap: its menu item has no size that matches its small
    buttons; fixed here, for every menu popover (title, Test, View, Add node, their submenus).
    Motion: the Test menu is anchored to the right ("bottom end"). A popover is absolutely
    positioned, so its shrink-to-fit width is capped by the room to its right; React Aria
@@ -532,7 +527,7 @@ button.editor-problem-row:hover {
    from the right over ~5 frames. Grille has no popover animation. Sizing the box to its
    content makes the width independent of the left edge, so it opens in one frame. */
 .ui-popover .ui-menu-item {
-  padding-inline: var(--ui-size-space-lg);
+  padding-inline: var(--ui-size-space-md);
 }
 
 .editor-test-popup {
@@ -729,12 +724,8 @@ button.editor-problem-row:hover {
   flex: none;
 }
 
-/* Every bar control is one fixed 32 px (the Grille mock), whatever its padding or icon. */
+/* Bar controls are Grille's default 31 px button (Aurora-u8jx.11); only the no-wrap is ours. */
 .editor-header .ui-button {
-  box-sizing: border-box;
-  height: 32px;
-  padding-block: 0;
-  gap: var(--aurora-space-2);
   white-space: nowrap;
 }
 

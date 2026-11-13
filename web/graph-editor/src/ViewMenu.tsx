@@ -24,7 +24,7 @@ export function ViewMenu({ minimap, onMinimap }: { minimap: boolean; onMinimap: 
       <button
         ref={trigger}
         type="button"
-        className="btn btn-secondary editor-view-menu"
+        className="ui-button editor-view-menu"
         aria-label="View menu"
         aria-haspopup="menu"
         aria-expanded={open}
