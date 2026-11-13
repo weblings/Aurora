@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
+import { baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, pairingAccessText, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
 import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
 import type { HostCondition, HostError } from './graph/hostState'
 import type { Holder } from './graph/lightTest'
+import type { PairingRequest } from './useHostState'
 
 // The Dashboard's error shell as a React component (Aurora-s1t7.9): the markup and classes of
 // web/ui/shell.js and styles/shell.css, so the two pages read as one. It fetches nothing: rows
@@ -23,6 +24,9 @@ export type ShellBannerProps = {
   notes?: string[]
   // Another session's running light test, or null.
   lightTest: ShellLightTest | null
+  // Pending LAN pairing requests, from GET /api/pairing/pending while this browser can approve them.
+  pairings?: PairingRequest[]
+  onDecidePairing?: (ref: string, decision: 'approve' | 'deny') => void
   // The row keys the user collapsed over, or null for open (shellRows.js isCollapsed).
   snapshot: string[] | null
   onSnapshotChange: (snapshot: string[] | null) => void
@@ -128,11 +132,50 @@ function LightTestRow({ rowKey, lightTest, onStopTest }: { rowKey: string; light
   )
 }
 
+function PairingRowView({ rowKey, request, onDecide }: { rowKey: string; request: PairingRequest; onDecide: (ref: string, decision: 'approve' | 'deny') => void }) {
+  const access = pairingAccessText(request.scope ?? '')
+  return (
+    <div className="shell-banner-row" data-key={rowKey}>
+      <div className="shell-banner-content">
+        <p className="status-text shell-pairing-title">
+          <span className="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device with Aurora?
+        </p>
+        <ul className="shell-pairing-details">
+          <li>
+            <span className="shell-pairing-label">Device:</span> {request.name ?? ''}
+          </li>
+          {request.from ? (
+            <li>
+              <span className="shell-pairing-label">From:</span> {request.from}
+            </li>
+          ) : null}
+          {access ? (
+            <li>
+              <span className="shell-pairing-label">Access:</span> {access}
+            </li>
+          ) : null}
+          <li>
+            <span className="shell-pairing-label">Code:</span> <strong className="shell-pairing-code">{request.code ?? ''}</strong>. Approve only if the device shows the same code.
+          </li>
+        </ul>
+        <div className="shell-banner-actions">
+          <button type="button" className="btn btn-primary" id={`shell-pairing-approve-${request.ref}`} data-action="approve" data-key={rowKey} onClick={() => onDecide(request.ref, 'approve')}>
+            Approve
+          </button>
+          <button type="button" className="btn btn-secondary" id={`shell-pairing-deny-${request.ref}`} data-action="deny" data-key={rowKey} onClick={() => onDecide(request.ref, 'deny')}>
+            Deny
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // The rows, or nothing when there is nothing to say. Order, keys and the collapse (one toggle button for
 // the whole shell, collapsed while the keys match the stored snapshot) are shellRows.js's.
 export function ShellBanner(props: ShellBannerProps) {
-  const { conditions, errors, notes = [], lightTest, snapshot, onSnapshotChange } = props
-  const ordered = orderRows({ conditions, errors, notes, lightTest })
+  const { conditions, errors, notes = [], lightTest, pairings = [], snapshot, onSnapshotChange } = props
+  const ordered = orderRows({ conditions, errors, notes, lightTest, pairings })
   const rows: Row[] = layoutRows(ordered, snapshot)
   if (rows.length === 0) return null
   return (
@@ -142,6 +185,8 @@ export function ShellBanner(props: ShellBannerProps) {
           switch (row.kind) {
             case 'light-test':
               return <LightTestRow key={row.key} rowKey={row.key} lightTest={lightTest as ShellLightTest} onStopTest={props.onStopTest} />
+            case 'pairing':
+              return <PairingRowView key={row.key} rowKey={row.key} request={row.request as PairingRequest} onDecide={props.onDecidePairing ?? (() => {})} />
             case 'condition':
               return <ConditionRow key={row.key} rowKey={row.key} condition={row.condition as HostCondition} />
             case 'error':
@@ -194,8 +239,9 @@ export function ShellBanner(props: ShellBannerProps) {
 export type ErrorShellProps = Omit<ShellBannerProps, 'snapshot' | 'onSnapshotChange'> & {
   // Aurora cannot be reached: the full-screen takeover replaces every row.
   unreachable: boolean
-  // False until the first GET /api/state reply, and again while the takeover is up. The shell draws
-  // nothing before it; the first reply (and the first after the takeover) sets the baseline.
+  // False until the first GET /api/state reply, the canApprove answer and the first pending-pairing
+  // result are in, and again while the takeover is up (useHostState). The shell draws nothing before
+  // it; this turning true (the first time, and the first after the takeover) sets the baseline.
   hasReplied: boolean
 }
 
@@ -205,7 +251,7 @@ export type ErrorShellProps = Omit<ShellBannerProps, 'snapshot' | 'onSnapshotCha
 export function ErrorShell({ unreachable, hasReplied, ...props }: ErrorShellProps) {
   const [snapshot, setSnapshot] = useState<string[] | null>(null)
   const [seeded, setSeeded] = useState(false)
-  const rows = orderRows({ conditions: props.conditions, errors: props.errors, notes: props.notes ?? [], lightTest: props.lightTest })
+  const rows = orderRows({ conditions: props.conditions, errors: props.errors, notes: props.notes ?? [], lightTest: props.lightTest, pairings: props.pairings ?? [] })
   // Adjusting state during render, the way React documents for state derived from props.
   if (hasReplied !== seeded) {
     setSeeded(hasReplied)

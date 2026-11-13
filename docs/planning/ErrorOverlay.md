@@ -184,9 +184,8 @@ One sticky element mounted by the app shell, not by any screen:
 - **Rows**: one generic row template for every error (message plus
   whatever `action` it carries, Retry, Open Settings, or none, never
   per-source markup). One row model draws both pages (`web/ui/shellRows.js`,
-  `Aurora-9hqa.1`, [[9hqa1-shell-row-model]]): order is pairing requests
-  (above the shell, outside the collapse until `Aurora-9hqa.4`), the light
-  test, conditions as sent, host errors newest `id`
+  `Aurora-9hqa.1`, [[9hqa1-shell-row-model]]): order is the notices (the
+  light test, then pairing requests), conditions as sent, host errors newest `id`
   first, then the page's own notes; a row's key is source + message (light
   test: holder + Live/Once; pairing: ref). The Dashboard patches rows by key
   each poll (`shellPatch.js`), so keyboard focus on Retry, Dismiss and Stop
@@ -205,8 +204,15 @@ One sticky element mounted by the app shell, not by any screen:
   dropped, so once re-opened it stays open even if the new row leaves; when
   the rows clear the state resets. Conditions, host errors and the page's own
   notes count as errors (red circled-exclamation); the light-test row counts
-  as a notice (default-colour circled-info), and open rows carry the same
-  marks. The marks are CSS-mask SVGs (`web/ui/icons/circled-*.svg`, Grille's
+  and pairing requests count as notices (default-colour circled-info), and
+  open rows carry the same marks. Pairing requests (`Aurora-9hqa.4`,
+  [[9hqa4-shell-pairing]]) are ordinary rows inside the collapse on both
+  pages, with Approve and Deny; the editor reads `/api/pairing/status` and the
+  pending list with its beat, as the Dashboard does. The baseline waits for the
+  first `/api/state` reply, the `canApprove` answer and (when this browser can
+  approve) the first pending result, so requests already pending at load are
+  baseline, not arrivals; a browser that cannot approve waits on nothing. A
+  request the user collapses can lapse (5 minutes): accepted. The marks are CSS-mask SVGs (`web/ui/icons/circled-*.svg`, Grille's
   paths). How rows start
   (`Aurora-u8jx.12`, option B, decided 2026-11-13): on page load, meaning
   the first `/api/state` reply (recovery from the "Aurora has stopped"

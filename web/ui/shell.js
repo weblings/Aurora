@@ -1,4 +1,4 @@
-import { baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
+import { baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
 import { applyPatch } from './shellPatch.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -105,9 +105,12 @@ export class App {
     // until then, which just means a Mac permission row renders generic
     // (Retry, not Open Settings) for the few seconds before that happens.
     this.platform = '';
-    // Set by app.js from GET /api/pairing/status: true on loopback or a paired admin.
+    // Set by app.js from GET /api/pairing/status: true on loopback or a paired admin. app.js starts
+    // it at null (not read yet), which holds the collapse baseline back (Aurora-9hqa.4); the default
+    // here is false so a page with no status read has nothing to wait for.
     this.canApprove = false;
     this.pendingPairings = []; // [{ref, name, scope, code}]
+    this._pendingLoaded = false; // the first pending-pairing result is in (a failed read counts, so the baseline cannot hang)
     // Fired after an approval, so an open Dashboard refreshes its device list.
     this.onPairedDevicesChanged = null;
     this._fetchStatus = fetchStatus;
@@ -123,10 +126,12 @@ export class App {
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
     // Collapse state (Aurora-u8jx.5): the row keys the user collapsed over, or null for open. Memory
-    // only. _hasReplied is false until the first /api/state reply and again after the takeover, so
-    // the baseline is taken once per page load and once per recovery.
+    // only. The baseline (2+ rows collapsed, a lone row open) is taken once per page load and once per
+    // recovery, when the first /api/state reply, the canApprove answer and (if it can approve) the
+    // first pending-pairing result are all in (shellRows.js baselineReady). Nothing is drawn before.
     this._collapsed = null;
-    this._hasReplied = false;
+    this._stateReplied = false;
+    this._baselined = false;
     this.lightTestLive = false; // a running light test with no deadline
     this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
     this.lightTestHolder = null; // {session, client} of the running light test, from /api/state test.holder
@@ -245,8 +250,15 @@ export class App {
     try {
       this.pendingPairings = await this._fetchPending();
     } catch {
+      // Keep the last list. The first read still counts for the baseline, so a broken route cannot
+      // hold the whole shell back.
+      this._pendingLoaded = true;
+      this._maybeBaseline();
+      this._renderBanner();
       return;
     }
+    this._pendingLoaded = true;
+    this._maybeBaseline();
     this._renderBanner();
   }
 
@@ -271,14 +283,28 @@ export class App {
     this.lightTestHolder = testing && result.test.holder && typeof result.test.holder === 'object' ? result.test.holder : null;
     const remainingMs = testing && !this.lightTestLive ? Number(result.test.confirmRemainingMs) : NaN;
     this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
-    // The first reply (and the first after the takeover) is the baseline: two or more rows start
-    // collapsed, a lone row open.
-    if (!this._hasReplied) {
-      this._hasReplied = true;
-      this._collapsed = baselineSnapshot(orderRows(this._bannerInput()));
-    }
+    this._stateReplied = true;
+    this._maybeBaseline();
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
+  }
+
+  // The first reply (and the first after the takeover) is the baseline, once everything it counts is in.
+  _maybeBaseline() {
+    if (this._baselined) return;
+    if (!baselineReady({ stateReplied: this._stateReplied, canApprove: this.canApprove, pendingLoaded: this._pendingLoaded })) return;
+    this._baselined = true;
+    this._collapsed = baselineSnapshot(orderRows(this._bannerInput()));
+  }
+
+  // app.js calls this after reading /api/pairing/status, which may land after the first poll.
+  setCanApprove(canApprove) {
+    this.canApprove = canApprove;
+    if (canApprove) void this._refreshPending();
+    else {
+      this._maybeBaseline();
+      this._renderBanner();
+    }
   }
 
   _handleUnreachable() {
@@ -309,11 +335,13 @@ export class App {
     this.hostErrors = [];
     this.hostConditions = [];
     this.pendingPairings = [];
+    this._pendingLoaded = false;
     this.lightTestEndsAt = null;
     this.lightTestLive = false;
     this.lightTestHolder = null;
     this._collapsed = null;
-    this._hasReplied = false;
+    this._stateReplied = false;
+    this._baselined = false;
     this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
@@ -354,7 +382,6 @@ export class App {
     return {
       conditions: this.hostConditions,
       errors: this._visibleErrors(),
-      // Pairing requests wait on a click, so they stay above the shell, outside the collapse.
       pairings: this.pendingPairings,
       lightTest: testing ? { holder: this.lightTestHolder, endsAtMs: this.lightTestLive ? null : this.lightTestEndsAt } : null,
     };
@@ -362,8 +389,8 @@ export class App {
 
   _bannerRowList() {
     const input = this._bannerInput();
-    // Nothing is drawn before the first reply; after it, a snapshot the rows no longer match is dropped.
-    if (!this._hasReplied) return [];
+    // Nothing is drawn before the baseline; after it, a snapshot the rows no longer match is dropped.
+    if (!this._baselined) return [];
     this._collapsed = reconcileSnapshot(orderRows(input), this._collapsed);
     return bannerRows(input, { snapshot: this._collapsed, hostState: this.hostState, platform: this.platform });
   }

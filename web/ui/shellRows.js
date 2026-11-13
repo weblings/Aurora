@@ -90,11 +90,20 @@ export function orderRows({ conditions = [], errors = [], notes = [], lightTest 
   return uniqueKeys(rows);
 }
 
-// What the collapse covers (Aurora-u8jx.5). Pairing requests stay above the shell and outside it
-// (each waits on a click) until Aurora-9hqa.4. Everything else folds as one: the light test is a
-// notice; conditions, host errors and the page's own notes are errors.
-const isCollapsible = (row) => row.kind !== 'pairing';
-const isNotice = (row) => row.kind === 'light-test';
+// What the collapse covers (Aurora-u8jx.5, Aurora-9hqa.4): every row folds as one. The light test
+// and pairing requests are notices; conditions, host errors and the page's own notes are errors.
+// A request the user collapses can still lapse (5 minutes): accepted by the owner.
+const isCollapsible = (row) => row.kind !== 'toggle';
+const isNotice = (row) => row.kind === 'light-test' || row.kind === 'pairing';
+
+// Whether the collapse baseline can be taken (Aurora-9hqa.4). It waits for the first /api/state
+// reply, for the answer to whether this browser can approve pairings (canApprove: null while the
+// /api/pairing/status read is out), and, when it can, for the first pending-pairing result; else
+// requests already pending at load would read as arrivals and open the shell. A browser that
+// cannot approve has no pending result to wait for.
+export function baselineReady({ stateReplied, canApprove, pendingLoaded }) {
+  return Boolean(stateReplied) && canApprove !== null && canApprove !== undefined && (canApprove === false || Boolean(pendingLoaded));
+}
 
 // The keys of the rows the collapse covers, in drawn order.
 export function collapsibleKeys(rows) {
@@ -127,9 +136,8 @@ export function baselineSnapshot(rows) {
   return keys.length >= 2 ? keys : null;
 }
 
-// The rows as drawn: pairing requests, then either the collapsed bar alone or every row plus the
-// same toggle (label swapped to Show less). A lone row can collapse too, so any collapsible row
-// brings the toggle.
+// The rows as drawn: either the collapsed bar alone or every row plus the same toggle (label
+// swapped to Show less). A lone row can collapse too, so any row brings the toggle.
 /**
  * @param {Array<Record<string, any>>} rows
  * @param {string[] | null} snapshot
@@ -137,12 +145,11 @@ export function baselineSnapshot(rows) {
  */
 export function layoutRows(rows, snapshot) {
   const covered = rows.filter(isCollapsible);
-  const pairings = rows.filter((row) => !isCollapsible(row));
-  if (covered.length === 0) return pairings;
+  if (covered.length === 0) return [];
   const collapsed = isCollapsed(rows, snapshot);
   const notices = covered.filter(isNotice).length;
   const toggle = { kind: 'toggle', key: 'toggle', collapsed, notices, errors: covered.length - notices };
-  return collapsed ? [...pairings, toggle] : [...pairings, ...covered, toggle];
+  return collapsed ? [toggle] : [...covered, toggle];
 }
 
 // The marks: Grille's circled-exclamation (errors, error red) and circled-info (notices, default
@@ -174,13 +181,18 @@ export function permissionRowHtml(error, platform, key) {
 
 // A pairing request's access line: browsers ask for admin and read as before; below admin is an
 // agent token (aurora-mcp --pair), so the approver sees what it can do.
-function pairingAccess(scope) {
+export function pairingAccessText(scope) {
   const access = {
     read: 'View only.',
     draft: 'Edit drafts, not the lights.',
     apply: 'Change effects and test on the lights, not settings.',
   }[scope];
-  return access ? `<li><span class="shell-pairing-label">Access:</span> ${scope[0].toUpperCase()}${scope.slice(1)}. ${access}</li>` : '';
+  return access ? `${scope[0].toUpperCase()}${scope.slice(1)}. ${access}` : '';
+}
+
+function pairingAccess(scope) {
+  const text = pairingAccessText(scope);
+  return text ? `<li><span class="shell-pairing-label">Access:</span> ${text}</li>` : '';
 }
 
 // One row's html. Its root element carries data-key; its buttons carry data-action and data-key.
@@ -204,7 +216,7 @@ export function renderRow(row, { hostState = null, platform = '', nowMs = Date.n
       const ref = escapeHtml(request.ref);
       // The code is the user's check that the request is their own device.
       return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">Pair a device with Aurora?</p>
+      <p class="status-text shell-pairing-title">${INFO_MARK} Pair a device with Aurora?</p>
       <ul class="shell-pairing-details">
         <li><span class="shell-pairing-label">Device:</span> ${escapeHtml(request.name ?? '')}</li>
         ${request.from ? `<li><span class="shell-pairing-label">From:</span> ${escapeHtml(request.from)}</li>` : ''}

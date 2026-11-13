@@ -738,6 +738,8 @@ export function App() {
         errors={host.host.errors}
         notes={shellNotes}
         lightTest={otherLightTest}
+        pairings={host.pairings}
+        onDecidePairing={(ref, decision) => void host.decidePairing(ref, decision)}
         onRetry={(source) => void host.retry(source)}
         onDismiss={(error) => void host.dismiss(error)}
         onStopTest={() => void host.stopTest()}

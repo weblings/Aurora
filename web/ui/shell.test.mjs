@@ -632,7 +632,8 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
 }
 
 // Pairing requests (Aurora-5ipy.6): polled only while this browser can
-// approve, shown with name and code above any problem, never collapsed.
+// approve, shown with name and code above any problem. Since Aurora-9hqa.4 they are notices inside
+// the collapse: a request that arrives re-opens the shell, one pending at load is baseline.
 {
   const pendingCalls = [];
   const fetchPending = async () => { pendingCalls.push(1); return [{ ref: 'r1', name: '<Phone>', scope: 'admin', code: 'K7Q2X' }]; };
@@ -648,10 +649,64 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.ok(banner().includes('&lt;Phone&gt;'), 'name escaped');
   assert.ok(banner().includes('K7Q2X'), 'code shown');
   assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
-  assert.ok(banner().includes('2 errors'), 'problems still collapse beside the request');
-  assert.ok(banner().indexOf('K7Q2X') < banner().indexOf('shell-banner-toggle'), 'the request stays above the shell');
+  assert.ok(!banner().includes('2 errors') && banner().includes('aria-expanded="true"'), 'a request that arrives re-opens the collapsed shell');
+  assert.ok(banner().indexOf('K7Q2X') < banner().indexOf('shell-banner-toggle'), 'the request is a row above the toggle');
+  assert.ok(banner().includes('shell-pairing-title"><span class="shell-mark shell-mark-info"'), 'a notice: circled-info');
   assert.ok(!banner().includes('Access:'), 'a browser (admin) request has no access line');
   assert.ok(banner().includes('Device:</span> &lt;Phone&gt;') && !banner().includes('From:'), 'no From line without an address');
+  press(app, 'toggle', 'shell-banner-toggle');
+  assert.ok(banner().includes('1 notice') && banner().includes('2 errors') && !banner().includes('K7Q2X'), 'collapsed: the request counts as a notice');
+  uninstallDom();
+}
+
+// The baseline waits for the first pending result (Aurora-9hqa.4), so requests already pending at
+// load are baseline: 2+ rows start collapsed and nothing reads as an arrival.
+{
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const fetchPending = async () => { await gate; return [{ ref: 'r1', name: 'Phone', scope: 'admin', code: 'K7Q2X' }]; };
+  const { app, banner } = makeApp(stateOk({ errors: [{ source: 'reload', message: 'a', id: 1 }] }), { fetchPending });
+  app.canApprove = null; // app.js: /api/pairing/status not read yet
+  app.navigate(blankScreen(), 'dashboard');
+  await app._pollOnce();
+  assert.equal(banner(), '', 'nothing is drawn while canApprove is unknown');
+  app.setCanApprove(true);
+  await sleep(0);
+  assert.equal(banner(), '', 'nor while the first pending result is out');
+  release();
+  await sleep(0);
+  await sleep(0);
+  assert.ok(banner().includes('1 notice') && banner().includes('1 error') && banner().includes('aria-expanded="false"'), 'a pending request at load starts collapsed with the error');
+  assert.ok(!banner().includes('K7Q2X'));
+  await app._pollOnce();
+  await sleep(0);
+  assert.ok(banner().includes('aria-expanded="false"'), 'the next poll does not re-open');
+  // Recovery takes a new baseline the same way.
+  app._showTakeover('unreachable');
+  assert.equal(app._baselined, false);
+  await app._pollOnce();
+  await sleep(0);
+  await sleep(0);
+  assert.ok(banner().includes('aria-expanded="false"') && banner().includes('1 notice'), 'after recovery the pending request is baseline again');
+  uninstallDom();
+}
+
+// A browser that cannot approve has no pending result to wait for; a failed first read does not hold the shell back.
+{
+  const { app, banner } = makeApp(stateOk({ errors: [{ source: 'reload', message: 'a', id: 1 }, { source: 'startup', message: 'b', id: 2 }] }));
+  app.canApprove = null;
+  app.currentRouteId = 'dashboard';
+  await app._pollOnce();
+  assert.equal(banner(), '');
+  app.setCanApprove(false);
+  assert.ok(banner().includes('2 errors'), 'canApprove false: the baseline is taken at once');
+  uninstallDom();
+  const failing = makeApp(stateOk({ errors: [{ source: 'reload', message: 'a', id: 1 }] }), { fetchPending: async () => { throw new Error('boom'); } });
+  failing.app.canApprove = true;
+  failing.app.currentRouteId = 'dashboard';
+  await failing.app._pollOnce();
+  await sleep(0);
+  assert.ok(failing.banner().includes('shell-banner-row'), 'a failed pending read still lets the shell draw');
   uninstallDom();
 }
 
@@ -699,7 +754,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
-// Rows run pairing requests (above the shell), the light test, then conditions as sent, then
+// Rows run the light test, pairing requests, then conditions as sent, then
 // errors newest id first; every button names its action and its row's key (Aurora-9hqa.1).
 {
   const { app, banner } = makeApp(stateOk({
@@ -709,10 +764,10 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   }), { fetchPending: async () => [{ ref: 'r1', name: 'Phone', code: 'K7Q2X' }] });
   app.canApprove = true;
   app.currentRouteId = 'dashboard';
-  app._hasReplied = true; // skip the baseline: start open
+  app._baselined = true; // skip the baseline: start open
   await app._pollOnce();
   await sleep(0);
-  assert.deepEqual(app._rows.map((row) => row.kind), ['pairing', 'light-test', 'condition', 'error', 'error', 'toggle']);
+  assert.deepEqual(app._rows.map((row) => row.kind), ['light-test', 'pairing', 'condition', 'error', 'error', 'toggle']);
   assert.deepEqual(app._rows.filter((row) => row.kind === 'error').map((row) => row.error.message), ['new', 'old']);
   assert.ok(/data-action="stop-test" data-key="test:s:live"/.test(banner()), 'buttons carry data-action and data-key');
   assert.ok(banner().includes('data-action="approve" data-key="pairing:r1"'));

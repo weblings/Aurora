@@ -4,11 +4,15 @@
 // editor-supplied draft rows by the PUT's error code. Aurora-u8jx.5: the shell collapses as one
 // (one toggle button, counts or Show less): 2+ rows at load start collapsed, a lone row open and
 // collapsible, an arrival or a changed message re-opens, the light-test countdown does not, and the
-// takeover's recovery is a new baseline. `SHOTS=<dir>` saves screenshots of the set (also at 400 wide).
+// takeover's recovery is a new baseline. Aurora-9hqa.4: LAN pairing requests (real ones, raised with
+// POST /api/pairing/request) are notices in the editor's shell too: one already pending at load is
+// baseline (no re-open; with another row it starts collapsed), one arriving re-opens a collapsed
+// shell, and Approve and Deny reach the server and the row goes. `SHOTS=<dir>` saves screenshots of the set (also at 400 wide).
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
 import { makeEdit } from '../lib/editorMenu.mjs'
+import { pairingApi } from '../lib/pairing.mjs'
 
 // The dev-only /api/dev/errors routes need this in the app's environment.
 process.env.AURORA_DEV_ERRORS = '1'
@@ -43,6 +47,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
   const testButton = () => page.getByRole('button', { name: 'Test on lights' })
   const session = () => page.evaluate(() => sessionStorage.getItem('aurora.graphEditor.session'))
   const errors = async () => (await api('GET', '/api/state')).json.errors ?? []
+  const pairing = pairingApi(aurora)
   const original = (await api('GET', '/api/config')).json.activeEffectId
 
   try {
@@ -140,6 +145,84 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
     assert.equal(await toggle().count(), 0, 'no rows, no toggle: the state resets')
     step('dismiss posts /api/state/dismiss and the Dashboard shows the same remaining row')
+
+    // Pairing requests (Aurora-9hqa.4). Real ones: POST /api/pairing/request is open to any caller.
+    const reqRow = (r) => slot.locator('.shell-banner-row', { has: page.locator(`#shell-pairing-approve-${r.ref}`) })
+    const waitRowGone = (r) => page.waitForFunction((id) => !document.getElementById(id), `shell-pairing-approve-${r.ref}`, { timeout: 8000 })
+    const loaded = await pairing.raise('load')
+    await api('POST', '/api/dev/errors', { source: 'dev-1', message: 'simulated error one' })
+    await page.reload()
+    await page.waitForSelector('.aurora-node')
+    // Already pending at load, with another row: baseline, so 2 rows start collapsed and nothing re-opens.
+    await expectCollapsed('1 notice 1 error')
+    assert.equal(await rows.count(), 0)
+    assert.equal(await markColor(toggle().locator('.shell-mark-info')), WHITE, 'the request counts under the default-colour circled-info')
+    await shot('p-collapsed')
+    await page.setViewportSize({ width: 400, height: 800 })
+    assert.ok((await slot.evaluate((el) => el.scrollWidth - el.clientWidth)) <= 0, 'the collapsed bar fits at 400 wide')
+    await shot('p-collapsed-400')
+    await page.setViewportSize({ width: 1470, height: 900 })
+    await page.waitForTimeout(7000)
+    await expectCollapsed('1 notice 1 error')
+    step('a request already pending at load is baseline: it starts collapsed with the error and polls never re-open it')
+
+    // Open it: the row carries the code the requester holds, a circled-info and both buttons.
+    await toggle().click()
+    await expectOpen()
+    assert.equal(await rows.count(), 2)
+    assert.match((await rows.first().innerText()).trim(), /^Pair a device with Aurora\?/, 'notices first, above the error')
+    const loadRow = reqRow(loaded)
+    assert.match(await loadRow.innerText(), new RegExp(`Device: ${loaded.name}`))
+    assert.match(await loadRow.innerText(), new RegExp(`Code: ${loaded.code}`), "the row shows the requester's code")
+    assert.match(await loadRow.innerText(), /Access: Read\. View only\./)
+    assert.equal(await markColor(loadRow.locator('.shell-mark-info')), WHITE)
+    await shot('p-open')
+    await page.setViewportSize({ width: 400, height: 800 })
+    assert.ok((await slot.evaluate((el) => el.scrollWidth - el.clientWidth)) <= 0, 'the open request fits at 400 wide')
+    await shot('p-open-400')
+    await page.setViewportSize({ width: 1470, height: 900 })
+    step('an open request row names the device, code and access, notices above errors')
+
+    // Collapsed again, a new request arrives while this tab sits in the editor: it re-opens.
+    await toggle().click()
+    await expectCollapsed('1 notice 1 error')
+    const arrived = await pairing.raise('arrive')
+    await reqRow(arrived).waitFor({ timeout: 8000 })
+    await expectOpen()
+    assert.equal(await rows.count(), 3)
+    await toggle().click()
+    await expectCollapsed('2 notices 1 error')
+    step('a request arriving in the editor re-opens the collapsed shell; the bar counts "2 notices 1 error"')
+
+    // Approve and Deny reach the server; the row goes after the re-read.
+    await toggle().click()
+    await expectOpen()
+    await page.locator(`#shell-pairing-approve-${arrived.ref}`).click()
+    await waitRowGone(arrived)
+    const approved = await pairing.outcome(arrived.pollKey)
+    assert.equal(approved.status, 200, 'the server approved it')
+    assert.equal(approved.json.state, 'approved')
+    assert.ok((await pairing.call('GET', '/api/pairing/devices')).json.devices.some((d) => d.name === arrived.name), 'a paired device was made')
+    await page.locator(`#shell-pairing-deny-${loaded.ref}`).click()
+    await waitRowGone(loaded)
+    assert.equal((await pairing.outcome(loaded.pollKey)).status, 403, 'the server denied it')
+    assert.equal((await pairing.pending()).filter((p) => p.name.startsWith('bc-9hqa4')).length, 0, 'nothing left pending')
+    assert.equal(await rows.count(), 1, 'only the error row remains')
+    await pairing.cleanup()
+    await api('POST', '/api/dev/errors/remove', { source: 'dev-1' })
+    await rows.first().waitFor({ state: 'detached', timeout: 8000 })
+    step('Approve and Deny from the editor reach the server (approved device, denied poll) and the row goes')
+
+    // A lone request already pending at load starts open (a lone row), and a request does not lapse unseen.
+    const lone = await pairing.raise('lone')
+    await page.reload()
+    await page.waitForSelector('.aurora-node')
+    await reqRow(lone).waitFor({ timeout: 8000 })
+    await expectOpen()
+    await pairing.cleanup()
+    await waitRowGone(lone)
+    await toggle().waitFor({ state: 'detached', timeout: 8000 })
+    step('a lone request at load starts open, and clears when it is decided elsewhere')
 
     // The countdown is not a change: a Once light test and one error, collapsed, stay collapsed across ticks.
     const graph0 = (await api('GET', '/api/effects/builtin.video')).json.graph
@@ -302,6 +385,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' }).catch(() => {})
     await api('POST', '/api/graph/test/revert', { session: 'tab-2' }).catch(() => {})
     for (const s of ['agent-1', 'tab-2']) await api('DELETE', `/api/graph/drafts/${s}`).catch(() => {})
+    await pairing.cleanup().catch(() => {})
     for (const s of ['dev-1', 'dev-2', 'dev-3', 'dev-4']) await api('POST', '/api/dev/errors/remove', { source: s }).catch(() => {})
     await api('PUT', '/api/config', { activeEffectId: original }).catch(() => {})
     await page.evaluate(() => localStorage.clear()).catch(() => {})

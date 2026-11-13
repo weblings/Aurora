@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ErrorShell, ShellBanner, type ShellBannerProps } from './ErrorShell'
 import { baselineSnapshot, collapsibleKeys, orderRows } from '../../ui/shellRows.js'
 import type { HostCondition, HostError } from './graph/hostState'
+import type { PairingRequest } from './useHostState'
 
 // The Dashboard's shell (web/ui/shell.js) is the reference. Its banner is drawn with the real class
 // against a stub slot, and the editor's component must produce the same markup for the same rows.
@@ -15,6 +16,7 @@ type ShellApp = {
   currentRouteId: string
   lightTestHolder: unknown
   _collapsed: string[] | null
+  pendingPairings: unknown[]
   _updateHostState: (result: object) => void
   _bannerHtml: () => string
   _stopLightTestTimer: () => void
@@ -26,6 +28,7 @@ type Case = {
   platform?: string
   errors?: HostError[]
   conditions?: HostCondition[]
+  pairings?: PairingRequest[]
   test?: { active: boolean; confirmRemainingMs: number | null; holder: { session: string; client: string | null } }
   // Start open: the user opened (or arrivals did) after the baseline collapsed 2+ rows.
   open?: boolean
@@ -43,6 +46,7 @@ function dashboardMarkup(c: Case): string {
     const app = new App({})
     app.platform = c.platform ?? ''
     app.currentRouteId = 'dashboard'
+    app.pendingPairings = c.pairings ?? []
     app._updateHostState({ state: c.hostState ?? 'running', errors: c.errors ?? [], conditions: c.conditions ?? [], test: c.test ?? { active: false } })
     if (c.open) app._collapsed = null
     if (c.userCollapsed) app._collapsed = collapsibleKeys(orderRows(rowsInput(c)))
@@ -58,7 +62,7 @@ function lightTestOf(c: Case) {
 }
 
 function rowsInput(c: Case) {
-  return { conditions: c.conditions ?? [], errors: c.errors ?? [], lightTest: lightTestOf(c) }
+  return { conditions: c.conditions ?? [], errors: c.errors ?? [], lightTest: lightTestOf(c), pairings: c.pairings ?? [] }
 }
 
 function editorMarkup(c: Case): string {
@@ -69,6 +73,8 @@ function editorMarkup(c: Case): string {
     conditions: c.conditions ?? [],
     errors: c.errors ?? [],
     lightTest: lightTestOf(c),
+    pairings: c.pairings ?? [],
+    onDecidePairing: () => {},
     snapshot: c.userCollapsed ? collapsibleKeys(rows) : c.open ? null : baselineSnapshot(rows),
     onSnapshotChange: () => {},
     onRetry: () => {},
@@ -91,7 +97,16 @@ function normal(html: string): string {
 const reload: HostError = { source: 'reload', message: 'no outputs paired', id: 4 }
 const effect: HostError = { source: 'effect', message: "Couldn't switch to 'x'", id: 2, retry: false }
 const startup: HostError = { source: 'startup', message: 'port in use' }
+const phone: PairingRequest = { ref: 'r1', name: 'Phone <b>', scope: 'admin', code: 'K7Q2X' }
+const agent: PairingRequest = { ref: 'r2', name: 'aurora-mcp on laptop', scope: 'apply', code: 'ABCDE', from: '192.168.0.51' }
 const cases: Case[] = [
+  { name: 'a lone pairing request: a browser, no access line, open', pairings: [phone] },
+  { name: 'an agent request names its access and where it came from', pairings: [agent] },
+  { name: 'two requests start collapsed: two notices', pairings: [phone, agent] },
+  { name: 'two requests open, with Approve and Deny', pairings: [phone, agent], open: true },
+  { name: 'a request collapsed by the user', pairings: [phone], userCollapsed: true },
+  { name: 'a test, a request and an error: notices first, one error', open: true, pairings: [phone], errors: [reload], test: { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } } },
+  { name: 'a request and an error, collapsed: 1 notice 1 error', pairings: [phone], errors: [reload], userCollapsed: true },
   { name: 'one error on a running host: Retry and the dismiss X', errors: [reload] },
   { name: 'one error on a paused host: Retry, no X', hostState: 'paused', errors: [startup] },
   { name: 'an error with retry false has no Retry', errors: [effect] },
@@ -192,6 +207,21 @@ describe('ErrorShell baseline', () => {
     expect(out.indexOf('shell-banner-row')).toBeLessThan(out.indexOf('shell-banner-toggle'))
     expect(out).toContain('aria-expanded="true"')
     expect(out).toContain('Show less')
+  })
+
+  it('pairing requests are notices inside the collapse: a request and an error start collapsed', () => {
+    const out = html({ errors: [reload], pairings: [phone] })
+    expect(out).toContain('aria-expanded="false"')
+    expect(out).toContain('1 notice</span><span class="shell-count shell-count-error">')
+    expect(out).not.toContain('shell-pairing-approve')
+  })
+
+  it('a lone request is open with Approve and Deny, the circled-info mark and a toggle after it', () => {
+    const out = html({ pairings: [phone] })
+    expect(out).toContain('id="shell-pairing-approve-r1" data-action="approve" data-key="pairing:r1"')
+    expect(out).toContain('id="shell-pairing-deny-r1" data-action="deny" data-key="pairing:r1"')
+    expect(out).toContain('shell-pairing-title"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device')
+    expect(out.indexOf('shell-pairing-approve')).toBeLessThan(out.indexOf('shell-banner-toggle'))
   })
 
   it('a notice and an error: notices first, singular words', () => {

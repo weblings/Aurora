@@ -1,7 +1,7 @@
 // The error shell's row model (Aurora-9hqa.1): order, keys, the collapse layout, the collapsed
 // label, and the html per row. No DOM. Run with `node shellRows.test.mjs`.
 import assert from 'node:assert/strict';
-import { SOURCE_PREFIX, bannerHtml, bannerRows, baselineSnapshot, clockText, collapsedLabel, collapsibleKeys, errorSentence, isCollapsed, layoutRows, markErrors, orderRows, reconcileSnapshot, renderRow } from './shellRows.js';
+import { SOURCE_PREFIX, bannerHtml, bannerRows, baselineReady, baselineSnapshot, clockText, collapsedLabel, collapsibleKeys, errorSentence, isCollapsed, layoutRows, markErrors, orderRows, reconcileSnapshot, renderRow } from './shellRows.js';
 
 // Words.
 assert.equal(SOURCE_PREFIX.startup, "Couldn't start: ");
@@ -51,7 +51,15 @@ assert.equal(baselineSnapshot(problems(0)), null);
 assert.equal(baselineSnapshot(problems(1)), null, 'a lone row starts open');
 assert.deepEqual(baselineSnapshot(problems(2)), ['error:s0:m', 'error:s1:m']);
 assert.equal(baselineSnapshot(orderRows({ lightTest: { holder: null, endsAtMs: null }, errors: [{ source: 'a', message: '1' }] })).length, 2, 'the light test counts toward 2+');
-assert.equal(baselineSnapshot(orderRows({ pairings: [{ ref: 'r' }, { ref: 'q' }], errors: [{ source: 'a', message: '1' }] })), null, 'pairings are outside the collapse');
+assert.deepEqual(baselineSnapshot(orderRows({ pairings: [{ ref: 'r' }], errors: [{ source: 'a', message: '1' }] })), ['pairing:r', 'error:a:1'], 'a pairing request counts toward 2+');
+assert.equal(baselineSnapshot(orderRows({ pairings: [{ ref: 'r' }] })), null, 'a lone request starts open');
+// The baseline waits (Aurora-9hqa.4): the state reply, the canApprove answer, and, only when this
+// browser can approve, the first pending result.
+assert.equal(baselineReady({ stateReplied: false, canApprove: false, pendingLoaded: false }), false, 'no state reply yet');
+assert.equal(baselineReady({ stateReplied: true, canApprove: null, pendingLoaded: false }), false, 'canApprove not read yet');
+assert.equal(baselineReady({ stateReplied: true, canApprove: true, pendingLoaded: false }), false, 'waits on the first pending result');
+assert.equal(baselineReady({ stateReplied: true, canApprove: true, pendingLoaded: true }), true);
+assert.equal(baselineReady({ stateReplied: true, canApprove: false, pendingLoaded: false }), true, 'cannot approve: nothing to wait for');
 // Open: every row, then the one toggle (a lone row too). Collapsed: the toggle alone.
 assert.deepEqual(kinds(problems(1), null), ['error', 'toggle'], 'a lone row can collapse: it has the toggle');
 assert.deepEqual(kinds(problems(2), null), ['error', 'error', 'toggle']);
@@ -59,7 +67,7 @@ assert.deepEqual(kinds(problems(2), baselineSnapshot(problems(2))), ['toggle']);
 assert.deepEqual(kinds(problems(1), collapsibleKeys(problems(1))), ['toggle'], 'a lone row, collapsed by the user');
 assert.deepEqual(kinds(problems(0), null), [], 'no rows, no toggle');
 const toggleOf = (list, snapshot) => layoutRows(list, snapshot).find((row) => row.kind === 'toggle');
-// Counts: the light test is a notice; conditions, errors and notes are errors.
+// Counts: the light test and pairing requests are notices; conditions, errors and notes are errors.
 const mixed = orderRows({ lightTest: { holder: null, endsAtMs: null }, errors: [{ source: 'a', message: '1' }], conditions: [{ source: 'c', message: 'x' }], notes: ['n'] });
 assert.deepEqual([toggleOf(mixed, null).notices, toggleOf(mixed, null).errors], [1, 3]);
 // Snapshot equality: collapsed only while the keys equal it, in any order.
@@ -82,10 +90,14 @@ assert.equal(reconcileSnapshot(problems(2), snap), snap);
 assert.equal(reconcileSnapshot(problems(3), snap), null, 'once re-opened it stays open');
 assert.equal(reconcileSnapshot(problems(0), snap), null, 'rows clearing resets');
 assert.equal(reconcileSnapshot(problems(2), null), null);
-// Pairing requests stay above, outside the collapse.
-const paired = orderRows({ lightTest: { holder: null, endsAtMs: null }, pairings: [{ ref: 'r' }], errors: [{ source: 'a', message: '1' }] });
-assert.deepEqual(kinds(paired, baselineSnapshot(paired)), ['pairing', 'toggle']);
-assert.deepEqual(kinds(paired, null), ['pairing', 'light-test', 'error', 'toggle']);
+// Pairing requests are inside the collapse and count as notices, after the light test.
+const paired = orderRows({ lightTest: { holder: null, endsAtMs: null }, pairings: [{ ref: 'r' }, { ref: 'q' }], errors: [{ source: 'a', message: '1' }] });
+assert.deepEqual(kinds(paired, baselineSnapshot(paired)), ['toggle']);
+assert.deepEqual(kinds(paired, null), ['light-test', 'pairing', 'pairing', 'error', 'toggle']);
+assert.deepEqual([toggleOf(paired, null).notices, toggleOf(paired, null).errors], [3, 1], 'light test and both requests are notices');
+assert.ok(renderRow(toggleOf(paired, collapsibleKeys(paired)), { hostState: 'running', platform: '', nowMs: 0 }).includes('3 notices'));
+assert.equal(isCollapsed(orderRows({ pairings: [{ ref: 'r' }, { ref: 'q' }] }), ['pairing:r', 'pairing:q']), true);
+assert.equal(isCollapsed(orderRows({ pairings: [{ ref: 'r' }, { ref: 'q' }, { ref: 'z' }] }), ['pairing:r', 'pairing:q']), false, 'a new request re-opens');
 
 // Html per row: root carries data-key, buttons carry data-action and data-key.
 const ctx = { hostState: 'running', platform: '', nowMs: 0 };
@@ -114,6 +126,7 @@ const pairing = renderRow(orderRows({ pairings: [{ ref: 'r<1', name: 'Phone', sc
 assert.ok(pairing.includes('data-action="approve"') && pairing.includes('data-action="deny"'));
 assert.ok(pairing.includes('Access:</span> Apply.') && pairing.includes('From:</span> 10.0.0.2'));
 assert.ok(pairing.includes('id="shell-pairing-approve-r&lt;1"'));
+assert.ok(pairing.includes('shell-pairing-title"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device'), 'a request carries the circled-info, like the light test');
 // The toggle: one id, aria-expanded, label swaps; marks and tones per part.
 const closedBar = renderRow(toggleOf(mixed, collapsibleKeys(mixed)), ctx);
 assert.ok(closedBar.startsWith('<button type="button" class="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key="toggle">'));

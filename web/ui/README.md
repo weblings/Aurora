@@ -30,6 +30,9 @@ focus survives ([[9hqa1-shell-row-model]]). The whole shell collapses as one
 (`shellRows.js`: baseline, snapshot, toggle, counts; [[u8jx5-shell-collapse]]),
 and its circled marks are `icons/circled-exclamation.svg` and `circled-info.svg`
 (those two icons are vendored into the demo; the shell modules are not).
+Pairing requests are notices inside that collapse on both pages; the baseline
+waits for the first pending result (`shellRows.js` `baselineReady`, `app.js`
+starts `canApprove` at `null` and calls `setCanApprove`; [[9hqa4-shell-pairing]]).
 
 Tests are plain node scripts with no framework (`node styles/welcome.test.mjs`,
 `node DeviceField.test.mjs`, ...).
