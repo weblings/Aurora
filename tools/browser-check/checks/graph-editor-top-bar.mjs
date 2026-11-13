@@ -2,7 +2,7 @@
 // menu, and the status rule's places (the Test button, the banner and the toast; the bar has no status text).
 //
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
-//   checked here:       rank 1 + Retry banner, rank 2 Restore/Discard banner,
+//   checked here:       rank 1 + Retry banner, kept copy restores silently (no banner; kept-copy check has the rest),
 //                       rank 7 default, Edited since the test, Stop-only bar
 //   checked elsewhere:  draft refusals and the takeover (error-shell), rank 4 Reconnect (gate),
 //                       rank 5/6 test outcomes (graph-editor edit loop), problems
@@ -97,7 +97,7 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(startNames[0], 'Empty')
     assert.ok(startNames.includes('Screen colors'), 'built-ins follow Empty')
     await starts.getByRole('menuitem', { name: 'Empty', exact: true }).click()
-    await waitEffect(page, '@empty')
+    await page.waitForFunction(() => /^@new-[a-z0-9]{6}$/.test(document.querySelector('[data-effect]')?.dataset.effect ?? ''))
     step('New offers Start from, Empty then the built-ins; Empty opens a blank graph')
 
     // View menu.
@@ -168,25 +168,21 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press('Escape')
     step('Save on a built-in opens a naming dialog; Cancel, Escape and a scrim click write nothing')
 
-    // Rank 2: an unsaved copy from an earlier visit asks Restore or Discard.
+    // A kept copy from an earlier visit comes back without asking (Aurora-u68h.2): no banner, no buttons.
     await makeEdit(page)
     await page.getByText('Unsaved', { exact: true }).waitFor()
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    const banner = page.getByRole('group', { name: 'Unsaved changes from an earlier visit' })
-    await banner.waitFor()
-    await button('Restore').click()
-    await waitToast(page, 'Restored')
-    await banner.waitFor({ state: 'detached' })
     await page.getByText('Unsaved', { exact: true }).waitFor()
-    await page.reload()
-    await banner.waitFor()
-    await button('Discard').click()
-    await waitToast(page, 'Discarded')
+    assert.equal(await page.locator('.editor-banner').count(), 0, 'no banner for a kept copy')
+    assert.equal(await button('Restore').count() + (await button('Discard').count()), 0, 'no Restore or Discard')
+    await openTitleMenu(page)
+    await page.getByRole('menuitem', { name: 'Revert to saved', exact: true }).click()
+    await waitToast(page, 'Reverted to the saved version')
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    assert.equal(await banner.count(), 0, 'discarded copy is gone')
-    step('the restore banner offers Restore and Discard, each answered with a toast')
+    assert.equal(await page.getByText('Unsaved', { exact: true }).count(), 0, 'the reverted copy is gone')
+    step('a kept copy restores silently and Revert to saved drops it')
 
     // Edited since the test: the bar says so and the title menu warns.
     await live()

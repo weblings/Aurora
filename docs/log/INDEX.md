@@ -412,3 +412,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-12 | devstack stops opening a browser tab on Mac (stub `open` on the app PATH); Linux and Windows filed. [[my6z-devstack-no-browser-tab]] | `bd show Aurora-my6z`, `bd show Aurora-5m0p`, `bd show Aurora-q5eb` |
 | 2026-11-13 | Graph editor stage 6.0 Grille mock frame: owner review applied (shell parity, draft errors by code, Test button no mark, prompt A, Not saved yet heading dot). [[u68h1-grille-mock-frame]] | `bd show Aurora-u68h.1` |
 | 2026-11-13 | Graph editor stage 6a: the Dashboard's error shell in the editor (rows from /api/state, takeover, draft refusals by code, light-test row names who). [[s1t79-error-shell]] | `bd show Aurora-s1t7.9` |
+| 2026-11-13 | Graph editor stage 6b: kept copies restore silently, Revert to saved, newer-saved-version prompt, own @new- ids for new effects. [[u68h2-kept-copies]] | `bd show Aurora-u68h.2` |

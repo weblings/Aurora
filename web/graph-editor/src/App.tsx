@@ -36,7 +36,8 @@ import { useHostState } from './useHostState'
 import { draftShellNote, otherTest } from './graph/hostState'
 import { tabSession, useDraftLoop } from './useDraftLoop'
 import { useLightTest } from './useLightTest'
-import { restorable, clearUnsaved, syncUnsaved } from './graph/autosave'
+import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './graph/autosave'
+import { NewerSavedPrompt } from './NewerSavedPrompt'
 import { converterFor, insertConverter, refuseConnection } from './graph/connection'
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
@@ -44,7 +45,7 @@ import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, pickBanner, pickStatus, quietEndToast, stopLabel } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
-import { BLANK_ID, blankDoc, forWrite, freshEffectId, setTitle, titleOf } from './graph/save'
+import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { draftIssues, groupProblems, sameProblems, type Problems } from './graph/problems'
@@ -53,10 +54,19 @@ import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/typ
 const nodeTypes = { [NODE_KIND]: GenericNode }
 const DEFAULT_EFFECT = 'builtin.video'
 
+// Read once per page load (a state initializer may run twice, and the legacy
+// '@empty' copy moves to its new id only the first time).
+let startId: string | null = null
 function initialEffectId(): string {
+  if (startId !== null) return startId
   const params = new URLSearchParams(window.location.search)
-  if (params.get('new') === 'empty') return BLANK_ID
-  return params.get('effect') ?? DEFAULT_EFFECT
+  // A kept copy from before each new effect had its own id comes along under a fresh id.
+  const migrated = migrateLegacyBlank(newEffectId)
+  const asked = params.get('effect')
+  if (asked === BLANK_ID) startId = migrated ?? newEffectId()
+  else if (params.get('new') === 'empty') startId = newEffectId()
+  else startId = asked ?? DEFAULT_EFFECT
+  return startId
 }
 
 export function App() {
@@ -69,8 +79,10 @@ export function App() {
   const [{ doc, past, future }, dispatch] = useReducer(editorReducer, emptyEditor)
   // What the server last gave us or accepted; unsaved edits are measured from it.
   const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
-  // A browser-stored copy of unsaved edits from an earlier visit, awaiting a choice.
-  const [offer, setOffer] = useState<GraphDoc | null>(null)
+  // The kept copy of an earlier visit's edits when the saved effect has changed since: awaiting a choice.
+  const [outdated, setOutdated] = useState<GraphDoc | null>(null)
+  // What the last Revert to saved or Load saved threw away; 6g's Undo toast puts it back.
+  const discarded = useRef<{ id: string; doc: GraphDoc } | null>(null)
   // The effect or the catalog would not load although Aurora answered: a banner with Retry.
   // (When Aurora does not answer, the error shell's takeover says so and nothing is set here.)
   const [openError, setOpenError] = useState<string | null>(null)
@@ -130,16 +142,21 @@ export function App() {
     let stale = false
     dispatch({ type: 'open', doc: null })
     setBaseline(null)
-    setOffer(null)
+    setOutdated(null)
     setNodeView([])
     setEdgeView([])
-    const opening = effectId === BLANK_ID ? Promise.resolve(blankDoc()) : fetchEffectGraph(effectId)
+    const opening = isDraftId(effectId) ? Promise.resolve(blankDoc()) : fetchEffectGraph(effectId)
     opening
       .then((graph) => {
         if (stale) return
         dispatch({ type: 'open', doc: graph })
         setBaseline({ id: effectId, doc: graph })
-        setOffer(restorable(effectId, graph))
+        // A kept copy comes back without asking, as an edit on the saved graph (one Undo
+        // reaches the saved version). If the saved effect moved on since the copy was
+        // made, the graph stays as saved until the prompt is answered.
+        const kept = openKept(effectId, graph)
+        if (kept.kind === 'restore') dispatch({ type: 'edit', change: () => kept.doc })
+        setOutdated(kept.kind === 'newer' ? kept.doc : null)
         setOpenError(null)
       })
       .catch((e: Error) => !stale && loadFailed(`Cannot open '${effectId}': ${e.message}`))
@@ -149,10 +166,10 @@ export function App() {
   }, [effectId, attempt])
 
   // Back up unsaved edits per effect. Held back while a stored copy awaits
-  // its Restore/Discard answer, or it would be overwritten unseen.
+  // its answer to the newer-saved-version prompt, or it would be overwritten unseen.
   useEffect(() => {
-    if (doc && baseline && !offer) syncUnsaved(baseline.id, baseline.doc, doc)
-  }, [doc, baseline, offer])
+    if (doc && baseline && !outdated) syncUnsaved(baseline.id, baseline.doc, doc)
+  }, [doc, baseline, outdated])
 
   // Aurora came back after the takeover: load again what could not load.
   useEffect(() => {
@@ -168,13 +185,12 @@ export function App() {
   const lights = useLightTest(session, () => putDraft(session, docRef.current!))
   const testing = lights.state.phase === 'running'
   const [testMode, setTestMode] = useState<TestMode>('once')
-  const dirty = useMemo(() => (doc && baseline ? !sameDoc(baseline.doc, doc) : false), [doc, baseline])
-  const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (effectId === BLANK_ID || effectId.startsWith('builtin.'))
+  const dirty = useMemo(() => isUnsaved(baseline?.doc ?? null, doc), [doc, baseline])
+  const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (isDraftId(effectId) || effectId.startsWith('builtin.'))
   const picked = nodeView.filter((n) => n.selected)
   const selectedId = picked.length === 1 ? picked[0].id : null
 
   useEffect(() => {
-    if (effectId === BLANK_ID) return
     const url = new URL(window.location.href)
     if (url.searchParams.get('effect') === effectId && !url.searchParams.has('new')) return
     url.searchParams.delete('new')
@@ -230,7 +246,11 @@ export function App() {
       fetchEffects().then(setEffects).catch(() => {})
       if (id !== baseline.id) {
         // The built-in stays as it was; its edits now live in the new effect.
+        // Edits made while the write ran (the saved copy has the rest) ride along as the
+        // new id's kept copy, based on what was just saved.
         clearUnsaved(baseline.id)
+        const latest = docRef.current
+        if (latest && !sameDoc(latest, source)) saveUnsaved(id, latest, fingerprint(sent))
         setEffectId(id)
       } else {
         setBaseline({ id, doc: sent })
@@ -277,7 +297,7 @@ export function App() {
   const otherHeld = otherTest(host.host.test, session)
   const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
   const status = pickStatus({ openError, unreachable: !host.reachable, loop: loop.state, test: lights.state, writeTrouble, testOutcomeCleared })
-  const banner = pickBanner(openError, offer !== null && baseline !== null, status)
+  const banner = pickBanner(openError, false, status)
   // Without Aurora nothing can be tested or saved.
   const blocked = status.rank === 1
 
@@ -606,8 +626,31 @@ export function App() {
   // A built-in has no title of its own in the graph; the effect list names it.
   const shownTitle = title || effects.find((e) => e.id === effectId)?.title || ''
   // New and Open both come through here. `where` is the seam for opening in a new tab if the editor gets tabs.
+  // A New ▸ Empty gets its own id, so two new effects never share one kept copy.
   const openEffect = (id: string, where: 'here') => {
-    if (where === 'here') setEffectId(id)
+    if (where === 'here') setEffectId(id === BLANK_ID ? newEffectId() : id)
+  }
+
+  // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
+  // the kept copy goes with it, and the edits are held for 6g's Undo toast.
+  const revertToSaved = () => {
+    if (!baseline || !doc || !dirty) return
+    discarded.current = { id: baseline.id, doc }
+    clearUnsaved(baseline.id)
+    dispatch({ type: 'edit', change: () => baseline.doc })
+    showToast('Reverted to the saved version')
+  }
+  const loadSaved = () => {
+    if (!baseline || !outdated) return
+    discarded.current = { id: baseline.id, doc: outdated }
+    clearUnsaved(baseline.id)
+    setOutdated(null)
+    showToast('Loaded the saved version')
+  }
+  const keepMyEdits = () => {
+    if (!outdated) return
+    dispatch({ type: 'edit', change: () => outdated })
+    setOutdated(null)
   }
 
   return (
@@ -638,11 +681,12 @@ export function App() {
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
           data-effect={effectId}
+          data-unsaved={dirty ? 'true' : 'false'}
           disabled={!doc}
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
           {dirty && compactBar ? <span className="editor-dirty-mark" aria-hidden="true" /> : null}
-          <span className="editor-title-label">{shownTitle || (effectId === BLANK_ID ? 'New empty effect' : effectId)}</span>
+          <span className="editor-title-label">{shownTitle || (isDraftId(effectId) ? 'New empty effect' : effectId)}</span>
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {dirty && !compactBar ? <span className="editor-dirty">Unsaved</span> : null}
@@ -666,10 +710,12 @@ export function App() {
           effects={effects}
           currentId={effectId}
           hasAudio={hasAudio}
+          unsaved={dirty}
           onAction={(action: TitleMenuAction) => {
             if (action === 'save') void write('save')
             else if (action === 'save-as-new') void write('save', true)
             else if (action === 'save-and-apply') void write('apply')
+            else if (action === 'revert') revertToSaved()
             else setNaming({ kind: 'rename', initial: title })
           }}
           onOpenEffect={(id) => openEffect(id, 'here')}
@@ -749,30 +795,8 @@ export function App() {
           </span>
         </div>
       ) : null}
-      {banner?.kind === 'restore' && baseline && offer ? (
-        <div className="editor-banner" role="group" aria-label="Unsaved changes from an earlier visit">
-          <span>Unsaved changes from an earlier visit.</span>
-          <button
-            type="button" className="btn btn-secondary"
-            onClick={() => {
-              dispatch({ type: 'edit', change: () => offer })
-              setOffer(null)
-              showToast('Restored')
-            }}
-          >
-            Restore
-          </button>
-          <button
-            type="button" className="btn btn-secondary"
-            onClick={() => {
-              clearUnsaved(baseline.id)
-              setOffer(null)
-              showToast('Discarded')
-            }}
-          >
-            Discard
-          </button>
-        </div>
+      {outdated && baseline ? (
+        <NewerSavedPrompt effectTitle={shownTitle || baseline.id} onLoadSaved={loadSaved} onKeepEdits={keepMyEdits} />
       ) : null}
       <div className="editor-body">
             <div className="editor-canvas" ref={canvas}>

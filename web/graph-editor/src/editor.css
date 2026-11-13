@@ -602,7 +602,7 @@ button.editor-problem-row:hover {
 
 .editor-name-dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--aurora-space-2);
 }
 

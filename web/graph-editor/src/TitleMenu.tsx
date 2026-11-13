@@ -9,7 +9,7 @@ import type { EffectListEntry } from './graph/types'
 // Hint makes its child a tab stop inside the menu item.
 const LONG_TITLE = 24
 
-export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename'
+export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'revert'
 
 // The title menu (Aurora-daaa.11): a Dialog in a Popover with the file actions, then New and Open
 // submenus (Aurora-iryq). One menu, so the arrow keys reach everything; effects open on Enter or a
@@ -25,6 +25,7 @@ export function TitleMenu({
   effects,
   currentId,
   hasAudio,
+  unsaved,
   onAction,
   onOpenEffect,
 }: {
@@ -40,6 +41,8 @@ export function TitleMenu({
   currentId: string
   // An audio input exists: only then does New offer Music pulse.
   hasAudio: boolean
+  // The open graph differs from the saved one: only then is there anything to revert.
+  unsaved: boolean
   onAction: (action: TitleMenuAction) => void
   // New and Open both land here; App's openEffect decides where it opens.
   onOpenEffect: (id: string) => void
@@ -70,6 +73,7 @@ export function TitleMenu({
             {isBuiltin ? null : <MenuItem id="save-as-new" isDisabled={off}>Save as new</MenuItem>}
             <MenuItem id="save-and-apply" isDisabled={off}>Save and apply</MenuItem>
             {isBuiltin ? null : <MenuItem id="rename">Rename</MenuItem>}
+            <MenuItem id="revert" isDisabled={!unsaved}>Revert to saved</MenuItem>
             <MenuSeparator />
             <SubmenuItem id="new" label="New" aria-label="New effect" onAction={pick}>
               <MenuSection title="Start from">

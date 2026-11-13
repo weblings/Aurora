@@ -264,12 +264,10 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.goto(`${editorUrl}?effect=gate-copy`)
     await page.waitForSelector('.aurora-node')
     // The draft store is full: an editor-supplied row in the error shell (Aurora-s1t7.9), same
-    // markup as the Dashboard's, no Retry and no X. An earlier visit's Restore/Discard banner is separate.
+    // markup as the Dashboard's, no Retry and no X.
     const row = page.locator('#shell-banner-slot .shell-banner-row', { hasText: "Couldn't check your last edit: too many editors are open. Close one to continue." })
     await row.waitFor({ timeout: 15_000 })
     assert.equal(await row.locator('button').count(), 0, 'no Retry or dismiss on a draft row')
-    const discard = page.getByRole('button', { name: 'Discard', exact: true })
-    if (await discard.count()) await discard.click()
     step('a full draft store shows the too-many-editors row in the error shell')
     for (const id of [...filled, mine]) await api('DELETE', `/api/graph/drafts/${id}`).catch(() => {})
     await page.reload()

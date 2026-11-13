@@ -663,7 +663,7 @@ Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of 
 
 ## Decisions (owner, stage 6 scope, 2026-11-12)
 
-Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
+Status: decided; 6a (the error shell, `Aurora-s1t7.9`) built 2026-11-13, see [[s1t79-error-shell]]; 6b (silent restore, Revert to saved, the newer-saved-version prompt, `@new-` ids, `Aurora-u68h.2`) built 2026-11-13, see [[u68h2-kept-copies]], its Unsaved dot waits for 6d; the rest not built. Replaces the stage 6 notes of 2026-11-11 and 2026-11-12, which asked whether the problems UI and the toast belong in the error shell.
 
 The editor's banner under the bar held five kinds of message: Aurora unreachable, a question (Restore or Discard), refused Save clicks, test outcomes the user did not cause, and advice (the window-size note). It was a catch-all, not a pattern, so stage 6 retires it and gives each kind its own home.
 

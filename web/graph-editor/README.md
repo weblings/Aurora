@@ -21,10 +21,10 @@ Decisions, narrow windows, in `docs/planning/WebUI/GraphEditorCleanup.md`).
   `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
   Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
   `connection.ts` (the wiring rules, and `insertConverter`: a Float/Angle drop gets an `angle.fromFloat`/`angle.toFloat` node, `Aurora-0veq`), `history.ts` (undo reducer),
-  `autosave.ts` (browser backup of unsaved edits), `problems.ts` (server errors
+  `autosave.ts` (browser backup of unsaved edits: one kept copy per effect id, with the fingerprint of the saved graph it was made from; `openKept` says restore, nothing, or newer), `problems.ts` (server errors
   regrouped per node/port/param), `loop.ts` (draft/preview states), `frame.ts`
   (preview events), `lightTest.ts` (test-on-lights states), `controls.ts`
-  (the Dashboard `controls` list), `save.ts` (new effect ids). `fixtures.ts` + `graph.test.ts` are the
+  (the Dashboard `controls` list), `save.ts` (effect ids: the title slug, and `@new-<random>` for a new effect until its first Save). `fixtures.ts` + `graph.test.ts` are the
   Vitest suite.
 - `src/GenericNode.tsx`, `src/ParamWidget.tsx` -- one node component draws any
   `/api/nodes` entry; one widget per param kind.
@@ -82,6 +82,8 @@ choices; `graph/titleMenu.ts` `startPoints()` copies the rule of `startPoints()`
 `web/ui/EffectPanelModel.js` (keep in sync). Open lists the other effects, Custom
 then Built-in, in Grille `MenuSection`s inside a scrolling `SubmenuItem`. Both go
 through `openEffect(id, where)` in `App.tsx`.
+
+Kept copies (`Aurora-u68h.2`): an effect that opens with a kept copy gets it back silently (an edit on the saved graph, so one Undo reaches the saved version); nothing is asked and no toast shows. `data-unsaved` on the title button is the unsaved state (6d draws the dot from it). Revert to saved (title menu, enabled when unsaved) puts the saved graph back and drops the copy; `App` holds the discarded graph in a ref for 6g's Undo. Only when the saved effect changed since the copy was made does `NewerSavedPrompt.tsx` (a Grille Modal) ask: Load saved or Keep my edits (default focus, Escape). A New ▸ Empty effect gets `@new-<random>` as its id (URL and kept-copy key); its first Save gives it the title-slug id and the kept copy moves with it. A legacy `@empty` copy is moved to a fresh `@new-` id at page load.
 
 Menus go through `EditorPopup.tsx`, which holds the React Flow workarounds (keys,
 pane drag, Esc, focus return). Use it for any new menu.

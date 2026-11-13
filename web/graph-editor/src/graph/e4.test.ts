@@ -3,7 +3,7 @@ import { addControl, controlIndex, controlsOf, dropControlsOf, moveControl, remo
 import { removeNodes } from './doc'
 import { builtinLike, catalog, customLike } from './fixtures'
 import { describeTest, initialTest, testReducer, type TestEvent, type TestState } from './lightTest'
-import { BLANK_ID, blankDoc, distinctTitle, forWrite, freshEffectId, slugify } from './save'
+import { BLANK_ID, blankDoc, isDraftId, newEffectId, distinctTitle, forWrite, freshEffectId, slugify } from './save'
 
 const run = (events: TestEvent[], from: TestState = initialTest) => events.reduce(testReducer, from)
 const running = run([{ type: 'starting', mode: 'once' }, { type: 'started', remainingMs: 120000 }])
@@ -161,5 +161,16 @@ describe('blank effect', () => {
     expect(BLANK_ID).toBe('@empty')
     expect(slugify(BLANK_ID)).toBe('empty')
     expect(freshEffectId('', [])).toBe('effect')
+  })
+
+  it('gives each new effect its own @new- id that is never a stored effect id', () => {
+    const ids = new Set(Array.from({ length: 50 }, () => newEffectId()))
+    expect(ids.size).toBe(50)
+    for (const id of ids) {
+      expect(id).toMatch(/^@new-[a-z0-9]{6}$/)
+      expect(isDraftId(id)).toBe(true)
+    }
+    expect(isDraftId(BLANK_ID)).toBe(true)
+    expect(isDraftId('builtin.video')).toBe(false)
   })
 })

@@ -46,7 +46,7 @@ export const waitEffect = (page, id) =>
 // save opens the naming dialog.
 export async function setName(page, name) {
   const id = await currentEffect(page)
-  if (id.startsWith('builtin.') || id === '@empty') {
+  if (id.startsWith('builtin.') || id.startsWith('@')) {
     pendingName.set(page, name)
     return
   }
