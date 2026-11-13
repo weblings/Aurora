@@ -488,3 +488,11 @@ Applies-when: putting a non-modal panel (Grille Drawer) beside a React Flow canv
 - Drawer closes on Esc only through its own `onKeyDown`. After a canvas click focus is outside, so Esc does nothing; Aurora adds a window Esc handler that yields to open menus and popups. Upstream question: `Aurora-daaa.27.5`.
 
 **Fix:** Aurora-daaa.27.3; browser-checked on the fake-hue stack.
+
+## The editor's Toast is already a live region; announcing the same text through the Announcer speaks it twice
+Tags: graph-editor, toast, announcer, aria-live, screen-reader
+Applies-when: a message becomes both a toast and an announcement, or a toast is added for something already announced
+
+Aurora-u8jx.4.2: a lost heartbeat gained a toast while the `testOutcome` effect kept announcing every outcome. `Toast.tsx` renders its text in a `role="status" aria-live="polite"` span, so a screen reader heard the sentence twice. Unit tests on the strings passed; only reading the Toast markup showed it.
+
+**Fix:** one path per message. The announce effect skips any outcome `quietEndToast` toasts; the browser check asserts `[data-announcer]` does not also hold the toast text.
