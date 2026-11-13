@@ -220,6 +220,24 @@ select {
   width: 100%;
 }
 
+/* Number fields carry no native spin buttons (Aurora-u8jx.4.4): the slider drives the value, and the
+   buttons clipped it. The float field is wide enough for 0.285 and a 6-digit value at 12px. */
+.param input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.param input[type='number']::-webkit-inner-spin-button,
+.param input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.param-float input[type='number'] {
+  flex: none;
+  width: 84px;
+}
+
 .param-float,
 .param-optional,
 .gradient-stop {

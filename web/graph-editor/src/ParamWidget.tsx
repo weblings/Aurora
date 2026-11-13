@@ -136,6 +136,13 @@ function sliderFill(info: ParamInfo, value: number): CSSProperties | undefined {
   return { '--slider-percent': `${percent}%` } as CSSProperties
 }
 
+// The server holds params as 32-bit floats, so a value comes back as 0.0500000007451 and the slider's
+// step arithmetic leaves 0.28499999999999998. The box shows 7 significant digits (all a float32 has), which
+// drops that noise. The stored value is still the exact number the slider or box produced.
+export function displayNumber(v: number): number {
+  return Number.isFinite(v) ? Number(v.toPrecision(7)) : v
+}
+
 function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number; onChange: (v: number) => void }) {
   return (
     <span className="param-float">
@@ -157,7 +164,7 @@ function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number;
         min={info.min}
         max={info.max}
         step={info.step}
-        value={value}
+        value={displayNumber(value)}
         onChange={(e) => {
           // An emptied box yields NaN; keep the last number instead.
           if (Number.isFinite(e.target.valueAsNumber)) onChange(e.target.valueAsNumber)
