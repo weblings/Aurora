@@ -142,6 +142,58 @@ await withEditorStack(async ({ editorUrl }) => {
     await refused('keyboard', 'Save and apply', false)
     step('Save as new and Save and apply by keyboard refuse the same way')
 
+    // The callout stays inside the window at every width (Aurora-h55g): on the chip's left when there is
+    // room, else below the chip, wrapped. Full sentence at each, 16 px gutters, never over the chip.
+    const chipLeftNow = async () => (await chip.boundingBox()).x
+    for (const width of [1470, 900, 700, 520, 400]) {
+      await page.setViewportSize({ width, height: width < 700 ? 800 : 900 })
+      await page.waitForTimeout(200)
+      await openTitleMenu(page)
+      await page.getByRole('menuitem', { name: 'Save', exact: true }).click()
+      await callout.waitFor()
+      await page.waitForTimeout(150)
+      const box = await callout.boundingBox()
+      const cb = await chip.boundingBox()
+      assert.equal(await callout.innerText(), expectText(true), `${width}: the full sentence`)
+      assert.ok(box.x >= 16 - 0.5, `${width}: left gutter (x=${box.x})`)
+      assert.ok(box.x + box.width <= width - 16 + 0.5, `${width}: right gutter (right=${box.x + box.width})`)
+      assert.ok(box.y >= 0, `${width}: not above the window`)
+      const side = await callout.getAttribute('data-refused')
+      if (width === 1470) {
+        assert.equal(side, 'left')
+        assert.ok(box.x + box.width <= cb.x, '1470: still on the chip\'s left')
+        assert.ok(box.height < 40, `1470: one line (${box.height})`)
+      }
+      if (side === 'below') {
+        assert.ok(box.y >= cb.y + cb.height, `${width}: below the chip, not over it`)
+        assert.equal(await callout.evaluate((el) => getComputedStyle(el.parentElement).pointerEvents), 'none', `${width}: takes no clicks`)
+      } else {
+        assert.ok(box.x + box.width <= cb.x, `${width}: left of the chip`)
+        assert.ok(box.height < 40, `${width}: one line`)
+      }
+      console.log(`    ${width}px: ${side}, box ${Math.round(box.x)},${Math.round(box.y)} ${Math.round(box.width)}x${Math.round(box.height)}, chip x=${Math.round(await chipLeftNow())}`)
+      await shot(`h55g-${width}`)
+      await page.keyboard.press('Escape')
+      await page.waitForFunction(() => !document.querySelector('[data-refused]'))
+    }
+    // The first refusal after a fresh load at 400 px: the chip can appear after the refusal (the server's
+    // verdict arrives later), and the callout must still be placed.
+    await page.setViewportSize({ width: 400, height: 800 })
+    await open('refused-save-a')
+    await chip.waitFor()
+    await openTitleMenu(page)
+    await page.getByRole('menuitem', { name: 'Save', exact: true }).click()
+    await callout.waitFor()
+    await page.waitForTimeout(150)
+    const fresh400 = await callout.boundingBox()
+    assert.equal(await callout.getAttribute('data-refused'), 'below', 'fresh 400: below the chip')
+    assert.ok(fresh400.x >= 15.5 && fresh400.x + fresh400.width <= 384.5, `fresh 400: inside the gutters (${fresh400.x}, ${fresh400.width})`)
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-refused]'))
+    assert.ok(writes.length === 0)
+    await page.setViewportSize({ width: 1470, height: 900 })
+    step('the callout stays inside the window at 1470, 900, 700, 520 and 400 px (left of the chip when it fits, else below, wrapped)')
+
     // The items stay enabled and in the arrow-key order.
     await openTitleMenu(page)
     for (const name of ['Save', 'Save as new', 'Save and apply']) {

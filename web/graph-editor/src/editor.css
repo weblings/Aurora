@@ -866,6 +866,36 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   border: 1px dashed var(--aurora-text-primary);
 }
 
+/* No room on the chip's left (measured in ProblemsChip.tsx, Aurora-h55g): below the chip, wrapped, inside a
+   16px gutter on each side. The box takes no pointer events, so it never traps a click or covers a menu. */
+.editor-refused-status[data-place='below'] {
+  position: fixed;
+  top: var(--refused-top);
+  left: 16px;
+  right: 16px;
+  translate: none;
+  margin: 0;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.editor-refused-status[data-place='below'] .editor-refused {
+  white-space: normal;
+  max-width: 100%;
+  width: max-content;
+}
+
+.editor-refused-status[data-place='below'] .editor-refused::before {
+  right: calc(var(--refused-arrow) - 4px);
+  top: -5px;
+  translate: none;
+  rotate: 45deg;
+  border: 0;
+  border-left: 1px dashed var(--aurora-text-primary);
+  border-top: 1px dashed var(--aurora-text-primary);
+}
+
 /* The pointer toward the chip. */
 .editor-refused::before {
   content: '';
