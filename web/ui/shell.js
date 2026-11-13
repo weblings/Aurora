@@ -1,4 +1,5 @@
 import { friendlyReloadError } from './messages.js';
+import { testerName } from './testHolder.js';
 import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner, renderLocalNetworkBanner } from './MacPermissionRecovery.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -133,6 +134,7 @@ export class App {
     this._bannerExpanded = false;
     this.lightTestLive = false; // a running light test with no deadline
     this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
+    this.lightTestHolder = null; // {session, client} of the running light test, from /api/state test.holder
     this._lightTestTimer = null;
   }
 
@@ -271,6 +273,7 @@ export class App {
     // A live test has no deadline (confirmRemainingMs null): it is still a test.
     const testing = result?.test?.active === true;
     this.lightTestLive = testing && result.test.confirmRemainingMs === null;
+    this.lightTestHolder = testing && result.test.holder && typeof result.test.holder === 'object' ? result.test.holder : null;
     const remainingMs = testing && !this.lightTestLive ? Number(result.test.confirmRemainingMs) : NaN;
     this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
     this._renderBanner();
@@ -306,6 +309,7 @@ export class App {
     this.pendingPairings = [];
     this.lightTestEndsAt = null;
     this.lightTestLive = false;
+    this.lightTestHolder = null;
     this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
@@ -411,11 +415,18 @@ export class App {
   // user has not chosen). 'by' because a dead client reverts sooner.
   _renderLightTestRow() {
     return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights.${this.lightTestLive ? '' : ` Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span>`}</p>
+      <p class="status-text shell-pairing-title">${this._lightTesterSentence()}${this.lightTestLive ? '' : ` Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span>`}</p>
       <div class="shell-banner-actions">
         <button type="button" class="btn btn-secondary" id="shell-light-test-stop">Stop test</button>
       </div>
     </div></div>`;
+  }
+
+  // 'An agent is testing an effect on the lights.' / 'Another editor tab or window is ...'
+  // (testHolder.js, the words the graph editor uses too).
+  _lightTesterSentence() {
+    const who = testerName(this.lightTestHolder);
+    return `${who[0].toUpperCase()}${who.slice(1)} is testing an effect on the lights.`;
   }
 
   _lightTestClock() {

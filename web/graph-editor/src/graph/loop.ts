@@ -16,7 +16,9 @@ export type LoopState = {
   // Verdict of the last draft the server accepted; null before the first.
   valid: boolean | null
   issues: ServerIssue[]
-  // The draft was refused outright (too many drafts, too large, offline).
+  // The server's error code when it refused the draft PUT outright (too_many_drafts,
+  // draft_too_large, invalid_session, invalid_body). A network failure is not here: the
+  // error shell's takeover owns it.
   putError: string | null
   stream: StreamState
   // Why the stream is not live (server message), when it has one.
@@ -82,7 +84,6 @@ export type Summary = { label: string; detail: string | null }
 // One line for the header. Order matters: a problem with the document hides
 // stream details, because the preview shown is then stale.
 export function summarize(state: LoopState): Summary {
-  if (state.putError) return { label: 'Draft not sent', detail: state.putError }
   if (state.valid === false) {
     const n = state.issues.length
     return { label: `${n} ${n === 1 ? 'problem' : 'problems'}`, detail: 'Fix them to update the preview.' }

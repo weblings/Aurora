@@ -28,6 +28,21 @@ export type Problems = {
   graph: string[]
 }
 
+// The server's issues for the draft as sent. With problems the server refuses the
+// draft and they explain it. A draft the editor believes valid that the server
+// still cannot build ("Draft would not load") has no node: it is a Whole graph
+// problem carrying the server's error text.
+// A draft the server refused as too large (413) is also a Whole graph problem: it is about
+// this graph, so it goes to the chip, not the error shell (Aurora-s1t7.9).
+export const DRAFT_TOO_LARGE = 'draft_too_large'
+export const DRAFT_TOO_LARGE_MESSAGE = "Couldn't check your last edit: the graph is too large (over 256 KB)."
+
+export function draftIssues(state: { valid: boolean | null; issues: readonly ServerIssue[]; reloadError: string | null; putError: string | null }): readonly ServerIssue[] {
+  if (state.putError === DRAFT_TOO_LARGE) return [{ node: null, message: DRAFT_TOO_LARGE_MESSAGE }]
+  if (state.valid === false) return state.issues
+  return state.reloadError ? [{ node: null, message: state.reloadError }] : []
+}
+
 export const noProblems: Problems = { nodes: new Map(), graph: [] }
 
 function push<K>(map: Map<K, string[]>, key: K, message: string) {

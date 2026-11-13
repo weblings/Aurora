@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clearUnsaved, loadUnsaved, restorable, saveUnsaved, syncUnsaved } from './autosave'
+import { clearUnsaved, fingerprint, isUnsaved, loadUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './autosave'
 import { setParam } from './doc'
 import { HISTORY_CAP, editorReducer, emptyEditor, type EditorAction, type EditorState } from './history'
 import { builtinLike } from './fixtures'
@@ -97,29 +97,64 @@ const blocked = {
 } as unknown as Storage
 
 describe('autosave', () => {
-  it('offers the stored copy after a reload with unsaved edits', () => {
+  it('restores the stored copy after a reload with unsaved edits', () => {
     const storage = memoryStorage()
     const server = builtinLike()
     const edited = setParam(server, 'gain', 'gain', 4)
     syncUnsaved('fx', server, edited, storage)
-    expect(restorable('fx', server, storage)).toEqual(edited)
+    expect(openKept('fx', server, storage)).toEqual({ kind: 'restore', doc: edited })
   })
 
-  it('does not offer it after a save, or when it matches the server', () => {
+  it('has nothing to restore after a save, or when the copy matches the server', () => {
     const storage = memoryStorage()
     const server = builtinLike()
     const edited = setParam(server, 'gain', 'gain', 4)
     syncUnsaved('fx', server, edited, storage)
     syncUnsaved('fx', edited, edited, storage) // baseline moved to the saved doc
     expect(loadUnsaved('fx', storage)).toBeNull()
-    saveUnsaved('fx', server, storage)
-    expect(restorable('fx', server, storage)).toBeNull()
+    saveUnsaved('fx', server, null, storage)
+    expect(openKept('fx', server, storage)).toEqual({ kind: 'none' })
     expect(loadUnsaved('fx', storage)).toBeNull()
+  })
+
+  it('asks only when the saved effect changed since the copy was made', () => {
+    const storage = memoryStorage()
+    const server = builtinLike()
+    const edited = setParam(server, 'gain', 'gain', 4)
+    syncUnsaved('fx', server, edited, storage)
+    const savedElsewhere = setParam(server, 'gain', 'gain', 9)
+    expect(openKept('fx', savedElsewhere, storage)).toEqual({ kind: 'newer', doc: edited })
+    // The copy stays until the person answers.
+    expect(loadUnsaved('fx', storage)).toEqual(edited)
+    // Keeping the edits re-bases the copy on the new saved version: no second question.
+    syncUnsaved('fx', savedElsewhere, edited, storage)
+    expect(openKept('fx', savedElsewhere, storage)).toEqual({ kind: 'restore', doc: edited })
+  })
+
+  it('restores a copy written before bases were recorded, without asking', () => {
+    const storage = memoryStorage()
+    const server = builtinLike()
+    const edited = setParam(server, 'gain', 'gain', 4)
+    storage.setItem('aurora.graphEditor.unsaved.old', JSON.stringify(edited))
+    expect(openKept('old', setParam(server, 'gain', 'gain', 9), storage)).toEqual({ kind: 'restore', doc: edited })
+  })
+
+  it('fingerprints by content', () => {
+    const server = builtinLike()
+    expect(fingerprint(server)).toBe(fingerprint(JSON.parse(JSON.stringify(server))))
+    expect(fingerprint(server)).not.toBe(fingerprint(setParam(server, 'gain', 'gain', 4)))
+  })
+
+  it('reads the unsaved state from baseline and document', () => {
+    const server = builtinLike()
+    expect(isUnsaved(server, server)).toBe(false)
+    expect(isUnsaved(server, setParam(server, 'gain', 'gain', 4))).toBe(true)
+    expect(isUnsaved(null, server)).toBe(false)
   })
 
   it('keeps one copy per effect and ignores junk', () => {
     const storage = memoryStorage()
-    saveUnsaved('a', builtinLike(), storage)
+    saveUnsaved('a', builtinLike(), null, storage)
     expect(loadUnsaved('b', storage)).toBeNull()
     storage.setItem('aurora.graphEditor.unsaved.b', '{not json')
     expect(loadUnsaved('b', storage)).toBeNull()
@@ -127,11 +162,21 @@ describe('autosave', () => {
     expect(loadUnsaved('a', storage)).toBeNull()
   })
 
+  it('moves a legacy @empty copy to a fresh @new- id', () => {
+    const storage = memoryStorage()
+    const edited = setParam(builtinLike(), 'gain', 'gain', 4)
+    storage.setItem('aurora.graphEditor.unsaved.@empty', JSON.stringify(edited))
+    expect(migrateLegacyBlank(() => '@new-abc123', storage)).toBe('@new-abc123')
+    expect(loadUnsaved('@new-abc123', storage)).toEqual(edited)
+    expect(loadUnsaved('@empty', storage)).toBeNull()
+    expect(migrateLegacyBlank(() => '@new-zzz', storage)).toBeNull()
+  })
+
   it('works with storage blocked or absent', () => {
     const server = builtinLike()
     expect(() => syncUnsaved('fx', server, setParam(server, 'gain', 'gain', 4), blocked)).not.toThrow()
-    expect(restorable('fx', server, blocked)).toBeNull()
-    expect(restorable('fx', server, null)).toBeNull()
+    expect(openKept('fx', server, blocked)).toEqual({ kind: 'none' })
+    expect(openKept('fx', server, null)).toEqual({ kind: 'none' })
     expect(() => clearUnsaved('fx', null)).not.toThrow()
   })
 })

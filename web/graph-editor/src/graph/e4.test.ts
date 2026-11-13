@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { addControl, controlIndex, controlsOf, dropControlsOf, moveControl, removeControl, updateControl } from './controls'
 import { removeNodes } from './doc'
 import { builtinLike, catalog, customLike } from './fixtures'
-import { describeTest, initialTest, testReducer, type TestEvent, type TestState } from './lightTest'
-import { BLANK_ID, blankDoc, distinctTitle, forWrite, freshEffectId, slugify } from './save'
+import { describeTest, initialTest, lightsInUseText, testReducer, type TestEvent, type TestState } from './lightTest'
+import { BLANK_ID, blankDoc, isDraftId, newEffectId, distinctTitle, forWrite, freshEffectId, slugify } from './save'
 
 const run = (events: TestEvent[], from: TestState = initialTest) => events.reduce(testReducer, from)
 const running = run([{ type: 'starting', mode: 'once' }, { type: 'started', remainingMs: 120000 }])
@@ -108,7 +108,6 @@ describe('light test states', () => {
     const state = run([{ type: 'ended', end: { reason: 'replaced', holder: { session: 's', client: 'mcp' } } }], running)
     expect(state.phase).toBe('idle')
     expect(describeTest(state)).toBe('Test ended: an agent took the lights')
-    expect(state.other).toEqual({ session: 's', client: 'mcp' })
   })
 
   it('reports another tab taking the lights', () => {
@@ -139,12 +138,9 @@ describe('light test states', () => {
     expect(state).toMatchObject({ phase: 'running', failure: 'changed' })
   })
 
-  it('shows someone else’s test while idle, and not while running', () => {
-    const other = { session: 'agent', client: 'mcp' }
-    const idle = run([{ type: 'seen', holder: other }])
-    expect(describeTest(idle)).toBe('Lights in use: an agent is testing')
-    expect(run([{ type: 'seen', holder: other }], running)).toBe(running)
-    expect(run([{ type: 'seen', holder: null }], idle).other).toBeNull()
+  it('someone else holding the lights is the host poll\'s to say, not the reducer\'s', () => {
+    expect(lightsInUseText({ session: 'agent', client: 'mcp' })).toBe('Lights in use: an agent is testing')
+    expect(describeTest(initialTest)).toBeNull()
   })
 
   it('has nothing to say before any test', () => {
@@ -161,5 +157,16 @@ describe('blank effect', () => {
     expect(BLANK_ID).toBe('@empty')
     expect(slugify(BLANK_ID)).toBe('empty')
     expect(freshEffectId('', [])).toBe('effect')
+  })
+
+  it('gives each new effect its own @new- id that is never a stored effect id', () => {
+    const ids = new Set(Array.from({ length: 50 }, () => newEffectId()))
+    expect(ids.size).toBe(50)
+    for (const id of ids) {
+      expect(id).toMatch(/^@new-[a-z0-9]{6}$/)
+      expect(isDraftId(id)).toBe(true)
+    }
+    expect(isDraftId(BLANK_ID)).toBe(true)
+    expect(isDraftId('builtin.video')).toBe(false)
   })
 })

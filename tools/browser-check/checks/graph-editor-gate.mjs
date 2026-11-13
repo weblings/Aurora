@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { addNodeByName, fileAction, openTitleMenu, setName } from '../lib/editorMenu.mjs'
+import { addNodeByName, fileAction, openTitleMenu, setName, waitAnnounced } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -16,6 +16,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
   const browser = await launch()
   const page = await browser.newPage({ viewport: { width: 1470, height: 1000 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
+  page.on('framenavigated', (f) => f === page.mainFrame() && console.log(`nav ${f.url()}`))
 
   const api = (method, path, body, headers = {}) =>
     page.evaluate(
@@ -144,7 +145,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview.includes('took the lights'), null, { timeout: 8000 })
+    await waitAnnounced(page, 'took the lights', 8000)
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('test on lights, then a second session takes it and the editor says so')
 
@@ -236,8 +237,25 @@ await withEditorStack(async ({ editorUrl, restart }) => {
 
     // A draft that needs an input the preview did not open: draft_invalid.
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
-    assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
-    await waitStatus(/would not load/)
+    // Aurora-gujj: the editor's own debounced draft PUT (from the Undo above) can land after this one;
+    // its verdict clears the problem and the chip unmounts. Let it settle, then put again until the
+    // chip has stayed for a moment.
+    await settle()
+    const chip = page.locator('.editor-problems-chip', { hasText: /1 problem/ })
+    for (let tries = 0; ; tries++) {
+      assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
+      await waitStatus(/would not load/)
+      await chip.waitFor({ timeout: 5_000 }).catch(() => {})
+      await page.waitForTimeout(700)
+      if (await chip.isVisible()) break
+      assert.ok(tries < 4, 'the problems chip never stayed after the audio draft')
+    }
+    // Aurora-u68h.5: it is a Whole graph problem in the chip's popover, not a banner.
+    await chip.click()
+    const wholeRow = page.locator('.editor-problem-list li', { hasText: 'Whole graph' })
+    await wholeRow.waitFor()
+    assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph Add node…'.length, 'Whole graph row has no server text')
+    await page.keyboard.press('Escape')
     await button('Redo').click()
     await waitStatus(/Live/)
     step('a draft needing an unopened input shows draft would not load, and the next edit recovers')
@@ -256,12 +274,12 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.evaluate(() => sessionStorage.removeItem('aurora.graphEditor.session'))
     await page.goto(`${editorUrl}?effect=gate-copy`)
     await page.waitForSelector('.aurora-node')
-    await waitStatus(/Draft not sent/)
-    // One banner at a time, in rank order: an earlier visit's Restore/Discard comes first.
-    const discard = page.getByRole('button', { name: 'Discard', exact: true })
-    if (await discard.count()) await discard.click()
-    assert.match(await page.getByRole('alert').filter({ hasText: 'Draft not sent' }).innerText(), /too_many_drafts/)
-    step('a full draft store shows draft not sent (too_many_drafts)')
+    // The draft store is full: an editor-supplied row in the error shell (Aurora-s1t7.9), same
+    // markup as the Dashboard's, no Retry and no X.
+    const row = page.locator('#shell-banner-slot .shell-banner-row', { hasText: "Couldn't check your last edit: too many editors are open. Close one to continue." })
+    await row.waitFor({ timeout: 15_000 })
+    assert.equal(await row.locator('button').count(), 0, 'no Retry or dismiss on a draft row')
+    step('a full draft store shows the too-many-editors row in the error shell')
     for (const id of [...filled, mine]) await api('DELETE', `/api/graph/drafts/${id}`).catch(() => {})
     await page.reload()
     await page.waitForSelector('.aurora-node')

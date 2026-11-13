@@ -136,6 +136,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
 | `external-control-beads` | [log/2026-10-03-external-control-beads.md](log/2026-10-03-external-control-beads.md) | External control: bead sequence, overlap with nodes and HA |
 | `external-control-planning` | [log/2026-10-02-external-control-planning.md](log/2026-10-02-external-control-planning.md) | External control planning, Muse and Hyperion survey |
+| `f8yk-failed-apply-browser-check` | [log/2026-11-13-f8yk-failed-apply-browser-check.md](log/2026-11-13-f8yk-failed-apply-browser-check.md) | Browser check: a Save and apply that cannot run shows as an error-shell row |
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
 | `fq5y-x11-xrender-downscale` | [log/2026-10-20-fq5y-x11-xrender-downscale.md](log/2026-10-20-fq5y-x11-xrender-downscale.md) | Aurora-fq5y: X11 XRender server-side downscale (39.7/20.4% -> 4.2/1.3%) |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
@@ -143,9 +144,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `graph-editor-cleanup` | [planning/WebUI/GraphEditorCleanup.md](planning/WebUI/GraphEditorCleanup.md) | Graph editor cleanup |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
+| `gujj-gate-flake` | [log/2026-11-13-gujj-gate-flake.md](log/2026-11-13-gujj-gate-flake.md) | graph-editor:gate flake: the problems chip unmounts under a late draft PUT |
 | `h45-post-110-upstream-sweep` | [log/2026-10-08-h45-post-110-upstream-sweep.md](log/2026-10-08-h45-post-110-upstream-sweep.md) | Aurora-h45: post-1.1.0 sweep for more huenicorn upstream candidates |
 | `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
 | `h457-audio-permission-banner-row` | [log/2026-10-06-h457-audio-permission-banner-row.md](log/2026-10-06-h457-audio-permission-banner-row.md) | Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed) |
+| `h55g-refused-callout-narrow` | [log/2026-11-13-h55g-refused-callout-narrow.md](log/2026-11-13-h55g-refused-callout-narrow.md) | Graph editor: the refused-save callout stays inside the window |
 | `ha-prep-4y9` | [log/2026-10-01-ha-prep-4y9.md](log/2026-10-01-ha-prep-4y9.md) | Aurora-4y9: output-neutral NUX probe table in web/ui/app.js |
 | `ha-prep-a0r` | [log/2026-10-01-ha-prep-a0r.md](log/2026-10-01-ha-prep-a0r.md) | Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping |
 | `ha-prep-d9v` | [log/2026-10-01-ha-prep-d9v.md](log/2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
@@ -179,6 +182,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `iryq-title-menu-new-open` | [log/2026-11-12-iryq-title-menu-new-open.md](log/2026-11-12-iryq-title-menu-new-open.md) | Title menu: New and Open submenus |
+| `j8i6-grille-dev13-title-cast` | [log/2026-11-13-j8i6-grille-dev13-title-cast.md](log/2026-11-13-j8i6-grille-dev13-title-cast.md) | Graph editor: Grille 0.1.0-dev.13, the MenuSection title cast is removed |
 | `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jk4p-mac-tray-tip-gif-copy` | [log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md](log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md) | Aurora-jk4p: Mac menu-bar tip gets a new GIF and Pause / Resume copy (closed) |
 | `jsjj-angle-converters` | [log/2026-11-11-jsjj-angle-converters.md](log/2026-11-11-jsjj-angle-converters.md) | angle.fromFloat and angle.toFloat |
@@ -264,6 +269,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `mfud-effect-titles-builtin-graphinputs` | [log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md](log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md) | Mfud + 5ipy.26: effect titles and descriptions, graphInputs for built-ins (Aurora-mfud, Aurora-5ipy.26) |
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
+| `my6z-devstack-no-browser-tab` | [log/2026-11-12-my6z-devstack-no-browser-tab.md](log/2026-11-12-my6z-devstack-no-browser-tab.md) | devstack stops opening a browser tab on Mac |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
 | `nodes-agent-ux` | [planning/NodesAndAgentUX.md](planning/NodesAndAgentUX.md) | Nodes and agent UX: sequences |
@@ -322,6 +328,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `s1t75-grille-icons` | [log/2026-11-11-s1t75-grille-icons.md](log/2026-11-11-s1t75-grille-icons.md) | Graph editor adopts Grille icons |
 | `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
 | `s1t78-stage5-close-out` | [log/2026-11-11-s1t78-stage5-close-out.md](log/2026-11-11-s1t78-stage5-close-out.md) | Stage 5 close-out |
+| `s1t79-error-shell` | [log/2026-11-13-s1t79-error-shell.md](log/2026-11-13-s1t79-error-shell.md) | Graph editor stage 6a: the Dashboard's error shell in the editor |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
@@ -338,6 +345,15 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
+| `u68h-stage6-7-rescope` | [log/2026-11-12-u68h-stage6-7-rescope.md](log/2026-11-12-u68h-stage6-7-rescope.md) | Graph editor stage 6 rescoped, stage 7 filed |
+| `u68h1-grille-mock-frame` | [log/2026-11-13-u68h1-grille-mock-frame.md](log/2026-11-13-u68h1-grille-mock-frame.md) | Graph editor stage 6.0: Grille mock frame, owner review applied |
+| `u68h2-kept-copies` | [log/2026-11-13-u68h2-kept-copies.md](log/2026-11-13-u68h2-kept-copies.md) | Graph editor stage 6b: kept copies restore silently, Revert to saved, own ids for new effects |
+| `u68h3-test-outcomes` | [log/2026-11-13-u68h3-test-outcomes.md](log/2026-11-13-u68h3-test-outcomes.md) | Graph editor stage 6c: test outcomes the user did not cause, and the live region |
+| `u68h4-refused-saves` | [log/2026-11-13-u68h4-refused-saves.md](log/2026-11-13-u68h4-refused-saves.md) | Graph editor stage 6d: refused saves point at the problems chip, unsaved dots |
+| `u68h5-draft-load-problem` | [log/2026-11-12-u68h5-draft-load-problem.md](log/2026-11-12-u68h5-draft-load-problem.md) | Draft would not load is a Whole graph problem; DesktopNote dropped |
+| `u68h6-undo-toasts` | [log/2026-11-13-u68h6-undo-toasts.md](log/2026-11-13-u68h6-undo-toasts.md) | Graph editor stage 6g: toast audit, announce-only messages, Undo on lossy toasts |
+| `u68h7-close-out` | [log/2026-11-13-u68h7-close-out.md](log/2026-11-13-u68h7-close-out.md) | Graph editor stage 6f: a failed Save is a shell row, the banner is gone, the priority rule is rewritten |
+| `u68h9-open-failure-row` | [log/2026-11-13-u68h9-open-failure-row.md](log/2026-11-13-u68h9-open-failure-row.md) | Graph editor stage 6h: a failed effect or catalog load is an error-shell row without Retry |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
 | `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |

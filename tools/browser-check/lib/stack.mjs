@@ -1,4 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { closeSync, openSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import net from 'node:net'
@@ -46,6 +48,7 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
   const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000 })
   const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
   let vite = null
+  let viteLog = null
   try {
     if (!port) throw new Error(`devstack up failed:\n${up.stdout}\n${up.stderr}`)
     if (process.env.AURORA_EDITOR === 'embedded') {
@@ -55,16 +58,23 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
     }
     const vitePort = await freePort()
     const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+    // Vite's output is kept so a failed check can show it (a dependency re-optimisation reloads the page).
+    viteLog = join(tmpdir(), `aurora-vite-${process.pid}.log`)
+    const out = openSync(viteLog, 'w')
     vite = spawn(npx, ['vite', '--port', String(vitePort), '--strictPort'], {
       cwd: editorDir,
       env: { ...process.env, AURORA_PORT: port },
-      stdio: 'ignore',
+      stdio: ['ignore', out, out],
       // Node 24 refuses to spawn a .cmd without a shell.
       shell: process.platform === 'win32',
     })
     const editorUrl = `http://localhost:${vitePort}/graph-editor/`
+    closeSync(out)
     await waitFor(editorUrl)
     await body({ editorUrl, aurora: `http://127.0.0.1:${port}`, restart })
+  } catch (e) {
+    if (viteLog) console.error(`--- vite log (${viteLog}) ---\n${readFileSync(viteLog, 'utf8').split('\n').slice(-40).join('\n')}`)
+    throw e
   } finally {
     if (vite) {
       if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(vite.pid), '/T', '/F'])

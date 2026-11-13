@@ -59,7 +59,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitControlCount(page, total)
 
     // Backspace still deletes, and the same toast shows.
-    await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 6000 })
+    await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 12_000 })
     await selectGain()
     await page.keyboard.press('Backspace')
     await gone(count - 1)
@@ -70,7 +70,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } })
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
     await gone(count)
-    await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 6000 })
+    await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 12_000 })
     const plain = page.locator('.aurora-node', { hasText: 'Gain' }).first()
     await tickFirst(page, plain, false)
     await plain.locator('.aurora-node-header').click()
@@ -84,7 +84,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } })
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z')
     await gone(count)
-    await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 6000 })
+    await page.waitForFunction(() => document.querySelector('.editor-toast')?.getAttribute('data-shown') === 'false', null, { timeout: 12_000 })
     const modifier = process.platform === 'darwin' ? 'Meta' : 'Control'
     // Give a second node a control, so the selection owns at least two.
     const second = page.locator('.aurora-node', { hasText: 'Rescale' }).first()

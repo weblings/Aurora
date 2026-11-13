@@ -433,3 +433,101 @@ button { font-family: inherit; }
 .ge-minimap svg { width: 100%; height: 100%; display: block; }
 .ge-minimap .mm-node { fill: var(--ui-color-text-muted); opacity: 0.6; }
 .ge-minimap .mm-view { fill: none; stroke: var(--ui-color-text-secondary); stroke-width: 6; }
+
+/* ---- Stage 6 board (Aurora-u68h.1). Static; none of this is Grille. ---- */
+body.board-on .ge, body.board-on .ge-toast { display: none; }
+.s6 { flex: 1; min-height: 0; overflow: auto; padding: var(--ui-size-space-2xl) var(--ui-size-space-3xl, 32px) 64px; }
+.s6[hidden] { display: none; }
+.s6-head h1 { margin: 0 0 var(--ui-size-space-sm); font-size: 18px; font-weight: 600; }
+.s6-head p, .s6-lead, .s6-note { margin: 0 0 var(--ui-size-space-xl); max-width: 78ch; color: var(--ui-color-text-secondary); font-size: 13px; line-height: 1.5; }
+.s6-note { font-size: 12px; color: var(--ui-color-text-muted); margin-top: var(--ui-size-space-xl); }
+.s6-sec { margin: 40px 0 0; padding-top: var(--ui-size-space-xl); border-top: 1px dashed var(--ui-color-text-muted); }
+.s6-sec h2 { margin: 0 0 var(--ui-size-space-md); font-size: 15px; font-weight: 600; display: flex; align-items: baseline; gap: var(--ui-size-space-lg); }
+.s6-sec h2 code { font-size: 11px; font-weight: 400; color: var(--ui-color-text-muted); }
+.s6-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: var(--ui-size-space-2xl); align-items: start; }
+.s6-panel { margin: 0 0 var(--ui-size-space-2xl); min-width: 0; }
+.s6-grid > .s6-panel { margin: 0; }
+.s6-panel > figcaption { margin-bottom: var(--ui-size-space-md); font-size: 12px; font-weight: 600; color: var(--ui-color-text-secondary); }
+.s6-panel > .ge-bar, .s6-panel > .s6-band, .s6-panel > .s6-canvas { border: 1px solid var(--ui-color-border-subtle); }
+.s6-panel > .ge-bar { border-bottom-color: var(--ui-color-border-subtle); overflow: hidden; }
+.s6-canvas { height: 56px; display: grid; place-items: center; color: var(--ui-color-text-muted); font-size: 12px; background: var(--ui-color-surface-page); border-top: none !important; }
+.s6-warn { display: inline-flex; vertical-align: -3px; }
+.s6-warn .ge-icon.ge-vs { width: 16px; height: 16px; }
+
+/* Error shell above the bar, and the takeover over the editor (forms.css .overlay, .overlay-scrim, .overlay-panel). */
+.s6-panel > .s6-band { border-bottom: 1px solid var(--ui-color-border-default); }
+.s6-stage { position: relative; border: 1px solid var(--ui-color-border-subtle); overflow: hidden; }
+.s6-stage > .ge-bar { border: none; }
+.s6-canvas-tall { height: 140px; border: none; }
+.s6-takeover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.s6-takeover-scrim { position: absolute; inset: 0; background: color-mix(in srgb, var(--ui-color-surface-page) 70%, transparent); }
+.s6-takeover-panel { position: relative; background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default); border-radius: 12px; padding: 28px 32px; min-width: 280px; }
+.s6-takeover-panel h2 { margin: 0; font-size: 18px; font-weight: 700; text-align: center; }
+/* Shell rows: shell.css's .shell-banner, rows and summary on Grille tokens. */
+.s6-band { background: var(--ui-color-surface-raised); border-bottom: 1px solid var(--ui-color-border-default); }
+.s6-band-inner { max-width: 640px; margin: 0 auto; padding: 10px 16px; }
+.s6-row { display: flex; align-items: flex-start; gap: 8px; border: 2px solid var(--ui-color-border-default); border-radius: 12px; padding: 10px 16px; }
+.s6-row + .s6-row { margin-top: 12px; }
+.s6-row-content { flex: 1; min-width: 0; text-wrap: pretty; }
+.s6-row-text { margin: 0; font-size: 13px; color: var(--ui-color-text-default); }
+.s6-row-actions { display: flex; gap: 8px; margin-top: 8px; }
+.s6-row-x { flex: none; margin: -4px -8px 0 0; width: 28px; height: 28px; background: none; border: none; font-size: 20px; line-height: 1; color: var(--ui-color-text-secondary); cursor: pointer; }
+.s6-summary { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; background: none; border: none; padding: 0; font-size: 13px; font-weight: 700; color: var(--ui-color-text-default); cursor: pointer; }
+.s6-summary-up { margin-top: 12px; }
+.s6-summary .s6-warn { vertical-align: middle; }
+
+/* Test button mark */
+.s6-testwrap { position: relative; }
+.s6-static-toast { display: inline-block; padding: var(--ui-size-space-md) var(--ui-size-space-xl); background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm); box-shadow: var(--ui-shadow-popup); color: var(--ui-color-text-default); font-size: 13px; } /* the live .ge-toast, drawn in place */
+.s6-chipwrap { display: inline-flex; align-items: center; gap: var(--ui-size-space-md); }
+.s6-probdemo { margin-top: var(--ui-size-space-md); }
+.s6-headdot { display: inline-block; vertical-align: middle; }
+.s6-grid { grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); }
+.s6-testrow { display: flex; flex-wrap: wrap; gap: var(--ui-size-space-3xl, 32px); padding: var(--ui-size-space-xl) 0 0; align-items: flex-start; }
+.s6-panel > .ge-bar + .s6-testrow { padding-top: var(--ui-size-space-2xl); }
+.s6-testcol { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ui-size-space-md); }
+.s6-testcol small { font-size: 11px; color: var(--ui-color-text-muted); }
+.s6-static { position: static; }
+.ui-tooltip.s6-static { margin-top: 4px; }
+.s6-testmenu { width: 264px; }
+.s6-menu-note { padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x); font-size: var(--ui-size-font-xs); color: var(--ui-color-text-secondary); line-height: 1.4; }
+.s6-hot { background: var(--ui-color-control-bg-hover); }
+
+.s6-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ui-color-text-default); }
+.s6-pending { display: inline-block; margin-top: var(--ui-size-space-xl); padding: 2px var(--ui-size-space-md); border: 1px dashed var(--ui-color-text-muted); border-radius: var(--ui-size-radius-sm); font-size: 11px; color: var(--ui-color-text-muted); }
+
+/* Prompt: Grille Modal, held inside a card instead of the page. */
+.s6-overlay.ui-modal-overlay { position: relative; inset: auto; z-index: 0; height: 240px; border-radius: var(--ui-size-radius-md); }
+.s6-modal-title { margin: 0; font-size: var(--ui-size-font-lg, 16px); font-weight: 600; }
+.s6-modal-body { margin: 0; font-size: var(--ui-size-font-sm); color: var(--ui-color-text-secondary); }
+.s6-modal-actions { display: flex; justify-content: center; gap: var(--ui-size-space-md); }
+.s6-focus { outline: 2px solid var(--ui-color-focus-ring, #5b9dff); outline-offset: 2px; }
+
+/* Stage 6 proposal, live frames (#s6-apply, #s6-menu): Save and apply stays enabled and opens the problems popover. */
+.ge-item:focus-visible { outline: none; background: var(--ui-color-popup-bg-hover); }
+.s6-titlemenu .ge-item-main .s6-dot { margin-left: var(--ui-size-space-xs); }
+.ge-prob:focus-visible { outline: none; background: var(--ui-color-popup-bg-hover); }
+/* Ping (owner, 2026-11-12): a refused Save and apply gives the chip the problem node's border (.gn.bad) and pulses it twice,
+   alone (one ping, one target). Reduced motion keeps the border for the same time without the pulse. */
+.ge-problems.s6-ping { animation: s6-ping var(--s6-pulse, 0.95s) ease-out 2; }
+.ge-problems.s6-ping { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning); }
+@keyframes s6-ping {
+  0% { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning), 0 0 0 0 color-mix(in srgb, var(--ui-color-text-warning) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning), 0 0 0 8px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ge-problems.s6-ping { animation: s6-hold calc(var(--s6-pulse, 0.95s) * 2) step-end 1; }
+  @keyframes s6-hold { 0%, 99% { box-shadow: inset 0 0 0 1px var(--ui-color-text-warning); } }
+}
+/* Refused-save callout (owner, 2026-11-12): Grille's tooltip on the chip's left, with the problem node's warning border
+   and a pointer to the chip. */
+.ui-tooltip.s6-refused { position: fixed; z-index: 35; white-space: nowrap; max-width: none; border-color: var(--ui-color-text-warning); }
+.ui-tooltip.s6-refused::before {
+  content: ''; position: absolute; right: -5px; top: 50%; width: 8px; height: 8px; translate: 0 -50%; rotate: 45deg;
+  background: var(--ui-color-popup-bg); border-right: 1px solid var(--ui-color-text-warning); border-top: 1px solid var(--ui-color-text-warning);
+}
+/* Focus moved to the chip after a mouse or touch choice: no ring, as React Aria would not set data-focus-visible. */
+.ui-button.s6-quiet:focus-visible { outline: none; }
+/* Open path: titles cut off at 30ch like the editor's .editor-menu-title; the tooltip shows only when one is cut off. */
+.ge-item .s6-trunc { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-tooltip.s6-tip { position: fixed; z-index: 35; }

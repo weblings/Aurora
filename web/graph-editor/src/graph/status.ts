@@ -3,9 +3,9 @@
 // is testable without a server.
 
 import { summarize, type LoopState } from './loop'
-import { describeTest, type TestState } from './lightTest'
+import { describeTest, initialTest, lightsInUseText, type Holder, type TestState } from './lightTest'
 
-export type StatusRank = 1 | 3 | 4 | 5 | 6 | 7
+export type StatusRank = 1 | 4 | 5 | 7
 
 export type Status = {
   rank: StatusRank
@@ -13,29 +13,29 @@ export type Status = {
   // The tooltip.
   detail: string | null
   // Where it shows now that the bar has no status text: the Test button's
-  // label or tooltip, the banner under the bar, or nowhere (the problems chip
-  // and the zones' stale tint already say it).
-  where: 'button' | 'banner' | 'none'
+  // label or tooltip, or nowhere (the problems chip and the zones' stale tint
+  // already say it).
+  where: 'button' | 'none'
   // The Test button's own label for this state.
   action: 'reconnect' | 'take-over' | null
 }
 
 export type StatusInput = {
-  // Cannot reach Aurora, or cannot open the effect (rank 1, also a banner).
-  openError: string | null
+  // The effect or catalog would not load although Aurora answers (rank 1; the error shell says why).
+  openError: boolean
+  // Aurora cannot be reached: the one verdict, from the host-state poll that also raises
+  // the shell's takeover (rank 1; the Test button is off with it).
+  unreachable: boolean
   loop: LoopState
   test: TestState
-  // A Save or Save and apply that failed (rank 6).
-  writeTrouble: string | null
-  // The test outcome was shown and an edit or Save has happened since.
-  testOutcomeCleared: boolean
+  // Another session's test, from the host-state poll (the same source as the shell's
+  // light-test row), or null. Rank 5.
+  otherHolder: Holder | null
 }
 
-// Test outcomes that are a toast, not a status.
-function isQuietEnd(state: TestState): boolean {
-  const r = state.ended?.reason
-  // confirm_timeout is how a Once test ends on its own: a toast.
-  return r === 'kept' || r === 'reverted' || r === 'confirm_timeout'
+/** Stop was pressed and the lights are back: the user's own act, announced and not drawn (Aurora-u68h.6). */
+export function stopAnnounced(ended: TestState['ended']): boolean {
+  return ended?.reason === 'reverted'
 }
 
 /** The toast for a test that ended by itself or by Stop, else null. */
@@ -50,22 +50,35 @@ export function quietEndToast(test: TestState): string | null {
   }
 }
 
-// Rank 5: someone else is testing on the lights.
-export function lightsInUse(test: TestState): string | null {
-  if (test.phase !== 'idle' || !test.other || test.ended?.reason === 'replaced') return null
-  return describeTest(test)
+// Rank 5: someone else is testing on the lights. Only offered when this tab is idle.
+export function lightsInUse(test: TestState, otherHolder: Holder | null): string | null {
+  return test.phase === 'idle' && otherHolder ? lightsInUseText(otherHolder) : null
 }
 
-// Rank 6, test side: a test that failed or ended without the user ending it.
-export function testTrouble(test: TestState): string | null {
-  if (test.phase !== 'idle') return test.failure
-  if (test.failure) return test.failure
-  if (!test.ended || isQuietEnd(test)) return null
-  if (lightsInUse(test)) return null
-  return describeTest(test)
+// Why a test ended for a reason the user did not cause, else null. Announced and kept as
+// the first line of the Test caret menu; it never draws on the button and is not a status.
+// Kept, Reverted and the end of a Once test are the user's own and are toasts; unreachable
+// is the "Aurora has stopped" takeover; a null reason is a Stop that found the test over.
+export function testOutcome(test: TestState): string | null {
+  if (test.phase !== 'idle') return null
+  switch (test.ended?.reason) {
+    case 'replaced':
+    case 'heartbeat_lost':
+    case 'stopped':
+    case 'superseded':
+    case 'pipeline_gone':
+      return describeTest({ ...initialTest, ended: test.ended })
+    default:
+      return null
+  }
 }
 
-/** A document change that dismisses a test outcome and a write trouble: any
+/** The toast for a Test the server refused to start (or a Stop it refused): its own failure text. */
+export function testFailureToast(test: TestState): string | null {
+  return test.phase === 'idle' || test.phase === 'running' ? test.failure : null
+}
+
+/** A document change that dismisses a test outcome and a failed-save row: any
  *  change after an effect is open, but not the open itself (from no document). */
 export function changeIsEdit(before: unknown, after: unknown): boolean {
   return before !== null && after !== null && before !== after
@@ -80,33 +93,25 @@ export function stopLabel(test: TestState): string {
 
 const at = (rank: StatusRank, where: Status['where'], label: string, detail: string | null = null, action: Status['action'] = null): Status => ({ rank, where, label, detail, action })
 
-export function pickStatus({ openError, loop, test, writeTrouble, testOutcomeCleared }: StatusInput): Status {
-  // Rank 1: the banner says it; the button is disabled with this as its tooltip.
-  if (openError || loop.stream === 'unreachable') return at(1, 'button', 'Cannot reach Aurora', openError ?? 'Retrying.')
-  // Ranks 3 and 6 persist and need a look: the banner.
-  if (loop.putError) return at(3, 'banner', 'Draft not sent', loop.putError)
-  // A draft with problems is also refused by the server; the problems (the chip)
-  // already explain that, so the reload error only shows for a valid draft.
-  if (loop.reloadError && loop.valid !== false) return at(3, 'banner', 'Draft would not load', loop.reloadError)
+export function pickStatus({ openError, unreachable, loop, test, otherHolder }: StatusInput): Status {
+  // Rank 1: the takeover (or the shell row for an effect that would not open) says it; the button
+  // is disabled with this as its tooltip, and nothing is open to save. A lost preview stream alone is not this: it only
+  // asks the host poll to look (useDraftLoop), which owns the verdict.
+  if (unreachable) return at(1, 'button', 'Cannot reach Aurora', 'Retrying.')
+  if (openError) return at(1, 'button', 'No effect is open', 'The error above says why.')
+  // Draft not sent is split by the server's error code: the error shell shows the editor-supplied
+  // rows (graph/hostState.ts draftShellNote), and a too-large draft is a Whole graph problem.
+  // Draft would not load is a problem with the graph: it is a Whole graph row in
+  // the problems popover (graph/problems.ts draftIssues), not a banner.
   // Rank 4 and 5 are the button's own labels.
   if (loop.stream === 'replaced') return at(4, 'button', 'Reconnect', 'Another view of this session opened the preview.', 'reconnect')
-  const use = lightsInUse(test)
+  const use = lightsInUse(test, otherHolder)
   if (use) return at(5, 'button', 'Take over', use, 'take-over')
-  const trouble = writeTrouble ?? (testOutcomeCleared ? null : testTrouble(test))
-  if (trouble) return at(6, 'banner', trouble)
+  // There is no rank 6: a failed Save is an error-shell row (graph/hostState.ts failedSaveNote), test
+  // outcomes are the live region and the Test menu (testOutcome), and a failed start is a toast.
   // Preview state (Preview paused, Connecting, Live) is no longer text: problems
   // are the chip's job and the zones island tints when stale.
   if (loop.valid === false) return at(7, 'none', 'Preview paused', 'Fix the problems to update the preview.')
   const line = summarize(loop)
   return at(7, 'none', line.label, line.detail)
-}
-
-// The banner under the bar: only what blocks work or waits for an answer.
-export type Banner = { kind: 'unreachable'; message: string } | { kind: 'restore' } | { kind: 'notice'; message: string; detail: string | null }
-
-export function pickBanner(openError: string | null, hasOffer: boolean, status?: Status): Banner | null {
-  if (openError) return { kind: 'unreachable', message: openError }
-  if (hasOffer) return { kind: 'restore' }
-  if (status?.where === 'banner') return { kind: 'notice', message: status.label, detail: status.detail }
-  return null
 }

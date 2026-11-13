@@ -360,3 +360,14 @@ Applies-when: a canvas check clicks `.first()` node or opens a menu right after 
 Aurora-daaa.25: Aurora-daaa.18 capped fit view at 60% zoom, so `builtin.video` overflowed 1470x900 and `.first()` node header sat outside the window (Playwright waits 30 s on "element is outside of the viewport"). In the view-menu step, waiting for zoom `> z0` resolved on the first animation frame, and the menu opened mid-animation was gone before the next click. Both checks passed unchanged with `minZoom` put back, so the editor was right.
 
 **Fix:** pick a node whose box is inside the window instead of `.first()`, and wait for the zoom to read the same for a few polls before opening a menu. When two checks time out together after an editor change, bisect by reverting that one option before touching either check.
+
+
+---
+
+## A dev stack launched with `--fresh` is a first setup, so the app opens the user's browser; stub the opener on PATH
+Tags: devstack, browser-check, focus, first-setup, mac
+Applies-when: an automated run starts the app (devstack `up`, a check, a script) on a machine where someone is working
+
+Aurora-my6z: every `devstack.py up` opened a tab in the user's default browser and stole focus, though the Playwright checks themselves run headless. `--fresh` leaves no `config.json`, so `isFirstSetup` is true and the Mac app runs `open <url>` (`openWebBrowser`). `restart` does not: it has no `--fresh` and `up` leaves a `config.json`.
+
+**Fix:** `devstack.py` puts a no-op `open` first on the app's PATH only (Mac); the app calls it through `sh`, so the stub wins. A logging stub proved the call arrives. Linux (`xdg-open`) is Aurora-5m0p; Windows `ShellExecuteA` ignores PATH and needs an app-side switch (Aurora-q5eb).

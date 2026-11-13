@@ -46,6 +46,9 @@
   }
   .ui-icon[data-size="sm"] { --ui-icon-box: var(--ui-size-icon-sm); }
   /* Artwork drawn edge to edge has no padding to overhang, so it takes the layout box exactly. */
+  /* Design-system rule: a trigger with aria-expanded="true" shows its down chevron flipped. */
+  .ui-icon[data-chevron] { transition: rotate 0.1s; }
+  [aria-expanded="true"] > .ui-icon[data-chevron] { rotate: 180deg; }
   .ui-icon[data-tight] { width: var(--ui-icon-box); height: var(--ui-icon-box); margin: 0; }
   /* Inline with text the overhang makes an icon taller than the line, so icons there take the layout box too, sitting on the
      first line's baseline with their centre at the middle of the capitals (about 0.36em above the baseline). */
@@ -99,6 +102,17 @@
     padding: var(--ui-size-popup-pad);
   }
   .ui-popover[data-trigger="Select"] { min-width: var(--trigger-width); }
+  .ui-tooltip {
+    max-width: var(--ui-size-tooltip-max-width); box-sizing: border-box;
+    padding: var(--ui-size-tooltip-pad-y) var(--ui-size-tooltip-pad-x);
+    border-radius: var(--ui-size-radius-sm);
+    background: var(--ui-color-popup-bg); border: 1px solid var(--ui-color-popup-border);
+    box-shadow: var(--ui-shadow-popup);
+    color: var(--ui-color-text-default); font-size: var(--ui-size-font-xs); line-height: 1.5;
+    pointer-events: none;
+  }
+  .ui-tooltip ul { margin: var(--ui-size-space-xs) 0 0; padding-left: var(--ui-size-space-xl); }
+  .ui-tooltip p { margin: 0; }
   .ui-modal-overlay {
     position: fixed; inset: 0; z-index: 100;
     display: flex; align-items: center; justify-content: center;
@@ -149,10 +163,29 @@
   }
   .ui-menu-item-submenu { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-lg); }
   .ui-menu-item-submenu[data-open] { background: var(--ui-color-popup-bg-hover); }
+  .ui-menu-item:has(> .ui-menu-check) { display: flex; align-items: center; }
+  .ui-menu-check { display: inline-flex; flex: none; width: var(--ui-size-icon-sm); margin-right: var(--ui-size-space-md); }
   .ui-menu-chevron { color: var(--ui-color-text-disabled); }
   .ui-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .ui-menu-item[data-focused] { background: var(--ui-color-popup-bg-hover); }
   .ui-menu-item[data-disabled] { color: var(--ui-color-text-disabled); cursor: not-allowed; }
+  /* A flyout scrolls on the inner menu so the popover padding still keeps the focus ring inside the clip.
+     The popover is a flex column capped by React Aria to the space on screen; the menu shrinks into it. */
+  .ui-popover[data-submenu] { display: flex; flex-direction: column; }
+  .ui-popover[data-submenu] > .ui-menu {
+    min-height: 0; max-height: var(--ui-submenu-max-height, var(--ui-size-submenu-max-height));
+    overflow-y: auto; overscroll-behavior: contain;
+    scroll-padding-top: var(--ui-size-menu-heading-height);
+  }
+  .ui-menu-section-header {
+    position: sticky; top: 0; z-index: 1; box-sizing: border-box; display: flex; align-items: center;
+    height: var(--ui-size-menu-heading-height); padding: 0 var(--ui-size-control-pad-x);
+    background: var(--ui-color-popup-bg);
+    color: var(--ui-color-text-secondary); font-size: var(--ui-size-font-xs); font-weight: var(--ui-font-weight-semibold);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  /* A rule between groups; the section's own border scrolls with it, under the next sticky heading. */
+  .ui-menu-section + .ui-menu-section { margin-top: var(--ui-size-space-sm); padding-top: var(--ui-size-space-sm); border-top: 1px solid var(--ui-color-popup-border); }
   .ui-menu-separator { height: 1px; margin: var(--ui-size-space-xs) 0; border: none; background: var(--ui-color-popup-border); }
   .ui-listbox { outline: none; max-height: 240px; overflow: auto; }
   .ui-option {
@@ -166,6 +199,9 @@
   .ui-autocomplete { display: flex; flex-direction: column; }
   .ui-search-field { grid-template-columns: max-content 1fr; }
   .ui-search-field .ui-text-input::-webkit-search-cancel-button { display: none; }
+  /* The input's size=40 gives it an intrinsic width; inside an Autocomplete the field fills its container instead. */
+  .ui-autocomplete .ui-search-field { grid-template-columns: max-content minmax(0, 1fr); }
+  .ui-autocomplete .ui-search-field .ui-text-input { justify-self: stretch; min-width: 0; }
   .ui-section-header {
     padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x);
     color: var(--ui-color-text-secondary); font-size: var(--ui-size-font-sm); font-weight: var(--ui-font-weight-semibold);

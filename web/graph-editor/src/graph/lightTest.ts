@@ -1,3 +1,5 @@
+import { testerName } from '../../../ui/testHolder.js'
+
 // State of a test on the real lights, as a pure reducer like loop.ts. The hook
 // in `useLightTest.ts` turns server answers and timers into these events.
 
@@ -19,18 +21,15 @@ export type TestState = {
   mode: TestMode
   phase: 'idle' | 'starting' | 'running' | 'closing'
   remainingMs: number
-  // Someone else's test, seen while idle.
-  other: Holder | null
   // Why the last test is over; kept until the next one starts.
   ended: TestEnd | null
   // A start, keep or revert the server refused.
   failure: string | null
 }
 
-export const initialTest: TestState = { mode: 'once', phase: 'idle', remainingMs: 0, other: null, ended: null, failure: null }
+export const initialTest: TestState = { mode: 'once', phase: 'idle', remainingMs: 0, ended: null, failure: null }
 
 export type TestEvent =
-  | { type: 'seen'; holder: Holder | null }
   | { type: 'starting'; mode: TestMode }
   | { type: 'started'; remainingMs: number }
   | { type: 'start-failed'; message: string }
@@ -44,10 +43,8 @@ export type TestEvent =
 
 export function testReducer(state: TestState, event: TestEvent): TestState {
   switch (event.type) {
-    case 'seen':
-      return state.phase === 'idle' ? { ...state, other: event.holder } : state
     case 'starting':
-      return { ...state, mode: event.mode, phase: 'starting', failure: null, ended: null, other: null }
+      return { ...state, mode: event.mode, phase: 'starting', failure: null, ended: null }
     case 'started':
       return { ...state, phase: 'running', remainingMs: event.remainingMs }
     case 'start-failed':
@@ -57,8 +54,9 @@ export function testReducer(state: TestState, event: TestEvent): TestState {
     case 'tick':
       return state.phase === 'running' ? { ...state, remainingMs: Math.max(0, state.remainingMs - event.ms) } : state
     case 'ended':
-      // Whatever phase it was in, the test is over; a taker is someone else's.
-      return { ...state, phase: 'idle', remainingMs: 0, ended: event.end, other: event.end.reason === 'replaced' ? event.end.holder : null }
+      // Whatever phase it was in, the test is over. Who holds the lights now is the host
+      // poll's to say (useHostState), not this reducer's.
+      return { ...state, phase: 'idle', remainingMs: 0, ended: event.end }
     case 'closing':
       return state.phase === 'running' ? { ...state, phase: 'closing', failure: null } : state
     case 'closed':
@@ -68,10 +66,11 @@ export function testReducer(state: TestState, event: TestEvent): TestState {
   }
 }
 
-function who(holder: Holder | null): string {
-  if (!holder) return 'another session'
-  return holder.client === 'mcp' ? 'an agent' : 'another editor tab or window'
-}
+// The words are the Dashboard shell's too (web/ui/testHolder.js).
+const who = testerName
+
+// The Test button's `Take over` tooltip and data-preview: someone else holds the lights.
+export const lightsInUseText = (holder: Holder): string => `Lights in use: ${who(holder)} is testing`
 
 // One sentence for the toolbar, or null when there is nothing to say.
 export function describeTest(state: TestState): string | null {
@@ -87,8 +86,6 @@ export function describeTest(state: TestState): string | null {
       break
   }
   const end = state.ended
-  // The taker is also `other`; the sentence about the loss comes first.
-  if (state.other && end?.reason !== 'replaced') return `Lights in use: ${who(state.other)} is testing`
   if (!end) return null
   switch (end.reason) {
     case 'replaced':

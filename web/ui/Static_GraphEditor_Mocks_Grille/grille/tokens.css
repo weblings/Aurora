@@ -57,6 +57,11 @@
   --ui-size-icon-overhang: 4px;
   --ui-size-slider-track-width: 120px;
   --ui-size-popup-pad: 4px;
+  --ui-size-submenu-max-height: 480px;
+  --ui-size-menu-heading-height: 28px;
+  --ui-size-tooltip-pad-x: 10px;
+  --ui-size-tooltip-pad-y: 6px;
+  --ui-size-tooltip-max-width: 260px;
   --ui-size-modal-pad: 16px;
   --ui-size-modal-width: 360px;
   --ui-size-modal-gutter: 16px;

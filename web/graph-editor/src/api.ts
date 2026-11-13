@@ -5,9 +5,25 @@ import type { ServerIssue } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, NodeTypeInfo } from './graph/types'
 
 // Root-absolute on purpose: Aurora's REST API ignores the editor's base.
+// A GET the server answered with an error carries its status and the body's `error` code
+// (unknown_effect, unreadable_effect), else code ''. A network failure or an unparseable
+// success body is fetch's / json()'s own error, as before.
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string
+  constructor(path: string, status: number, code: string) {
+    super(`${path}: ${status}`)
+    this.status = status
+    this.code = code
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path)
-  if (!res.ok) throw new Error(`${path}: ${res.status}`)
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: unknown }
+    throw new ApiError(path, res.status, typeof body.error === 'string' ? body.error : '')
+  }
   return (await res.json()) as T
 }
 
@@ -21,6 +37,17 @@ export async function fetchEffects(): Promise<EffectListEntry[]> {
   return (await getJson<{ effects: EffectListEntry[] }>('/api/effects')).effects
 }
 
+// The dashboard reads the same fields: any audio input means Music pulse can run,
+// and the platform decides how the error shell words a macOS permission row.
+export async function fetchCapabilities(): Promise<{ hasAudio: boolean; platform: string }> {
+  try {
+    const body = await getJson<{ audioInputs?: unknown[]; platform?: unknown }>('/api/capabilities')
+    return { hasAudio: (body.audioInputs ?? []).length > 0, platform: typeof body.platform === 'string' ? body.platform : '' }
+  } catch {
+    return { hasAudio: false, platform: '' }
+  }
+}
+
 export async function fetchEffectGraph(id: string): Promise<GraphDoc> {
   return (await getJson<{ graph: GraphDoc }>(`/api/effects/${encodeURIComponent(id)}`)).graph
 }
@@ -32,9 +59,19 @@ export async function fetchZoneRegions(): Promise<ZoneRegions | null> {
 
 export type DraftVerdict = { valid: boolean; errors: ServerIssue[] }
 
+// The server answered the draft PUT with an error: `code` is its error code
+// (too_many_drafts, draft_too_large, invalid_session, invalid_body), else http_<status>.
+// A network failure is not this: fetch's own error passes through.
+export class DraftRefused extends Error {
+  readonly code: string
+  constructor(code: string) {
+    super(code)
+    this.code = code
+  }
+}
+
 // Sends the whole document as this tab's draft. The server saves it even when
-// invalid and answers with its validation; any other failure throws a short
-// reason (too_many_drafts, draft_too_large, ...).
+// invalid and answers with its validation; any other answer throws DraftRefused.
 export async function putDraft(session: string, graph: GraphDoc, signal?: AbortSignal): Promise<DraftVerdict> {
   const res = await fetch(`/api/graph/drafts/${encodeURIComponent(session)}`, {
     method: 'PUT',
@@ -43,7 +80,7 @@ export async function putDraft(session: string, graph: GraphDoc, signal?: AbortS
     signal,
   })
   const body = (await res.json().catch(() => ({}))) as { valid?: boolean; errors?: ServerIssue[]; error?: string }
-  if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
+  if (!res.ok) throw new DraftRefused(body.error ?? `http_${res.status}`)
   return { valid: body.valid === true, errors: body.errors ?? [] }
 }
 
@@ -76,12 +113,12 @@ function refusal(reply: Reply): string {
   return message || error || `HTTP ${reply.status}`
 }
 
-export type WriteResult = { ok: true; reloadError: string | null } | { ok: false; reason: string }
+// A failed reload after a write is not reported here: Aurora records it in
+// /api/state errors and the error shell shows it, as on the Dashboard.
+export type WriteResult = { ok: true } | { ok: false; reason: string }
 
 function written(reply: Reply): WriteResult {
-  if (!reply.ok) return { ok: false, reason: refusal(reply) }
-  const reload = reply.body.reloadError
-  return { ok: true, reloadError: typeof reload === 'string' && reload ? reload : null }
+  return reply.ok ? { ok: true } : { ok: false, reason: refusal(reply) }
 }
 
 // Writes the session's draft as a custom effect; the live effect stays as it is.
@@ -98,13 +135,6 @@ function holderOf(raw: unknown): Holder | null {
   if (typeof raw !== 'object' || raw === null) return null
   const { session, client } = raw as { session?: unknown; client?: unknown }
   return typeof session === 'string' ? { session, client: typeof client === 'string' ? client : null } : null
-}
-
-export type TestInfo = { holder: Holder | null }
-
-export async function fetchTestInfo(): Promise<TestInfo> {
-  const body = await getJson<{ active?: boolean; holder?: unknown }>('/api/graph/test')
-  return { holder: body.active ? holderOf(body.holder) : null }
 }
 
 export type TestStart = { ok: true; remainingMs: number; heartbeatMs: number } | { ok: false; reason: string }

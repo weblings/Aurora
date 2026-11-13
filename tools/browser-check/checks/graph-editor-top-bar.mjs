@@ -1,20 +1,20 @@
 // Aurora-daaa.11: the top bar, the title menu's Name and effect list, the view
-// menu, and the status rule's places (the Test button, the banner and the toast; the bar has no status text).
+// menu, and the status rule's places (the Test button, the shell's rows and the toast; the bar has no status text).
 //
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
-//   checked here:       rank 1 + Retry banner, rank 2 Restore/Discard banner,
+//   checked here:       rank 1 shell rows (404, 422, 500; no Retry), kept copy restores silently (kept-copy check has the rest),
 //                       rank 7 default, Edited since the test, Stop-only bar
-//   checked elsewhere:  rank 3 too_many_drafts (gate), rank 4 Reconnect (gate),
-//                       rank 5/6 test outcomes (graph-editor edit loop), problems
+//   checked elsewhere:  draft refusals and the takeover (error-shell), rank 4 Reconnect (gate),
+//                       rank 5 Take over and test outcomes (test-outcome), failed Save row (failed-save), problems
 //                       chip and Preview paused (gate), draft would not load
-//                       (gate), Saved toast (edit loop)
+//                       as a Whole graph row (gate), Saved toast (edit loop)
 //   unit tests:         every rank and the priority order (graph/status.test.ts)
-//   manual:             `Whole graph` row in the problems popover, rank 6
-//                       `Reload:` after a Save, the Wire refused toast
+//   manual:             `Whole graph` row in the problems popover, the Wire refused toast
+//                       (a failed reload after a Save is the error shell's: /api/state)
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { currentEffect, makeEdit, nameDialog, openTitleMenu, titleMenu, waitEffect, waitToast } from '../lib/editorMenu.mjs'
+import { currentEffect, makeEdit, nameDialog, openTitleMenu, titleMenu, waitAnnounced, waitEffect, waitToast } from '../lib/editorMenu.mjs'
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
@@ -46,39 +46,59 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
     step('bar controls are Grille ui-buttons, 32 px tall, with two dividers')
 
-    // Title menu: file actions and the effect list; no Name field.
+    // Title menu: file actions, then New and Open submenus; no Name field, no second menu.
     await openTitleMenu(page)
     assert.equal(await page.getByLabel('Name', { exact: true }).count(), 0)
-    const list = page.getByRole('menu', { name: 'Open another effect' })
+    assert.equal(await page.getByRole('menu', { name: 'Open', exact: true }).count(), 0, 'the Open list is closed until asked for')
+    const menuWidth = (await titleMenu(page).boundingBox()).width
+    assert.ok(menuWidth < 280, `menu is narrower than the old 280 px (${menuWidth})`)
+    const open = page.getByRole('menuitem', { name: 'Open', exact: true })
+    await open.hover()
+    const list = page.getByRole('menu', { name: 'Open', exact: true })
+    await list.waitFor()
     assert.ok((await list.getByRole('menuitem').count()) > 0, 'other effects listed')
     assert.equal(await list.getByRole('menuitem', { name: 'Screen colors', exact: true }).count(), 0, 'the open effect is not listed')
-    step('the title menu holds Name, the file actions and the other effects')
+    const headings = await list.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent))
+    assert.deepEqual(headings.filter((h) => h === 'Custom' || h === 'Built-in').slice(-1), ['Built-in'], 'Built-in group comes last')
+    if (headings.includes('Custom')) assert.ok(headings.indexOf('Custom') < headings.indexOf('Built-in'), 'Custom before Built-in')
+    step('the title menu holds the file actions, New and Open submenus; Open groups Custom then Built-in')
 
     // Arrow keys move focus in the list; they open nothing.
     await list.getByRole('menuitem').first().focus()
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('ArrowUp')
     assert.equal(await currentEffect(page), 'builtin.video')
+    await page.keyboard.press('Escape') // closes the submenu level
     await page.keyboard.press('Escape')
     await closed()
     step('arrow keys in the effect list do not switch effects')
 
-    // Enter opens the focused one.
+    // Right arrow opens Open from the keyboard; Enter opens the focused one.
     await openTitleMenu(page)
-    const target = page.getByRole('menu', { name: 'Open another effect' }).getByRole('menuitem').first()
+    await page.getByRole('menuitem', { name: 'Open', exact: true }).focus()
+    await page.keyboard.press('ArrowRight')
+    const target = page.getByRole('menu', { name: 'Open', exact: true }).getByRole('menuitem').first()
+    await target.waitFor()
     await target.focus()
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect !== 'builtin.video')
     await page.waitForSelector('.aurora-node')
     const other = await currentEffect(page)
     assert.notEqual(other, 'builtin.video')
-    step('Enter on an effect opens it')
+    step('Right arrow opens the Open submenu and Enter on an effect opens it')
 
-    // New empty effect.
+    // New: Start from, then Empty and the built-ins; Empty is a blank graph.
     await openTitleMenu(page)
-    await page.getByRole('menuitem', { name: 'New empty effect', exact: true }).click()
-    await waitEffect(page, '@empty')
-    step('New empty effect opens a blank graph')
+    await page.getByRole('menuitem', { name: 'New', exact: true }).hover()
+    const starts = page.getByRole('menu', { name: 'New', exact: true })
+    await starts.waitFor()
+    assert.deepEqual(await starts.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent)), ['Start from'])
+    const startNames = await starts.getByRole('menuitem').allInnerTexts()
+    assert.equal(startNames[0], 'Empty')
+    assert.ok(startNames.includes('Screen colors'), 'built-ins follow Empty')
+    await starts.getByRole('menuitem', { name: 'Empty', exact: true }).click()
+    await page.waitForFunction(() => /^@new-[a-z0-9]{6}$/.test(document.querySelector('[data-effect]')?.dataset.effect ?? ''))
+    step('New offers Start from, Empty then the built-ins; Empty opens a blank graph')
 
     // View menu.
     await page.goto(`${editorUrl}?effect=builtin.video`)
@@ -144,29 +164,24 @@ await withEditorStack(async ({ editorUrl }) => {
     }
     assert.equal(await effectCount(), before, 'a cancelled dialog writes nothing')
     await openTitleMenu(page)
-    assert.equal(await page.getByRole('menuitem', { name: 'Rename…' }).count(), 0, 'no Rename on a built-in')
+    assert.equal(await page.getByRole('menuitem', { name: 'Rename' }).count(), 0, 'no Rename on a built-in')
     await page.keyboard.press('Escape')
     step('Save on a built-in opens a naming dialog; Cancel, Escape and a scrim click write nothing')
 
-    // Rank 2: an unsaved copy from an earlier visit asks Restore or Discard.
+    // A kept copy from an earlier visit comes back without asking (Aurora-u68h.2): no banner, no buttons.
     await makeEdit(page)
-    await page.getByText('Unsaved', { exact: true }).waitFor()
+    await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    const banner = page.getByRole('group', { name: 'Unsaved changes from an earlier visit' })
-    await banner.waitFor()
-    await button('Restore').click()
-    await waitToast(page, 'Restored')
-    await banner.waitFor({ state: 'detached' })
-    await page.getByText('Unsaved', { exact: true }).waitFor()
-    await page.reload()
-    await banner.waitFor()
-    await button('Discard').click()
-    await waitToast(page, 'Discarded')
+    await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
+    assert.equal(await button('Restore').count() + (await button('Discard').count()), 0, 'no Restore or Discard')
+    await openTitleMenu(page)
+    await page.getByRole('menuitem', { name: 'Revert to saved', exact: true }).click()
+    await waitToast(page, 'Reverted to the saved version')
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    assert.equal(await banner.count(), 0, 'discarded copy is gone')
-    step('the restore banner offers Restore and Discard, each answered with a toast')
+    assert.equal(await page.locator('.editor-title-menu[data-unsaved="true"]').count(), 0, 'the reverted copy is gone')
+    step('a kept copy restores silently and Revert to saved drops it')
 
     // Edited since the test: the bar says so and the title menu warns.
     await live()
@@ -180,7 +195,8 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press('Escape')
     await closed()
     await button('Stop the test').click()
-    await waitToast(page, 'Reverted')
+    await waitAnnounced(page, 'Reverted')
+    assert.equal(await page.locator('.editor-toast').getAttribute('data-shown'), 'false', 'Stop draws no toast')
     await page.locator('.editor-edited').waitFor({ state: 'detached' })
     step('Edited since the test shows in the bar and the title menu; Stop is the only way out')
 
@@ -199,30 +215,71 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.waitForTimeout(3000)
     assert.equal(await button('Stop the test').innerText(), 'Stop', 'Live has no countdown')
     await button('Stop the test').click()
-    await waitToast(page, 'Reverted')
+    await waitAnnounced(page, 'Reverted')
+    assert.equal(await page.locator('.editor-toast').getAttribute('data-shown'), 'false', 'Stop draws no toast')
     assert.equal(await page.locator('.editor-split-main').innerText(), 'Test (Live)')
     await button('Test mode').click()
     await page.getByRole('menuitemradio', { name: 'Live (until stopped)', checked: true }).waitFor()
     await page.keyboard.press('Escape')
     step('the split button: Live from the menu runs untimed under a bare Stop; the current mode is the checked item')
 
-    // Rank 1: the effect cannot be opened. Banner with Retry, status says so, Test is off.
-    await page.route('**/api/effects/builtin.audio', (route) => route.abort())
+    // Rank 1: the effect cannot be opened although Aurora answers (Aurora-u68h.9). An error-shell row worded by
+    // cause, no Retry and no action, Test off with its own tooltip, and Open still leaves.
+    const shots = process.env.SHOTS ?? ''
+    const row = page.locator('#shell-banner-slot .shell-banner-row')
+    const testTip = async () => {
+      await page.mouse.move(700, 400)
+      await page.locator('.editor-split').hover({ force: true })
+      return page.locator('.ui-tooltip').first()
+    }
+    const leaveThroughOpen = async (id) => {
+      await openTitleMenu(page)
+      for (const item of ['Save', 'Save and apply']) assert.equal(await page.getByRole('menuitem', { name: item, exact: true }).isDisabled(), true, `${item} is off with nothing open`)
+      await page.getByRole('menuitem', { name: 'Open', exact: true }).click()
+      await page.getByRole('menu', { name: 'Open', exact: true }).getByRole('menuitem', { name: /^Screen colors/ }).click()
+      await waitEffect(page, id)
+      await page.waitForSelector('.aurora-node')
+      await row.waitFor({ state: 'detached' })
+      await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview !== 'No effect is open')
+    }
+    const { effects } = await (await fetch(new URL('/api/effects', editorUrl))).json()
+    const audio = effects.find((e) => e.id === 'builtin.audio').title
+
+    await page.route('**/api/effects/builtin.audio', (route) =>
+      route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'unknown_effect' }) }),
+    )
     await page.goto(`${editorUrl}?effect=builtin.audio`)
-    const alert = page.getByRole('alert')
-    await alert.waitFor()
-    assert.match(await alert.innerText(), /Cannot open 'builtin.audio'/)
-    assert.equal(await status().getAttribute('data-preview'), 'Cannot reach Aurora')
+    await row.first().waitFor()
+    // The title is the effects list's, which arrives with the catalog: the row words itself again when it does.
+    await row.filter({ hasText: `${audio} no longer exists.` }).waitFor()
+    assert.equal(await row.count(), 1)
+    assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0, 'no Retry, no action on the row')
+    assert.equal(await status().getAttribute('data-preview'), 'No effect is open')
     assert.equal(await button('Test on lights').isDisabled(), true)
-    await page.mouse.move(700, 400)
-    await page.locator('.editor-split').hover({ force: true })
-    assert.equal(await page.locator('.ui-tooltip').first().innerText(), 'Cannot reach Aurora')
+    assert.equal(await (await testTip()).innerText(), 'No effect is open')
+    if (shots) await page.screenshot({ path: `${shots}/404-row-test-tooltip.png` })
     await page.unroute('**/api/effects/builtin.audio')
-    await alert.getByRole('button', { name: 'Retry' }).click()
-    await page.waitForSelector('.aurora-node')
-    await alert.waitFor({ state: 'detached' })
-    await page.waitForFunction(() => document.querySelector('.editor-header')?.dataset.preview !== 'Cannot reach Aurora')
-    step('an effect that will not open: banner with Retry, status Aurora unreachable, Test off; Retry recovers')
+    await leaveThroughOpen('builtin.video')
+    step('an effect that is gone (404 unknown_effect): shell row, no Retry, Test off with its tooltip; Open leaves and the row clears')
+
+    await page.route('**/api/effects/builtin.audio', (route) =>
+      route.fulfill({ status: 422, contentType: 'application/json', body: JSON.stringify({ error: 'unreadable_effect', message: 'bad json' }) }),
+    )
+    await page.goto(`${editorUrl}?effect=builtin.audio`)
+    await row.first().waitFor()
+    await row.filter({ hasText: `${audio}'s file can't be read.` }).waitFor()
+    assert.equal(await page.locator('#shell-banner-slot').getByRole('button').count(), 0)
+    assert.equal(await button('Test on lights').isDisabled(), true)
+    if (shots) await page.screenshot({ path: `${shots}/422-row.png` })
+    await page.unroute('**/api/effects/builtin.audio')
+
+    // Anything else (a 500, or the catalog failing) is the generic row.
+    await page.route('**/api/effects/builtin.audio', (route) => route.fulfill({ status: 500, body: 'oops' }))
+    await page.goto(`${editorUrl}?effect=builtin.audio`)
+    await row.first().waitFor()
+    assert.equal((await row.innerText()).trim(), "Couldn't open the editor.")
+    await page.unroute('**/api/effects/builtin.audio')
+    step('an unreadable file (422) and any other failure (500): their own shell rows, no Retry')
   } finally {
     await page.evaluate(() => localStorage.clear()).catch(() => {})
     await browser.close()

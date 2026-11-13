@@ -21,6 +21,27 @@ body {
   flex-direction: column;
 }
 
+/* The error shell (ErrorShell.tsx) is the Dashboard's, styled by ui/styles/shell.css: the first
+   element of the page, sticky, full width. It keeps its height in the column. */
+.editor > #shell-banner-slot {
+  flex: none;
+}
+
+/* The shell's chevron and Show less use the Dashboard's .accordion-chevron (dashboard.css, which the
+   editor does not load): same asset and size. */
+.shell-banner .accordion-chevron {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  background-color: var(--aurora-text-secondary);
+  -webkit-mask-image: url('../../ui/icons/chevron-down.svg');
+  mask-image: url('../../ui/icons/chevron-down.svg');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
 .editor-header {
   display: flex;
   gap: var(--aurora-space-3);
@@ -263,7 +284,6 @@ select {
   flex: 1;
 }
 
-.editor-dirty,
 .editor-edited,
 .editor-countdown {
   color: var(--aurora-text-primary);
@@ -274,7 +294,8 @@ select {
   display: flex;
   flex-direction: column;
   gap: var(--aurora-space-2);
-  width: 280px;
+  /* Sized by the actions; the note below wraps at its own max-width. */
+  width: max-content;
 }
 
 .editor-title-dialog input {
@@ -282,31 +303,19 @@ select {
   box-sizing: border-box;
 }
 
-.editor-title-heading {
-  margin: var(--aurora-space-3) 0 0;
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--aurora-text-secondary);
-}
-
-.editor-effect-list {
-  max-height: 240px;
-  overflow-y: auto;
+/* A long effect title in the Open submenu cuts off with an ellipsis; its Hint holds the whole title. */
+.editor-menu-title {
+  display: block;
+  max-width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-name-note {
   margin: 0;
+  max-width: 32ch;
   font-size: 12px;
-  color: var(--aurora-text-primary);
-}
-
-.editor-banner {
-  display: flex;
-  gap: var(--aurora-space-3);
-  align-items: center;
-  padding: var(--aurora-space-2) var(--aurora-space-5);
-  background: var(--aurora-surface);
-  border-bottom: 1px solid var(--aurora-border);
   color: var(--aurora-text-primary);
 }
 
@@ -371,7 +380,15 @@ button.editor-problem-row:hover {
   border-radius: var(--aurora-radius-control);
   box-shadow: var(--aurora-shadow-popup);
   color: var(--aurora-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-4);
   pointer-events: none;
+}
+
+/* A toast with Undo takes the pointer (and so hover) so its button can be pressed. */
+.editor-toast[data-undo='true'] {
+  pointer-events: auto;
 }
 
 .editor-toast[data-shown='false'] {
@@ -582,7 +599,7 @@ button.editor-problem-row:hover {
 
 .editor-name-dialog-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--aurora-space-2);
 }
 
@@ -696,13 +713,24 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-/* Unsaved dot on the title below 650 px. */
-.editor-dirty-mark {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
+/* Unsaved dot (Aurora-u68h.4, drawn with Grille's dotIcon, which follows currentColor): beside the
+   title, after an Open item's title and at the end of the "Not saved yet" heading. */
+.editor-menu-line {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
+}
+
+.editor-menu-line > .editor-menu-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The "Not saved yet" heading ends with the dot (a Header, so the dot is inline with its text). */
+.editor-heading-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
 }
 
 @media (max-width: 649px) {
@@ -812,3 +840,100 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 /* A disabled button sends no pointer events, so the group takes them and its
    tooltip (the reason Test is off) still shows. */
 .editor-split[data-off] button { pointer-events: none; }
+
+/* A refused Save points at the problems chip (Aurora-u68h.4): a tooltip-look callout on its left and a
+   ping, both with the problem node's border (.aurora-node-problem: 1px dashed). Focus moves to the chip. */
+.editor-chip-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.editor-refused-status {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  translate: 0 -50%;
+  margin-right: 10px;
+  z-index: 35;
+}
+
+.editor-refused {
+  display: block;
+  position: relative;
+  max-width: none;
+  white-space: nowrap;
+  border: 1px dashed var(--aurora-text-primary);
+}
+
+/* No room on the chip's left (measured in ProblemsChip.tsx, Aurora-h55g): below the chip, wrapped, inside a
+   16px gutter on each side. The box takes no pointer events, so it never traps a click or covers a menu. */
+.editor-refused-status[data-place='below'] {
+  position: fixed;
+  top: var(--refused-top);
+  left: 16px;
+  right: 16px;
+  translate: none;
+  margin: 0;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.editor-refused-status[data-place='below'] .editor-refused {
+  white-space: normal;
+  max-width: 100%;
+  width: max-content;
+}
+
+.editor-refused-status[data-place='below'] .editor-refused::before {
+  right: calc(var(--refused-arrow) - 4px);
+  top: -5px;
+  translate: none;
+  rotate: 45deg;
+  border: 0;
+  border-left: 1px dashed var(--aurora-text-primary);
+  border-top: 1px dashed var(--aurora-text-primary);
+}
+
+/* The pointer toward the chip. */
+.editor-refused::before {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  translate: 0 -50%;
+  rotate: 45deg;
+  background: var(--ui-color-popup-bg);
+  border-right: 1px dashed var(--aurora-text-primary);
+  border-top: 1px dashed var(--aurora-text-primary);
+}
+
+/* The ping is a pseudo-element, so the chip's own focus ring is left alone. */
+.editor-problems-chip {
+  position: relative;
+}
+
+.editor-problems-chip[data-pinging]::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px dashed var(--aurora-text-primary);
+  pointer-events: none;
+  animation: editor-ping 1375ms ease-out 2;
+}
+
+@keyframes editor-ping {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* Reduced motion: the border holds for the same time without the pulse. */
+@media (prefers-reduced-motion: reduce) {
+  .editor-problems-chip[data-pinging]::after {
+    animation: none;
+  }
+}

@@ -53,9 +53,23 @@ export function forWrite(doc: GraphDoc, makesNew: boolean, taken: Iterable<strin
   return makesNew ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
 }
 
-// The editor id for an unsaved empty graph. '@' is not a valid effect id, so it
-// never names a stored effect. Opened via ?new=empty, saved under a fresh id.
+// The editor id of the old shared slot for an unsaved empty graph. Each new
+// effect now gets its own '@new-' id (newEffectId); this one only starts a New ▸
+// Empty and names the legacy kept copy (autosave.ts migrateLegacyBlank).
 export const BLANK_ID = '@empty'
+
+// A new effect's id until its first Save: '@' is not a valid effect id, so it
+// never names a stored effect. It is the URL's effect and the kept copy's key.
+export function newEffectId(random: () => number = Math.random): string {
+  let tail = ''
+  while (tail.length < 6) tail += Math.floor(random() * 36).toString(36)
+  return `@new-${tail}`
+}
+
+// Any id that is not a stored effect.
+export function isDraftId(id: string): boolean {
+  return id.startsWith('@')
+}
 
 export function blankDoc(): GraphDoc {
   // No title key: the server rejects an empty one (title_invalid), and a save adds it.

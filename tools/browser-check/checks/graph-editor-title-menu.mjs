@@ -39,8 +39,8 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // A built-in: Save and Save and apply, no Save as new.
     await openTitleMenu(page)
-    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'New empty effect'])
-    step('the menu opens on a click and lists Save, Save and apply and New empty effect for a built-in')
+    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'Revert to saved', 'New', 'Open'])
+    step('the menu opens on a click and lists Save, Save and apply, Revert to saved, New and Open for a built-in')
 
     // Esc with focus inside the menu.
     await page.keyboard.press('Escape')
@@ -101,6 +101,26 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press('Backspace')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n - 1, count)
     step('with the menu closed Backspace deletes the selected node again')
+
+    // Aurora-iryq: a long library. Open scrolls inside the screen, Custom before Built-in, long titles cut off with an ellipsis.
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `fake-${i}`, builtin: false, title: i === 0 ? 'A custom effect with a very long title that cannot fit' : `Custom ${i}`, description: null }))
+    await page.route('**/api/effects', async (route) => {
+      const real = await (await route.fetch()).json()
+      await route.fulfill({ json: { effects: [...many, ...real.effects] } })
+    })
+    await page.goto(`${editorUrl}?effect=builtin.video`)
+    await page.waitForSelector('.aurora-node')
+    await openTitleMenu(page)
+    await page.getByRole('menuitem', { name: 'Open', exact: true }).hover()
+    const flyout = page.getByRole('menu', { name: 'Open', exact: true })
+    await flyout.waitFor()
+    const room = await flyout.evaluate((el) => ({ scrolls: el.scrollHeight > el.clientHeight, bottom: el.getBoundingClientRect().bottom, view: innerHeight }))
+    assert.ok(room.scrolls && room.bottom <= room.view, `Open scrolls and stays on screen (${JSON.stringify(room)})`)
+    const heads = await flyout.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent))
+    assert.deepEqual(heads, ['Custom', 'Built-in'])
+    const cut = await flyout.locator('.editor-menu-title').first().evaluate((el) => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === 'ellipsis')
+    assert.equal(cut, true, 'a long title is cut off with an ellipsis')
+    step('Open scrolls, groups Custom then Built-in, and cuts a long title off with an ellipsis')
   } finally {
     await browser.close()
   }

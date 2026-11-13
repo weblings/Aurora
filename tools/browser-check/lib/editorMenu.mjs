@@ -46,12 +46,12 @@ export const waitEffect = (page, id) =>
 // save opens the naming dialog.
 export async function setName(page, name) {
   const id = await currentEffect(page)
-  if (id.startsWith('builtin.') || id === '@empty') {
+  if (id.startsWith('builtin.') || id.startsWith('@')) {
     pendingName.set(page, name)
     return
   }
   await openTitleMenu(page)
-  await page.getByRole('menuitem', { name: 'Rename…', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
   const dialog = nameDialog(page)
   await dialog.getByLabel('Name', { exact: true }).fill(name)
   await dialog.getByRole('button', { name: 'Rename', exact: true }).click()
@@ -110,3 +110,9 @@ export async function addNodeByName(page, name) {
   await page.getByRole('dialog', { name: 'Add node' }).getByRole('option', { name }).first().click()
   await page.getByRole('dialog', { name: 'Add node' }).waitFor({ state: 'detached' })
 }
+
+// The editor's announce-only live region (web/graph-editor/src/Announcer.tsx): what a screen
+// reader was last told. Outcomes of a test the user did not cause go here, not on the button.
+export const announced = (page) => page.locator('[data-announcer]').innerText()
+export const waitAnnounced = (page, text, timeout = 15_000) =>
+  page.waitForFunction((t) => document.querySelector('[data-announcer]')?.textContent.includes(t), text, { timeout })

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useReducer, useRef, type MutableRefObject } from 'react'
-import { previewUrl, putDraft } from './api'
+import { DraftRefused, previewUrl, putDraft } from './api'
 import { parseFrame, type PreviewFrame } from './graph/frame'
 import { initialLoop, loopReducer, reopenDelay, type LoopState } from './graph/loop'
 import type { GraphDoc } from './graph/types'
 
 const DEBOUNCE_MS = 250
+// A draft that could not be sent because Aurora did not answer is sent again this often.
+const NETWORK_RETRY_MS = 3000
 const SESSION_KEY = 'aurora.graphEditor.session'
 
 // One draft session per tab: it survives a reload (sessionStorage) so reloads
@@ -36,8 +38,10 @@ export type DraftLoop = {
 
 // Sends `doc` as the session draft (debounced), then keeps the preview stream
 // open for it. The stream hot-reloads on every changed draft, so edits need
-// no further call.
-export function useDraftLoop(doc: GraphDoc | null): DraftLoop {
+// no further call. `lookNow` asks the host-state poll to check Aurora at once:
+// a failed request is the earliest hint it is gone, and that poll owns the
+// "Aurora has stopped" takeover, so a network failure sets no message here.
+export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void): DraftLoop {
   const [state, dispatch] = useReducer(loopReducer, initialLoop)
   const session = useMemo(tabSession, [])
   const frame = useRef<PreviewFrame | null>(null)
@@ -46,6 +50,8 @@ export function useDraftLoop(doc: GraphDoc | null): DraftLoop {
   const latest = useRef(state)
   latest.current = state
   const sent = useRef<GraphDoc | null>(null)
+  const look = useRef(lookNow)
+  look.current = lookNow
 
   const closeStream = () => {
     source.current?.close()
@@ -86,6 +92,7 @@ export function useDraftLoop(doc: GraphDoc | null): DraftLoop {
       if (typeof data !== 'string') {
         stop()
         dispatch({ type: 'lost' })
+        look.current()
         return
       }
       let body: { error?: string; message?: string } = {}
@@ -113,7 +120,8 @@ export function useDraftLoop(doc: GraphDoc | null): DraftLoop {
       return
     }
     const abort = new AbortController()
-    const timer = window.setTimeout(() => {
+    let timer: number | undefined
+    const send = () => {
       putDraft(session, doc, abort.signal)
         .then((verdict) => {
           sent.current = doc
@@ -123,9 +131,16 @@ export function useDraftLoop(doc: GraphDoc | null): DraftLoop {
         })
         .catch((e: Error) => {
           if (abort.signal.aborted) return
-          dispatch({ type: 'put-failed', reason: e.message })
+          if (e instanceof DraftRefused) {
+            dispatch({ type: 'put-failed', reason: e.code })
+            return
+          }
+          // Aurora did not answer: the takeover (or a blip) is the host poll's to say; send again soon.
+          look.current()
+          timer = window.setTimeout(send, NETWORK_RETRY_MS)
         })
-    }, DEBOUNCE_MS)
+    }
+    timer = window.setTimeout(send, DEBOUNCE_MS)
     return () => {
       window.clearTimeout(timer)
       abort.abort()
@@ -149,7 +164,10 @@ export function useDraftLoop(doc: GraphDoc | null): DraftLoop {
             dispatch({ type: 'put', valid: verdict.valid, issues: verdict.errors })
             if (verdict.valid) openStream()
           })
-          .catch((e: Error) => dispatch({ type: 'put-failed', reason: e.message }))
+          .catch((e: Error) => {
+            if (e instanceof DraftRefused) dispatch({ type: 'put-failed', reason: e.code })
+            else look.current()
+          })
       } else {
         openStream()
       }
