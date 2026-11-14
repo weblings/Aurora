@@ -379,3 +379,11 @@ Applies-when: more than one agent or terminal will run `tools/browser-check` che
 Aurora-u8jx.4 (2026-11-13): five agents shared the tree, three ran checks at once. `devstack.py` binds fixed ports (18443, 18244, 18245, the viz port, WebUI from 8215), keeps its state in `<tmp>/aurora-devstack` and runs `build/mac-app` of the main checkout. A worktree isolates none of that, and has no app build of its own. Two agents then burned every check run on `timed out waiting for a frame`: the owner's own Aurora held 8215 (see "A fail-soft port bind turns "something else owns the port" into a harness timeout about frames"), and no agent brief mentioned it.
 
 **Fix:** before fanning out, run `lsof -nP -iTCP:8215 -sTCP:LISTEN` once and ask the owner to quit a non-stack Aurora. Then share one tree and wrap every check and every `npm run build` in `/usr/bin/lockf -t 1200 <lockfile> <cmd>` (macOS; releases on exit, no stale lock). Tell each agent: on a frame timeout, check 8215 and stop rather than retry.
+
+## A browser check that needs "an input Aurora lacks" must name a broken one, not rely on none being configured
+Tags: browser-check, audio-input, auto-pick, devstack, environment, failed-save
+Applies-when: a check or test expects an effect to fail because an audio or video input is missing
+
+Aurora-bju0 (2026-11-13): `graph-editor:failed-save` expected an audio graph to fail on a stack whose audio input is unset. Since Aurora-kep2.3 Aurora picks a missing input itself from the registry (`_pickAudioBackend` in `Pipeline.cpp`), so on a Mac, where `mac-audio` is registered and opens, the graph simply ran: `/api/state` errors stayed empty and no row appeared. Whether the check passed depended on the machine's audio backend and permission, not on the code.
+
+**Fix:** name an input that does not exist (`PUT /api/config {activeAudioInputName: 'no-such-audio-input'}`). Aurora only auto-picks an unnamed input, so the open fails with `Unknown audio input` on every machine. Clear the name before the next step: while it is set every reload reports it.

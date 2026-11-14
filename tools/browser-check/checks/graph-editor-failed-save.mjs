@@ -2,7 +2,7 @@
 // write is an error-shell row, "Couldn't save <title>: <Aurora's reason>", with no Retry, no action and
 // no dismiss, cleared by the next Save or edit. A network failure sets no row (the "Aurora has stopped"
 // takeover owns it). Aurora-f8yk: a Save and apply that saves but cannot run (a server draft needing an
-// unopened input) shows Aurora's own row in the editor and on the Dashboard, and applying a working graph
+// audio input that cannot be opened) shows Aurora's own row in the editor and on the Dashboard, and applying a working graph
 // clears it. `SHOTS=<dir>` saves the rows.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
@@ -82,6 +82,10 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.getByRole('menuitem', { name: 'Save and apply', exact: true }).click()
     await page.waitForFunction(async () => (await (await fetch('/api/config')).json()).activeEffectId === 'failed-save-a', null, { timeout: 10_000 })
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
+    // Aurora picks a missing audio input on apply (Aurora-kep2.3), so on a machine with an audio backend the
+    // audio graph would simply run. Name an audio input that does not exist: Aurora never replaces a named
+    // one, so opening it fails the same way on every machine (Aurora-bju0).
+    assert.equal((await api('PUT', '/api/config', { activeAudioInputName: 'no-such-audio-input' })).status, 200)
     const sessionId = await page.evaluate(() => sessionStorage.getItem('aurora.graphEditor.session'))
     await makeEdit(page)
     await page.route('**/api/graph/apply', async (route) => {
@@ -110,8 +114,10 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     if (shots) await page.screenshot({ path: `${shots}/failed-reload-row.png` })
     step('a Save and apply whose reload fails shows Aurora\'s own row in the editor and on the Dashboard')
 
-    // A working graph applied clears it.
+    // A working graph applied clears it. The named audio input goes first: while the config names one that
+    // cannot open, every reload reports it, whatever graph runs.
     await page.unroute('**/api/graph/apply')
+    await api('PUT', '/api/config', { activeAudioInputName: '' })
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
     await setName(page, 'Failed save b')
@@ -131,6 +137,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.unroute('**/api/graph/save')
     step('a network failure on Save sets no row')
   } finally {
+    await api('PUT', '/api/config', { activeAudioInputName: '' }).catch(() => {})
     for (const id of created) await api('DELETE', `/api/effects/${id}`).catch(() => {})
     await browser.close()
   }

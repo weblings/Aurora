@@ -71,6 +71,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
+| `bju0-failed-save-check` | [log/2026-11-13-bju0-failed-save-check.md](log/2026-11-13-bju0-failed-save-check.md) | Browser check failed-save: the audio graph ran because Aurora picks the missing input |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
 | `c5gw-builtin-save-title` | [log/2026-10-29-c5gw-builtin-save-title.md](log/2026-10-29-c5gw-builtin-save-title.md) | Graph editor: saving a built-in picks a distinct title |
