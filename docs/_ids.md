@@ -424,6 +424,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
+| `yqu8-settings-put-transport-retry` | [log/2026-11-13-yqu8-settings-put-transport-retry.md](log/2026-11-13-yqu8-settings-put-transport-retry.md) | Core test: concurrent settings PUTs retry a refused connection instead of failing under load |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
 | `z6kw-port-type-glossary` | [log/2026-11-11-z6kw-port-type-glossary.md](log/2026-11-11-z6kw-port-type-glossary.md) | Port type glossary |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
