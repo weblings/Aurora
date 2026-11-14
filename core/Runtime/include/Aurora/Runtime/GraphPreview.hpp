@@ -49,6 +49,8 @@ namespace Aurora::Runtime
       std::string output;
       std::string node;
       std::string message;
+      // Plain-string code for editors to word the failure (a node threw during a tick); the message is for agents.
+      std::string code{"node_tick_failed"};
     };
 
     struct Snapshot

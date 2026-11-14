@@ -58,3 +58,12 @@ test('refused test codes have words, and a message-only refusal falls back', () 
   assert.match(problemCopy('no_draft', {}, 'no_draft'), /Aurora doesn't have this graph/)
   assert.equal(problemCopy('cannot_test', {}, 'The lights are paused'), 'The lights are paused')
 })
+
+test('node_tick_failed reads "Runs, but <node> fails: <reason>" and never says error', () => {
+  const named = describeIssue({ code: 'node_tick_failed', message: 'divide by zero.', node: 'mix1' })
+  assert.equal(named, 'Runs, but "mix1" fails: divide by zero')
+  assert.equal(describeIssue({ code: 'node_tick_failed', message: 'boom', node: null }), 'Runs, but this node fails: boom')
+  assert.equal(describeIssue({ code: 'node_tick_failed', message: '', node: null }), 'Runs, but this node fails')
+  assert.equal(describeIssue({ code: 'node_tick_failed', message: 'boom' }), 'Runs, but a node fails: boom')
+  assert.doesNotMatch(named, /error/i)
+})

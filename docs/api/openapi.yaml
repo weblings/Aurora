@@ -1259,7 +1259,7 @@ components:
           type: array
           items:
             type: object
-            required: [output, node, message]
+            required: [output, node, message, code]
             properties:
               output:
                 type: string
@@ -1267,6 +1267,9 @@ components:
                 type: string
               message:
                 type: string
+              code:
+                type: string
+                description: Plain-string code for the failure; `node_tick_failed` means the node threw during a tick.
     Draft:
       allOf:
         - $ref: '#/components/schemas/Validation'

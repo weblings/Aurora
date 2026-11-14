@@ -16,6 +16,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
+| `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
@@ -54,6 +55,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5ipy8-coalesce-settings-reloads` | [log/2026-10-16-5ipy8-coalesce-settings-reloads.md](log/2026-10-16-5ipy8-coalesce-settings-reloads.md) | Coalesce settings-PUT reloads (Aurora-5ipy.8) |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
+| `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
@@ -66,6 +68,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `9hqa3-shell-cap` | [log/2026-11-13-9hqa3-shell-cap.md](log/2026-11-13-9hqa3-shell-cap.md) | Error shell 60vh safety cap: fades, scroll to the new row, pulses that wait to be seen |
 | `9hqa4-shell-pairing` | [log/2026-11-13-9hqa4-shell-pairing.md](log/2026-11-13-9hqa4-shell-pairing.md) | Pairing requests in the error shell: collapse, editor, baseline wait |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
+| `ajr5-graph-capabilities` | [log/2026-11-13-ajr5-graph-capabilities.md](log/2026-11-13-ajr5-graph-capabilities.md) | Pipeline capabilities follow the running graph's nodes |
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
 | `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
 | `api-v1-review` | [planning/ApiV1Review.md](planning/ApiV1Review.md) | API v1 spec review: fields, scopes, public and internal split |
@@ -366,7 +369,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
 | `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
 | `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx16-popover-node-titles` | [log/2026-11-13-u8jx16-popover-node-titles.md](log/2026-11-13-u8jx16-popover-node-titles.md) | Graph editor: Problems popover node rows read the node's title, not its id |
 | `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
+| `u8jx3-runtime-wording` | [log/2026-11-13-u8jx3-runtime-wording.md](log/2026-11-13-u8jx3-runtime-wording.md) | Graph editor: a node that fails during the preview reads "Runs, but this node fails", through 7a's table |
 | `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
 | `u8jx41-callout-clear-of-title` | [log/2026-11-13-u8jx41-callout-clear-of-title.md](log/2026-11-13-u8jx41-callout-clear-of-title.md) | Graph editor: the refused-save callout stays clear of the title and Add node |
 | `u8jx42-test-ended-toast` | [log/2026-11-13-u8jx42-test-ended-toast.md](log/2026-11-13-u8jx42-test-ended-toast.md) | Graph editor: test-ended outcomes are announced, only a lost heartbeat is a toast |
@@ -420,6 +425,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
+| `yqu8-settings-put-transport-retry` | [log/2026-11-13-yqu8-settings-put-transport-retry.md](log/2026-11-13-yqu8-settings-put-transport-retry.md) | Core test: concurrent settings PUTs retry a refused connection instead of failing under load |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
 | `z6kw-port-type-glossary` | [log/2026-11-11-z6kw-port-type-glossary.md](log/2026-11-11-z6kw-port-type-glossary.md) | Port type glossary |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |

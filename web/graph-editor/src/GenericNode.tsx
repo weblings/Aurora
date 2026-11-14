@@ -7,6 +7,7 @@ import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
 import { useNodeProblems } from './ProblemsContext'
 import { unattributed } from './graph/problems'
+import { nodeTitle } from './graph/nodeTitle'
 import { portMeaning, portStyle } from './graph/portStyle'
 
 function handleLook(type: string) {
@@ -27,7 +28,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
     return (
       <div className="aurora-node aurora-node-unknown">
         <div className="aurora-node-header">
-          <strong>{data.type}</strong>
+          <strong>{nodeTitle(info, data.type)}</strong>
           <small>{id}</small>
         </div>
         <p className="aurora-node-note">Unknown node type: this build cannot edit it.</p>
@@ -38,7 +39,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   return (
     <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`}>
       <div className="aurora-node-header">
-        <Hint text={info.tip}><strong>{info.title || data.type}</strong></Hint>
+        <Hint text={info.tip}><strong>{nodeTitle(info, data.type)}</strong></Hint>
         {problems ? (
           <Hint text={problems.messages}>
             <span className="problem-badge" role="img" aria-label={`${problems.messages.length} problems`}>
@@ -50,7 +51,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
         <button
           type="button"
           className="aurora-node-more nodrag"
-          aria-label={`Actions for ${info.title || data.type}`}
+          aria-label={`Actions for ${nodeTitle(info, data.type)}`}
           aria-haspopup="menu"
           onClick={(e) => {
             const box = e.currentTarget.getBoundingClientRect()

@@ -83,7 +83,7 @@ namespace Aurora::Runtime
       }
       nlohmann::json errors = nlohmann::json::array();
       for(const auto& error : snapshot.errors){
-        errors.push_back({{"output", error.output}, {"node", error.node}, {"message", error.message}});
+        errors.push_back({{"output", error.output}, {"node", error.node}, {"message", error.message}, {"code", error.code}});
       }
       return {{"session", session}, {"tickMs", snapshot.tickMs}, {"outputs", std::move(outputs)}, {"errors", std::move(errors)}};
     }
@@ -190,7 +190,7 @@ namespace Aurora::Runtime
         }
         nlohmann::json errors = nlohmann::json::array();
         for(const auto& e : latest.errors){
-          errors.push_back({{"output", e.output}, {"node", e.node}, {"message", e.message}});
+          errors.push_back({{"output", e.output}, {"node", e.node}, {"message", e.message}, {"code", e.code}});
         }
         _reply(res, 200, {
           {"session", session}, {"seconds", seconds}, {"samples", samples},

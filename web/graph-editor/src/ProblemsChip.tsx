@@ -38,6 +38,7 @@ export function ProblemsChip({
   chipRef,
   refusal,
   focusAfter,
+  nodeLabels,
   onSelectNode,
   onGraphAction,
 }: {
@@ -45,6 +46,8 @@ export function ProblemsChip({
   chipRef: RefObject<HTMLButtonElement | null>
   refusal: Refusal | null
   focusAfter: MutableRefObject<(() => HTMLElement | null) | null>
+  // What each node is called on screen (graph/nodeTitle.ts); an id missing here shows as itself.
+  nodeLabels: ReadonlyMap<string, string>
   onSelectNode: (id: string) => void
   onGraphAction: (run: GraphRowAction['run']) => void
 }) {
@@ -172,12 +175,13 @@ export function ProblemsChip({
                   <button
                     type="button"
                     className="editor-problem-row editor-problem-text"
+                    data-node-id={id}
                     onClick={() => {
                       close()
                       onSelectNode(id)
                     }}
                   >
-                    <strong>{id}</strong>
+                    <strong>{nodeLabels.get(id) ?? id}</strong>
                     <span>{m}</span>
                   </button>
                 </li>

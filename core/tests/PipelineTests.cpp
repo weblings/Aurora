@@ -1899,12 +1899,37 @@ TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6
   // Catch2's assertions aren't thread-safe here, so the client threads only
   // count successes and the checks run on this thread.
   std::atomic<int> succeeded{0};
+  std::mutex outcomeMutex;
+  std::vector<std::string> outcomes; // one line per request, kept for the failure report
   std::vector<std::thread> clients;
   for(const auto& [field, value] : patches){
     clients.emplace_back([&, field = field, value = value]{
       httplib::Client client("127.0.0.1", port);
-      auto response = client.Put("/api/config", nlohmann::json{{field, value}}.dump(), "application/json");
+      // The server's accept backlog is 5 (cpp-httplib's default), so eight
+      // clients connecting at once can have a connect refused while the
+      // accept loop is starved under a loaded machine. A failed connect
+      // never reached the server, and neither did a write that fails on the
+      // connection the full backlog just reset; each PUT sets an absolute
+      // value, so a retry is harmless. A response of any status, or any other
+      // error, is final.
+      const std::string body = nlohmann::json{{field, value}}.dump();
+      auto response = client.Put("/api/config", body, "application/json");
+      int transportRetries = 0;
+      while(!response && (response.error() == httplib::Error::Connection || response.error() == httplib::Error::Write) && transportRetries < 50){
+        ++transportRetries;
+        std::this_thread::sleep_for(20ms);
+        response = client.Put("/api/config", body, "application/json");
+      }
+      std::string outcome = field + " (" + std::to_string(transportRetries) + " transport retries): ";
+      if(response){
+        outcome += "status " + std::to_string(response->status) + " body " + response->body;
+      }
+      else{
+        outcome += "transport error " + httplib::to_string(response.error());
+      }
       if(response && response->status == 200){ ++succeeded; }
+      std::lock_guard<std::mutex> outcomeLock(outcomeMutex);
+      outcomes.push_back(std::move(outcome));
     });
   }
   for(auto& client : clients){ client.join(); }
@@ -1912,7 +1937,12 @@ TEST_CASE("Concurrent settings PUTs coalesce reloads and none is lost (Aurora-d6
   server.stop();
   serverThread.join();
 
-  CHECK(succeeded == static_cast<int>(patches.size()));
+  {
+    std::string report;
+    for(const auto& line : outcomes){ report += "\n  " + line; }
+    INFO("per-request outcomes:" << report);
+    CHECK(succeeded == static_cast<int>(patches.size()));
+  }
   CHECK(calls >= 1);
   CHECK(calls <= static_cast<int>(patches.size()));
   CHECK(maxInFlight == 1);
@@ -3665,6 +3695,42 @@ TEST_CASE("The summary reports a custom graph's declared inputs, null for a buil
   REQUIRE(video->summary().graphInputs);
   CHECK(video->summary().graphInputs->video);
   CHECK_FALSE(video->summary().graphInputs->audio);
+}
+
+
+TEST_CASE("A custom graph with no source node reports no capabilities (Aurora-ajr5)", "[Effects][Pipeline]")
+{
+  ScopedTempDir dir("effect-sourceless-capabilities");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+
+  nlohmann::json sourceless = {
+    {"version", 1},
+    {"nodes", {
+      {{"id", "c"}, {"type", "color.constant"}, {"params", nlohmann::json::object()}},
+      {{"id", "all"}, {"type", "frame.broadcast"}, {"params", {{"output", "out-a"}}}},
+      {{"id", "send"}, {"type", "output.send"}, {"params", {{"output", "out-a"}}}}}},
+    {"edges", nlohmann::json::array({
+      nlohmann::json::array({"c.color", "all.color"}), nlohmann::json::array({"all.frame", "send.frame"})})}};
+  EffectStore store(dir.path);
+  REQUIRE(store.write("sourceless", sourceless, error));
+
+  Config config = videoConfig();
+  config.setActiveEffectId("sourceless");
+  auto pipeline = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(pipeline);
+  const PipelineCapabilities capabilities = pipeline->capabilities();
+  CHECK_FALSE(capabilities.usesVideoInput);
+  CHECK_FALSE(capabilities.usesAudioInput);
+  CHECK_FALSE(capabilities.samplesZones);
+
+  // The host's cached bits agree with the live pipeline.
+  PipelineHost host(std::move(pipeline), {});
+  CHECK_FALSE(host.capabilities().usesVideoInput);
+  CHECK_FALSE(host.capabilities().usesAudioInput);
+  CHECK_FALSE(host.capabilities().samplesZones);
+  host.shutdown();
 }
 
 

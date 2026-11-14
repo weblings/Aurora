@@ -25,7 +25,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 92 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 83 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 20 | web testing specific |
-| [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 7 | coordinating several agents on beads |
+| [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 10 | coordinating several agents on beads |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 26 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 59 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 14 | color/effect/zone-mapping specific |
@@ -33,7 +33,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 31 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 30 | WebUI component finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 32 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 11 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 12 | WebUI flow finding |
 | [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 19 | WebUI layout/CSS finding |

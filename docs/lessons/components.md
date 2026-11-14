@@ -507,3 +507,23 @@ Aurora-9hqa.4 (2026-11-13): the editor gained pairing rows and wrote its own cop
 
 **Fix:** move the logic into a plain-JS module in `web/ui` (no DOM at module level) and import it from both `shell.js` and the editor. In review, grep for the same endpoint string in `web/ui` and `web/graph-editor/src`.
 
+---
+
+## User copy names only things the person can find in the editor, not the server's phrases
+Tags: graph-editor, copy, wording, catalog, problems, agent-text
+Applies-when: writing editor or shell copy that names a node, control, setting or action
+
+Aurora-u8jx.1 (2026-11-13): the copy for `output_multiple_senders` told people to "combine them with a pick-or-mix node". That phrase came from the server's agent-facing message in `GraphLoader.cpp`; no node has that title. The node that does it is "Mix frames" (`BlendNodes.cpp` `.title`). The agent's tests and checks all passed; review against the catalog caught it.
+
+**Fix:** every node, control or button a piece of copy names must match a catalog `.title` or a visible label. Grep the catalog for the name before using it, and treat the server message as a source of facts, not of words.
+
+---
+
+## A memoized data shape that gains a field needs its equality function updated too
+Tags: graph-editor, memo, equality, re-render, problems, data-shape
+Applies-when: adding a field to a type that has a hand-written `same*`/equality function used to keep the previous object
+
+Aurora-u8jx.2 (2026-11-13): `Problems` gained `graphActions` (the button a Whole graph row offers), but `sameProblems` in `graph/problems.ts` still compared only `graph` text and node messages. A change that kept the row's text but changed its action would have returned the old object, and the popover would have kept the old button. Unit tests and checks passed; review caught it.
+
+**Fix:** when adding a field to a type, grep for its `same*`/equality helper and compare the new field there, with a test where only that field changes.
+

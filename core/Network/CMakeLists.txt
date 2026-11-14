@@ -18,4 +18,9 @@ target_link_libraries(AuroraNetwork PUBLIC
   nlohmann_json::nlohmann_json
 )
 
+# cpp-httplib listens with a backlog of 5 by default; a burst of connects
+# (several tabs plus MCP agents, or a loaded test) beyond that is refused.
+# PUBLIC so every TU that includes <httplib.h> through us sees one value.
+target_compile_definitions(AuroraNetwork PUBLIC CPPHTTPLIB_LISTEN_BACKLOG=128)
+
 target_compile_features(AuroraNetwork PUBLIC cxx_std_20)

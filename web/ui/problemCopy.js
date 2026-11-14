@@ -8,7 +8,7 @@
 // ({ node, port, param, options }), returning a string. Fields may be missing.
 
 /**
- * @typedef {{ node?: string | null, port?: string | null, param?: string | null, options?: readonly string[] | null }} CopyFields
+ * @typedef {{ node?: string | null, port?: string | null, param?: string | null, options?: readonly string[] | null, message?: string | null }} CopyFields
  * @typedef {string | ((fields: CopyFields) => string)} CopyEntry
  */
 
@@ -51,6 +51,16 @@ export const COPY = {
   control_node_unknown: "A Dashboard control points at a node that isn't in the graph. Remove the control, or point it at another node.",
   control_param_unknown: ({ param }) =>
     `A Dashboard control points at ${param ? quoted(param) : 'a setting'} that this node doesn't have. Remove the control, or point it at another setting.`,
+
+  // A node threw during a preview tick: the draft passed validation and Test stays on (code from core's
+  // preview `errors`, Aurora-u8jx.3). The reason is the server's message, which stays for agents. A caller
+  // that already names the node (its popover row, its badge) sends `node: null`, so it reads "this node";
+  // a failure that names no node at all (missing `node`) reads "a node".
+  node_tick_failed: ({ node, message }) => {
+    const who = node ? quoted(node) : node === null ? 'this node' : 'a node'
+    const reason = typeof message === 'string' ? message.trim().replace(/[.\s]+$/, '') : ''
+    return reason ? `Runs, but ${who} fails: ${reason}` : `Runs, but ${who} fails`
+  },
 
   // Refused test starts and stops (POST /api/graph/test*): codes with no message of their own.
   no_draft: "Aurora doesn't have this graph yet. Wait a moment, then try again.",

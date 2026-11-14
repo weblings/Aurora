@@ -33,9 +33,21 @@ describe('problem copy in the popover and badges (Aurora-u8jx.1)', () => {
     expect(groupProblems([{ node: 'gain', message: 'plain' }], [], ids).nodes.get('gain')!.messages).toEqual(['plain'])
   })
 
-  it('runtime preview issues are not reworded here', () => {
+  it('a runtime failure on a node in the document reads "Runs, but this node fails" (its row already names the node)', () => {
+    const q = groupProblems([], [{ output: 'hue', node: 'gain', message: 'oops', code: 'node_tick_failed' }], ids)
+    expect(q.nodes.get('gain')!.messages).toEqual(['Runs, but this node fails: oops'])
+  })
+
+  it('a runtime failure with no code is still worded as a node failure', () => {
     const q = groupProblems([], [{ output: 'hue', node: 'gain', message: 'oops' }], ids)
-    expect(q.nodes.get('gain')!.messages).toEqual(['oops'])
+    expect(q.nodes.get('gain')!.messages).toEqual(['Runs, but this node fails: oops'])
+  })
+
+  it('a runtime failure naming a node not in the document goes to Whole graph, names it, and has no action', () => {
+    const q = groupProblems([], [{ output: 'hue', node: 'ghost', message: 'oops', code: 'node_tick_failed' }], ids)
+    expect(q.nodes.size).toBe(0)
+    expect(q.graph).toEqual(['Runs, but "ghost" fails: oops'])
+    expect(q.graphActions.size).toBe(0)
   })
 })
 
