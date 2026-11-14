@@ -13,15 +13,28 @@ import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
 import { makeEdit } from '../lib/editorMenu.mjs'
 import { pairingApi } from '../lib/pairing.mjs'
+import { fastPolls, finish, statePolls, stepLogger, until } from '../lib/waits.mjs'
 
 // The dev-only /api/dev/errors routes need this in the app's environment.
 process.env.AURORA_DEV_ERRORS = '1'
+// The shell polls every 300 ms instead of 3 s (AURORA_DEV_POLL_MS=3000 for the shipped cadence); STEP=<text> stops after that step.
+fastPolls()
 
-await withEditorStack(async ({ editorUrl, aurora }) => {
+await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aurora }) => {
   const browser = await launch()
   const page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
-  const step = (label) => console.log(`ok  ${label}`)
+  const step = stepLogger()
+  const tracker = statePolls(page)
+  // Counted /api/state answers: a step that proves nothing happens across polls waits for the polls.
+  const polls = (n) => tracker.polls(n)
+  const remaining = async () => (await api('GET', '/api/state')).json.test.confirmRemainingMs
+  // The countdown has visibly ticked (server-side), over at least n polls.
+  const ticked = async (n) => {
+    const from = await remaining()
+    await polls(n)
+    await until(async () => (await remaining()) <= from - 1500, 'the countdown to tick')
+  }
   const shot = (name) => (process.env.SHOTS ? page.screenshot({ path: `${process.env.SHOTS}/${name}.png` }) : null)
   const api = async (method, path, body, headers = {}) => {
     const res = await fetch(`${aurora}${path}`, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) })
@@ -92,7 +105,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     assert.equal(await toggleColor(), RED, 'and the error count reads in the error tone')
     await shot('b-two-collapsed')
     // Polls leave it collapsed.
-    await page.waitForTimeout(3500)
+    await polls(3)
     await expectCollapsed('2 errors')
     step('two errors collapse to "2 errors" and stay collapsed across polls')
 
@@ -198,7 +211,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     assert.ok((await slot.evaluate((el) => el.scrollWidth - el.clientWidth)) <= 0, 'the collapsed bar fits at 400 wide')
     await shot('p-collapsed-400')
     await page.setViewportSize({ width: 1470, height: 900 })
-    await page.waitForTimeout(7000)
+    await polls(4)
     await expectCollapsed('1 notice 1 error')
     step('a request already pending at load is baseline: it starts collapsed with the error and polls never re-open it')
 
@@ -265,7 +278,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.reload()
     await page.waitForSelector('.aurora-node')
     await page.locator(`#shell-pairing-approve-${pre.ref}`).waitFor({ timeout: 8000 })
-    await page.waitForTimeout(7000)
+    await polls(4)
     let seen = await spot()
     assert.deepEqual(seen.pulses, [], 'a request pending at load does not pulse')
     assert.deepEqual(seen.said, [], 'and is not announced')
@@ -285,7 +298,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await waitSaid(1)
     assert.deepEqual((await spot()).said, ['spot one'], 'announced once, in words')
     assert.equal(await toastText(), '', 'the toast says nothing for a shell row')
-    await page.waitForTimeout(7000)
+    await polls(4)
     assert.equal((await adds()).length, 1, 'later polls do not pulse it again')
     assert.deepEqual((await spot()).said, ['spot one'], 'or announce it again')
     step('an arriving error pulses once (error red, ~1.4 s), only that row, and is announced once through the page announcer')
@@ -334,7 +347,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
       assert.equal((await adds()).at(-1).key, 'test:agent-1:once')
       await waitSaid(saidBefore + 1)
       assert.equal((await spot()).said.at(-1), 'An agent is testing an effect on the lights.')
-      await page.waitForTimeout(5000)
+      await ticked(3)
       assert.equal((await adds()).length, addsBefore + 1, 'the ticking countdown never pulses')
       assert.equal((await spot()).said.length, saidBefore + 1, 'and is never announced')
       step('a light test pulses and is announced once when it arrives, not on its countdown')
@@ -346,7 +359,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
       await page.unroute('**/api/state')
       await page.getByRole('heading', { name: 'Aurora has stopped' }).waitFor({ state: 'detached', timeout: 8000 })
       await toggle().waitFor({ timeout: 8000 })
-      await page.waitForTimeout(7000)
+      await polls(4)
       assert.equal((await adds()).length, addsAtDown, 'recovery: nothing pulses')
       assert.equal((await spot()).said.length, saidAtDown, 'recovery: nothing is announced')
       step('recovery from the takeover does not pulse or announce')
@@ -411,7 +424,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await toggle().click()
     await expectCollapsed('1 notice 1 error')
     await page.setViewportSize({ width: 1470, height: 900 })
-    await page.waitForTimeout(5000)
+    await ticked(3)
     await expectCollapsed('1 notice 1 error')
     assert.equal((await api('GET', '/api/state')).json.test.active, true, 'the Once test was still counting down')
     clearInterval(keepAgent)
@@ -463,7 +476,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // This tab's own test: Stop on the Test button, no shell row.
     await testButton().click()
     await page.getByRole('button', { name: 'Stop the test' }).waitFor()
-    await page.waitForTimeout(4000)
+    await polls(3)
     assert.equal((await api('GET', '/api/state')).json.test.holder.session, await session())
     assert.equal(await rows.count(), 0, "this tab's own test is not a shell row")
     await page.getByRole('button', { name: 'Stop the test' }).click()
@@ -487,7 +500,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     // An editor-only note row is announced once, by the page announcer, and the toast stays silent (Aurora-9hqa.2).
     const noteText = "Couldn't check your last edit: too many editors are open. Close one to continue."
     await page.waitForFunction((t) => window.__said.some((x) => x.text === t), noteText, { timeout: 10_000 })
-    await page.waitForTimeout(1500)
+    await polls(3)
     const noteSays = (await spot()).said.slice(noteSaid).filter((t) => t === noteText)
     assert.equal(noteSays.length, 1, 'announced once')
     assert.equal(await toastText(), '', 'and the toast says nothing for it')
@@ -560,5 +573,4 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.evaluate(() => localStorage.clear()).catch(() => {})
     await browser.close()
   }
-})
-console.log('graph-editor error shell: all passed')
+}))

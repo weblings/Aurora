@@ -277,6 +277,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `my6z-devstack-no-browser-tab` | [log/2026-11-12-my6z-devstack-no-browser-tab.md](log/2026-11-12-my6z-devstack-no-browser-tab.md) | devstack stops opening a browser tab on Mac |
+| `ngoj-faster-shell-checks` | [log/2026-11-13-ngoj-faster-shell-checks.md](log/2026-11-13-ngoj-faster-shell-checks.md) | Browser checks: shell checks run in under a minute (dev poll cadence, poll-count waits, STEP) |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
 | `nodes-agent-ux` | [planning/NodesAndAgentUX.md](planning/NodesAndAgentUX.md) | Nodes and agent UX: sequences |

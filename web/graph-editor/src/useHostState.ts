@@ -61,6 +61,7 @@ export function useHostState(): HostStateApi {
   const pairingFlight = useRef<Promise<void> | null>(null)
   const [testEndsAtMs, setTestEndsAtMs] = useState<number | null>(null)
   const reachRef = useRef<Reach>(reachable)
+  const pollMs = useRef(POLL_MS)
   const flight = useRef<Promise<boolean> | null>(null)
 
   // The status read (once; again after Aurora comes back) and the pending list with the beat, single-flight
@@ -95,7 +96,11 @@ export function useHostState(): HostStateApi {
       const controller = new AbortController()
       const timer = window.setTimeout(() => controller.abort(), ABORT_MS)
       try {
-        const snapshot = parseHostState(await fetchState(controller.signal))
+        const body = await fetchState(controller.signal)
+        // Dev-only: AURORA_DEV_POLL_MS on the app makes the reply name a faster cadence (shell.js does the same).
+        const dev = Number((body as { devPollMs?: unknown } | null)?.devPollMs)
+        if (Number.isFinite(dev) && dev >= 50 && dev <= POLL_MS) pollMs.current = dev
+        const snapshot = parseHostState(body)
         const wasDown = reachRef.current.down
         reachRef.current = reachAfter(reachRef.current, true)
         setReach(reachRef.current)
@@ -134,7 +139,7 @@ export function useHostState(): HostStateApi {
     let stopped = false
     const beat = async () => {
       await poll()
-      if (!stopped) timer = window.setTimeout(beat, POLL_MS)
+      if (!stopped) timer = window.setTimeout(beat, pollMs.current)
     }
     void beat()
     return () => {

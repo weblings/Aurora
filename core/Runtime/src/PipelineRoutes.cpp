@@ -289,12 +289,28 @@ namespace Aurora::Runtime
     // Leaf-lock reads only, so polling never waits on a tick or a reload.
     // Exception: a running audio side asks the platform hook for its sink,
     // which takes the pipeline lock for the length of one tick.
+    // Dev-only poll cadence for the browser checks: presence of
+    // AURORA_DEV_POLL_MS (a whole number of ms, 50..3000) adds "devPollMs" to
+    // the reply so the shell polls that fast. Unset (every release run), the
+    // field is never written and the pages keep their 3 s cadence.
+    int devPollMs = 0;
+    if(const char* raw = std::getenv("AURORA_DEV_POLL_MS")){
+      const int value = std::atoi(raw);
+      if(value >= 50 && value <= 3000){
+        devPollMs = value;
+      }
+    }
+
     server.addRoute(
       HttpMethod::Get,
       "/api/state",
-      [&pipelineHost, configRoot, lightTest](const Request&, Response& res){
+      [&pipelineHost, configRoot, lightTest, devPollMs](const Request&, Response& res){
         res.contentType = "application/json";
-        res.body = stateToJson(readStateSnapshot(pipelineHost, configRoot, lightTest)).dump();
+        nlohmann::json body = stateToJson(readStateSnapshot(pipelineHost, configRoot, lightTest));
+        if(devPollMs > 0){
+          body["devPollMs"] = devPollMs;
+        }
+        res.body = body.dump();
       }
     );
 
