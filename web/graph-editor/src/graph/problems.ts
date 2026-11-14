@@ -15,7 +15,7 @@ export type ServerIssue = {
   options?: string[]
 }
 
-export type PreviewIssue = { output: string; node: string; message: string }
+export type PreviewIssue = { output: string; node: string; message: string; code?: string }
 
 export type NodeProblems = {
   // Whole-node problems, plus the ones that named a port or param (so the
@@ -86,7 +86,13 @@ export function groupProblems(
 
   // The editor's words for an issue's code; a code with none shows the server's text.
   for (const issue of issues) add(issue.node, describeIssue(issue), issue.port, issue.param, issue.code)
-  for (const issue of runtime) add(issue.node, issue.message)
+  // A runtime failure reads "Runs, but <node> fails: <reason>" (code node_tick_failed). Its row or badge
+  // already names a node in the document, so only a node outside it is named in the words.
+  for (const issue of runtime) {
+    const inDoc = !!issue.node && nodeIds.has(issue.node)
+    const words = describeIssue({ ...issue, code: issue.code ?? 'node_tick_failed', node: inDoc ? null : issue.node || undefined })
+    add(issue.node, words)
+  }
 
   const nodes = new Map<string, NodeProblems>()
   for (const [id, list] of messages) {

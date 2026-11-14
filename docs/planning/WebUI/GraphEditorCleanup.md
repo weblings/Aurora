@@ -723,7 +723,7 @@ So graph issues are never called errors, and runtime preview failures read "Runs
 | `.1` 7a | Copy per issue code in the popover and node badges; refused test starts too. The table is plain JS in `web/ui` (`problemCopy.js`) so the shell can reuse it | Done ([[u8jx1-problem-copy]]) |
 | `.15` 7d | Shell rows for an effect that fails to start or apply use 7a's copy; core attaches a code to host errors | After 7a |
 | `.2` 7b | A fitting action per Whole graph code, or none | Done ([[u8jx2-whole-graph-actions]]) |
-| `.3` 7c | Runtime preview errors worded apart from validation | Ready |
+| `.3` 7c | Runtime preview errors worded apart from validation | Done ([[u8jx3-runtime-wording]]) |
 | `.6` 7.0g | Zones island output menu and a sample layout with no lights | Mock first |
 | `.8` | Problems chip gains a chevron; the compact form | Mock with `.9`; re-measure after the 31 px button |
 | `.9` | Narrow top bar folds controls into menus | Mock first |

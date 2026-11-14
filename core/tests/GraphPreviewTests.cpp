@@ -175,6 +175,7 @@ TEST_CASE("A failing node turns the output's zones magenta and flagged (Aurora-5
   CHECK(snapshot.errors[0].output == "hue");
   CHECK(snapshot.errors[0].node == "src");
   CHECK(snapshot.errors[0].message == "test failure");
+  CHECK(snapshot.errors[0].code == "node_tick_failed");
 }
 
 

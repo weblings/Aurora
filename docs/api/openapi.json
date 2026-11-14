@@ -1963,7 +1963,8 @@
               "required": [
                 "output",
                 "node",
-                "message"
+                "message",
+                "code"
               ],
               "properties": {
                 "output": {
@@ -1974,6 +1975,10 @@
                 },
                 "message": {
                   "type": "string"
+                },
+                "code": {
+                  "type": "string",
+                  "description": "Plain-string code for the failure; `node_tick_failed` means the node threw during a tick."
                 }
               }
             }

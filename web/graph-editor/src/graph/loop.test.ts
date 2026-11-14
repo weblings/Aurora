@@ -68,7 +68,7 @@ describe('groupProblems', () => {
     expect(p.graph).toEqual(['graph has a cycle', 'gone: bad'])
   })
 
-  it('adds runtime preview errors to their node and drops duplicates', () => {
+  it('adds runtime preview errors to their node and words them as runtime failures', () => {
     const p = groupProblems(
       [{ node: 'send', message: 'same' }],
       [
@@ -78,9 +78,9 @@ describe('groupProblems', () => {
       ],
       ids,
     )
-    expect(p.nodes.get('send')!.messages).toEqual(['same'])
-    expect(p.nodes.get('gain')!.messages).toEqual(['tick failed'])
-    expect(p.graph).toEqual(['no node'])
+    expect(p.nodes.get('send')!.messages).toEqual(['same', 'Runs, but this node fails: same'])
+    expect(p.nodes.get('gain')!.messages).toEqual(['Runs, but this node fails: tick failed'])
+    expect(p.graph).toEqual(['Runs, but a node fails: no node'])
   })
 
   it('recognises an unchanged set of problems', () => {
@@ -182,6 +182,11 @@ describe('preview frames', () => {
     expect(f.outputs.map((o) => o.zones.length)).toEqual([10, 1])
     expect(f.outputs[0].zones[3].error).toBe(true)
     expect(f.errors).toEqual([{ output: 'hue', node: 'gain', message: 'oops' }])
+  })
+
+  it('keeps the code the server sent on a runtime error', () => {
+    const f = parseFrame(JSON.stringify({ outputs: [], errors: [{ output: 'hue', node: 'gain', message: 'oops', code: 'node_tick_failed' }] }))!
+    expect(f.errors).toEqual([{ output: 'hue', node: 'gain', message: 'oops', code: 'node_tick_failed' }])
   })
 
   it('gives null for junk instead of throwing', () => {

@@ -31,7 +31,7 @@ export function parseFrame(data: string): PreviewFrame | null {
     }),
     errors: Array.isArray(errors)
       ? errors.flatMap((e): PreviewIssue[] =>
-          typeof e?.message === 'string' ? [{ output: String(e.output ?? ''), node: String(e.node ?? ''), message: e.message }] : [],
+          typeof e?.message === 'string' ? [{ output: String(e.output ?? ''), node: String(e.node ?? ''), message: e.message, ...(typeof e.code === 'string' ? { code: e.code } : {}) }] : [],
         )
       : [],
   }
