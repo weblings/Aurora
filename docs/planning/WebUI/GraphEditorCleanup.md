@@ -720,7 +720,7 @@ So graph issues are never called errors, and runtime preview failures read "Runs
 | `.4` | Stage 6 edge cases left after close-out | Done |
 | `.7`, `.11`, `.10` | One button look: Rocky Road scheme with a 6 px gap, Grille's 31 px default button (`dev.16`), local overrides removed | Done |
 | `.12`, `.14`, `.13` | Shell mocks: 2+ rows start collapsed, one-pulse arrival, 60vh cap; shell as tabs not pursued | Done; built in `Aurora-9hqa` (with `.5`) |
-| `.1` 7a | Copy per issue code in the popover and node badges; refused test starts too. The table is plain JS in `web/ui` so the shell can reuse it | Waits on `Aurora-ngoj` (faster shell browser checks) |
+| `.1` 7a | Copy per issue code in the popover and node badges; refused test starts too. The table is plain JS in `web/ui` (`problemCopy.js`) so the shell can reuse it | Done ([[u8jx1-problem-copy]]) |
 | `.15` 7d | Shell rows for an effect that fails to start or apply use 7a's copy; core attaches a code to host errors | After 7a |
 | `.2` 7b | A fitting action per Whole graph code, or none | Ready |
 | `.3` 7c | Runtime preview errors worded apart from validation | Ready |

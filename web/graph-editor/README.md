@@ -21,8 +21,8 @@ Decisions, narrow windows, in [[graph-editor-cleanup]]).
   `doc.ts` (edits: each returns a new document), `flow.ts` (graph.json <-> React
   Flow), `layout.ts` (saved `ui` positions, else columns by topological depth),
   `connection.ts` (the wiring rules, and `insertConverter`: a Float/Angle drop gets an `angle.fromFloat`/`angle.toFloat` node, `Aurora-0veq`), `history.ts` (undo reducer),
-  `autosave.ts` (browser backup of unsaved edits: one kept copy per effect id, with the fingerprint of the saved graph it was made from; `openKept` says restore, nothing, or newer), `problems.ts` (server errors
-  regrouped per node/port/param), `loop.ts` (draft/preview states), `frame.ts`
+  `autosave.ts` (browser backup of unsaved edits: one kept copy per effect id, with the fingerprint of the saved graph it was made from; `openKept` says restore, nothing, or newer), `problems.ts` (server issues
+  regrouped per node/port/param, worded by `web/ui/problemCopy.js`: our words keyed by issue code, the server's text for a code not listed, also used for refused test starts in `api.ts`; `Aurora-u8jx.1`), `loop.ts` (draft/preview states), `frame.ts`
   (preview events), `lightTest.ts` (test-on-lights states), `controls.ts`
   (the Dashboard `controls` list), `save.ts` (effect ids: the title slug, and `@new-<random>` for a new effect until its first Save). `fixtures.ts` + `graph.test.ts` are the
   Vitest suite.

@@ -3,6 +3,8 @@
 // each naming a node and sometimes a port or param) and the preview's runtime
 // `errors` (output, node, message).
 
+import { describeIssue } from '../../../ui/problemCopy.js'
+
 export type ServerIssue = {
   node: string | null
   message: string
@@ -76,7 +78,8 @@ export function groupProblems(
     if (param) push(params.get(node) ?? params.set(node, new Map()).get(node)!, param, message)
   }
 
-  for (const issue of issues) add(issue.node, issue.message, issue.port, issue.param)
+  // The editor's words for an issue's code; a code with none shows the server's text.
+  for (const issue of issues) add(issue.node, describeIssue(issue), issue.port, issue.param)
   for (const issue of runtime) add(issue.node, issue.message)
 
   const nodes = new Map<string, NodeProblems>()

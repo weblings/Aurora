@@ -62,7 +62,7 @@ Applies-when: an agent reports a failing check it cannot tie to its own change
 
 Aurora-u8jx.5 / Aurora-bju0 (2026-11-13): an agent reported `graph-editor:failed-save` failing where Aurora raised no error at all. `git stash -u`, the check on HEAD, then `git checkout <pre-epic sha> -- web/ui web/graph-editor/src tools/browser-check` and the check again (restore afterwards with `git checkout HEAD -- <dirs>` and `git stash pop`) showed it failing before the epic, so the bead was committed and the failure filed as its own bug instead of holding the work.
 
-**Fix:** reproduce on the previous commit and on the base of the work before blaming it. If it fails there too, file a bug with that evidence and carry on.
+**Fix:** reproduce on the previous commit and on the base of the work before blaming it. If it fails there too, file a bug with that evidence and carry on. Do the swap from the repo root with absolute paths in any `trap` (a trap after `cd tools/browser-check` resolved `web/ui` against the wrong folder and left the base files staged, 2026-11-13), and restore in the order `git checkout HEAD -- <dirs>` then `git stash pop`, never the reverse: a checkout after the pop wipes the popped edits (recovered that time from the dangling stash commit, `git fsck --no-reflog`).
 
 ---
 
