@@ -3,6 +3,7 @@ import { Button, Dialog, Icon, warningIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
+import type { GraphRowAction } from './graph/problemActions'
 
 export function problemCount(problems: Problems): number {
   let n = problems.graph.length
@@ -30,7 +31,7 @@ const LEFT = { side: 'left' as const, top: 0, left: 0, arrow: 0, detached: false
 
 // The one place the graph's problems are counted: node-level and graph-wide.
 // A node row selects the node; a "Whole graph" row has no node to point at, so
-// it carries its own action. A refused Save points here: focus, a callout on the
+// it carries an action only when one fits its code (graph/problemActions.ts). A refused Save points here: focus, a callout on the
 // chip's left, then a ping.
 export function ProblemsChip({
   problems,
@@ -38,14 +39,14 @@ export function ProblemsChip({
   refusal,
   focusAfter,
   onSelectNode,
-  onAddNode,
+  onGraphAction,
 }: {
   problems: Problems
   chipRef: RefObject<HTMLButtonElement | null>
   refusal: Refusal | null
   focusAfter: MutableRefObject<(() => HTMLElement | null) | null>
   onSelectNode: (id: string) => void
-  onAddNode: () => void
+  onGraphAction: (run: GraphRowAction['run']) => void
 }) {
   const [open, setOpen] = useState(false)
   const compact = useMedia(COMPACT_BAR)
@@ -182,22 +183,27 @@ export function ProblemsChip({
                 </li>
               )),
             )}
-            {problems.graph.map((m) => (
-              <li key={`graph:${m}`} className="editor-problem-row">
-                <span className="editor-problem-text">
-                  <strong>Whole graph</strong>
-                  <span>{m}</span>
-                </span>
-                <Button
-                  onPress={() => {
-                    close()
-                    onAddNode()
-                  }}
-                >
-                  Add node…
-                </Button>
-              </li>
-            ))}
+            {problems.graph.map((m) => {
+              const action = problems.graphActions.get(m)
+              return (
+                <li key={`graph:${m}`} className="editor-problem-row">
+                  <span className="editor-problem-text">
+                    <strong>Whole graph</strong>
+                    <span>{m}</span>
+                  </span>
+                  {action ? (
+                    <Button
+                      onPress={() => {
+                        close()
+                        onGraphAction(action.run)
+                      }}
+                    >
+                      {action.label}
+                    </Button>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
         </Dialog>
       </EditorPopup>

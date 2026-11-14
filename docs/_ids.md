@@ -366,6 +366,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
 | `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
 | `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
 | `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
 | `u8jx41-callout-clear-of-title` | [log/2026-11-13-u8jx41-callout-clear-of-title.md](log/2026-11-13-u8jx41-callout-clear-of-title.md) | Graph editor: the refused-save callout stays clear of the title and Add node |
 | `u8jx42-test-ended-toast` | [log/2026-11-13-u8jx42-test-ended-toast.md](log/2026-11-13-u8jx42-test-ended-toast.md) | Graph editor: test-ended outcomes are announced, only a lost heartbeat is a toast |

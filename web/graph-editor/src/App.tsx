@@ -824,7 +824,9 @@ export function App() {
           refusal={refusal}
           focusAfter={focusAfter}
           onSelectNode={selectNode}
-          onAddNode={() => setAddMenuOpen(true)}
+          onGraphAction={(run) => {
+            if (run === 'openControls') setDrawer('controls')
+          }}
         />
         <Hint text="Undo (Ctrl/Cmd+Z)" placement="bottom">
           <button

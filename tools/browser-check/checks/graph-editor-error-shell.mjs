@@ -515,12 +515,36 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     await nudge()
     await rows.first().waitFor({ state: 'detached', timeout: 8000 })
     await page.locator('.editor-problems-chip', { hasText: /1 problem/ }).click()
-    await page.locator('.editor-problem-list li', { hasText: 'Whole graph' }).filter({ hasText: "Couldn't check your last edit: the graph is too large (over 256 KB)." }).waitFor()
+    const tooLarge = page.locator('.editor-problem-list li', { hasText: 'Whole graph' }).filter({ hasText: "Couldn't check your last edit: the graph is too large (over 256 KB)." })
+    await tooLarge.waitFor()
+    assert.equal(await tooLarge.locator('button').count(), 0, 'a Whole graph row with no fitting action has no button (Aurora-u8jx.2)')
     await page.keyboard.press('Escape')
     await clear()
     await nudge()
     await page.locator('.editor-problems-chip').waitFor({ state: 'detached', timeout: 8000 })
     step('429 and 400 are editor-only shell rows, 413 is a Whole graph problem on the chip, and a later send clears them')
+
+    // Whole graph rows by code (Aurora-u8jx.2): an unknown Dashboard control node opens the controls drawer; a cycle has no button.
+    await page.route('**/api/graph/drafts/*', (route) => (route.request().method() === 'PUT'
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: false, errors: [
+        { node: null, code: 'control_node_unknown', message: 'server control', options: [] },
+        { node: null, code: 'graph_cycle', message: 'server cycle' },
+      ] }) })
+      : route.continue()))
+    await nudge()
+    const wholeChip = page.locator('.editor-problems-chip', { hasText: /2 problems/ })
+    await wholeChip.waitFor({ timeout: 8000 })
+    await wholeChip.click()
+    const ctlRow = page.locator('.editor-problem-list li', { hasText: 'Dashboard control' })
+    const loopRow = page.locator('.editor-problem-list li', { hasText: 'loop back' })
+    await ctlRow.waitFor()
+    assert.equal(await loopRow.locator('button').count(), 0, 'a cycle has no action')
+    await ctlRow.getByRole('button', { name: 'Open controls' }).click()
+    await page.getByRole('button', { name: /Dashboard controls/, expanded: true }).waitFor({ timeout: 5000 })
+    await clear()
+    await nudge()
+    await page.locator('.editor-problems-chip').waitFor({ state: 'detached', timeout: 8000 })
+    step('a Whole graph row has an action only when its code fits one: unknown control node opens Dashboard controls, a cycle has none')
 
     // Network failure: the takeover, and the Test button off with it; the rows are gone. Recovery is a
     // new baseline: two rows (open before the takeover) come back collapsed, one row comes back open.
