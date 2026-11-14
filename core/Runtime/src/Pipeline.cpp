@@ -837,12 +837,29 @@ namespace Aurora::Runtime
 
   PipelineCapabilities Pipeline::capabilities() const
   {
-    // One built-in graph per pipeline today: video samples zones, audio
-    // doesn't. Arbitrary graphs will set these per node instead.
+    // The running graph's own nodes decide, so a graph with no source reports
+    // none (Aurora-ajr5). The host caches the result at every swap, so this
+    // walk runs per build, not per /api/state.
     PipelineCapabilities capabilities;
-    capabilities.usesVideoInput = !m_isAudioMode;
-    capabilities.usesAudioInput = m_isAudioMode || m_isDualCapture;
-    capabilities.samplesZones = !m_isAudioMode;
+    if(!m_videoRunner && !m_audioRunner){
+      return capabilities;
+    }
+    const nlohmann::json doc = graphJson();
+    const auto nodes = doc.find("nodes");
+    if(nodes == doc.end() || !nodes->is_array()){
+      return capabilities;
+    }
+    for(const auto& node : *nodes){
+      const std::string type = node.is_object() ? node.value("type", std::string{}) : std::string{};
+      capabilities.usesVideoInput = capabilities.usesVideoInput || type == "video.capture";
+      capabilities.usesAudioInput = capabilities.usesAudioInput || type == "audio.capture";
+      capabilities.samplesZones = capabilities.samplesZones || type == "zones.sample";
+    }
+    // The AURORA_DEV_DUAL_CAPTURE spike runs the built-in audio graph beside the video one
+    // that graphJson() returns, so its audio input is in use too.
+    if(m_isDualCapture && !m_bothInputs){
+      capabilities.usesAudioInput = true;
+    }
     return capabilities;
   }
 

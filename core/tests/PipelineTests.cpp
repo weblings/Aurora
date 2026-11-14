@@ -3668,6 +3668,42 @@ TEST_CASE("The summary reports a custom graph's declared inputs, null for a buil
 }
 
 
+TEST_CASE("A custom graph with no source node reports no capabilities (Aurora-ajr5)", "[Effects][Pipeline]")
+{
+  ScopedTempDir dir("effect-sourceless-capabilities");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  std::string error;
+
+  nlohmann::json sourceless = {
+    {"version", 1},
+    {"nodes", {
+      {{"id", "c"}, {"type", "color.constant"}, {"params", nlohmann::json::object()}},
+      {{"id", "all"}, {"type", "frame.broadcast"}, {"params", {{"output", "out-a"}}}},
+      {{"id", "send"}, {"type", "output.send"}, {"params", {{"output", "out-a"}}}}}},
+    {"edges", nlohmann::json::array({
+      nlohmann::json::array({"c.color", "all.color"}), nlohmann::json::array({"all.frame", "send.frame"})})}};
+  EffectStore store(dir.path);
+  REQUIRE(store.write("sourceless", sourceless, error));
+
+  Config config = videoConfig();
+  config.setActiveEffectId("sourceless");
+  auto pipeline = Pipeline::build(registry, config, dir.path, {});
+  REQUIRE(pipeline);
+  const PipelineCapabilities capabilities = pipeline->capabilities();
+  CHECK_FALSE(capabilities.usesVideoInput);
+  CHECK_FALSE(capabilities.usesAudioInput);
+  CHECK_FALSE(capabilities.samplesZones);
+
+  // The host's cached bits agree with the live pipeline.
+  PipelineHost host(std::move(pipeline), {});
+  CHECK_FALSE(host.capabilities().usesVideoInput);
+  CHECK_FALSE(host.capabilities().usesAudioInput);
+  CHECK_FALSE(host.capabilities().samplesZones);
+  host.shutdown();
+}
+
+
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
 TEST_CASE("A custom graph with both capture nodes builds both inputs, and a missing source falls back (Aurora-52oz.2)", "[Effects][Audio]")
 {
