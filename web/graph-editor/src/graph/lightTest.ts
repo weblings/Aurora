@@ -69,7 +69,7 @@ export function testReducer(state: TestState, event: TestEvent): TestState {
 // The words are the Dashboard shell's too (web/ui/testHolder.js).
 const who = testerName
 
-// The Test button's `Take over` tooltip and data-preview: someone else holds the lights.
+// The Test button's `Take over` tooltip: someone else holds the lights.
 export const lightsInUseText = (holder: Holder): string => `Lights in use: ${who(holder)} is testing`
 
 // One sentence for the toolbar, or null when there is nothing to say.

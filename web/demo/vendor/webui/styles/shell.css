@@ -151,6 +151,48 @@
   padding: var(--aurora-space-4) var(--aurora-space-6);
 }
 
+/* The rows region (Aurora-9hqa.3): a safety cap, not a scroll view. In normal use every row fits and
+   nothing scrolls; in the rare 5-6 row case the region stops at 60vh and scrolls, and the toggle
+   (after it, not inside it) stays reachable. 8px of inner padding keeps the 8px pulse ring from being
+   clipped by the region's overflow, and the negative margin gives it back so rows sit where they
+   always did. shellCap.js adds .shell-over, .shell-less and .shell-more and, only while it overflows,
+   tabindex, role and aria-label. */
+.shell-banner-rows {
+  box-sizing: border-box;
+  position: relative;
+  max-height: 60vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 8px;
+  margin: -8px;
+}
+
+.shell-banner-rows:empty {
+  display: none;
+}
+
+.shell-banner-rows:focus-visible {
+  /* Inset like the other clipping containers (tokens.css): an outer ring would be cut off. */
+  outline-offset: calc(-1 * var(--aurora-focus-ring-width));
+}
+
+/* A fade at each edge that has more rows past it, so a clipped row reads as continuing. */
+.shell-banner-rows.shell-over {
+  --shell-fade-top: 0px;
+  --shell-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--shell-fade-top), #000 calc(100% - var(--shell-fade-bottom)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--shell-fade-top), #000 calc(100% - var(--shell-fade-bottom)), transparent);
+}
+
+.shell-banner-rows.shell-less {
+  --shell-fade-top: 28px;
+}
+
+.shell-banner-rows.shell-more {
+  --shell-fade-bottom: 28px;
+}
+
 .shell-banner-row {
   display: flex;
   align-items: flex-start;
@@ -228,12 +270,56 @@
   cursor: pointer;
 }
 
-/* Sits below the expanded rows, re-collapsing the banner (shell.js) --
-   same chevron asset as the summary button above, just pointed the other
-   way, so expand/collapse reads as one reversible control. */
+/* The shell's one toggle (Aurora-u8jx.5): collapsed it reads the counts, open it sits below the
+   rows as Show less in the secondary colour, re-collapsing the banner (shell.js) -- same chevron
+   asset, pointed the other way, so expand/collapse reads as one reversible control. */
 .shell-banner-collapse {
   justify-content: center;
   margin-top: var(--aurora-space-4);
+}
+
+.shell-banner-quiet {
+  color: var(--aurora-text-secondary);
+}
+
+/* Circled marks (Grille's circledInfoIcon and circledExclamationIcon, icons/circled-*.svg), masked
+   like .warn-glyph (forms.css) so they take currentColor. Error marks are the error red wherever
+   they sit; the info mark keeps the text colour. */
+.shell-mark {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.shell-mark-info {
+  -webkit-mask-image: url('../icons/circled-info.svg');
+  mask-image: url('../icons/circled-info.svg');
+}
+
+.shell-mark-error {
+  color: var(--aurora-text-error);
+  -webkit-mask-image: url('../icons/circled-exclamation.svg');
+  mask-image: url('../icons/circled-exclamation.svg');
+}
+
+/* One part of the collapsed bar: mark and count. */
+.shell-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-1);
+}
+
+.shell-count-error {
+  color: var(--aurora-text-error);
 }
 
 .shell-banner-chevron-up {
@@ -263,4 +349,50 @@
 .shell-pairing-code {
   letter-spacing: 0.15em;
   color: var(--aurora-text-primary);
+}
+
+/* Visually hidden, still read by assistive tech: the Dashboard's and the editor's polite live regions
+   (Aurora-9hqa.2). The editor's Announcer used to define this in editor.css. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The ping (Aurora-9hqa.2): a ring grows from the element's edge to 8px and fades. The Problems chip
+   uses it twice (editor.css); a shell row that arrives uses it once. --shell-ping-tint colours it
+   (default text colour, so notices and the chip are unchanged). */
+@keyframes shell-ping {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--shell-ping-tint, var(--aurora-text-primary)) 60%, transparent); }
+  100% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* Reduced motion: the same time with no growth, a 2px ring held and then cleared. */
+@keyframes shell-ping-hold {
+  0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--shell-ping-tint, var(--aurora-text-primary)) 60%, transparent); }
+}
+
+/* A row that has just arrived (data-new, set by shell.js / ErrorShell.tsx, cleared on animationend).
+   An error's mark is error red, so its ring is. The toggle never has data-new. */
+.shell-banner-row[data-new] {
+  animation: shell-ping 1375ms ease-out 1;
+}
+
+.shell-banner-row[data-new]:has(.shell-mark-error) {
+  --shell-ping-tint: var(--aurora-text-error);
+}
+
+/* Over the cap a new row's pulse is held at its first (invisible) frame until its row is in view
+   (shellCap.js), so a ring is never spent on a row nobody can see. */
+.shell-banner-row[data-new][data-wait] {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-banner-row[data-new] {
+    animation: shell-ping-hold 1375ms linear 1;
+  }
 }

@@ -183,9 +183,68 @@ One sticky element mounted by the app shell, not by any screen:
   scrolls away).
 - **Rows**: one generic row template for every error (message plus
   whatever `action` it carries, Retry, Open Settings, or none, never
-  per-source markup). One error shows as one row; two or more collapse to
-  a summary line ("⚠ 2 problems ▾") that expands, so several errors can't
-  eat the window.
+  per-source markup). One row model draws both pages (`web/ui/shellRows.js`,
+  `Aurora-9hqa.1`, [[9hqa1-shell-row-model]]): order is the notices (the
+  light test, then pairing requests), conditions as sent, host errors newest `id`
+  first, then the page's own notes; a row's key is source + message (light
+  test: holder + Live/Once; pairing: ref). The Dashboard patches rows by key
+  each poll (`shellPatch.js`), so keyboard focus on Retry, Dismiss and Stop
+  test survives; the editor keys its React rows the same way. The whole shell (errors and notices) collapses as
+  one control to a bar of counts ("1 notice 2 errors", each with its
+  circled mark, notices first), and the user
+  can collapse a lone row too (`Aurora-u8jx.5`, [[u8jx5-shell-collapse]]).
+  It is one toggle button with one id (`shell-banner-toggle`, `aria-expanded`)
+  whose label swaps between the counts and "Show less" (secondary colour,
+  below the rows), the same DOM node on the Dashboard and the same React
+  node in the editor, so focus survives a toggle. Collapsed state is a stored
+  snapshot of the row keys taken when the user collapsed (memory only): the
+  shell is collapsed only while the current keys equal it, so a new row or
+  changed message (a new key) re-opens it, and the light-test countdown (not
+  part of the key) never does. A snapshot the rows no longer match is
+  dropped, so once re-opened it stays open even if the new row leaves; when
+  the rows clear the state resets. Conditions, host errors and the page's own
+  notes count as errors (red circled-exclamation); the light-test row counts
+  and pairing requests count as notices (default-colour circled-info), and
+  open rows carry the same marks. Pairing requests (`Aurora-9hqa.4`,
+  [[9hqa4-shell-pairing]]) are ordinary rows inside the collapse on both
+  pages, with Approve and Deny; the editor reads `/api/pairing/status` and the
+  pending list with its beat, as the Dashboard does. The baseline waits for the
+  first `/api/state` reply, the `canApprove` answer and (when this browser can
+  approve) the first pending result, so requests already pending at load are
+  baseline, not arrivals; a browser that cannot approve waits on nothing. A
+  request the user collapses can lapse (5 minutes): accepted. The marks are CSS-mask SVGs (`web/ui/icons/circled-*.svg`, Grille's
+  paths). How rows start
+  (`Aurora-u8jx.12`, option B, decided 2026-11-13): on page load, meaning
+  the first `/api/state` reply (recovery from the "Aurora has stopped"
+  takeover counts as a load too), two or more rows start collapsed so
+  several can't eat a narrow window (at 400×650, about 37 px collapsed vs
+  295 px open), and a lone row starts open. After load, any new row or
+  changed message re-opens the shell and the new row gets one pulse
+  (`Aurora-u8jx.14`), so rows that arrive later are never hidden. The
+  first reply is the baseline, not an arrival: no pulse, and nothing
+  renders before it, so there is no open-then-collapse flash. The spotlight is
+  built (`Aurora-9hqa.2`, [[9hqa2-shell-spotlight]]): the page keeps every row
+  key of the previous render (folded or not), a row whose key is new gets
+  `data-new` and one 1375 ms `shell-ping` ring (0 to 8 px, tinted error red
+  on error rows, default on notices; a held 2 px ring under reduced motion),
+  cleared on `animationend`, in the same render that re-opens the shell; none at
+  the baseline, none for the light-test countdown, never on the toggle. Each
+  arrival is also said once in a polite live region (WCAG 4.1.3): the
+  Dashboard's `#shell-announcer` beside the banner slot, the editor's own
+  `Announcer`. The text is the new rows' sentences joined, one announcement per
+  render, and a pairing request says `Pair a device with Aurora? <device>.` Collapse
+  state is memory only, so a reload or Dashboard→editor counts as a new
+  load. No scroll view in normal use; a `60vh` safety cap only for the
+  rare 5–6 row case (`Aurora-9hqa.3`, [[9hqa3-shell-cap]]): the rows sit in
+  their own region (`.shell-banner-rows`, `max-height: 60vh`, 8 px inner
+  padding so the pulse ring is not clipped) and the toggle stays outside it,
+  so Show less is always reachable. A 28 px fade shows at each edge that has
+  more rows past it. The region is focusable (`tabindex=0`, an `aria-label`)
+  only while it overflows. Over the cap the first new row scrolls into view
+  (never an older still-waiting one, and an ordinary poll never resets the
+  scroll), and each new row's pulse is held until an `IntersectionObserver`
+  sees the row, with the 2 s fallback starting then. A second new row of the
+  same poll that is off screen pulses when the user scrolls to it.
 - **Fed by the shell's heartbeat**, which polls `GET /api/state` instead of
   `/api/capabilities` (also lock-free, `PipelineRoutes.cpp:83-99`): one
   request gives reachability, host state and the error object, and gives
@@ -466,11 +525,10 @@ needs re-grepping.
 - **Daemon unreachable (takeover):** `shell.js`'s `_showTakeover` — one
   hardcoded heading, no body copy (Aurora-yzp4).
 - **Shell banner (host-state errors, held by the daemon):**
-  - `shell.js`'s `SOURCE_PREFIX` — the `startup`/`resume`/`reload` row
-    prefixes.
-  - `shell.js`'s `_renderBannerRow` — the saved-not-applied sentence for a
-    `reload` error on a running host, and the generic fallback row.
-  - `shell.js`'s collapsed-summary string ("N problems").
+  - `shellRows.js`'s `SOURCE_PREFIX` and `errorSentence` — the
+    `startup`/`resume`/`reload` row prefixes, the saved-not-applied sentence
+    for a `reload` error on a running host, and the generic fallback row.
+  - `shellRows.js`'s `collapsedLabel` ("N notices N errors").
   - `MacPermissionRecovery.js`'s `renderReloadError` (Screen Recording,
     both the banner-row and NUX-inline variants) and
     `renderAudioPermissionBanner` (the `audio_permission` row).

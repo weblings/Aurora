@@ -44,7 +44,7 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
+import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
@@ -261,7 +261,6 @@ export function App() {
       // live effect, which is now this one, read from the file just written.
       if (kind === 'apply' && testing) await lights.finishAfterApply()
       const live = kind !== 'save'
-      dismissTest()
       // A failed reload is in /api/state errors, which the error shell shows (Aurora-s1t7.9).
       showToast(`${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}`)
       fetchEffects().then(setEffects).catch(() => {})
@@ -294,10 +293,6 @@ export function App() {
     return next
   }, [loop.state.valid, loop.state.issues, loop.state.reloadError, loop.state.runtime, doc])
 
-  // A test outcome shows until the next test, Save or edit.
-  const [clearedTest, setClearedTest] = useState<{ ended: unknown; failure: string | null } | null>(null)
-  const testOutcomeCleared = clearedTest !== null && clearedTest.ended === lights.state.ended && clearedTest.failure === lights.state.failure
-  const dismissTest = () => setClearedTest({ ended: lights.state.ended, failure: lights.state.failure })
   const prevDoc = useRef<GraphDoc | null>(null)
   useEffect(() => {
     const before = prevDoc.current
@@ -306,7 +301,6 @@ export function App() {
     // change is, including an undo back to the saved graph.
     if (!changeIsEdit(before, doc)) return
     setWriteTrouble(null)
-    dismissTest()
     // Only a change of the document counts as an edit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc])
@@ -319,10 +313,10 @@ export function App() {
     if (stopAnnounced(ended)) announce(text)
     else showToast(text)
   }, [ended, showToast, announce])
-  // A test that ended for a reason the user did not cause: announced once, and the first line of
-  // the Test menu until the next test, Save or edit. Nothing is drawn on the button.
-  const outcome = testOutcomeCleared ? null : testOutcome(lights.state)
+  // A test that ended for a reason the user did not cause is announced, and nothing is drawn on the
+  // button. A lost heartbeat is a toast, and the toast's own live region speaks it, so it is not announced twice.
   useEffect(() => {
+    if (quietEndToast({ ...initialTest, ended })) return
     const text = testOutcome({ ...initialTest, ended })
     if (text) announce(text)
   }, [ended, announce])
@@ -737,18 +731,22 @@ export function App() {
     <div className="editor">
       <ErrorShell
         unreachable={!host.reachable}
+        hasReplied={host.hasReplied}
         hostState={host.host.state}
         platform={platform}
         conditions={host.host.conditions}
         errors={host.host.errors}
         notes={shellNotes}
+        onAnnounce={announce}
         lightTest={otherLightTest}
+        pairings={host.pairings}
+        onDecidePairing={(ref, decision) => void host.decidePairing(ref, decision)}
         onRetry={(source) => void host.retry(source)}
         onDismiss={(error) => void host.dismiss(error)}
         onStopTest={() => void host.stopTest()}
       />
       <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
-        <a className="ui-button editor-back" data-size="sm" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
+        <a className="ui-button editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
           <Icon icon={arrowLeftIcon} size="sm" />
           {tightBar ? null : 'Dashboard'}
         </a>
@@ -756,7 +754,7 @@ export function App() {
         <button
           ref={titleMenuTrigger}
           type="button"
-          className="ui-button editor-title-menu" data-size="sm"
+          className="ui-button editor-title-menu"
           aria-label={dirty ? `Effect menu, ${UNSAVED_TEXT}` : 'Effect menu'}
           aria-haspopup="dialog"
           aria-expanded={titleMenuOpen}
@@ -830,7 +828,7 @@ export function App() {
         />
         <Hint text="Undo (Ctrl/Cmd+Z)" placement="bottom">
           <button
-            type="button" className="ui-button" data-size="sm"
+            type="button" className="ui-button" data-icon
             onClick={undo}
             disabled={past.length === 0}
             aria-label="Undo"
@@ -840,7 +838,7 @@ export function App() {
         </Hint>
         <Hint text="Redo (Shift+Ctrl/Cmd+Z)" placement="bottom">
           <button
-            type="button" className="ui-button" data-size="sm"
+            type="button" className="ui-button" data-icon
             onClick={redo}
             disabled={future.length === 0}
             aria-label="Redo"
@@ -858,8 +856,8 @@ export function App() {
           disabledReason={
             blocked ? status.label : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
           }
+          takeOverHint={lightsInUse(lights.state, otherHeld?.holder ?? null)}
           busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
-          outcome={outcome}
           onStart={startTest}
           onStop={() => void lights.revert()}
           onReconnect={loop.reconnect}
@@ -917,7 +915,7 @@ export function App() {
                 <button
                   ref={addMenuTrigger}
                   type="button"
-                  className="ui-button editor-add-node" data-size="sm"
+                  className="ui-button editor-add-node"
                   aria-label="Add node"
                   aria-haspopup="dialog"
                   aria-expanded={addMenuOpen}
@@ -931,7 +929,7 @@ export function App() {
             <Panel position="bottom-right">
               <button
                 type="button"
-                className="ui-button" data-size="sm"
+                className="ui-button"
                 aria-haspopup="dialog"
                 aria-expanded={drawer === 'controls'}
                 disabled={!doc}

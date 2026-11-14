@@ -60,6 +60,10 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `8ydf-wayland-rate-cap-review` | [log/2026-10-20-8ydf-wayland-rate-cap-review.md](log/2026-10-20-8ydf-wayland-rate-cap-review.md) | Aurora-8ydf step 1: Wayland rate-cap review + tests (motion run open) |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
+| `9hqa1-shell-row-model` | [log/2026-11-13-9hqa1-shell-row-model.md](log/2026-11-13-9hqa1-shell-row-model.md) | Error shell: one row model for both pages, the Dashboard patches rows by key |
+| `9hqa2-shell-spotlight` | [log/2026-11-13-9hqa2-shell-spotlight.md](log/2026-11-13-9hqa2-shell-spotlight.md) | Error shell arrival spotlight: one pulse and a polite announcement |
+| `9hqa3-shell-cap` | [log/2026-11-13-9hqa3-shell-cap.md](log/2026-11-13-9hqa3-shell-cap.md) | Error shell 60vh safety cap: fades, scroll to the new row, pulses that wait to be seen |
+| `9hqa4-shell-pairing` | [log/2026-11-13-9hqa4-shell-pairing.md](log/2026-11-13-9hqa4-shell-pairing.md) | Pairing requests in the error shell: collapse, editor, baseline wait |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
 | `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
@@ -67,6 +71,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
+| `bju0-failed-save-check` | [log/2026-11-13-bju0-failed-save-check.md](log/2026-11-13-bju0-failed-save-check.md) | Browser check failed-save: the audio graph ran because Aurora picks the missing input |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
 | `c5gw-builtin-save-title` | [log/2026-10-29-c5gw-builtin-save-title.md](log/2026-10-29-c5gw-builtin-save-title.md) | Graph editor: saving a built-in picks a distinct title |
@@ -354,6 +359,17 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u68h6-undo-toasts` | [log/2026-11-13-u68h6-undo-toasts.md](log/2026-11-13-u68h6-undo-toasts.md) | Graph editor stage 6g: toast audit, announce-only messages, Undo on lossy toasts |
 | `u68h7-close-out` | [log/2026-11-13-u68h7-close-out.md](log/2026-11-13-u68h7-close-out.md) | Graph editor stage 6f: a failed Save is a shell row, the banner is gone, the priority rule is rewritten |
 | `u68h9-open-failure-row` | [log/2026-11-13-u68h9-open-failure-row.md](log/2026-11-13-u68h9-open-failure-row.md) | Graph editor stage 6h: a failed effect or catalog load is an error-shell row without Retry |
+| `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
+| `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
+| `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
+| `u8jx41-callout-clear-of-title` | [log/2026-11-13-u8jx41-callout-clear-of-title.md](log/2026-11-13-u8jx41-callout-clear-of-title.md) | Graph editor: the refused-save callout stays clear of the title and Add node |
+| `u8jx42-test-ended-toast` | [log/2026-11-13-u8jx42-test-ended-toast.md](log/2026-11-13-u8jx42-test-ended-toast.md) | Graph editor: test-ended outcomes are announced, only a lost heartbeat is a toast |
+| `u8jx43-bar-menu-motion-padding` | [log/2026-11-13-u8jx43-bar-menu-motion-padding.md](log/2026-11-13-u8jx43-bar-menu-motion-padding.md) | Graph editor: the Test menu opens like the other bar menus, and menu items pad like the bar |
+| `u8jx44-number-field-spinners` | [log/2026-11-13-u8jx44-number-field-spinners.md](log/2026-11-13-u8jx44-number-field-spinners.md) | Graph editor: node param number fields drop the native spin buttons |
+| `u8jx45-status-detail-reload-coverage` | [log/2026-11-13-u8jx45-status-detail-reload-coverage.md](log/2026-11-13-u8jx45-status-detail-reload-coverage.md) | Graph editor: the dead open-failure status detail is gone, the reload row's coverage is checked |
+| `u8jx5-shell-collapse` | [log/2026-11-13-u8jx5-shell-collapse.md](log/2026-11-13-u8jx5-shell-collapse.md) | Error shell collapses as one: baseline, snapshot, one toggle |
+| `uds2-status-undrawn-fields` | [log/2026-11-13-uds2-status-undrawn-fields.md](log/2026-11-13-uds2-status-undrawn-fields.md) | Graph editor: Status no longer carries the undrawn detail and where fields, and Take over's tooltip is drawn |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
 | `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |

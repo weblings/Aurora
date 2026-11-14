@@ -89,6 +89,9 @@ const ZEST = {
   redo: '<path d="M13.293 4.293a1 1 0 0 1 1.414 0l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414-1.414L15.586 10H10.5a3.5 3.5 0 1 0 0 7H13a1 1 0 1 1 0 2h-2.5a5.5 5.5 0 1 1 0-11h5.086l-2.293-2.293a1 1 0 0 1 0-1.414z" fill-rule="evenodd"/>',
   warning: '<path d="M13.752 2.111c-.76-1.381-2.745-1.381-3.504 0L.938 19.036C.207 20.37 1.17 22 2.692 22H21.31c1.521 0 2.485-1.63 1.752-2.964L13.752 2.111zM12 3.075L21.31 20H2.69l9.31-16.925zM12 8a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0V9a1 1 0 0 1 1-1zm1.25 9.75a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0z" fill-rule="evenodd"/>',
 }
+// Grille's circled-exclamation icon (circled-exclamation.svg, 24 grid): the error mark, as the triangle is the warning mark.
+ZEST.info = '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM1 12C1 5.925 5.925 1 12 1s11 4.925 11 11-4.925 11-11 11S1 18.075 1 12zm12.25-4.75a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0zM11 10a1 1 0 1 0 0 2v5a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1h-1z" fill-rule="evenodd"/>' // Zest circled-info; Grille circledInfoIcon (GrilleDS working tree)
+ZEST.error = '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM1 12C1 5.925 5.925 1 12 1s11 4.925 11 11-4.925 11-11 11S1 18.075 1 12zm11-5.5a1 1 0 0 1 1 1v5a1 1 0 0 1-2 0V7.5a1 1 0 0 1 1-1zm1.25 9.75a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0z" fill-rule="evenodd"/>'
 const chevron = (cls = '', up = false) => el('span', { class: `ge-chev ${cls}`, 'aria-hidden': 'true', html: `<svg viewBox="0 0 32 32" class="ge-icon ge-vs">${up ? VS.chevUp : VS.chevDown}</svg>` })
 // Grille's warning icon (24 grid, currentColor).
 const warnIcon = () => el('span', { class: 'ge-warn', 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon ge-vs">${ZEST.warning}</svg>` })
@@ -924,8 +927,10 @@ function autoInsert() {
 // --- Stage 6 board (Aurora-u68h.1) ------------------------------------------------------------------------------
 // A static board, not the editor: where each message lives once the banner under the bar is retired. Each section
 // names the bead that builds it. Wording marked "drafted" is new in this frame, for the owner to confirm.
-const W = (paths) => el('span', { class: 's6-warn', 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon ge-vs">${paths}</svg>` })
+const W = (paths, cls = '') => el('span', { class: `s6-warn ${cls}`.trim(), 'aria-hidden': 'true', html: `<svg viewBox="0 0 24 24" class="ge-icon ge-vs">${paths}</svg>` })
 const warnSvg = () => W(ZEST.warning)
+const errSvg = () => W(ZEST.error, 's6-warn-err')
+const infoSvg = () => W(ZEST.info)
 // el() with a class and an optional attrs object first among the kids.
 const s6 = (tag, cls, ...kids) => {
   const attrs = kids[0] && kids[0].constructor === Object ? kids.shift() : {}
@@ -936,10 +941,10 @@ const s6panel = (label, ...body) => s6('figure', 's6-panel', s6('figcaption', ''
 const s6note = (text) => s6('p', 's6-note', text)
 
 // A bar like the editor's, with the right group varying. Title and Undo/Redo as in drawBar.
-function s6bar({ title = 'Screen colors', unsaved = false, right }) {
+function s6bar({ title = 'Screen colors', unsaved = false, right, iconBack = false }) {
   return s6('div', 's6-bar ge-bar',
-    btn([vsicon(VS.back, 32, 'ge-vs-back'), 'Dashboard'], { class: 'ui-button' }), s6('span', 'ge-sep'),
-    btn([title, chevron('cc-chev')], { class: 'ui-button ge-title' }), unsaved ? s6('span', 'ge-unsaved', 'Unsaved') : null,
+    iconBack ? btn(vsicon(VS.back, 32, 'ge-vs-back'), { icon: true, 'aria-label': 'Dashboard' }) : btn([vsicon(VS.back, 32, 'ge-vs-back'), 'Dashboard'], { class: 'ui-button' }), s6('span', 'ge-sep'),
+    btn([s6('span', 'ge-title-text', title), chevron('cc-chev')], { class: 'ui-button ge-title' }), unsaved ? s6('span', 'ge-unsaved', 'Unsaved') : null,
     s6('span', 'ge-spacer'),
     btn(vsicon(ZEST.undo, 24), { icon: true, 'aria-label': 'Undo' }), btn(vsicon(ZEST.redo, 24), { icon: true, 'aria-label': 'Redo', disabled: true }),
     s6('span', 'ge-sep'), right ?? null)
@@ -960,11 +965,18 @@ const ROWS = {
   reload: { text: "Couldn't apply settings: no output is paired.", action: 'Retry', dismiss: true },
   tooMany: { text: "Couldn't check your last edit: too many editors are open. Close one to continue." },
   invalid: { text: "Couldn't check your last edit." },
-  agentTest: { text: 'An agent is testing an effect on the lights.', action: 'Stop test' },
-  tabTest: { text: 'Another editor tab is testing an effect on the lights.', action: 'Stop test' },
+  agentTest: { text: 'An agent is testing an effect on the lights.', action: 'Stop test', notice: true },
+  tabTest: { text: 'Another editor tab is testing an effect on the lights.', action: 'Stop test', notice: true },
 }
-const shellRow = ({ text, action, dismiss }) => s6('div', 's6-row',
-  s6('div', 's6-row-content', s6('p', 's6-row-text', warnSvg(), ' ', text), action ? s6('div', 's6-row-actions', btn(action, { variant: 'secondary' })) : null),
+// Grille's inline-icon approach (.ui-status-message, as Callout's title): a flex row, baseline-aligned, the icon its own item, so
+// wrapped text stays in its column and never runs back under the icon. Only the icon takes the tone; the text stays default.
+const rowIcon = (kind) => { // a direct child of the row: Grille's rule sizes and baseline-aligns only `.ui-status-message > .ui-icon`
+  const t = document.createElement('template')
+  t.innerHTML = `<svg class="ui-icon s6-ricon s6-ricon-${kind}" viewBox="0 0 24 24" fill="currentColor" focusable="false" aria-hidden="true">${{ error: ZEST.error, info: ZEST.info, warning: ZEST.warning }[kind]}</svg>`
+  return t.content.firstChild
+}
+const shellRow = ({ text, action, dismiss, err, notice }) => s6('div', 's6-row',
+  s6('div', 's6-row-content', s6('p', 's6-row-text ui-status-message', rowIcon(notice ? 'info' : err ? 'error' : 'warning'), el('span', {}, text)), action ? s6('div', 's6-row-actions', btn(action, { variant: 'secondary' })) : null),
   dismiss ? s6('button', 's6-row-x', { type: 'button', 'aria-label': 'Dismiss' }, '×') : null)
 // #shell-banner-slot: the first thing on the page, full width, above the bar; the rows' column is 640px, centred.
 const shellBand = (...kids) => s6('div', 's6-band', s6('div', 's6-band-inner', ...kids))
@@ -1034,11 +1046,65 @@ function promptSection() {
     s6note('The ring on Keep my edits is the default focus. Dialog buttons are centred here and in the naming dialog (NameDialog, .editor-name-dialog-actions), so the editor\'s two Modals match. The mock\'s Name field is a title-menu popover with no buttons, so it has nothing to centre.'))
 }
 
+// ---- 7.0f: the shell collapses, a lone row too ---------------------------------------------------------------
+// Aurora-u8jx.5. Today only two or more rows collapse (shell.js _renderBanner, ErrorShell.tsx ShellBanner). Owner decisions
+// 2026-11-13: the shell collapses as one; it counts errors (red, circled-exclamation) and notices (default colour, circled-info);
+// the word is "error"; Show less is secondary-coloured; the Problems chip keeps "N problems" in the warning tone. Row wording is drafted.
+const LONE = { text: "Can't reach the Hue bridge at 192.168.1.20. The lights won't update until it's back.", action: 'Retry', dismiss: false, err: true }
+const NOTE = ROWS.agentTest
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
+const count = (n, w, kind) => s6('span', `s7-cnt${kind === 'err' ? ' s7-cnt-err' : ''}`, kind === 'err' ? errSvg() : infoSvg(), ` ${plural(n, w)}`)
+// The collapsed bar: one control, errors first, each class in its own mark and tone.
+const collapsedBar = (errors, notices) => s6('button', 's6-summary', { type: 'button', 'aria-expanded': 'false' },
+  errors ? count(errors, 'error', 'err') : null, notices ? count(notices, 'notice') : null, chevron('cc-chev'))
+const showLess = () => s6('button', 's6-summary s6-summary-up s6-summary-quiet', { type: 'button', 'aria-expanded': 'true' }, 'Show less ', chevron('cc-chev', true))
+const today = (label) => s6('button', 's6-summary', { type: 'button' }, [warnSvg(), ` ${label} `], chevron('cc-chev'))
+const gChev = () => el('span', { 'aria-hidden': 'true', html: `<svg class="ui-icon" data-size="sm" data-chevron viewBox="0 0 32 32" fill="currentColor" focusable="false" aria-hidden="true"><path d="M15.905 17.4809C15.9571 17.533 16.0415 17.533 16.0936 17.4809L22.4111 11.1635C22.6714 10.9031 23.0935 10.9031 23.3539 11.1635L24.9567 12.7662C25.217 13.0266 25.217 13.4487 24.9567 13.709L18.1028 20.5629C18.0937 20.5732 18.0842 20.5833 18.0744 20.5931L16.4716 22.1959C16.2113 22.4562 15.7892 22.4562 15.5288 22.1959L7.04353 13.7106C6.78318 13.4503 6.78318 13.0281 7.04353 12.7678L8.6463 11.165C8.90665 10.9047 9.32876 10.9047 9.58911 11.165L15.905 17.4809Z"/></svg>` })
+// chev: show the chevron; open: the popover is open (aria-expanded); compact: the editor's COMPACT_BAR form, count only with an aria-label.
+const chip = (n, chev = false, { open = false, compact = false } = {}) => n === 0 ? s6test() : s6('span', 's6-chipwrap',
+  btn([warnSvg(), compact ? ` ${n}` : ` ${plural(n, 'problem')}`, chev ? gChev() : null], { class: 'ui-button ge-problems', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), ...(compact ? { 'aria-label': plural(n, 'problem') } : {}) }), s6test())
+
+// Narrow widths, measured on the real editor (tools/browser-check, 1 problem showing, Test never cut off as built):
+// 720 title 134 px; 649 title 134; 400 title 74 (chevron: 48); 360 title 34 (chevron: 20 and the bar overflows by 4 px).
+// A viewport media query cannot fire in a panel, so .s7-compact applies the compact bar rules at a fixed width.
+function narrowPanels(page) {
+  const at = (w, label, chev) => s6panel(`${w}px: ${label}`, s6('div', `s7-w${w <= 649 ? ' s7-compact' : ''}`, { style: `width:${w}px` },
+    ...page(collapsedBar(1, 1), 2, chev, { compact: w <= 649, iconBack: w <= 400 })))
+  return [
+    at(720, 'full chip with chevron', true),
+    at(649, 'compact chip with chevron', true),
+    at(400, 'compact chip, as built (real title 74 px)', false),
+    at(400, 'compact chip with chevron (real title 48 px)', true),
+    at(360, 'compact chip, as built (real title 34 px)', false),
+    at(360, 'compact chip with chevron (real: overflows by 4 px, title 20 px)', true),
+  ]
+}
+
+function collapseSection() {
+  const page = (band, n = 2, chev = false, o = {}) => [band, s6bar({ iconBack: o.iconBack, right: chip(n, chev, { open: chev === 'up', compact: o.compact }) }), s6('div', 's6-canvas', 'The graph canvas')]
+  const coll = (label, e, n, chipN = 2) => s6panel(`${label}${chipN ? `, chip reads ${plural(chipN, 'problem')}` : ', no graph problems (no chip)'}`, ...page(shellBand(collapsedBar(e, n)), chipN, true))
+  return s6section('s7-collapse', 'Aurora-u8jx.5 (7.0f)', 'The shell collapses as one, a lone row too',
+    'View state only. A lone error row starts open, because a new failed-host row is the only explanation for no lights. The user can collapse the shell. It stays collapsed only while the rows are unchanged: a new row or a changed message opens it again, and when the rows clear the state resets. Same on the Dashboard and in the editor.',
+    s6('div', 's6-grid',
+      s6panel('Start: the lone error row, open, with Show less (new; today a lone row has no control)', ...page(shellBand(shellRow(LONE), showLess()), 2, true)),
+      s6panel('Today: a collapsed pair reads "2 problems", the same word as the chip', ...page(shellBand(today('2 problems')), 2)),
+      coll('Collapsed: errors only', 1, 0),
+      coll('Collapsed: one error and one notice (the light-test notice)', 1, 1),
+      coll('Collapsed: two errors and one notice', 2, 1),
+      coll('Collapsed: a notice only (no mark, default colour)', 0, 1),
+      coll('Collapsed: errors only', 1, 0, 0),
+      s6panel('Open: notice above the error, as the rows stack today. The notice carries no mark; the error carries the circled-exclamation', ...page(shellBand(shellRow(NOTE), shellRow(LONE), showLess()), 2, true)),
+      s6panel('The chip as a dropdown: warning mark, "2 problems", Grille chevron in the default colour', ...page(shellBand(collapsedBar(1, 0)), 2, true)),
+      s6panel('Chip popover open (drawn): Grille turns the chevron over through aria-expanded', ...page(shellBand(collapsedBar(1, 0)), 2, 'up').slice(0, 2), s6('div', 'ge-pop ge-probpop s6-static s6-probdemo', { role: 'group', 'aria-label': 'Problems (drawn)' }, s6('div', 'ge-prob whole', el('b', {}, 'Whole graph'), 'Zones has no input.'))),
+      ...narrowPanels(page)),
+    s6note('Decided: the shell reads "N errors" in the error tone with Grille circled-exclamation, notices read "N notices" in the default colour with circled-info (added to Grille as circledInfoIcon, not yet released), the Problems chip keeps "N problems" in the warning tone with a chevron. Show less is secondary-coloured. A notice row has no mark. Open: whether the compact chip (at 649 px and below) keeps its chevron. As built the real bar fits at 400 px with the title shrinking to 74 px; a chevron takes the title to 48 px and at 360 px the bar overflows, so the narrow-bar bead decides, not this one. The light-test countdown must not count as a change when deciding to re-expand.'))
+}
+
 function drawBoard(which) {
-  const sections = { shell: shellSection, test: testSection, prompt: promptSection }
-  const keys = which === 'all' ? Object.keys(sections) : [which]
+  const sections = { shell: shellSection, test: testSection, prompt: promptSection, collapse: collapseSection, start: () => ssSection(s6section, s6note), sim: () => simBoard(s6section, s6note), spot: () => spotSection(s6section, s6note), buttons: () => bsSection(s6section, s6note), sizes: () => szSection(s6section, s6note) }
+  const keys = which === 'all' ? ['shell', 'test', 'prompt'] : [which]
   $('board').replaceChildren(
-    s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
+    which === 'spot' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0l: the shell without a scroll view'), s6('p', '', 'Frame for Aurora-u8jx.14. Live: press the events. Frozen frames stop the same pulse for comparison.')) : which === 'sim' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0k: shell sequences, A against B'), s6('p', '', 'Frame for Aurora-u8jx.12. Live: press the steps, or inject events yourself.')) : which === 'start' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0j: how a shell with 2+ rows starts'), s6('p', '', 'Frame for Aurora-u8jx.12. Static, but the C region scrolls. Pick A, B or C (or a mix).')) : which === 'sizes' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0i: button sizes on Grille dev.15'), s6('p', '', 'Frame for Aurora-u8jx.11. Static. Heights are measured live.')) : which === 'buttons' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0h: button styling A / B / C'), s6('p', '', 'Frame for Aurora-u8jx.7. Static: only forced states, hover works live. No editor code changed.')) : which === 'collapse' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0f: the shell collapses as one'), s6('p', '', 'Frame for Aurora-u8jx.5. Static: nothing here is wired. Drafted wording is new in this frame.')) : s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
     ...keys.map((k) => sections[k]()))
 }
 
@@ -1070,6 +1136,7 @@ const FRAMES = [
     ['s6-apply', 'Save and apply, problems', () => { Object.assign(state, { s6: true, problems: true, unsaved: true }); drawBar(); drawIslands(); drawNodes(); openTitleS6({ focus: 'Save and apply' }) }],
     ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }],
     ['s6-openpath', 'Open path', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6({ openSub: true }) }]]],
+  ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-start', 'How 2+ rows start', () => drawBoard('start')], ['s7-sim', 'Shell sequences A/B', () => drawBoard('sim')], ['s7-spot', 'Shell spotlight', () => drawBoard('spot')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
   ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 
@@ -1097,7 +1164,7 @@ function showFrame() {
   effects6 = freshEffects()
   layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
-  const board = ['s6', 's6-shell', 's6-test', 's6-prompt'].includes(id)
+  const board = ['s6', 's6-shell', 's6-test', 's6-prompt', 's7-collapse', 's7-start', 's7-sim', 's7-spot', 's7-buttons', 's7-sizes'].includes(id)
   document.body.classList.toggle('board-on', board)
   $('board').hidden = !board
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()

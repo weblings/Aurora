@@ -598,3 +598,63 @@ Applies-when: a design direction brings back something a bead's notes rejected
 Aurora-kep2's 2026-10-30 notes rejected a per-row ⋯ inside the picker for three reasons: a listbox cannot hold buttons, fly-outs fail on touch, and per-row Delete invites mis-taps. Aurora-kep2.2 brought per-row menus back inside a dialog panel. That answers the listbox reason, but the mis-tap reason was left unaddressed while the delete confirm stayed out of scope.
 
 **Fix:** when reviving an option, list each original rejection reason with "answered by X" or "still open" in the new design note, and make any still-open one a prerequisite of the build bead.
+
+---
+
+## Name the decision axes first: a mock is one section per decision, not one frame per option
+Tags: planning, design-process, mocks, webui
+Applies-when: building a comparison mock for a design choice that has more than one moving part
+
+Aurora-u8jx.12's first mock drew options A, B and C at four window sizes with 1, 2 and 3 rows: 36 frames. The owner asked what the actual decisions were. There were two independent ones (is the open shell capped in height; do 2+ rows start open or collapsed at load) plus a value (the cap), and A, B and C were corners of that grid. The matrix hid that the cap barely mattered where three rows already fit.
+
+**Fix:** write the axes down before drawing. One section per decision, same content on both sides, only the thing under decision varying, and only the case where the options differ (a pair that looks identical is one line of text, not two frames). Say which options are combinations of axes.
+
+---
+
+## Draw windows at true height and measure the cost live; do not caption from memory
+Tags: planning, design-process, mocks, layout
+Applies-when: a mock argues that something takes too much room, or sets a max height
+
+Frames drawn at a fixed small canvas hide what a banner costs. The shell mock now draws each window at its real height and sets "shell N px = X% of window" from `getBoundingClientRect`. That corrected two claims written from memory: a caption said the third row was clipped at 650 px wide (it fits at 218 px), and the 220 px cap measured 224 until the region's padding was inside its box-sizing. It also showed the cap saves only about 26 px at the worst case, which moved the decision to the open-or-collapsed question.
+
+**Fix:** measure in the mock (a `setTimeout` pass is enough), print the numbers on the frame, and report numbers that weaken the option you lean toward.
+
+---
+
+## Behaviour over time needs a storyboard of A against B, not static frames or a bag of buttons
+Tags: planning, design-process, mocks, interaction
+Applies-when: the question is when something opens, closes, resets or re-opens (collapse rules, toasts, focus, persistence)
+
+Aurora-u8jx.12's first simulator had a sequence picker, a "Run next step" button and a dozen inject buttons. It opened empty, the frame did not show what had changed, and the owner could not follow it. What worked: one dropdown, one toggle, Back and Next; each step is one frame with A and B after it, a line under each saying what it did ("re-opened: the too-many-editors error is new", "already collapsed"), a same-or-differ badge, and a table of every step with the differing rows marked and clickable. Frames come from replaying the sequence from a clean page, so any step can be jumped to. It showed that A and B differ only at load and across navigation.
+
+**Fix:** model the rules as a small state machine, replay to build the frames, show the comparison in every frame, load with dummy data so first paint is never empty, and keep manual injectors out of the main view. Copy message arrays when recording a frame; a reference makes early frames show later steps.
+
+---
+
+## Take mock assets from the library's dist, and use its layout pattern, not a lookalike
+Tags: planning, design-process, mocks, grille, icons
+Applies-when: a mock draws a design-system icon or a pattern the design system already has
+
+The mock's error icon was a hand-copied path from an older Grille: the bar sat at y=8, and dev.16's `circled-exclamation.svg` starts it at 6.5, so the mark looked low. Wrapped row text also ran under the icon until the rows used Grille's inline-icon pattern (`.ui-status-message`, a baseline flex row). Grille's sizing rule keys on `.ui-status-message > .ui-icon`, so a wrapper span around the SVG silently turned it off and the icon drew at 24 px.
+
+**Fix:** copy icon markup from `node_modules/@weblings/grille/dist/icons` verbatim and recopy after a bump; build the same DOM shape Grille's CSS selects (direct child); check the real stylesheet for the pattern before drawing your own.
+
+---
+
+## A mock encodes assumptions about current behaviour: read the code and say where the mock differs
+Tags: planning, design-process, mocks, verification
+Applies-when: a mock shows ordering, grouping or defaults of something that already exists in code
+
+The shell mock stacked notices above errors and folded them into the collapse. The real `shell.js` renders pairings, then the light-test row, then conditions, then errors in daemon order, and keeps the first two outside the collapse and out of the "N problems" count. Host errors carry a monotonic `id`, so the daemon already knows which is newest. Answering "does a new error go above the old one?" needed the code, not the mock.
+
+**Fix:** before explaining behaviour from a mock, read the render path; list in the frame or the bead where the mock departs from today (here: notices inside the collapse), so a design change is not mistaken for current behaviour.
+
+---
+
+## Verify a mock headless and read the screenshot; strip leftovers when an element is cut
+Tags: planning, design-process, mocks, verification, testing
+Applies-when: finishing a static or scripted mock frame before showing it to the owner
+
+`playwright-core` in `tools/browser-check` with the cached Chromium loads the file mock directly (no server) and gave a screenshot plus logged text per frame. It caught a stale shared array, a missing re-open message and an always-empty first paint. A separator dot the owner had cut survived in a helper until a grep for its class; the gap it left stayed one more round.
+
+**Fix:** after each edit, run the frame headless, print the measured and logged values, and look at one screenshot. When something is cut, grep the markup, CSS and captions for its class and wording.

@@ -8,7 +8,7 @@ import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
 import { DetailsDrawer } from '../DetailsDrawer'
 import { ControlsDrawer } from '../ControlsDrawer'
-import { ParamWidget,addStop, clampStopPos, effectiveValue } from '../ParamWidget'
+import { ParamWidget,addStop, clampStopPos, displayNumber, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
 import nodesSample from './server-samples/nodes.json'
 import type { Catalog, NodeTypeInfo, ParamInfo } from './types'
@@ -227,6 +227,17 @@ describe('effectiveValue', () => {
     expect(effectiveValue(param('gain'), undefined)).toBe(1)
     expect(effectiveValue(param('gain'), 0.5)).toBe(0.5)
     expect(effectiveValue(param('cap'), 0.25)).toBe(0.25)
+  })
+})
+
+describe('number field display (Aurora-u8jx.4.4)', () => {
+  it('drops float noise from the shown value and keeps a short typed value', () => {
+    expect(displayNumber(0.28499999999999998)).toBe(0.285)
+    expect(displayNumber(0.1 + 0.2)).toBe(0.3)
+    expect(displayNumber(0.0500000007451)).toBe(0.05)
+    expect(displayNumber(0.2837)).toBe(0.2837)
+    expect(displayNumber(-12.5)).toBe(-12.5)
+    expect(displayNumber(Number.NaN)).toBeNaN()
   })
 })
 

@@ -17,6 +17,9 @@ import { ensureTooltips } from './Tooltips.js';
 import { isModeConfigValid, loadEffects, loadPipelineState } from './CaptureSource.js';
 
 const app = new App();
+// Not read yet: the shell's collapse baseline waits for /api/pairing/status (and, if this browser can
+// approve, the first pending-pairing result) so requests already pending read as baseline.
+app.canApprove = null;
 
 // Global 401 handler (Aurora-5ipy.6): a revoked or never-paired LAN browser
 // lands on Pair this device from whichever write it tried.
@@ -279,7 +282,7 @@ async function bootstrap() {
   // Pairing first: an unpaired LAN browser could read every screen but
   // change nothing. A failed probe falls through (the 401 hook still guards).
   const pairing = await fetchPairingStatus();
-  app.canApprove = canManagePairing(pairing);
+  app.setCanApprove(canManagePairing(pairing));
   if (needsPairing(pairing)) {
     showPairing();
     return;

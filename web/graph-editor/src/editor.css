@@ -112,17 +112,13 @@ body {
   color: var(--aurora-text-secondary);
 }
 
-/* Aurora component styles (Aurora-daaa.2): forms.css supplies .btn, .text-input
-   and .slider-input; these rules only size them for the editor's dense panels. */
+/* Aurora component styles (Aurora-daaa.2): forms.css supplies .text-input and
+   .slider-input (and the shell's .btn, which ErrorShell keeps for markup parity with
+   web/ui/shell.js); these rules only size them for the editor's dense panels. */
 button,
 input,
 select {
   font-family: inherit;
-}
-
-.editor .btn {
-  padding: var(--aurora-space-1) var(--aurora-space-3);
-  font-size: 12px;
 }
 
 .editor .text-input {
@@ -218,6 +214,24 @@ select {
 .param select,
 .param input[type='text'] {
   width: 100%;
+}
+
+/* Number fields carry no native spin buttons (Aurora-u8jx.4.4): the slider drives the value, and the
+   buttons clipped it. The float field is wide enough for 0.285 and a 6-digit value at 12px. */
+.param input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.param input[type='number']::-webkit-inner-spin-button,
+.param input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.param-float input[type='number'] {
+  flex: none;
+  width: 84px;
 }
 
 .param-float,
@@ -502,6 +516,24 @@ button.editor-problem-row:hover {
   padding: 4px;
 }
 
+/* Bar menus, one block (Aurora-u8jx.4.3).
+   Padding: a bar button pads 8px (space-md); Grille's .ui-menu-item pads 6px 12px
+   (space-sm, control-pad-x), so item text sat 4px further in than the bar's labels. Grille gap: its menu item has no size that matches its small
+   buttons; fixed here, for every menu popover (title, Test, View, Add node, their submenus).
+   Motion: the Test menu is anchored to the right ("bottom end"). A popover is absolutely
+   positioned, so its shrink-to-fit width is capped by the room to its right; React Aria
+   first places it at the trigger's left, the items wrap at that narrow width, and each
+   re-position (anchoring the right edge) widens it a little, so it appeared to slide in
+   from the right over ~5 frames. Grille has no popover animation. Sizing the box to its
+   content makes the width independent of the left edge, so it opens in one frame. */
+.ui-popover .ui-menu-item {
+  padding-inline: var(--ui-size-space-md);
+}
+
+.editor-test-popup {
+  width: max-content;
+}
+
 .drawer-ports,
 .drawer-controls {
   margin: 0;
@@ -671,15 +703,6 @@ button.editor-problem-row:hover {
   color: var(--aurora-text-secondary);
 }
 
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /* Narrow top bar (Aurora-daaa.29.1): shrinks by priority, never wraps. The title gives up
    width first; the status and chips follow; the buttons keep their size. */
 .editor-header {
@@ -692,12 +715,8 @@ button.editor-problem-row:hover {
   flex: none;
 }
 
-/* Every bar control is one fixed 32 px (the Grille mock), whatever its padding or icon. */
+/* Bar controls are Grille's default 31 px button (Aurora-u8jx.11); only the no-wrap is ours. */
 .editor-header .ui-button {
-  box-sizing: border-box;
-  height: 32px;
-  padding-block: 0;
-  gap: var(--aurora-space-2);
   white-space: nowrap;
 }
 
@@ -871,7 +890,7 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 .editor-refused-status[data-place='below'] {
   position: fixed;
   top: var(--refused-top);
-  left: 16px;
+  left: var(--refused-left, 16px);
   right: 16px;
   translate: none;
   margin: 0;
@@ -894,6 +913,11 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   border: 0;
   border-left: 1px dashed var(--aurora-text-primary);
   border-top: 1px dashed var(--aurora-text-primary);
+}
+
+/* Dropped under the Add node button, away from the chip: no pointer (Aurora-u8jx.4.1). */
+.editor-refused-status[data-detached='true'] .editor-refused::before {
+  display: none;
 }
 
 /* The pointer toward the chip. */
@@ -923,13 +947,10 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   border-radius: inherit;
   border: 1px dashed var(--aurora-text-primary);
   pointer-events: none;
-  animation: editor-ping 1375ms ease-out 2;
+  animation: shell-ping 1375ms ease-out 2;
 }
 
-@keyframes editor-ping {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
-  100% { box-shadow: 0 0 0 8px transparent; }
-}
+/* The keyframes are shell.css's shell-ping (Aurora-9hqa.2), shared with the shell rows. */
 
 /* Reduced motion: the border holds for the same time without the pulse. */
 @media (prefers-reduced-motion: reduce) {

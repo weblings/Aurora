@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
-import { Dialog, Icon, warningIcon } from '@weblings/grille'
+import { Button, Dialog, Icon, warningIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
@@ -22,6 +22,11 @@ export const PING_BEAT_MS = 1450
 // The callout keeps this far from each edge of the window, and sits this far from the chip (Aurora-h55g).
 const GUTTER = 16
 const CALLOUT_GAP = 10
+// Below the chip, the box starts right of the canvas's Add node button when that leaves it at least this wide;
+// otherwise it drops under the button (Aurora-u8jx.4.1).
+const MIN_BELOW_WIDTH = 220
+
+const LEFT = { side: 'left' as const, top: 0, left: 0, arrow: 0, detached: false }
 
 // The one place the graph's problems are counted: node-level and graph-wide.
 // A node row selects the node; a "Whole graph" row has no node to point at, so
@@ -49,7 +54,7 @@ export function ProblemsChip({
   const [pinging, setPinging] = useState(false)
   // Where the callout sits: on the chip's left when its one-line width fits between the chip and the
   // left gutter, else below the chip, wrapped, inside the gutters (Aurora-h55g).
-  const [place, setPlace] = useState<{ side: 'left' | 'below'; top: number; arrow: number }>({ side: 'left', top: 0, arrow: 0 })
+  const [place, setPlace] = useState<{ side: 'left' | 'below'; top: number; left: number; arrow: number; detached: boolean }>(LEFT)
   const statusRef = useRef<HTMLSpanElement>(null)
   const naturalWidth = useRef(0)
   const refusalId = refusal?.id
@@ -57,7 +62,7 @@ export function ProblemsChip({
   useEffect(() => {
     if (refusalId === undefined) return
     chipRef.current?.focus({ preventScroll: true })
-    setPlace((p) => (p.side === 'left' ? p : { side: 'left', top: 0, arrow: 0 })) // measure afresh
+    setPlace((p) => (p.side === 'left' ? p : LEFT)) // measure afresh
     setCallout(refusalText ?? null)
     setPinging(false)
     const ping = window.setTimeout(() => setPinging(true), PING_BEAT_MS)
@@ -76,14 +81,30 @@ export function ProblemsChip({
     if (!chipEl || !box) return
     const r = chipEl.getBoundingClientRect()
     if (box.dataset.refused === 'left') naturalWidth.current = box.offsetWidth // layout width, so an entry transform cannot shrink it
-    const fits = r.left - CALLOUT_GAP - GUTTER >= naturalWidth.current
+    // Room on the left is measured from the title button's right edge (plus the gap), not the window's
+    // gutter, so the box never covers the title (Aurora-u8jx.4.1).
+    const titleRight = document.querySelector<HTMLElement>('.editor-header .editor-title-menu')?.getBoundingClientRect().right ?? 0
+    const leftBound = Math.max(GUTTER, titleRight + CALLOUT_GAP)
+    const fits = r.left - CALLOUT_GAP - leftBound >= naturalWidth.current
     const right = window.innerWidth - GUTTER
     // The pointer sits over the chip's centre, kept inside the box's rounded corners.
     const arrow = Math.max(14, right - (r.left + r.width / 2))
+    // Below the chip, keep off the canvas's Add node button: right of it when that leaves room, else under it.
+    const add = document.querySelector<HTMLElement>('.editor-add-node')?.getBoundingClientRect()
+    let top = r.bottom + 8
+    let left = GUTTER
+    let detached = false
+    if (add && add.bottom + 4 > top && add.top < top + 60) {
+      if (right - (add.right + CALLOUT_GAP) >= MIN_BELOW_WIDTH) left = add.right + CALLOUT_GAP
+      else {
+        top = add.bottom + 8
+        detached = true
+      }
+    }
     setPlace((p) =>
       fits
-        ? p.side === 'left' ? p : { side: 'left', top: 0, arrow: 0 }
-        : p.side === 'below' && p.top === r.bottom + 8 && p.arrow === arrow ? p : { side: 'below', top: r.bottom + 8, arrow },
+        ? p.side === 'left' ? p : LEFT
+        : p.side === 'below' && p.top === top && p.left === left && p.arrow === arrow && p.detached === detached ? p : { side: 'below', top, left, arrow, detached },
     )
   }, [chipRef])
   // Placed before paint, from the measured one-line width; re-placed if the window resizes meanwhile.
@@ -120,7 +141,6 @@ export function ProblemsChip({
           ref={chipRef}
           type="button"
           className="ui-button editor-problems-chip"
-          data-size="sm"
           data-pinging={pinging ? 'true' : undefined}
           aria-haspopup="dialog"
           aria-expanded={open}
@@ -136,7 +156,8 @@ export function ProblemsChip({
           ref={statusRef}
           className="editor-refused-status"
           data-place={place.side}
-          style={place.side === 'below' ? ({ '--refused-top': `${place.top}px`, '--refused-arrow': `${place.arrow}px` } as CSSProperties) : undefined}
+          data-detached={place.detached ? 'true' : undefined}
+          style={place.side === 'below' ? ({ '--refused-top': `${place.top}px`, '--refused-left': `${place.left}px`, '--refused-arrow': `${place.arrow}px` } as CSSProperties) : undefined}
         >
           {callout !== null ? <span className="ui-tooltip editor-refused" data-refused={place.side}>{callout}</span> : null}
         </span>
@@ -167,16 +188,14 @@ export function ProblemsChip({
                   <strong>Whole graph</strong>
                   <span>{m}</span>
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
+                <Button
+                  onPress={() => {
                     close()
                     onAddNode()
                   }}
                 >
                   Add node…
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

@@ -156,7 +156,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.click(mid.x, mid.y)
     await page.keyboard.press('Backspace')
     await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
-    for (const width of [1470, 1100, 900, 700, 520, 400]) {
+    for (const width of [1470, 1100, 900, 700, 520, 400, 360]) {
       await page.setViewportSize({ width, height: 800 })
       await page.waitForTimeout(400)
       const g = await page.evaluate(() => {

@@ -14,26 +14,30 @@
   }
 
   .ui-button {
-    padding: var(--ui-size-space-md) var(--ui-size-button-pad-x); border: none; border-radius: var(--ui-size-radius-sm);
+    padding: var(--ui-size-space-md); border: none; border-radius: var(--ui-size-radius-xs);
     background: var(--ui-color-control-bg); color: var(--ui-color-text-default);
-    font-size: var(--ui-size-font-sm); font-family: inherit; cursor: pointer;
+    font-size: var(--ui-size-font-xs); font-family: inherit; font-weight: var(--ui-font-weight-regular); cursor: pointer;
     /* Flex so an Icon (display: block) sits beside the label instead of under it. */
-    display: inline-flex; align-items: center; justify-content: center; gap: var(--ui-size-space-md);
+    display: inline-flex; align-items: center; justify-content: center; gap: var(--ui-size-space-sm);
   }
   .ui-button[data-hovered] { background: var(--ui-color-control-bg-hover); }
   .ui-button[data-pressed] { background: var(--ui-color-control-bg-active); }
   .ui-button[data-pointer-opened] { outline: none; }
-  .ui-button[data-variant="primary"] {
-    padding: var(--ui-size-space-lg) var(--ui-size-space-2xl); border-radius: var(--ui-size-radius-md);
-    background: var(--ui-color-primary-bg); color: var(--ui-color-text-on-primary);
-    font-size: var(--ui-size-font-lg); font-weight: var(--ui-font-weight-semibold);
-  }
+  .ui-button[data-variant="primary"] { background: var(--ui-color-primary-bg); color: var(--ui-color-text-on-primary); }
   .ui-button[data-variant="primary"][data-hovered] { background: var(--ui-color-primary-bg-hover); }
   .ui-button[data-variant="primary"][data-pressed] { background: var(--ui-color-primary-bg-active); }
-  .ui-button[data-size="sm"] { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); font-size: var(--ui-size-font-xs); }
-  .ui-button[data-icon] { padding: var(--ui-size-space-md); line-height: 1; }
-  .ui-button[data-icon][data-size="sm"] { padding: var(--ui-size-space-sm); }
-  .ui-button[data-variant="primary"][data-icon] { padding: var(--ui-size-space-lg); }
+  .ui-button[data-variant="strong"] {
+    background: var(--ui-color-strong-bg); color: var(--ui-color-text-on-primary); font-weight: var(--ui-font-weight-bold);
+  }
+  .ui-button[data-variant="strong"][data-hovered] { background: var(--ui-color-strong-bg-hover); }
+  .ui-button[data-variant="strong"][data-pressed] { background: var(--ui-color-strong-bg-active); }
+  .ui-button[data-size="sm"] { padding: var(--ui-size-space-sm) var(--ui-size-space-lg); }
+  .ui-button[data-size="action"] {
+    width: var(--ui-size-button-action-width); height: var(--ui-size-button-action-height); padding: 0; font-size: var(--ui-size-font-sm);
+  }
+  /* Square, same height as a default text button (8 + 15 line + 8 = 31), so icon-only and text buttons share a row line. */
+  .ui-button[data-icon] { width: var(--ui-size-button-icon-size); height: var(--ui-size-button-icon-size); padding: 0; line-height: 1; }
+  .ui-button[data-icon][data-size="sm"] { width: auto; height: auto; padding: var(--ui-size-space-sm); }
   .ui-button[data-disabled] { background: var(--ui-color-control-bg); color: var(--ui-color-text-disabled); cursor: not-allowed; }
 
   /* The glyph is drawn larger than its layout box: the margin pulls the overhang back in, so Vidstack's 32 grid
@@ -165,6 +169,7 @@
   .ui-menu-item-submenu[data-open] { background: var(--ui-color-popup-bg-hover); }
   .ui-menu-item:has(> .ui-menu-check) { display: flex; align-items: center; }
   .ui-menu-check { display: inline-flex; flex: none; width: var(--ui-size-icon-sm); margin-right: var(--ui-size-space-md); }
+  .ui-menu-item-body { min-width: 0; }
   .ui-menu-chevron { color: var(--ui-color-text-disabled); }
   .ui-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .ui-menu-item[data-focused] { background: var(--ui-color-popup-bg-hover); }
