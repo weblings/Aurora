@@ -2,7 +2,7 @@
 // hook (any 401 but the handshake's own routes), device-name guess.
 // Run with `node Pairing.test.mjs`.
 import assert from 'node:assert/strict';
-import { fetchPairingStatus, needsPairing, canManagePairing, installPairingFetchHook, guessDeviceName } from './Pairing.js';
+import { fetchPairingStatus, needsPairing, canManagePairing, installPairingFetchHook, guessDeviceName, fetchPendingPairings, decidePairing } from './Pairing.js';
 
 const answer = (status, body) => async () => ({ status, ok: status < 300, json: async () => body });
 
@@ -53,6 +53,22 @@ const answer = (status, body) => async () => ({ status, ok: status < 300, json: 
   uninstall();
   await target.fetch('/api/state');
   assert.equal(fired, 2, 'uninstall restores fetch');
+}
+
+// Approver side, shared by the Dashboard shell and the graph editor: the pending list, and a
+// decision that reports whether Aurora accepted it.
+{
+  const request = { ref: 'r 1', name: 'Phone', scope: 'admin', code: 'K7Q2X' };
+  assert.deepEqual(await fetchPendingPairings(answer(200, { pending: [request] })), [request]);
+  assert.deepEqual(await fetchPendingPairings(answer(200, {})), [], 'a body with no list is none');
+  await assert.rejects(fetchPendingPairings(async () => { throw new Error('down'); }), 'unreachable throws; the caller keeps its last list');
+
+  const calls = [];
+  const record = (status) => async (url, init) => { calls.push([url, init?.method]); return { status, ok: status < 300 }; };
+  assert.equal(await decidePairing('r 1', 'approve', record(200)), true);
+  assert.equal(await decidePairing('r 1', 'deny', record(404)), false, 'a lapsed request is refused');
+  assert.deepEqual(calls, [['/api/pairing/pending/r%201/approve', 'POST'], ['/api/pairing/pending/r%201/deny', 'POST']]);
+  assert.equal(await decidePairing('r1', 'deny', async () => { throw new Error('down'); }), false, 'unreachable is false, not a throw');
 }
 
 // Name guess: phone first, desktop OS, generic fallback.

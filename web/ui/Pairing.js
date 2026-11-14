@@ -23,6 +23,27 @@ export function canManagePairing(status) {
   return status !== null && status.scope === 'admin';
 }
 
+// The approver's side, shared by the Dashboard/NUX shell (shell.js) and the graph editor
+// (useHostState.ts) so both pages read and decide pairing requests the same way (Aurora-9hqa.4).
+// GET /api/pairing/pending -> [{ref, name, scope, code, from?}]. Throws when Aurora cannot be
+// reached; callers keep their last list.
+export async function fetchPendingPairings(fetchImpl = globalThis.fetch) {
+  const body = await (await fetchImpl('/api/pairing/pending')).json();
+  return Array.isArray(body?.pending) ? body.pending : [];
+}
+
+// POST approve or deny for one request. True when Aurora accepted it; false on a refusal or when
+// unreachable (the shell's takeover covers that). Callers re-read the list rather than removing the
+// row themselves: an expired request just disappears, same as a decided one.
+export async function decidePairing(ref, decision, fetchImpl = globalThis.fetch) {
+  try {
+    const response = await fetchImpl(`/api/pairing/pending/${encodeURIComponent(ref)}/${decision}`, { method: 'POST' });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 // Global 401 handler: only the pairing guard answers 401, so any 401 means
 // "pair this device". The handshake's own routes are open and never do.
 export function installPairingFetchHook(target, onPairingRequired) {

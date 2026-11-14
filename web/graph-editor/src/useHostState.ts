@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { canManagePairing, fetchPairingStatus } from '../../ui/Pairing.js'
+import { canManagePairing, decidePairing as postPairingDecision, fetchPairingStatus, fetchPendingPairings } from '../../ui/Pairing.js'
 import { baselineReady } from '../../ui/shellRows.js'
 import { emptyHost, parseHostState, reachAfter, reachable, type HostError, type HostSnapshot, type Reach } from './graph/hostState'
 
@@ -76,8 +76,7 @@ export function useHostState(): HostStateApi {
         }
         if (!canApproveRef.current) return
         try {
-          const body = await (await fetch('/api/pairing/pending')).json()
-          setPairings(Array.isArray(body?.pending) ? body.pending : [])
+          setPairings((await fetchPendingPairings()) as PairingRequest[])
         } catch {
           // Keep the last list; the next beat tries again.
         }
@@ -183,11 +182,8 @@ export function useHostState(): HostStateApi {
   // No optimistic removal: the re-read shows what Aurora holds (an expired request just goes).
   const decidePairing = useCallback(
     async (ref: string, decision: 'approve' | 'deny') => {
-      try {
-        await fetch(`/api/pairing/pending/${encodeURIComponent(ref)}/${decision}`, { method: 'POST' })
-      } catch {
-        // Unreachable is the takeover's.
-      }
+      // Pairing.js decidePairing, the same call the Dashboard makes. Unreachable is the takeover's.
+      await postPairingDecision(ref, decision)
       // A read already out predates the POST: let it finish, then read again.
       await pairingFlight.current
       await refreshPairing()

@@ -1,5 +1,6 @@
 import { arrivalAnnouncement, arrivedKeys, baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
 import { applyPatch } from './shellPatch.js';
+import { decidePairing, fetchPendingPairings } from './Pairing.js';
 import { createShellCap } from './shellCap.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
@@ -69,10 +70,7 @@ async function defaultFetchStatus(signal) {
 
 // Pending LAN pairing requests (Aurora-5ipy.6), polled with the beat only
 // while this browser can approve them (loopback or a paired admin).
-async function defaultFetchPending() {
-  const body = await (await fetch('/api/pairing/pending')).json();
-  return Array.isArray(body?.pending) ? body.pending : [];
-}
+const defaultFetchPending = () => fetchPendingPairings();
 
 export class App {
   constructor({
@@ -515,13 +513,9 @@ export class App {
   // No optimistic removal: the re-read shows what the daemon holds (an
   // expired request just disappears, same as a decided one).
   async _decidePairing(ref, decision) {
-    let approved = false;
-    try {
-      const response = await fetch(`/api/pairing/pending/${encodeURIComponent(ref)}/${decision}`, { method: 'POST' });
-      approved = decision === 'approve' && response.ok;
-    } catch {
-      // Unreachable is the beat's takeover.
-    }
+    // Pairing.js decidePairing, the same call the editor makes. Unreachable is the beat's takeover.
+    const accepted = await decidePairing(ref, decision);
+    const approved = decision === 'approve' && accepted;
     await this._refreshPending();
     if (approved && this.onPairedDevicesChanged) this.onPairedDevicesChanged();
   }

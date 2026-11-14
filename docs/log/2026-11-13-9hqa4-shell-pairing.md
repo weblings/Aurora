@@ -21,3 +21,9 @@ Id: 9hqa4-shell-pairing
 
 - The 5-minute lapse of a collapsed request is accepted by the owner.
 - The pulse and live-region announcement stay with `Aurora-9hqa.2`, which now includes pairing rows.
+- Follow-up (owner, after the epic closed): the pairing logic is one implementation on every surface. The editor first read `canApprove` with its own copy of the rule, and both pages fetched the pending list and posted decisions with their own code. Now `web/ui/Pairing.js` holds `fetchPairingStatus`/`canManagePairing` (already shared), plus `fetchPendingPairings` and `decidePairing`, which `shell.js` (Dashboard and NUX) and `useHostState.ts` (editor) both import. `Pairing.test.mjs` covers the two new helpers. The rows were already identical (markup parity). A browser request reads Device and Code only: it always asks for admin, which has no Access line, and loopback has no From. That is the same on every surface.
+- A screen-reader pass over the shell before 1.2.0 is `Aurora-fruw`.
+
+## Lessons
+
+- none
