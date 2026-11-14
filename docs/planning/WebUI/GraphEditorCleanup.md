@@ -2,7 +2,7 @@
 
 Id: graph-editor-cleanup
 
-Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 built (`Aurora-u68h`, each message in its own place: the banner under the bar is gone; see Decisions (owner, stage 6 scope, 2026-11-12) and [[u68h7-close-out]]; the edge cases found after close-out were fixed 2026-11-13, `Aurora-u8jx.4`, see [[u8jx4-stage70-close]]). Stage 7 (`Aurora-u8jx`, problems in people's words) is filed and still open. Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
+Status: stage 1 built (back link, Aurora component styles); stage 2 built (top bar, title and view menus, status spot, `Aurora-daaa.11`); stage 3 built (catalog `group`, node copy, cascade Add node menu, palette removed; `Aurora-daaa.24.1`-`.24.4`, Grille `v0.1.0-dev.6`); stage 4 built (right-click and ⋯ menus, Delete key, Details and Dashboard controls drawers, Inspector removed, Esc closes a drawer from anywhere; `Aurora-daaa.27.1`-`.27.5`, Grille `v0.1.0-dev.8`). Control count 9 on Screen colors and `builtin.audio`, under the mock's 11. Narrow windows built: top bar shrink (`Aurora-daaa.29.1`), drawer width and node-clear pan (`Aurora-daaa.29.2`), bottom dock (`Aurora-daaa.29.4`), 1100 px no-pan check and drawer-body container queries skipped (`Aurora-daaa.29.5`). Full graph-editor browser-check suite passes on the stage 4 head (`Aurora-daaa.30`). Stage 5 built (`Aurora-s1t7`, editor to the Grille mock: Grille buttons and 32 px bar `.1`, problems chip before Undo `.2`, canvas corners and minimap `.3`, Zones island `.4`, side-drawer fix `Aurora-daaa.35`, Grille icons `.5`, Decisions `.6`/`.7`). Light test modes built (`Aurora-qjqy`: Once (15 s) and Live in core `.1`, MCP `try_on_lights` defaults to Once `.2`, Test split button `.3`). Stage 6 built (`Aurora-u68h`, each message in its own place: the banner under the bar is gone; see Decisions (owner, stage 6 scope, 2026-11-12) and [[u68h7-close-out]]; the edge cases found after close-out were fixed 2026-11-13, `Aurora-u8jx.4`, see [[u8jx4-stage70-close]]). The error shell's second pass is built (`Aurora-9hqa`, 2026-11-13: one row model for both pages, the whole shell collapses as one, 2+ rows start collapsed, arrivals re-open and pulse, a 60vh cap, pairing requests in the editor; see [[error-overlay]] Rows). Stage 7 (`Aurora-u8jx`, problems in people's words) is in progress: the button scheme is built (`.7`, `.11`, Grille's 31 px button, `dev.16`); see Stage 7 below. Grille `v0.1.0` (`Aurora-daaa.16`, `Grille-0up`) stays the end of the whole process, after the UX refinement, outside stages 5 and 6.
 Written 2026-11-06 under `Aurora-bova`. The owner reviewed the working mock and likes
 the direction. Decisions 1-7 are recorded under Decisions (2026-11-08). Stages 1-2 are
 built; stages 3-4 are still a proposal and follow those decisions.
@@ -663,7 +663,7 @@ Owner decisions at the mock review (2026-11-11), beyond the four switches above:
 | `Aurora-s1t7` stage 5 | Grille buttons and the 32 px bar (`.1`), problems chip before Undo (`.2`), canvas corners and minimap (`.3`), Zones island with the side-drawer fix (`.4`, `Aurora-daaa.35`), icons (`.5`), close-out (`.8`) | `.1` to `.4` can start now |
 | `Aurora-qjqy` | Light test modes in core and MCP, then the Test split button | Core and MCP do not touch the editor. The editor bead (`.3`) changes the bar |
 | `Aurora-u68h` stage 6 | Each editor message in its own place; the banner under the bar is retired (rescoped 2026-11-12, see below) | After stage 5. Its mock frame (`.1`) and `Aurora-iryq` start first |
-| `Aurora-u8jx` stage 7 | Problems in people's words: copy per issue code, Whole graph row actions, runtime error wording | After the stage 6 mock review; runs alongside stage 6 |
+| `Aurora-u8jx` stage 7 | Problems in people's words: copy per issue code, Whole graph row actions, runtime error wording; plus the 7.0 beads (button scheme, Zones with no lights, chip chevron, narrow bar) | After stage 6; see Stage 7 below |
 
 Grille `v0.1.0` (`Aurora-daaa.16` here, `Grille-0up` in GrilleDS) is the end of the whole process, not part of stages 5 to 7: there is more UX refinement to do before either side locks.
 
@@ -702,6 +702,37 @@ Why it changed: the user needs to learn why a save did not happen, which effects
 - **What Aurora needs from Grille's menu:** only the row `tooltip` and `tooltipOnlyWhenTruncated`. Not the visible description line, `warning`, warnings on submenu rows, or a focusable blocked item.
 
 Settled by the owner on 2026-11-13: "Not saved yet" items carry no dot; the group heading ends with it (`Not saved yet •`, screen-reader text `unsaved changes`).
+
+## Stage 7 (status 2026-11-13)
+
+Epic `Aurora-u8jx`. The editor shows its own words for graph problems; the server's messages stay as they are for agents and MCP (Open direction 3, two texts).
+
+**Words.** The error shell's second pass (`Aurora-9hqa`) fixed three words, and stage 7 copy keeps to them:
+
+- **error**: Aurora's own state, in the shell on every page (red circled exclamation): conditions, failures to start, resume or apply, and the editor's own notes.
+- **notice**: the light test and pairing requests, in the shell (circled info).
+- **problem**: something wrong with the draft graph, on the editor's chip and node badges (amber warning).
+
+So graph issues are never called errors, and runtime preview failures read "Runs, but <node> fails".
+
+| Bead | What | Status |
+|---|---|---|
+| `.4` | Stage 6 edge cases left after close-out | Done |
+| `.7`, `.11`, `.10` | One button look: Rocky Road scheme with a 6 px gap, Grille's 31 px default button (`dev.16`), local overrides removed | Done |
+| `.12`, `.14`, `.13` | Shell mocks: 2+ rows start collapsed, one-pulse arrival, 60vh cap; shell as tabs not pursued | Done; built in `Aurora-9hqa` (with `.5`) |
+| `.1` 7a | Copy per issue code in the popover and node badges; refused test starts too. The table is plain JS in `web/ui` so the shell can reuse it | Waits on `Aurora-ngoj` (faster shell browser checks) |
+| `.15` 7d | Shell rows for an effect that fails to start or apply use 7a's copy; core attaches a code to host errors | After 7a |
+| `.2` 7b | A fitting action per Whole graph code, or none | Ready |
+| `.3` 7c | Runtime preview errors worded apart from validation | Ready |
+| `.6` 7.0g | Zones island output menu and a sample layout with no lights | Mock first |
+| `.8` | Problems chip gains a chevron; the compact form | Mock with `.9`; re-measure after the 31 px button |
+| `.9` | Narrow top bar folds controls into menus | Mock first |
+
+Open for the owner:
+
+- ~~The reload row's words~~: decided 2026-11-13. 7a keeps its table in `web/ui`; the shell's effect and reload rows follow in 7d (`.15`).
+- **Zones with no lights** (`.6`): sample zones under the real output's name or a separate entry (the code favours the first: graphs name `hue`); zone count and shape (`web/demo/zonemap.js` is 8 zones but dormant, the live demo uses 4 quadrants); whether the sample can be chosen over working lights; `/api/zones` taking an output name (also `Aurora-9sm`); what Test does with no lights reachable (a test adds a notice while nothing receives it); the island header with both a collapse chevron and an output menu. The shell already says why the lights are unreachable, so the island only labels what it shows.
+- **Compact chip** (`.8`, `.9`): decided 2026-11-13: the chevron stays if it fits, and is cut first where it would cost another button its place; widths settled after re-measuring on the 31 px button.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
