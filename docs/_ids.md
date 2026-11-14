@@ -58,6 +58,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
 | `8ydf-wayland-rate-cap-review` | [log/2026-10-20-8ydf-wayland-rate-cap-review.md](log/2026-10-20-8ydf-wayland-rate-cap-review.md) | Aurora-8ydf step 1: Wayland rate-cap review + tests (motion run open) |
+| `91cj-zone-map-empty-save` | [log/2026-11-13-91cj-zone-map-empty-save.md](log/2026-11-13-91cj-zone-map-empty-save.md) | Zone maps: an output with no zone ids no longer overwrites its saved zone map |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
 | `9hqa1-shell-row-model` | [log/2026-11-13-9hqa1-shell-row-model.md](log/2026-11-13-9hqa1-shell-row-model.md) | Error shell: one row model for both pages, the Dashboard patches rows by key |
@@ -227,6 +228,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
 | `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
+| `lesson-agent-coordination` | [lessons/agent-coordination.md](lessons/agent-coordination.md) | Agent coordination |
 | `lesson-architecture-process` | [lessons/architecture-process.md](lessons/architecture-process.md) | Architecture process |
 | `lesson-build-toolchain` | [lessons/build-toolchain.md](lessons/build-toolchain.md) | Build toolchain |
 | `lesson-components` | [lessons/components.md](lessons/components.md) | WebUI components |
@@ -275,6 +277,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `my6z-devstack-no-browser-tab` | [log/2026-11-12-my6z-devstack-no-browser-tab.md](log/2026-11-12-my6z-devstack-no-browser-tab.md) | devstack stops opening a browser tab on Mac |
+| `ngoj-faster-shell-checks` | [log/2026-11-13-ngoj-faster-shell-checks.md](log/2026-11-13-ngoj-faster-shell-checks.md) | Browser checks: shell checks run in under a minute (dev poll cadence, poll-count waits, STEP) |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
 | `nodes-agent-ux` | [planning/NodesAndAgentUX.md](planning/NodesAndAgentUX.md) | Nodes and agent UX: sequences |
@@ -359,9 +362,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u68h6-undo-toasts` | [log/2026-11-13-u68h6-undo-toasts.md](log/2026-11-13-u68h6-undo-toasts.md) | Graph editor stage 6g: toast audit, announce-only messages, Undo on lossy toasts |
 | `u68h7-close-out` | [log/2026-11-13-u68h7-close-out.md](log/2026-11-13-u68h7-close-out.md) | Graph editor stage 6f: a failed Save is a shell row, the banner is gone, the priority rule is rewritten |
 | `u68h9-open-failure-row` | [log/2026-11-13-u68h9-open-failure-row.md](log/2026-11-13-u68h9-open-failure-row.md) | Graph editor stage 6h: a failed effect or catalog load is an error-shell row without Retry |
+| `u8jx1-problem-copy` | [log/2026-11-13-u8jx1-problem-copy.md](log/2026-11-13-u8jx1-problem-copy.md) | Graph editor: graph problems and refused test starts read in people's words, from one table in web/ui |
 | `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
 | `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
 | `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
 | `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
 | `u8jx41-callout-clear-of-title` | [log/2026-11-13-u8jx41-callout-clear-of-title.md](log/2026-11-13-u8jx41-callout-clear-of-title.md) | Graph editor: the refused-save callout stays clear of the title and Add node |
 | `u8jx42-test-ended-toast` | [log/2026-11-13-u8jx42-test-ended-toast.md](log/2026-11-13-u8jx42-test-ended-toast.md) | Graph editor: test-ended outcomes are announced, only a lost heartbeat is a toast |

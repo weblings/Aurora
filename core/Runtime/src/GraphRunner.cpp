@@ -182,12 +182,19 @@ namespace Aurora::Runtime
       m_outputNames.push_back(output->name());
       m_outputsByName[output->name()] = output;
 
+      const std::vector<uint8_t> liveZoneIds = output->zoneIds();
       ZoneMap saved = m_zoneMapStore.load(output->name());
-      ZoneMap reconciled = reconcileZoneMap(saved, output->zoneIds());
+      ZoneMap reconciled = reconcileZoneMap(saved, liveZoneIds);
 
       // Persist now so newly discovered zones get a saved row before anyone
-      // edits them.
-      m_zoneMapStore.save(output->name(), reconciled);
+      // edits them. An output reporting no zone ids (Hue built while the
+      // bridge is down) reconciles to an empty map; saving that would erase
+      // the user's saved uvs/active/gamma, so leave the file alone. The
+      // in-memory map stays empty (nothing is sent) and the next init()
+      // reconciles against the untouched saved rows once zones are reported.
+      if(!liveZoneIds.empty()){
+        m_zoneMapStore.save(output->name(), reconciled);
+      }
       m_zoneMapsByOutput[output->name()] = std::move(reconciled);
     }
 

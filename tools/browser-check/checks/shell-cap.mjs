@@ -21,9 +21,12 @@ import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
 import { pairingApi } from '../lib/pairing.mjs'
+import { fastPolls, finish, statePolls, StepReached } from '../lib/waits.mjs'
 
 // The dev-only /api/dev/errors routes need this in the app's environment.
 process.env.AURORA_DEV_ERRORS = '1'
+// The shell polls every 300 ms instead of 3 s (AURORA_DEV_POLL_MS=3000 for the shipped cadence).
+fastPolls()
 
 const DEV = ['dev-cap-1', 'dev-cap-2', 'dev-cap-3', 'dev-cap-new', 'dev-cap-late']
 const WINDOWS = [
@@ -31,9 +34,18 @@ const WINDOWS = [
   { width: 400, height: 420 },
 ]
 
-await withEditorStack(async ({ editorUrl, aurora }) => {
+// STEP=<text> runs only the page/window cases whose name contains it (dashboard, editor, 400x420, "editor 400x650");
+// text that names no case stops a run after the first step with that text instead.
+const CASES = ['dashboard', 'editor'].flatMap((n) => WINDOWS.map((w) => `${n} ${w.width}x${w.height}`))
+const only = process.env.STEP && CASES.some((c) => c.includes(process.env.STEP)) ? process.env.STEP : null
+
+await finish('shell cap', withEditorStack(async ({ editorUrl, aurora }) => {
   const browser = await launch()
-  const step = (label) => console.log(`ok  ${label}`)
+  const stopAt = process.env.STEP && !only ? process.env.STEP : null
+  const step = (label) => {
+    console.log(`ok  ${label}`)
+    if (stopAt && label.includes(stopAt)) throw new StepReached(label)
+  }
   const api = async (method, path, body) => {
     const res = await fetch(`${aurora}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
     return { status: res.status, json: await res.json().catch(() => ({})) }
@@ -53,8 +65,10 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     ]) {
       for (const win of WINDOWS) {
         const tag = `${name} ${win.width}x${win.height}`
+        if (only && !tag.includes(only)) continue
         await clean()
         const page = await browser.newPage({ viewport: win })
+        const tracker = statePolls(page)
         page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
         const shot = (file) => (process.env.SHOTS ? page.screenshot({ path: `${process.env.SHOTS}/${name}-${win.height}-${file}.png` }) : null)
         const region = page.locator('#shell-banner-slot .shell-banner-rows')
@@ -73,13 +87,13 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
               toggleTop: t?.top ?? null, toggleBottom: t?.bottom ?? null, vh: window.innerHeight,
             }
           })
+        // Two animation frames: the scroll event has fired and the fade classes are updated.
+        const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
         const scrollTo = async (top) => {
           await region.evaluate((el, v) => { el.scrollTop = v }, top)
-          await sleep(120)
+          await frames()
         }
-        const polls = async (n) => {
-          for (let i = 0; i < n; i += 1) await page.waitForResponse((r) => r.url().endsWith('/api/state') && r.request().method() === 'GET', { timeout: 10_000 })
-        }
+        const polls = (n) => tracker.polls(n)
         // Page-side log of every arrival: was its pulse held when it appeared, and where was it when released.
         const events = () => page.evaluate(() => window.__capEvents)
         const watch = () =>
@@ -123,7 +137,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
         await toggle.click()
         await expectOpen()
-        await sleep(200)
+        await frames()
 
         // The cap holds, the toggle is below the region and in the window.
         i = await info()
@@ -166,7 +180,13 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
         await scrollTo(0)
         await page.keyboard.press('ArrowDown')
         await page.keyboard.press('ArrowDown')
-        await sleep(300)
+        // The arrow key's scroll is smooth: wait until it has moved and then come to rest.
+        await page.waitForFunction(() => {
+          const el = document.querySelector('.shell-banner-rows')
+          const was = window.__rest
+          window.__rest = el.scrollTop
+          return el.scrollTop > 0 && was === el.scrollTop
+        }, null, { timeout: 5000, polling: 'raf' })
         assert.ok((await info()).scrollTop > 0, `${tag}: arrow keys scroll the focused region`)
         step(`${tag}: in the tab order while it overflows, scrolls by arrow key`)
 
@@ -215,6 +235,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
         const firstStart = ev.find((e) => e.kind === 'start' && e.key === oneKey)
         assert.ok(firstStart.inView && firstStart.running, `${tag}: the first new row (in drawn order) pulses with itself in view (scrollTop ${firstStart.scrollTop})`)
         // Whichever poll raised each one, the last (lowest) row is off screen and waiting.
+        // Real time on purpose: the pulse's own 2 s fallback is a timer, not a poll.
         await sleep(2600)
         const lastKey = lateKeys[2]
         const last = await page.evaluate((k) => { const el = document.querySelector(`.shell-banner-row[data-key="${CSS.escape(k)}"]`); return { wait: el.hasAttribute('data-wait'), fresh: el.hasAttribute('data-new') } }, lastKey)
@@ -224,7 +245,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
         // The user scrolls through the waiting rows one by one.
         for (const key of await page.evaluate(() => [...document.querySelectorAll('.shell-banner-row[data-wait]')].map((n) => n.getAttribute('data-key')))) {
           await page.evaluate((k) => document.querySelector(`.shell-banner-row[data-key="${CSS.escape(k)}"]`)?.scrollIntoView({ block: 'center' }), key)
-          await sleep(200)
+          await frames()
         }
         await page.waitForFunction(() => !document.querySelector('[data-wait]'), null, { timeout: 6000 })
         const later = (await events()).filter((e) => e.kind === 'start')
@@ -277,6 +298,4 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await api('PUT', '/api/config', { activeEffectId: original }).catch(() => {})
     await browser.close()
   }
-})
-
-console.log('shell cap: all passed')
+}))

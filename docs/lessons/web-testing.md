@@ -372,14 +372,6 @@ Aurora-my6z: every `devstack.py up` opened a tab in the user's default browser a
 
 **Fix:** `devstack.py` puts a no-op `open` first on the app's PATH only (Mac); the app calls it through `sh`, so the stub wins. A logging stub proved the call arrives. Linux (`xdg-open`) is Aurora-5m0p; Windows `ShellExecuteA` ignores PATH and needs an app-side switch (Aurora-q5eb).
 
-## The browser-check stack is one per machine, so parallel agents need a lock and a free port 8215, not worktrees
-Tags: devstack, browser-check, subagents, parallel, worktree, lockf, port-8215
-Applies-when: more than one agent or terminal will run `tools/browser-check` checks (or `vite build` of the graph editor) at the same time
-
-Aurora-u8jx.4 (2026-11-13): five agents shared the tree, three ran checks at once. `devstack.py` binds fixed ports (18443, 18244, 18245, the viz port, WebUI from 8215), keeps its state in `<tmp>/aurora-devstack` and runs `build/mac-app` of the main checkout. A worktree isolates none of that, and has no app build of its own. Two agents then burned every check run on `timed out waiting for a frame`: the owner's own Aurora held 8215 (see "A fail-soft port bind turns "something else owns the port" into a harness timeout about frames"), and no agent brief mentioned it.
-
-**Fix:** before fanning out, run `lsof -nP -iTCP:8215 -sTCP:LISTEN` once and ask the owner to quit a non-stack Aurora. Then share one tree and wrap every check and every `npm run build` in `/usr/bin/lockf -t 1200 <lockfile> <cmd>` (macOS; releases on exit, no stale lock). Tell each agent: on a frame timeout, check 8215 and stop rather than retry.
-
 ## A browser check that needs "an input Aurora lacks" must name a broken one, not rely on none being configured
 Tags: browser-check, audio-input, auto-pick, devstack, environment, failed-save
 Applies-when: a check or test expects an effect to fail because an audio or video input is missing

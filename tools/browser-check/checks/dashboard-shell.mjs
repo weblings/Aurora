@@ -13,15 +13,19 @@ import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withAuroraStack } from '../lib/stack.mjs'
 import { pairingApi } from '../lib/pairing.mjs'
+import { fastPolls, finish, statePolls, stepLogger, until } from '../lib/waits.mjs'
 
 // The dev-only /api/dev/errors routes need this in the app's environment.
 process.env.AURORA_DEV_ERRORS = '1'
+// The shell polls every 300 ms instead of 3 s (AURORA_DEV_POLL_MS=3000 for the shipped cadence); STEP=<text> stops after that step.
+fastPolls()
 
-await withAuroraStack(async ({ aurora }) => {
+await finish('dashboard shell', withAuroraStack(async ({ aurora }) => {
   const browser = await launch()
   const page = await browser.newPage({ viewport: { width: 1100, height: 800 } })
   page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
-  const step = (label) => console.log(`ok  ${label}`)
+  const step = stepLogger()
+  const tracker = statePolls(page)
   const api = async (method, path, body, headers = {}) => {
     const res = await fetch(`${aurora}${path}`, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: body === undefined ? undefined : JSON.stringify(body) })
     return { status: res.status, json: await res.json().catch(() => ({})) }
@@ -41,10 +45,11 @@ await withAuroraStack(async ({ aurora }) => {
     await page.waitForFunction(() => document.querySelector('#shell-banner-toggle')?.getAttribute('aria-expanded') === 'true', null, { timeout: 10_000 })
     assert.equal(await label(), 'Show less')
   }
-  // Waits for n further /api/state answers: the shell's beat, one per 3 s.
-  const polls = async (n) => {
-    for (let i = 0; i < n; i += 1) await page.waitForResponse((r) => r.url().endsWith('/api/state') && r.request().method() === 'GET', { timeout: 10_000 })
-  }
+  // Waits for n further /api/state answers: the shell's beat. Counted, not timed, so a step that proves
+  // nothing changes across polls waits for the polls themselves.
+  const polls = (n) => tracker.polls(n)
+  // The light test's server-side countdown, to see it tick.
+  const remaining = async () => (await api('GET', '/api/state')).json.test.confirmRemainingMs
   const active = () => page.evaluate(() => document.activeElement?.id ?? null)
   // Marks a node so a later check can tell it from a redrawn one.
   const tag = (selector, value) => page.evaluate(([sel, v]) => { document.querySelector(sel).__tag = v }, [selector, value])
@@ -161,7 +166,9 @@ await withAuroraStack(async ({ aurora }) => {
       await page.locator('#shell-light-test-time').waitFor({ timeout: 10_000 })
       await toggle.click()
       await expectCollapsed('1 notice 2 errors')
-      await page.waitForTimeout(5000)
+      const left = await remaining()
+      await polls(3)
+      await until(async () => (await remaining()) <= left - 1500, 'the countdown to tick')
       await expectCollapsed('1 notice 2 errors')
       assert.equal((await api('GET', '/api/state')).json.test.active, true, 'the Once test was still counting down')
       step('the light-test countdown ticking never re-opens the collapsed shell')
@@ -349,7 +356,9 @@ await withAuroraStack(async ({ aurora }) => {
         assert.equal((await adds()).at(-1).key, 'test:agent-1:once')
         await waitSaid(saidBefore + 1)
         assert.equal((await spot()).said.at(-1), 'An agent is testing an effect on the lights.')
-        await page.waitForTimeout(5000)
+        const tickFrom = await remaining()
+        await polls(3)
+        await until(async () => (await remaining()) <= tickFrom - 1500, 'the countdown to tick')
         assert.equal((await adds()).length, addsBefore + 1, 'the ticking countdown never pulses')
         assert.equal((await spot()).said.length, saidBefore + 1, 'and is never announced')
         step('a light test pulses and is announced once when it arrives, not on its countdown')
@@ -412,5 +421,4 @@ await withAuroraStack(async ({ aurora }) => {
     await api('PUT', '/api/config', { activeEffectId: original }).catch(() => {})
     await browser.close()
   }
-})
-console.log('dashboard shell: all passed')
+}))

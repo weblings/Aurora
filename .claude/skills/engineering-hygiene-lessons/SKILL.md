@@ -11,6 +11,8 @@ toolchains, macOS AppKit/status-item/run-loop code, debugging strategy, or
 porting C example code into C++, grep the query-coherent files
 (`build-toolchain`, `windows-env`, `macos-gui`, `debugging-method`,
 `architecture-process`, `web-testing`, `language-cpp` in `docs/lessons/`).
+Several agents or terminals sharing the browser-check stack, or any
+multi-agent bead work: `agent-coordination-lessons` instead.
 
 ## How to use this skill
 

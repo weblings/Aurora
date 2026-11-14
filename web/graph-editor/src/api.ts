@@ -1,3 +1,4 @@
+import { problemCopy } from '../../ui/problemCopy.js'
 import { parseZoneRegions, type ZoneRegions } from './graph/frame'
 import { setPortMeanings } from './graph/portStyle'
 import type { Holder } from './graph/lightTest'
@@ -100,7 +101,8 @@ async function postJson(path: string, body: unknown): Promise<Reply> {
   return { ok: res.ok, status: res.status, body: parsed }
 }
 
-// A short reason for a refused write: the server's message, else its error code.
+// A short reason for a refused write: our words for its error code (web/ui/problemCopy.js), else the
+// server's message, else the code.
 function refusal(reply: Reply): string {
   const { error, message, errors } = reply.body as { error?: string; message?: string; errors?: unknown[] }
   if (error === 'invalid_graph') {
@@ -108,9 +110,7 @@ function refusal(reply: Reply): string {
     return n > 0 ? `The graph has ${n} ${n === 1 ? 'problem' : 'problems'}` : 'The graph is not valid'
   }
   if (error === 'cannot_test') return message || 'The lights cannot take this graph in place. Use Save and apply'
-  if (error === 'draft_changed') return 'The graph changed since the test started. Test again, or Save and apply'
-  if (error === 'no_test') return 'No test is running'
-  return message || error || `HTTP ${reply.status}`
+  return problemCopy(error, {}, message || error || `HTTP ${reply.status}`)
 }
 
 // A failed reload after a write is not reported here: Aurora records it in

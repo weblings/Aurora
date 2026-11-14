@@ -254,7 +254,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await chip.click()
     const wholeRow = page.locator('.editor-problem-list li', { hasText: 'Whole graph' })
     await wholeRow.waitFor()
-    assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph Add node…'.length, 'Whole graph row has no server text')
+    assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph'.length, 'Whole graph row has no server text')
     await page.keyboard.press('Escape')
     await button('Redo').click()
     await waitStatus(/Live/)

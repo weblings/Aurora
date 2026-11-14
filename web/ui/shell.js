@@ -299,6 +299,9 @@ export class App {
     this.lightTestHolder = testing && result.test.holder && typeof result.test.holder === 'object' ? result.test.holder : null;
     const remainingMs = testing && !this.lightTestLive ? Number(result.test.confirmRemainingMs) : NaN;
     this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
+    // Dev-only (AURORA_DEV_POLL_MS on the app, browser checks): the reply names a faster cadence. Absent in release.
+    const devPollMs = Number(result?.devPollMs);
+    if (Number.isFinite(devPollMs) && devPollMs >= 50 && devPollMs <= this._pollIntervalMs) this._pollIntervalMs = devPollMs;
     this._stateReplied = true;
     this._maybeBaseline();
     this._renderBanner();

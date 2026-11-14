@@ -1031,4 +1031,23 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   uninstallDom();
 }
 
+// Dev-only cadence (AURORA_DEV_POLL_MS on the app): a reply's devPollMs speeds the beat up, never slows it,
+// and a reply without it (every release app) leaves the interval alone.
+{
+  const reply = { reachable: true, state: 'running', errors: [] };
+  const { app } = makeApp(async () => reply, { pollIntervalMs: 3000 });
+  await app._pollOnce();
+  assert.equal(app._pollIntervalMs, 3000, 'no devPollMs: unchanged');
+  reply.devPollMs = 300;
+  await app._pollOnce();
+  assert.equal(app._pollIntervalMs, 300, 'devPollMs sets the cadence');
+  reply.devPollMs = 5000;
+  await app._pollOnce();
+  assert.equal(app._pollIntervalMs, 300, 'never slower than the current one');
+  reply.devPollMs = 'x';
+  await app._pollOnce();
+  assert.equal(app._pollIntervalMs, 300, 'junk ignored');
+  uninstallDom();
+}
+
 console.log('shell checks passed.');

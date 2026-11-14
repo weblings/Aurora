@@ -86,7 +86,7 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
     await waitFor(editorUrl)
     await body({ editorUrl, aurora: `http://127.0.0.1:${port}`, restart })
   } catch (e) {
-    if (viteLog) console.error(`--- vite log (${viteLog}) ---\n${readFileSync(viteLog, 'utf8').split('\n').slice(-40).join('\n')}`)
+    if (viteLog && e?.name !== 'StepReached') console.error(`--- vite log (${viteLog}) ---\n${readFileSync(viteLog, 'utf8').split('\n').slice(-40).join('\n')}`)
     throw e
   } finally {
     if (vite) {

@@ -496,3 +496,14 @@ Applies-when: a message becomes both a toast and an announcement, or a toast is 
 Aurora-u8jx.4.2: a lost heartbeat gained a toast while the `testOutcome` effect kept announcing every outcome. `Toast.tsx` renders its text in a `role="status" aria-live="polite"` span, so a screen reader heard the sentence twice. Unit tests on the strings passed; only reading the Toast markup showed it.
 
 **Fix:** one path per message. The announce effect skips any outcome `quietEndToast` toasts; the browser check asserts `[data-announcer]` does not also hold the toast text.
+
+---
+
+## The Dashboard and the graph editor share web/ui modules by import, never by copy
+Tags: graph-editor, dashboard, web-ui, shared-module, duplication, pairing, parity
+Applies-when: the graph editor needs behaviour, wording or an API call the Dashboard/NUX already has (or the reverse)
+
+Aurora-9hqa.4 (2026-11-13): the editor gained pairing rows and wrote its own copies of the "can this browser approve" rule and of the pending-list and approve/deny calls, although `web/ui/Pairing.js` already held the rule and `shell.js` the calls. The markup matched (parity test), but the logic was two implementations, and the owner asked for one on every surface. The editor already imports plain-JS modules from `web/ui` (`messages.js`, `testHolder.js`, `shellRows.js`), so nothing stopped an import.
+
+**Fix:** move the logic into a plain-JS module in `web/ui` (no DOM at module level) and import it from both `shell.js` and the editor. In review, grep for the same endpoint string in `web/ui` and `web/graph-editor/src`.
+

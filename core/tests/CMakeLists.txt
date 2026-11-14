@@ -98,6 +98,7 @@ add_executable(AuroraPipelineTests
   PipelineTests.cpp
   TrayLabelTests.cpp
   OutputLinkMonitorTests.cpp
+  GraphRunnerZoneMapPersistTests.cpp
 )
 
 target_link_libraries(AuroraPipelineTests PRIVATE

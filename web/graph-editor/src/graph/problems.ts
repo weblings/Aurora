@@ -3,6 +3,9 @@
 // each naming a node and sometimes a port or param) and the preview's runtime
 // `errors` (output, node, message).
 
+import { describeIssue } from '../../../ui/problemCopy.js'
+import { graphRowAction, type GraphRowAction } from './problemActions'
+
 export type ServerIssue = {
   node: string | null
   message: string
@@ -26,6 +29,8 @@ export type Problems = {
   nodes: ReadonlyMap<string, NodeProblems>
   // Issues with no node, or naming one that is not in the document.
   graph: string[]
+  // The action a Whole graph row offers, by its text; a row not in the map has none (problemActions.ts).
+  graphActions: ReadonlyMap<string, GraphRowAction>
 }
 
 // The server's issues for the draft as sent. With problems the server refuses the
@@ -43,7 +48,7 @@ export function draftIssues(state: { valid: boolean | null; issues: readonly Ser
   return state.reloadError ? [{ node: null, message: state.reloadError }] : []
 }
 
-export const noProblems: Problems = { nodes: new Map(), graph: [] }
+export const noProblems: Problems = { nodes: new Map(), graph: [], graphActions: new Map() }
 
 function push<K>(map: Map<K, string[]>, key: K, message: string) {
   const list = map.get(key)
@@ -65,10 +70,13 @@ export function groupProblems(
   const ports = new Map<string, Map<string, string[]>>()
   const params = new Map<string, Map<string, string[]>>()
   const graph: string[] = []
+  const graphActions = new Map<string, GraphRowAction>()
 
-  const add = (node: string | null | undefined, message: string, port?: string | null, param?: string | null) => {
+  const add = (node: string | null | undefined, message: string, port?: string | null, param?: string | null, code?: string | null) => {
     if (!node || !nodeIds.has(node)) {
       if (!graph.includes(message)) graph.push(message)
+      const action = graphRowAction(code)
+      if (action) graphActions.set(message, action)
       return
     }
     push(messages, node, message)
@@ -76,14 +84,15 @@ export function groupProblems(
     if (param) push(params.get(node) ?? params.set(node, new Map()).get(node)!, param, message)
   }
 
-  for (const issue of issues) add(issue.node, issue.message, issue.port, issue.param)
+  // The editor's words for an issue's code; a code with none shows the server's text.
+  for (const issue of issues) add(issue.node, describeIssue(issue), issue.port, issue.param, issue.code)
   for (const issue of runtime) add(issue.node, issue.message)
 
   const nodes = new Map<string, NodeProblems>()
   for (const [id, list] of messages) {
     nodes.set(id, { messages: list, ports: ports.get(id) ?? new Map(), params: params.get(id) ?? new Map() })
   }
-  return { nodes, graph }
+  return { nodes, graph, graphActions }
 }
 
 // Keeps the previous object when nothing changed, so the nodes that read it
@@ -91,6 +100,8 @@ export function groupProblems(
 export function sameProblems(a: Problems, b: Problems): boolean {
   if (a === b) return true
   if (a.graph.join('\n') !== b.graph.join('\n') || a.nodes.size !== b.nodes.size) return false
+  if (a.graphActions.size !== b.graphActions.size) return false
+  for (const [m, x] of a.graphActions) if (b.graphActions.get(m)?.run !== x.run) return false
   for (const [id, x] of a.nodes) {
     const y = b.nodes.get(id)
     if (!y || x.messages.join('\n') !== y.messages.join('\n')) return false
