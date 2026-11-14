@@ -145,7 +145,12 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const graph = (await api('GET', '/api/effects/builtin.video')).json.graph
     await api('PUT', '/api/graph/drafts/agent-1', { graph })
     assert.equal((await api('POST', '/api/graph/test', { session: 'agent-1' }, { 'X-Aurora-Client': 'mcp' })).status, 200)
-    await waitAnnounced(page, 'took the lights', 8000)
+    const keepAgent = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session: 'agent-1' }).catch(() => {}), 1000)
+    try {
+      await waitAnnounced(page, 'took the lights', 8000)
+    } finally {
+      clearInterval(keepAgent)
+    }
     await api('POST', '/api/graph/test/revert', { session: 'agent-1' })
     step('test on lights, then a second session takes it and the editor says so')
 

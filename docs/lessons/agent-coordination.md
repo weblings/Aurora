@@ -26,6 +26,8 @@ Aurora-9hqa (2026-11-13): each bead ran only the checks it named. `graph-editor:
 
 Confirmed by skipping it (ngoj, 7a-7c, 2026-11-13): no baseline was run, `graph-editor:gate` turned out to be failing before the session (Aurora-4ccg), and it surfaced only in 7a, where the agent and then the coordinator each spent a run and a file swap proving it pre-existing.
 
+Confirmed by running it (Aurora-4ccg, 2026-11-13): the bead carried a coordinator's hypothesis from a code read (the gate's missing agent heartbeat), and the owner had approved a check-only fix on it. The baseline showed a sibling check that does heartbeat failing at the same step, which disproved it before any agent was briefed. Treat a bead's written cause as a hypothesis until a run backs it, and look for sibling checks that exercise the same path.
+
 ---
 
 ## Write owner decisions into the bead before work starts, not only into the conversation or a brief
