@@ -25,7 +25,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 92 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 83 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 20 | web testing specific |
-| [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 8 | coordinating several agents on beads |
+| [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 10 | coordinating several agents on beads |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 26 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 59 | capture/grabber specific |
 | [processing.md](processing.md) | color/effect transform, zone-mapping | 14 | color/effect/zone-mapping specific |

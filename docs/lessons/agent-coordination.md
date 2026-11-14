@@ -78,7 +78,7 @@ Aurora-9hqa (2026-11-13): all five beads changed the same row model, `shell.js`,
 
 **Fix:** group beads by file overlap; one agent per group at a time. Agents leave changes in the tree; the coordinator verifies independently, closes the bead and commits it alone.
 
-A core-only bead can run beside an editor/check bead in the same tree (Aurora-91cj beside Aurora-ngoj, 2026-11-13) if the core agent builds only `build/core-tests`, never `build/mac-app`. The check agent's app rebuild still compiles whatever half-finished core edit is in the tree, so the coordinator commits the core bead, rebuilds `build/mac-app`, and only then re-runs the check bead's gates.
+A core-only bead can run beside an editor/check bead in the same tree (Aurora-91cj beside Aurora-ngoj, 2026-11-13) if the core agent builds only `build/core-tests`, never `build/mac-app`. The check agent's app rebuild still compiles whatever half-finished core edit is in the tree, so the coordinator commits the core bead, rebuilds `build/mac-app`, and only then re-runs the check bead's gates. Check timings from such a wave are inflated by the core build (graph-editor:narrow took 272 s beside Aurora-ajr5 and 24 s alone, 2026-11-13); read slowness there as load, not a regression.
 
 ---
 
@@ -89,3 +89,23 @@ Applies-when: briefing an agent whose change adds or changes a field in a route'
 Aurora-u8jx.3 (2026-11-13): the agent added `code` to the preview errors and to `openapi.yaml`, but not to the generated `docs/api/openapi.json`. The pre-commit API spec hook first refused for a missing tool ("python3 lacks docs/api/requirements.txt deps"), then, once it ran, for the stale JSON. Neither the agent's gates nor the coordinator's re-run covered it; only the commit did.
 
 **Fix:** in a brief that touches a route's JSON, ask for `python docs/api/gen-openapi.py` after editing `openapi.yaml`. The coordinator keeps a venv from `docs/api/requirements.txt` (scratchpad is fine) and commits with `AURORA_API_PYTHON=<venv>/bin/python`, never `--no-verify`.
+
+---
+
+## Copy a flaky test's failure output into its bead when filing it; the next run overwrites the log
+Tags: flaky-test, ctest, LastTest.log, beads, triage, evidence
+Applies-when: a test fails intermittently during a bead's verification and is filed as its own bug instead of being chased
+
+Aurora-yqu8 (2026-11-13): a settings test failed twice under `ctest -j8` and was filed with its name only. `build/core-tests/Testing/Temporary/LastTest.log` held the failing assertions, but the next full run overwrote it. Without them nobody could tell a harness limit (fix the test) from a lost update (fix the code), so the bead could not say which. The output turned up only because the flake recurred in the coordinator's ajr5 review run: `succeeded` 5 == 8 with the coordination checks passing pointed straight at transport failures, and the agent's first step became "record each request's outcome" instead of a guess.
+
+**Fix:** when you file a flaky test, paste the failed CHECK lines with their expansions into the bead (or copy the log to a dated file the bead names) before running anything else. A bead for a flake names which assertion fails.
+
+---
+
+## When a change replaces how a value is derived, the brief asks for every path that set it the old way
+Tags: briefs, subagents, review, coverage, refactor, dev-flags
+Applies-when: briefing or reviewing an agent whose change swaps the inputs of a computed value (a flag, a capability, a mode) for new ones
+
+Aurora-ajr5 (2026-11-13): pipeline capabilities moved from `!m_isAudioMode` / `m_isDualCapture` to the running graph's nodes. The agent reported that dual capture "reports what it did before" because the existing tests passed. `m_isDualCapture` is set in two places, and the `AURORA_DEV_DUAL_CAPTURE` spike has no test: it runs the built-in audio graph beside the video graph that `graphJson()` returns, so it would have lost `usesAudioInput`. The coordinator found it only by grepping the flag's assignments on review.
+
+**Fix:** in the brief, ask the agent to grep every assignment of the old inputs and say, path by path, what the new derivation gives there, naming any path no test covers. On review, run that grep yourself. Passing tests prove only the paths that have tests.
