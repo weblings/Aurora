@@ -24,7 +24,9 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   `bd import` to upsert the tracked export into your live DB — never `--reinit-local`.
 - Non-obvious gotchas worth saving future time: `docs/lessons/`, with `Tags:`/`Applies-when:`,
   routed by the matching `.claude/skills/` skill — check it before changing
-  that area, file per `docs/lessons/README.md`.
+  that area, file per `docs/lessons/README.md`. Before splitting beads
+  across agents or coordinating a bead sequence, read
+  `agent-coordination-lessons` (`docs/lessons/agent-coordination.md`).
 - Milestone detail (closed or paused): dated file in `docs/log/` + `INDEX.md`
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.
