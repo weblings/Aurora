@@ -23,6 +23,7 @@ import { ControlsDrawer } from './ControlsDrawer'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
+import { nodeLabels as nodeLabelsFor } from './graph/nodeTitle'
 import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
@@ -481,6 +482,8 @@ export function App() {
   )
   const edges = useMemo(() => (doc ? carryViewState(edgeView, toFlowEdges(doc, catalog ?? undefined)) : []), [doc, catalog, edgeView])
 
+  const nodeLabels = useMemo(() => nodeLabelsFor(nodes.map((n) => ({ id: n.id, type: n.data.type, info: n.data.info }))), [nodes])
+
   // A problems row points at its node: select it and bring it into view.
   const selectNode = useCallback(
     (id: string) => {
@@ -823,6 +826,7 @@ export function App() {
           chipRef={problemsChip}
           refusal={refusal}
           focusAfter={focusAfter}
+          nodeLabels={nodeLabels}
           onSelectNode={selectNode}
           onGraphAction={(run) => {
             if (run === 'openControls') setDrawer('controls')

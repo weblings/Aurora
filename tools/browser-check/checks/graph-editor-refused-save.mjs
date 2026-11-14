@@ -247,7 +247,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await dialog.waitFor()
     await page.waitForFunction(() => document.activeElement?.classList.contains('editor-problem-row'))
     assert.equal(await page.evaluate(() => document.activeElement === document.querySelector('.editor-problem-row')), true, 'the first row has focus')
-    const nodeId = await dialog.locator('.editor-problem-row strong').first().innerText()
+    const nodeId = await dialog.locator('.editor-problem-row').first().getAttribute('data-node-id')
     await page.keyboard.press('Enter')
     await dialog.waitFor({ state: 'detached' })
     const nodeSel = `.react-flow__node[data-id="${nodeId}"]`

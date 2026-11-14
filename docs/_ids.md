@@ -367,6 +367,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
 | `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
 | `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx16-popover-node-titles` | [log/2026-11-13-u8jx16-popover-node-titles.md](log/2026-11-13-u8jx16-popover-node-titles.md) | Graph editor: Problems popover node rows read the node's title, not its id |
 | `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
 | `u8jx3-runtime-wording` | [log/2026-11-13-u8jx3-runtime-wording.md](log/2026-11-13-u8jx3-runtime-wording.md) | Graph editor: a node that fails during the preview reads "Runs, but this node fails", through 7a's table |
 | `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
