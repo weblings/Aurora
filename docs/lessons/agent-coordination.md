@@ -1,0 +1,75 @@
+# Agent coordination
+
+Id: lesson-agent-coordination
+
+Running several agents on a sequence of beads: preflight, briefs, the shared browser-check stack, watching a running agent, verifying and committing. See [README.md](README.md) for filing rules. Code conventions an agent must follow go in the topic files (e.g. components.md), not here.
+
+---
+
+## The browser-check stack is one per machine, so parallel agents need a lock and a free port 8215, not worktrees
+Tags: devstack, browser-check, subagents, parallel, worktree, lockf, port-8215
+Applies-when: more than one agent or terminal will run `tools/browser-check` checks (or `vite build` of the graph editor) at the same time
+
+Aurora-u8jx.4 (2026-11-13): five agents shared the tree, three ran checks at once. `devstack.py` binds fixed ports (18443, 18244, 18245, the viz port, WebUI from 8215), keeps its state in `<tmp>/aurora-devstack` and runs `build/mac-app` of the main checkout. A worktree isolates none of that, and has no app build of its own. Two agents then burned every check run on `timed out waiting for a frame`: the owner's own Aurora held 8215 (see "A fail-soft port bind turns "something else owns the port" into a harness timeout about frames"), and no agent brief mentioned it.
+
+**Fix:** before fanning out, run `lsof -nP -iTCP:8215 -sTCP:LISTEN` once and ask the owner to quit a non-stack Aurora. Then share one tree and wrap every check and every `npm run build` in `/usr/bin/lockf -t 1200 <lockfile> <cmd>` (macOS; releases on exit, no stale lock). Tell each agent: on a frame timeout, check 8215 and stop rather than retry.
+
+---
+
+## Run the affected browser checks once on the base commit before the first agent starts
+Tags: browser-check, baseline, epic, subagents, regression, preflight
+Applies-when: starting a multi-bead epic or fanning out agents whose work will be judged by browser checks
+
+Aurora-9hqa (2026-11-13): each bead ran only the checks it named. `graph-editor:failed-save` was already failing before the epic began (a stale premise, Aurora-bju0), but it surfaced mid-epic, an agent could not tell whether its change caused it, and proving it pre-existing took a stash and re-runs on two older commits.
+
+**Fix:** before the first agent, run every check the epic could touch on the base commit, note what already fails, file it, and tell each agent which failures are known and not theirs.
+
+---
+
+## Write owner decisions into the bead before work starts, not only into the conversation or a brief
+Tags: beads, decisions, briefs, subagents, context, handover
+Applies-when: the owner settles a sequencing, scope or design question in conversation and someone (an agent, a later session, a person) will build from the bead
+
+Aurora-9hqa (2026-11-13): before fan-out the owner re-ordered the beads, asked for saved browser checks and moved pairing into an earlier bead. Each decision went into the beads as a dated note (marked SUPERSEDES where it replaced an older note) and, where it changed what "done" means, into the acceptance criteria, with the dependency edited to match. All five agents built from `bd show` and got it right; the brief only had to point at it. The beads' own design history (mocks, earlier sessions) reached the builders the same way.
+
+**Fix:** record the decision on the bead first: dated note, SUPERSEDES for a reversal, acceptance criteria and dependencies updated. Then brief.
+
+---
+
+## While iterating, an agent runs only the browser check it is changing; the regression set runs once at the end
+Tags: browser-check, speed, subagents, briefs, iteration
+Applies-when: briefing an agent whose work is verified by `tools/browser-check`
+
+Aurora-9hqa / Aurora-bju0 (2026-11-13): the shell checks are slow (error-shell ~146 s, dashboard-shell 150-226 s; stack up/down is ~1 s, the time is in poll waits). Agents that re-ran their 6-7 check set after each fix spent 10-15 min per bead on checks, and queued behind each other on the stack lock. Told to run only `failed-save` while iterating, and only with a hypothesis, the bju0 agent made two quick runs (28 s, 13 s) and one final 4-check set: 9 min for the whole bug. Making the checks themselves faster is Aurora-ngoj.
+
+**Fix:** in each brief, name the one check to iterate on and the regression set to run once at the end, and ask for the run count and timings in the report.
+
+---
+
+## Give each agent a progress file, and escalate a quiet one with a message before stopping it
+Tags: subagents, progress, monitoring, escalation
+Applies-when: an agent runs long and someone needs to know where it is
+
+Aurora-u8jx.5 (2026-11-13): an agent ran for 30 minutes and the owner asked whether it was stuck. Its transcript was too big to read, so where it had got to had to be pieced together from file modification times, `git status` and `pgrep` for running checks. That showed it was finishing its regression checks, but only roughly. Later briefs asked each agent to append a timestamped line to a progress file in the scratchpad at each milestone, and each could then be checked at a glance.
+
+**Fix:** put the progress-file instruction in every brief. A quiet agent (no file change and no check running for ~10 min, or the same check re-run repeatedly) gets a message first; stop it only if that fails, then carry on from its partial work.
+
+---
+
+## Before attributing a failing check to the change under review, run it on the commit before
+Tags: browser-check, regression, baseline, git-stash, triage, subagents
+Applies-when: an agent reports a failing check it cannot tie to its own change
+
+Aurora-u8jx.5 / Aurora-bju0 (2026-11-13): an agent reported `graph-editor:failed-save` failing where Aurora raised no error at all. `git stash -u`, the check on HEAD, then `git checkout <pre-epic sha> -- web/ui web/graph-editor/src tools/browser-check` and the check again (restore afterwards with `git checkout HEAD -- <dirs>` and `git stash pop`) showed it failing before the epic, so the bead was committed and the failure filed as its own bug instead of holding the work.
+
+**Fix:** reproduce on the previous commit and on the base of the work before blaming it. If it fails there too, file a bug with that evidence and carry on.
+
+---
+
+## Beads that touch the same files run one at a time; the coordinator re-runs the gates and commits each bead
+Tags: subagents, sequencing, waves, commits, verification, gates
+Applies-when: planning how many agents to run at once and how their work lands
+
+Aurora-9hqa (2026-11-13): all five beads changed the same row model, `shell.js`, `shell.css` and `ErrorShell.tsx`, so they ran one at a time with a review and commit between agents. Aurora-u8jx.4 had independent beads, which ran in waves grouped by file overlap. In both cases the agents did not commit. The coordinator re-ran every gate itself (unit tests, typecheck, build, the browser checks), looked at one screenshot the agent had not opened, and committed one bead per commit. That re-run is what caught a bug in the coordinator's own follow-up edit, and an agent copying shared logic instead of importing it.
+
+**Fix:** group beads by file overlap; one agent per group at a time. Agents leave changes in the tree; the coordinator verifies independently, closes the bead and commits it alone.
