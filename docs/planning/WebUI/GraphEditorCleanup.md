@@ -726,8 +726,8 @@ So graph issues are never called errors, and runtime preview failures read "Runs
 | `.3` 7c | Runtime preview errors worded apart from validation | Done ([[u8jx3-runtime-wording]]) |
 | `.6` 7.0g | Preview island (was Zones): a layout menu with sim layouts, shown when no lights are reachable or picked on purpose | Done ([[u8jx61-preview-island-build]]) |
 | `.17` | Core test: graph doc `ui` entries keep extra keys through draft PUT, GET and save, ahead of per-node previews (`Aurora-z9vu`, 1.2.1) | Done ([[u8jx17-ui-extra-keys]]) |
-| `.8` | Problems chip gains a chevron; the compact form | Compact form settled 2026-11-15 (chevron at every width); build with `.9.1` |
-| `.9` | Narrow top bar: Test drops to its icon when the title gets short | Mock settled 2026-11-15 ([[u8jx9-narrow-bar-mock]]); build `.9.1` |
+| `.8` | Problems chip gains a chevron; the compact form | Done with `.9.1` ([[u8jx91-narrow-top-bar]]) |
+| `.9` | Narrow top bar: Test drops to its icon when the title gets short | Mock settled 2026-11-15 ([[u8jx9-narrow-bar-mock]]); built in `.9.1` ([[u8jx91-narrow-top-bar]]) |
 
 Open for the owner:
 
