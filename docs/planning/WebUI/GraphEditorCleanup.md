@@ -724,14 +724,15 @@ So graph issues are never called errors, and runtime preview failures read "Runs
 | `.15` 7d | Shell rows for an effect that fails to start or apply use 7a's copy; core attaches a code to host errors | After 7a |
 | `.2` 7b | A fitting action per Whole graph code, or none | Done ([[u8jx2-whole-graph-actions]]) |
 | `.3` 7c | Runtime preview errors worded apart from validation | Done ([[u8jx3-runtime-wording]]) |
-| `.6` 7.0g | Zones island output menu and a sample layout with no lights | Mock first |
+| `.6` 7.0g | Preview island (was Zones): a layout menu with sim layouts, shown when no lights are reachable or picked on purpose | Mock first, brief settled 2026-11-15 (bead design) |
+| `.17` | Core test: graph doc `ui` entries keep extra keys through draft PUT, GET and save, ahead of per-node previews (`Aurora-z9vu`, 1.2.1) | Open, 1.2.0 |
 | `.8` | Problems chip gains a chevron; the compact form | Mock with `.9`; re-measure after the 31 px button |
 | `.9` | Narrow top bar folds controls into menus | Mock first |
 
 Open for the owner:
 
 - ~~The reload row's words~~: decided 2026-11-13. 7a keeps its table in `web/ui`; the shell's effect and reload rows follow in 7d (`.15`).
-- **Zones with no lights** (`.6`): sample zones under the real output's name or a separate entry (the code favours the first: graphs name `hue`); zone count and shape (`web/demo/zonemap.js` is 8 zones but dormant, the live demo uses 4 quadrants); whether the sample can be chosen over working lights; `/api/zones` taking an output name (also `Aurora-9sm`); what Test does with no lights reachable (a test adds a notice while nothing receives it); the island header with both a collapse chevron and an output menu. The shell already says why the lights are unreachable, so the island only labels what it shows.
+- **Zones with no lights** (`.6`): decided 2026-11-15. The island becomes the editor's main preview, named Preview, and Test stays the only way to reach the lights (as Unity's Main Preview and Play mode). A layout menu offers Lights, Sim: your room (the saved zone map) and Sim: basic room (4 quadrants, the demo's `ROOM_ZONE_MAP`), and a sim can be picked over working lights. The island never changes Test's target. A running test pulls it to the real layout, and no reachable lights disables Test with a reason. The output is plain text until a second output exists. The rest (header anatomy, `/api/zones` per output with `Aurora-9sm`, session and fallback rules, narrow widths) is settled in the mock. The frames are in the bead's design field.
 - **Compact chip** (`.8`, `.9`): decided 2026-11-13: the chevron stays if it fits, and is cut first where it would cost another button its place; widths settled after re-measuring on the 31 px button.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
