@@ -307,6 +307,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx7-test-save-controls` | [log/2026-10-29-pvxx7-test-save-controls.md](log/2026-10-29-pvxx7-test-save-controls.md) | E4: test on lights, Save, Save and apply, Dashboard controls |
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
+| `q5eb-windows-no-browser-tab` | [log/2026-11-15-q5eb-windows-no-browser-tab.md](log/2026-11-15-q5eb-windows-no-browser-tab.md) | devstack: the Windows app no longer opens a browser tab on `up` |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `qjqy-light-test-modes-close-out` | [log/2026-11-11-qjqy-light-test-modes-close-out.md](log/2026-11-11-qjqy-light-test-modes-close-out.md) | Light test modes close-out |
 | `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |

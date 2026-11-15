@@ -43,13 +43,18 @@ def py():
 
 
 def no_browser_env(env):
-    """Copy of env whose PATH starts with a no-op `open` (Mac only).
+    """Copy of env that keeps the app from opening a browser (Windows, Mac).
+
+    Windows sets AURORA_DEV_NO_BROWSER=1. Mac puts a no-op `open` first on PATH.
 
     The app opens the WebUI in the default browser on a first setup, which
     `up` triggers via --fresh; every automated run stole focus. The app calls
     `open` through sh, so a stub first on PATH silences it. Only the app gets
     this env, so the bridge, relay and viz are unaffected. Aurora-my6z.
     """
+    if WIN:
+        # App-side switch: ShellExecute can't be stubbed via PATH. Aurora-q5eb.
+        return dict(env, AURORA_DEV_NO_BROWSER="1")
     if sys.platform != "darwin":
         return env
     STUBS.mkdir(parents=True, exist_ok=True)

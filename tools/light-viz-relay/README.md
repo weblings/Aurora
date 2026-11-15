@@ -171,6 +171,10 @@ fragmented -- confirmed live against macOS's actual `net.inet.udp.maxdgram`
 (9216 by default, well under IPv4's theoretical max), so keep subsample
 width sane if `frame` reports fewer frames than expected.
 
+## Keeping the app from opening a browser tab
+
+`devstack.py up` sets `AURORA_DEV_NO_BROWSER=1` (presence-only) for the Windows app only, so the first-setup browser launch is skipped and the WebUI URL is still logged. Mac uses a PATH stub for `open` instead.
+
 ## Simulating banner errors (no real failure needed)
 
 `devstack.py up --banner-errors 1` (or `2`) starts the app with
