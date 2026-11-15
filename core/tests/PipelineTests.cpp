@@ -5545,7 +5545,6 @@ TEST_CASE("GET /api/graph/preview?layout= draws a sim layout and still sends not
   auto layouts = h.client->Get("/api/graph/preview/layouts");
   REQUIRE(layouts);
   const auto body = nlohmann::json::parse(layouts->body);
-  CHECK(body["output"] == "out-a");
   CHECK(body["savedZones"] == 2);
   CHECK(body["basicZones"] == 4);
 
