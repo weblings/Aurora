@@ -695,3 +695,17 @@ Applies-when: a mock builds a new control (select, menu, header row) next to exi
 The first Preview island used a Grille select (bold selected row), an icon-only collapse chevron beside a title, and a hand-tuned card. Review asked why it did not use the tick menu the Test caret uses, and why it read as two dropdowns stacked. The fixes were reuse, not restyle: the shared tick menu, one whole-row button that is transparent when idle, and the popup surface the other open menus have. Measured in the browser, the open card already matched the other popups (`#1a1a1a`, `#333` border, same shadow). The difference people saw was against the closed button's `#333` face.
 
 **Fix:** before building a control, list the neighbouring controls that do the same job (here the zoom, title and Test caret menus) and copy their structure. Compare computed colours of the open states in the browser instead of arguing from tokens.
+
+---
+
+## Tabulate each control's width and what folding really saves before drawing a fold
+Tags: planning, design-process, mocks, webui, narrow-windows, measurement
+Applies-when: a bead proposes folding bar controls into menus to fit a narrow window
+
+Aurora-u8jx.9 started as "fold Undo and Redo into History and the title into its menu". Measuring the real bar first (one logged line per control, per width) changed the brief: nothing overflowed down to 360 px, because the title is the one flexible control and truncates first. The idea that sounded biggest saved the least: a History menu button keeps its own chevron (about 12 px back) and a split `[Undo | caret]` saves about nothing, since it is still two 31 px buttons. The widest fixed control was Test (a 77 px label plus a 31 px caret), and showing only its icon returned about 46 px with no new menu and no new ARIA. A title fallback (dots icon) was drawn and dropped once the title was shown to stay readable down to the smallest supported width.
+
+**Fix:**
+1. Log each control's width at every supported width on the built editor (the narrow browser check can print it) and find what is flexible and what is the widest fixed control.
+2. Compute what each fold saves, counting the trigger's own chevron, before drawing it. Prefer dropping a label to an icon over folding icon buttons into a menu.
+3. Print the live title width in each frame's caption so the mock's flex layout is checked against the measured editor, and ask whether the squeezed control is actually unreadable before adding a fallback for it.
+4. When a label becomes an icon, carry every state's meaning into the aria-label and tooltip, and note what the surrounding UI (here the shell row) already says.

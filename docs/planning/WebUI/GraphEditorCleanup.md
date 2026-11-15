@@ -726,14 +726,14 @@ So graph issues are never called errors, and runtime preview failures read "Runs
 | `.3` 7c | Runtime preview errors worded apart from validation | Done ([[u8jx3-runtime-wording]]) |
 | `.6` 7.0g | Preview island (was Zones): a layout menu with sim layouts, shown when no lights are reachable or picked on purpose | Mock first, brief settled 2026-11-15 (bead design) |
 | `.17` | Core test: graph doc `ui` entries keep extra keys through draft PUT, GET and save, ahead of per-node previews (`Aurora-z9vu`, 1.2.1) | Open, 1.2.0 |
-| `.8` | Problems chip gains a chevron; the compact form | Mock with `.9`; re-measure after the 31 px button |
-| `.9` | Narrow top bar folds controls into menus | Mock first |
+| `.8` | Problems chip gains a chevron; the compact form | Compact form settled 2026-11-15 (chevron at every width); build with `.9.1` |
+| `.9` | Narrow top bar: Test drops to its icon when the title gets short | Mock settled 2026-11-15 ([[u8jx9-narrow-bar-mock]]); build `.9.1` |
 
 Open for the owner:
 
 - ~~The reload row's words~~: decided 2026-11-13. 7a keeps its table in `web/ui`; the shell's effect and reload rows follow in 7d (`.15`).
 - **Zones with no lights** (`.6`): decided 2026-11-15. The island becomes the editor's main preview, named Preview, and Test stays the only way to reach the lights (as Unity's Main Preview and Play mode). A layout menu offers Lights, Sim: your room (the saved zone map) and Sim: basic room (4 quadrants, the demo's `ROOM_ZONE_MAP`), and a sim can be picked over working lights. The island never changes Test's target. A running test pulls it to the real layout, and no reachable lights disables Test with a reason. The output is plain text until a second output exists. The rest (header anatomy, `/api/zones` per output with `Aurora-9sm`, session and fallback rules, narrow widths) is settled in the mock. The frames are in the bead's design field.
-- **Compact chip** (`.8`, `.9`): decided 2026-11-13: the chevron stays if it fits, and is cut first where it would cost another button its place; widths settled after re-measuring on the 31 px button.
+- **Compact chip** (`.8`, `.9`): decided 2026-11-13: the chevron stays if it fits, and is cut first where it would cost another button its place; settled 2026-11-15 in the narrow-bar mock: idle Test drops to its icon when the title would fall under about 100 px, so the chevron stays at every width. Undo and Redo stay two buttons, the title has no fallback. See [[u8jx9-narrow-bar-mock]].
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 

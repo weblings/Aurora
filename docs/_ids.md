@@ -369,6 +369,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
 | `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
 | `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx15-shell-effect-copy` | [log/2026-11-15-u8jx15-shell-effect-copy.md](log/2026-11-15-u8jx15-shell-effect-copy.md) | Shell: a failed effect or reload reads in 7a's words on the Dashboard and in the editor |
 | `u8jx16-popover-node-titles` | [log/2026-11-13-u8jx16-popover-node-titles.md](log/2026-11-13-u8jx16-popover-node-titles.md) | Graph editor: Problems popover node rows read the node's title, not its id |
 | `u8jx17-ui-extra-keys` | [log/2026-11-15-u8jx17-ui-extra-keys.md](log/2026-11-15-u8jx17-ui-extra-keys.md) | Graph doc ui entries keep extra keys through draft PUT, GET and save |
 | `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
@@ -382,6 +383,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx5-shell-collapse` | [log/2026-11-13-u8jx5-shell-collapse.md](log/2026-11-13-u8jx5-shell-collapse.md) | Error shell collapses as one: baseline, snapshot, one toggle |
 | `u8jx6-preview-island-planning` | [log/2026-11-15-u8jx6-preview-island-planning.md](log/2026-11-15-u8jx6-preview-island-planning.md) | Graph editor: Preview island and sim layouts planned, per-node previews filed |
 | `u8jx61-preview-island-build` | [log/2026-11-15-u8jx61-preview-island-build.md](log/2026-11-15-u8jx61-preview-island-build.md) | Graph editor: Preview island with a layout menu and sim layouts built |
+| `u8jx9-narrow-bar-mock` | [log/2026-11-15-u8jx9-narrow-bar-mock.md](log/2026-11-15-u8jx9-narrow-bar-mock.md) | Graph editor: narrow top bar mock, Test drops to its icon |
 | `uds2-status-undrawn-fields` | [log/2026-11-13-uds2-status-undrawn-fields.md](log/2026-11-13-uds2-status-undrawn-fields.md) | Graph editor: Status no longer carries the undrawn detail and where fields, and Take over's tooltip is drawn |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |

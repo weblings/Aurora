@@ -553,3 +553,7 @@ body.board-on .ge, body.board-on .ge-toast { display: none; }
 .s6-ricon { flex: none; }
 .s6-ricon-error { color: var(--ui-color-text-error); }
 .s6-ricon-info { color: var(--ui-color-text-default); }
+
+/* Aurora-u8jx.9 narrow bar frames */
+.s7-compact .s9-bar .ge-title { min-width: 0; }
+.s9-test-icon { min-width: 0; }

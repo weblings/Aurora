@@ -167,6 +167,9 @@ await withEditorStack(async ({ editorUrl }) => {
         return { barH: bar.height, chipLeft: chip.left, chipRight: chip.right, chipTop: chip.top, nextLeft: next?.left, nextTop: next?.top, splitLeft: split?.left, splitRight: split?.right, vw: innerWidth }
       })
       console.log(width, 'problems chip:', JSON.stringify(g))
+      // Aurora-u8jx.9: per-control widths of the bar's direct children, to plan which controls fold.
+      const parts = await page.evaluate(() => [...document.querySelector('.editor-header').children].map((el) => `${(el.getAttribute('aria-label') || el.className.toString().split(' ').find((c) => c.startsWith('editor-')) || el.tagName)}=${Math.round(el.getBoundingClientRect().width)}`))
+      console.log(width, 'bar widths:', parts.join(' '))
       assert.ok(g.nextLeft !== undefined, `${width} px: no Undo button`)
       assert.ok(Math.abs(g.barH - barHeight) < 1, `${width} px: bar wrapped (${g.barH} px, was ${barHeight})`)
       assert.ok(g.chipLeft >= -1 && g.chipRight <= g.vw + 1, `${width} px: chip outside the window: ${JSON.stringify(g)}`)
