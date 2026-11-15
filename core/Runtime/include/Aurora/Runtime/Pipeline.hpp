@@ -252,7 +252,11 @@ namespace Aurora::Runtime
     // that the pipeline lacks, or the graph fails to load. Under the lock that
     // guards tick().
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut,
+      PreviewLayout layout = PreviewLayout::Lights);
+
+    // Zones in the saved map of the front output (what the Room layout draws).
+    std::size_t savedZoneCount() const;
 
     // The inputs `doc` needs beyond the running ones, to open before
     // openPreview(). Nullopt with errorOut set when a needed source is not
@@ -519,7 +523,11 @@ namespace Aurora::Runtime
     // lock, and closes with it. They die with the pipeline: a rebuild moves
     // buildEpoch() and a stream that saw the old one ends.
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, const Registry& registry, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, const Registry& registry, std::string& errorOut,
+      PreviewLayout layout = PreviewLayout::Lights);
+
+    // Zones in the saved zone map (kept on disk while the bridge is down); 0 with no pipeline.
+    std::size_t savedZoneCount();
     bool reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut);
     void closePreview(const std::string& session, const GraphPreview* preview);
 

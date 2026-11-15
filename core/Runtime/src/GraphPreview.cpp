@@ -153,7 +153,12 @@ namespace Aurora::Runtime
       }
       next.errors.push_back({send.output, error->nodeId, error->message});
       OutputColors colors{send.output, {}};
-      if(Output::IOutput* output = live.output(send.output)){
+      if(m_simZones){
+        for(const ZoneConfig& zone : *m_simZones){
+          colors.zones.push_back(_errorZone(zone.zoneId));
+        }
+      }
+      else if(Output::IOutput* output = live.output(send.output)){
         for(std::uint8_t id : output->zoneIds()){
           colors.zones.push_back(_errorZone(id));
         }

@@ -30,12 +30,21 @@ Decisions, narrow windows, in [[graph-editor-cleanup]]).
   `/api/nodes` entry; one widget per param kind.
 - `src/AddNodeMenu.tsx` -- the cascade Add node menu (the `+ Add node` canvas button top-left, Shift+A): group flyouts, or a ranked search list; `graph/addMenu.ts` has the grouping and ranking. A pick adds at the view centre.
 - Canvas corners (`Aurora-s1t7.3`): Add node top-left, Dashboard controls bottom-right, the View menu bottom-left with the minimap stacked above it (the menu anchors to the View button and opens over the map, sharing its left edge and width), React Flow's credit bottom-centre. A side drawer moves Dashboard controls left of it; a half-height dock lifts the bottom corners, a full-height one hides them (CSS in `editor.css`, `tools/browser-check`'s `graph-editor:corners`).
-- `src/useDraftLoop.ts` -- sends the draft and holds the preview stream;
-  `ZonesIsland.tsx` is the top-right Zones island (`Aurora-s1t7.4`): a header
-  with a hide chevron (kept for the session), then one 14 px DOM cell per zone
-  of the single active output (the one `/api/zones` names), 8 per row, no screen
-  mapping and no resize. Colours are written to the cells from a ref on
-  animation frames, not through state.
+- `src/useDraftLoop.ts` -- sends the draft and holds the preview stream (`?layout=` picks a sim, see below);
+  `PreviewIsland.tsx` is the top-right Preview island (`Aurora-s1t7.4`, `Aurora-u8jx.6.1`): one whole-row
+  Preview button that hides the rest (kept for the session), a layout menu button (the shared tick `Menu`, as
+  `SplitTestButton`), then one 14 px DOM cell per zone, 8 per row, no screen mapping and no resize. It never
+  hides while the stream is live. Colours are written to the cells from a ref on animation frames, not through
+  state. The button caps at 28ch with a tooltip only when cut off (`useCutOff`, since Grille's Button lacks
+  `tooltipOnlyWhenTruncated`).
+- Preview layouts (`Aurora-u8jx.6.1`): `graph/previewLayout.ts` holds the rules and `usePreviewLayout.ts` the
+  state. Lights (named after the Hue entertainment area when known, cached for a downed bridge), Sim: your room
+  (the saved zone map, left out when none) and Sim: basic room (4 quadrants, `basicRoomZoneMap()`, equal to the
+  web demo's `ROOM_ZONE_MAP` and `tools/fake-hue-bridge/room-4zone-zonemap.json`, each checked by a test). A
+  sim is editor-preview only: core draws it in `GraphPreview` (`GET /api/graph/preview?layout=room|basic`,
+  `GET /api/graph/preview/layouts` for the saved-zone count) and sends nothing. No reachable lights (the shell's
+  `output_link` row) picks a sim for the user and disables Test with a reason. A running test pulls the island to
+  the real layout and locks the menu. Switches nobody asked for go through the Announcer, user picks do not.
 - `src/TitleMenu.tsx`, `ViewMenu.tsx`, `ProblemsChip.tsx`, `Toast.tsx` -- the top bar's popups and the toast, all on `EditorPopup` (`Toast` is editor-local: `useToast().show(text, { doc, run })` adds a Grille Undo button, 8 s instead of 3, the timer held while hovered or focused; any change of the document other than `doc` spends it; `Aurora-u68h.6`) (its `focusAfter` names where focus goes when a choice closes the popup: the chip after a refused Save, a problem's node after a row pick). `ProblemsChip` also hosts the refused-save callout and ping (`Aurora-u68h.4`). `graph/status.ts` `pickStatus` picks the Test button's own state (its label or tooltip) from the priority rule in [[graph-editor-cleanup]]; every other message has its own home listed there, and the bar has no status text. There is no banner under the bar. `SplitTestButton.tsx` is the Test split button (`Aurora-qjqy.3`): `Test (15s)`/`Test (Live)`/`Stop 0:12`/`Stop`/`Take over`/`Reconnect`, the caret menu picks Once (15 s) or Live and starts it, the current mode is marked with Grille's single-selection look (`menuitemradio`). `header[data-preview]` carries the state label for the browser checks.
 - `src/ContextMenu.tsx` -- right-click menus for the canvas, a node and a wire, anchored at a point; the node menu also opens from each node's `⋯` button and Shift+F10 (`Aurora-daaa.27.1`).
 - `src/Hint.tsx` -- hover help (`Aurora-w6zq.8`): Grille's `Tooltip` around any element (React Aria's `Focusable` makes it a tab stop; several lines render as a list). No `title=` on nodes, ports, params or toolbar buttons; menu rows carry help as their summary line, not a tooltip (React Aria needs a focusable trigger). The Test group takes the tooltip when Test is off, since a disabled button sends no pointer events.

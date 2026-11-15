@@ -107,6 +107,7 @@ target_link_libraries(AuroraPipelineTests PRIVATE
   Catch2::Catch2WithMain
 )
 
+target_compile_definitions(AuroraPipelineTests PRIVATE AURORA_ROOM_4ZONE_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../../tools/fake-hue-bridge/room-4zone-zonemap.json")
 target_compile_features(AuroraPipelineTests PUBLIC cxx_std_20)
 
 add_executable(AuroraGraphRunnerVideoTests

@@ -33,7 +33,8 @@ import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
 import { NEW_EFFECT_TITLE } from './graph/titleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
-import { ZonesIsland } from './ZonesIsland'
+import { PreviewIsland } from './PreviewIsland'
+import { lightsUnreachable, usePreviewLayout } from './usePreviewLayout'
 import { ErrorShell } from './ErrorShell'
 import { useHostState } from './useHostState'
 import { draftShellNote, failedSaveNote, openFailedNote, openFailureCause, otherTest, writeFailureReason, type OpenFailure } from './graph/hostState'
@@ -190,12 +191,14 @@ export function App() {
     setAttempt((n) => n + 1)
   }, [host.recoveries])
 
-  const loop = useDraftLoop(doc, () => void host.checkNow())
   const session = useMemo(tabSession, [])
   const docRef = useRef(doc)
   docRef.current = doc
   const lights = useLightTest(session, () => putDraft(session, docRef.current!))
   const testing = lights.state.phase === 'running'
+  const noLights = lightsUnreachable(host.host)
+  const preview = usePreviewLayout({ noLights, testing, announce })
+  const loop = useDraftLoop(doc, () => void host.checkNow(), preview.layout)
   const [testMode, setTestMode] = useState<TestMode>('once')
   const dirty = useMemo(() => isUnsaved(baseline?.doc ?? null, doc), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (isDraftId(effectId) || effectId.startsWith('builtin.'))
@@ -860,7 +863,7 @@ export function App() {
           stopText={stopLabel(lights.state)}
           action={status.action}
           disabledReason={
-            blocked ? status.label : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
+            blocked ? status.label : noLights ? 'No lights reachable' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
           }
           takeOverHint={lightsInUse(lights.state, otherHeld?.holder ?? null)}
           busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
@@ -874,7 +877,16 @@ export function App() {
       ) : null}
       <div className="editor-body">
             <div className="editor-canvas" ref={canvas}>
-        <ZonesIsland frame={loop.frame} live={loop.state.stream === 'live'} />
+        <PreviewIsland
+          frame={loop.frame}
+          live={loop.state.stream === 'live'}
+          layout={preview.layout}
+          area={preview.area}
+          savedZones={preview.savedZones}
+          noLights={noLights}
+          testing={testing}
+          onPick={preview.choose}
+        />
         <ProblemsContext.Provider value={problems}>
         <EditorContext.Provider value={actions}>
           <ReactFlow

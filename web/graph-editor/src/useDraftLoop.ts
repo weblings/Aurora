@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, type MutableRefObject } from 'r
 import { DraftRefused, previewUrl, putDraft } from './api'
 import { parseFrame, type PreviewFrame } from './graph/frame'
 import { initialLoop, loopReducer, reopenDelay, type LoopState } from './graph/loop'
+import { layoutQuery, type Layout } from './graph/previewLayout'
 import type { GraphDoc } from './graph/types'
 
 const DEBOUNCE_MS = 250
@@ -41,7 +42,7 @@ export type DraftLoop = {
 // no further call. `lookNow` asks the host-state poll to check Aurora at once:
 // a failed request is the earliest hint it is gone, and that poll owns the
 // "Aurora has stopped" takeover, so a network failure sets no message here.
-export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void): DraftLoop {
+export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void, layout: Layout = 'lights'): DraftLoop {
   const [state, dispatch] = useReducer(loopReducer, initialLoop)
   const session = useMemo(tabSession, [])
   const frame = useRef<PreviewFrame | null>(null)
@@ -51,6 +52,8 @@ export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void): DraftLo
   latest.current = state
   const sent = useRef<GraphDoc | null>(null)
   const look = useRef(lookNow)
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
   look.current = lookNow
 
   const closeStream = () => {
@@ -62,7 +65,7 @@ export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void): DraftLo
   const openStream = () => {
     closeStream()
     dispatch({ type: 'opening' })
-    const es = new EventSource(previewUrl(session))
+    const es = new EventSource(previewUrl(session, layoutQuery(layoutRef.current)))
     source.current = es
     const stop = () => {
       if (source.current === es) closeStream()
@@ -176,6 +179,17 @@ export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void): DraftLo
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.stream, state.valid, session])
+
+  // A new layout reopens the open stream at once (the old frame stays drawn until the first new one).
+  const firstLayout = useRef(true)
+  useEffect(() => {
+    if (firstLayout.current) {
+      firstLayout.current = false
+      return
+    }
+    if (source.current) openStream()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout])
 
   useEffect(() => closeStream, [])
 

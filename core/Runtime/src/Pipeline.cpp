@@ -730,8 +730,15 @@ namespace Aurora::Runtime
   }
 
 
+  std::size_t Pipeline::savedZoneCount() const
+  {
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).savedZoneCount();
+  }
+
+
   std::shared_ptr<GraphPreview> Pipeline::openPreview(
-    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut)
+    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut,
+    PreviewLayout layout)
   {
     // Recheck against the inputs handed in: the pipeline may have changed since
     // previewInputsFor(), and the plan itself is not trusted past the lock.
@@ -743,7 +750,7 @@ namespace Aurora::Runtime
       errorOut = "the preview's inputs do not cover what the graph needs";
       return nullptr;
     }
-    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).openPreview(session, doc, std::move(inputs), errorOut);
+    return (m_isAudioMode ? *m_audioRunner : *m_videoRunner).openPreview(session, doc, std::move(inputs), errorOut, layout);
   }
 
 
@@ -1418,8 +1425,16 @@ namespace Aurora::Runtime
   }
 
 
+  std::size_t PipelineHost::savedZoneCount()
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_pipeline ? m_pipeline->savedZoneCount() : 0;
+  }
+
+
   std::shared_ptr<GraphPreview> PipelineHost::openPreview(
-    const std::string& session, const nlohmann::json& doc, const Registry& registry, std::string& errorOut)
+    const std::string& session, const nlohmann::json& doc, const Registry& registry, std::string& errorOut,
+    PreviewLayout layout)
   {
     PreviewInputPlan plan;
     std::uint64_t epoch = 0;
@@ -1452,7 +1467,7 @@ namespace Aurora::Runtime
       errorOut = "the pipeline changed while the preview opened its inputs";
       return nullptr;
     }
-    return m_pipeline->openPreview(session, doc, std::move(inputs), errorOut);
+    return m_pipeline->openPreview(session, doc, std::move(inputs), errorOut, layout);
   }
 
 

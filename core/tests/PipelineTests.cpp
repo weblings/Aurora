@@ -5385,6 +5385,59 @@ namespace
 }
 
 
+TEST_CASE("The basic room sim layout is the 4 quadrants the dev stack and web demo use (Aurora-u8jx.6.1)", "[Preview]")
+{
+  std::ifstream file(AURORA_ROOM_4ZONE_JSON);
+  REQUIRE(file);
+  const auto expected = nlohmann::json::parse(file);
+  const auto basic = basicRoomZoneMap();
+  REQUIRE(basic.size() == expected.size());
+  for(std::size_t i = 0; i < basic.size(); ++i){
+    CHECK(basic[i].zoneId == expected[i]["zoneId"].get<int>());
+    CHECK(basic[i].uvs.min.x == expected[i]["uvs"]["min"][0].get<float>());
+    CHECK(basic[i].uvs.min.y == expected[i]["uvs"]["min"][1].get<float>());
+    CHECK(basic[i].uvs.max.x == expected[i]["uvs"]["max"][0].get<float>());
+    CHECK(basic[i].uvs.max.y == expected[i]["uvs"]["max"][1].get<float>());
+  }
+}
+
+
+TEST_CASE("GET /api/graph/preview?layout= draws a sim layout and still sends nothing (Aurora-u8jx.6.1)", "[Preview]")
+{
+  PreviewHarness h("preview-layouts");
+  h.putDraft("editor", gainGraph(1.f));
+
+  SseReader basic(h.port, "/api/graph/preview?session=editor&layout=basic");
+  REQUIRE(basic.status() == 200);
+  REQUIRE(h.tickUntil(basic, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  const auto frame = eventsOf(basic.data(), "preview").back();
+  CHECK(frame["outputs"][0]["output"] == "out-a");
+  REQUIRE(frame["outputs"][0]["zones"].size() == 4);
+  CHECK(frame["outputs"][0]["zones"][3]["id"] == 3);
+
+  // The live outputs still get one send per tick each, and nothing extra from the sim.
+  const int before = h.events->sendCount;
+  for(int i = 0; i < 10; ++i){ h.host->tick(); }
+  CHECK(h.events->sendCount - before == 10 * 2);
+
+  // The saved zone map (written by the live reconcile) is what Sim: your room draws.
+  SseReader room(h.port, "/api/graph/preview?session=editor&layout=room");
+  REQUIRE(h.tickUntil(room, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  CHECK(eventsOf(room.data(), "preview").back()["outputs"][0]["zones"].size() == 2);
+
+  auto layouts = h.client->Get("/api/graph/preview/layouts");
+  REQUIRE(layouts);
+  const auto body = nlohmann::json::parse(layouts->body);
+  CHECK(body["output"] == "out-a");
+  CHECK(body["savedZones"] == 2);
+  CHECK(body["basicZones"] == 4);
+
+  SseReader bad(h.port, "/api/graph/preview?session=editor&layout=nope");
+  REQUIRE(bad.waitFor("event: error\n"));
+  CHECK(bad.data().find("invalid_layout") != std::string::npos);
+}
+
+
 TEST_CASE("GET /api/graph/preview/summary reports a frozen graph as still and an lfo graph as moving (Aurora-4xqt.5)", "[Preview]")
 {
   PreviewHarness h("preview-summary");

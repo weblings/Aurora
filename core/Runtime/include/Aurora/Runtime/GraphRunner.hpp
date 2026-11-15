@@ -113,9 +113,14 @@ namespace Aurora::Runtime
     // replacing (and closing) that session's earlier preview. Its output.send
     // nodes reach preview sinks, never an output (Aurora-52oz.6). Null with
     // errorOut set if `doc` fails to load. `inputs` are the preview's own, for
-    // sources this runner lacks.
+    // sources this runner lacks. `layout` picks the zones the preview draws; Room with no saved
+    // zone map fails with errorOut set.
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut,
+      PreviewLayout layout = PreviewLayout::Lights);
+
+    // Zones in the saved map of the first output: what "Sim: your room" would draw.
+    std::size_t savedZoneCount() const;
 
     // Swaps `doc` into a running preview, keeping node state. False with
     // errorOut set, preview untouched, if it fails to load.

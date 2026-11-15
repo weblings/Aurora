@@ -267,15 +267,37 @@ namespace Aurora::Runtime
   }
 
 
-  std::shared_ptr<GraphPreview> GraphRunner::openPreview(
-    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut)
+  std::size_t GraphRunner::savedZoneCount() const
   {
+    return m_outputNames.empty() ? 0 : m_zoneMapStore.load(m_outputNames.front()).size();
+  }
+
+
+  std::shared_ptr<GraphPreview> GraphRunner::openPreview(
+    const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut,
+    PreviewLayout layout)
+  {
+    std::optional<ZoneMap> sim;
+    if(layout == PreviewLayout::Basic){
+      sim = basicRoomZoneMap();
+    }
+    else if(layout == PreviewLayout::Room){
+      ZoneMap saved = m_outputNames.empty() ? ZoneMap{} : m_zoneMapStore.load(m_outputNames.front());
+      if(saved.empty()){
+        errorOut = "no saved zone map";
+        return nullptr;
+      }
+      sim = std::move(saved);
+    }
     auto preview = GraphPreview::create(
       doc, m_registry, std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end()), errorOut);
     if(!preview){
       return nullptr;
     }
     preview->setInputs(std::move(inputs));
+    if(sim){
+      preview->setSimZones(std::move(*sim));
+    }
     auto& slot = m_previews[session];
     if(slot){
       slot->close();
