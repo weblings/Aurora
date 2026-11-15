@@ -671,13 +671,20 @@ Aurora-u8jx.6's Preview island mock placed a truncation tooltip right of its row
 
 ---
 
-## Before drawing a state in a mock, find the built component and the existing message for it
-Tags: planning, design-process, mocks, webui, verification
-Applies-when: a mock frame shows a button, island or message that the editor or core already produces
+## Baseline a mock to the plan of record (the built editor) before drawing anything new
+Tags: planning, design-process, mocks, webui, verification, grille
+Applies-when: starting a mock frame, or a new frame set, in a mock that has Decisions switches or older frames
 
-Aurora-u8jx.6's first Preview mock got four review corrections that one search each would have avoided. It forced the old "Test on lights" button when `SplitTestButton.tsx` (labels `Test (15s)`, `Stop 0:12`) is the built control. It drew a "Testing on Hue" shell row for a test the user started, which Stage 6 reserves for what the user did not cause. It invented "Can't reach the Hue bridge." while core already raises `kUnreachableMessage` for exactly that state. It drew sim layouts as quadrants and a ring when the live island draws plain cells. The bead's own frame text carried two of these assumptions, so copying the frame list was not enough.
+Aurora-u8jx.6's Preview mock was started from the bead's frame text and from a mock whose Decisions switches default to the old state (the Test split button switch defaulted to off, which draws "Test on lights" and a "Live preview" pill). The editor had shipped the split button (`SplitTestButton.tsx`, `Test (15s)`, `Stop 0:12`). Everything drawn on that base needed owner steering: the old Test button, a "Testing on Hue" shell row Stage 6 reserves for tests the user did not cause, an invented "Can't reach the Hue bridge." when core already raises `kUnreachableMessage`, quadrant and ring shapes where the live island draws plain cells, a Grille select where the Test caret uses the tick menu, and an icon-only chevron beside a title. Each is a difference between the mock's base and the built editor, found one review round at a time.
 
-**Fix:** for every frame, name the built component, the existing message and the existing drawing rule before styling anything, and write them in the frame's caption. Treat frame text in a bead as a lean to check against the code, not a spec.
+The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it, drop the switch, and retire the frames that argued it.
+
+**Fix, in order, before styling anything:**
+1. Set every Decisions switch to the shipped editor's state and screenshot the mock's rest frame next to the real editor at the same width. Differences are mock bugs, not design choices.
+2. For each element the new frames touch, name the built component and file, the existing message in core or the shell, and the existing drawing rule (cell shape, truncation, tooltip). Put them in the frame's caption.
+3. Treat frame text in a bead as a lean to check against that baseline, not a spec.
+4. List anything the mock adds beyond the design field as "new in the mock" so the owner can accept or cut it.
+5. Test new labels with a worst-case string and copy the neighbouring control's overflow rule, keep mock annotations off the editor canvas, and check overlays at 1100, 700, 400 and 360 px.
 
 ---
 
