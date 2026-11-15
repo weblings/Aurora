@@ -6042,6 +6042,43 @@ TEST_CASE("POST /api/v1/graph/save and /effects/:id/duplicate answer like the co
 }
 
 
+TEST_CASE("Graph ui entries keep extra keys through draft PUT, GET and save on core and v1 routes (Aurora-u8jx.17)", "[PublicApi][v1][Drafts]")
+{
+  LightTestHarness h("ui-extra-keys");
+  nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+  const std::string nodeId = graph["nodes"][0]["id"].get<std::string>();
+  graph["ui"] = {{nodeId, {{"x", 40}, {"y", 80}, {"preview", true}, {"note", "hi"}}}};
+
+  const std::vector<std::pair<std::string, std::string>> routes = {
+    {"core", "/api/graph/"}, {"v1", "/api/v1/graph/"}};
+  for(const auto& [name, base] : routes){
+    const std::string session = "ui-" + name;
+    auto put = h.client->Put(base + "drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+    REQUIRE(put);
+    CHECK(put->status == 200);
+    const nlohmann::json putBody = nlohmann::json::parse(put->body);
+    CHECK(putBody["valid"] == true);
+    CHECK(putBody["errors"].empty());
+
+    auto got = h.client->Get(base + "drafts/" + session);
+    REQUIRE(got);
+    const nlohmann::json gotBody = nlohmann::json::parse(got->body);
+    CHECK(gotBody["graph"]["ui"] == graph["ui"]);
+    CHECK(gotBody["valid"] == true);
+    CHECK(gotBody["errors"].empty());
+
+    auto saved = h.client->Post(base + "save", nlohmann::json{{"session", session}, {"id", "kept-" + name}}.dump(),
+      "application/json");
+    REQUIRE(saved);
+    CHECK(saved->status == 200);
+    std::string error;
+    auto effect = EffectStore(h.dir.path).read("kept-" + name, error);
+    REQUIRE(effect.has_value());
+    CHECK((*effect)["ui"] == graph["ui"]);
+  }
+}
+
+
 TEST_CASE("v1 effect hide, move and rename answer like the core routes (Aurora-kep2.13)", "[PublicApi][v1]")
 {
   LightTestHarness h("v1-effect-manage");

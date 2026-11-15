@@ -49,6 +49,7 @@ PATCH /api/v1/state
 - Merge patch semantics: absent fields stay, `null` is rejected.
 - Unknown fields answer `unknown_field`, read-only ones `read_only_field`, with every problem in `errors`.
 - A paused host saves the effect and applies it on resume.
+- A graph's `ui` object is opaque to the API. Per-node entries may carry keys beyond `x` and `y` (any JSON value) and they survive draft PUT, GET and save unchanged.
 - `POST /graph/save` writes a validated draft as an effect without running it (same body as `/graph/apply`, the active effect stays). `POST /effects/{id}/duplicate` with `{id}` copies a built-in or custom effect to a new custom id. Both need `apply`.
 - `PUT /effects/{id}/hidden` with `{hidden}`, `POST /effects/{id}/move` with `{direction: up|down}` and `PUT /effects/{id}/title` with `{title}` (custom effects only) manage the picker list that `GET /effects` reports. All need `apply`.
 - A changed effect, a pause or a resume ends a running light test with `superseded`. Brightness does not.
