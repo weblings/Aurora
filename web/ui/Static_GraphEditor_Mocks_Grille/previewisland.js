@@ -2,6 +2,8 @@
 // (el, btn, chevron, vsicon, VS, menu, shellRow, shellBand, ...) at call time only.
 // pv is the scenario: lights reachable or not, a saved zone map or not, the user's pick, a running test.
 const PV_NAME = { lights: 'Lights', room: 'Sim: your room', basic: 'Sim: basic room' }
+// With a known Hue entertainment area (PUT /api/hue/entertainment-configurations, bridge only) the real layout is named after it; without, Lights.
+const pvName = (k) => (k === 'lights' && state.pv?.area) || PV_NAME[k]
 const PV_COLORS = ['#d4714f', '#c85f6d', '#8e5fb0', '#4d6bc9', '#3f9a8a', '#38c9a8', '#e5ad3c', '#d4714f', '#c85f6d', '#8e5fb0']
 // Every layout is plain 14 px cells, 8 per row, as ZonesIsland.tsx draws the live zones: no screen mapping, so a sim reads
 // like the lights it stands in for. Lights: 10 (the live count). Your room: 8 (web/demo/zonemap.js). Basic room: 4 (ROOM_ZONE_MAP).
@@ -34,7 +36,7 @@ function pvEvent(kind) {
   state.testing = pv.testing
   const after = pvShown()
   const lead = { down: "Can't reach your lights.", up: 'Lights are back.', 'test-start': 'Testing on Hue.', 'test-end': 'Test ended.' }[kind]
-  pv.say = before === after ? '' : `${lead} Preview shows ${PV_NAME[after]}.`
+  pv.say = before === after ? '' : `${lead} Preview shows ${pvName(after)}.`
   pvRedraw()
 }
 
@@ -53,7 +55,7 @@ function pvLayoutMenu() {
   const trigger = document.querySelector('.pv-layout')
   trigger.setAttribute('aria-expanded', 'true')
   const r = trigger.getBoundingClientRect()
-  const rows = ['lights', 'room', 'basic'].filter((k) => k !== 'room' || pv.saved).map((k) => ({ label: PV_NAME[k], checked: shown === k, disabled: k === 'lights' && !pv.lights, run: () => pvPick(k) }))
+  const rows = ['lights', 'room', 'basic'].filter((k) => k !== 'room' || pv.saved).map((k) => ({ label: pvName(k), trunc: k === 'lights', checked: shown === k, disabled: k === 'lights' && !pv.lights, run: () => pvPick(k) }))
   const items = pv.outputs > 1 ? [{ head: 'Hue' }, ...rows, '-', { head: 'XR headset (example)' }, { label: 'Default view', checked: false }] : rows
   menu(items, r.left, r.bottom + 4)
 }
@@ -64,15 +66,17 @@ function pvIsland() {
   const toggle = (cls) => btn(['Preview', pvChev()], { class: `ui-button ${cls}`, 'data-act': 'zones', 'aria-expanded': String(open), 'aria-label': open ? 'Hide preview' : 'Show preview' })
   if (!open) return toggle('')
   const cells = PV_CELLS[shown]
-  const label = PV_NAME[shown]
+  const label = pvName(shown)
   const shownLabel = pv.outputs > 1 ? `Hue: ${label}` : label
-  return el('div', { class: 'pv-card', role: 'group', 'aria-label': 'Preview' },
+  const card = el('div', { class: 'pv-card', role: 'group', 'aria-label': 'Preview' },
     toggle('pv-toggle'),
     // While a test runs the menu is locked; the reason is a tooltip on the wrapper, since a disabled button gets no hover.
     el('span', { class: 'pv-lock', title: pv.testing ? 'Showing the lights while a test runs' : undefined },
-      btn([el('span', {}, shownLabel), pvChev()], { class: 'ui-button pv-layout', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-act': 'pv-layout', disabled: pv.testing, 'aria-label': `Preview layout, ${label}` })),
-    el('div', { class: 'ge-zmap pv-map', style: `--rows:${PV_ROWS[shown]};--step:16px`, role: 'img', 'aria-label': `${PV_NAME[shown]}, ${cells.length} zones` },
+      btn([el('span', { class: 'pv-label s6-trunc' }, shownLabel), pvChev()], { class: 'ui-button pv-layout', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'data-act': 'pv-layout', disabled: pv.testing, 'aria-label': `Preview layout, ${label}` })),
+    el('div', { class: 'ge-zmap pv-map', style: `--rows:${PV_ROWS[shown]};--step:16px`, role: 'img', 'aria-label': `${pvName(shown)}, ${cells.length} zones` },
       cells.map((r) => el('i', { style: `--x:${r.x};--y:${r.y};--w:1;--h:1;background:${r.c}` }))))
+  truncTip(card.querySelector('.pv-layout')) // the title button's rule: full name on hover only when cut off
+  return card
 }
 
 // The shell above the bar: core's own output_link text (OutputLinkMonitor.hpp kUnreachableMessage), no button. A test the user
@@ -113,6 +117,8 @@ function pvFrame(n) {
     7: [{ lights: false, saved: false, cap: 'No lights and no saved map (fresh install): Sim: basic room. Sim: your room is left out of the menu (owner, 2026-11-15).', say: "Can't reach your lights. Preview shows Sim: basic room." }],
     8: [{ testing: true, cap: 'Island collapsed during a test: the Stop button is all that says a test runs, as with the island open.' }, () => { state.zonesOpen = false; drawIslands() }],
     9: [{ pick: 'basic', measure: true, cap: 'Longest name at this window width. Open the 400 and 360 px popups from the strip to measure there.' }],
+    11: [{ area: 'Living room TV and bookshelf entertainment area', measure: true, cap: 'A 47-character Hue area name. The button caps at 28ch and ends in an ellipsis like the title button (.editor-title-menu); hovering shows the full name only because it is cut off. The menu row caps at 30ch like .editor-menu-title.' }],
+    12: [{ area: 'Living room', cap: 'A short Hue area name: no truncation, no tooltip.' }],
     10: [{ outputs: 2, cap: 'Two outputs (for later): the layout menu gains one section per output, with the trigger reading "Hue: Lights". No second dropdown, the header is unchanged.' }, () => pvLayoutMenu()],
   }
   const [init, after] = frames[n]

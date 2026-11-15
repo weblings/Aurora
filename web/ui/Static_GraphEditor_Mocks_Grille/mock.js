@@ -587,8 +587,13 @@ function truncTip(row) {
     const r = row.getBoundingClientRect()
     tip = el('div', { class: 'ui-tooltip s6-tip', role: 'tooltip' }, label.textContent)
     layer.append(tip)
-    tip.style.left = `${r.right + 8}px`
-    tip.style.top = `${r.top + r.height / 2 - tip.offsetHeight / 2}px`
+    // Right of the row, else left, else below, always inside the window (a mock stand-in for Grille's React Aria placement).
+    tip.style.maxWidth = `${innerWidth - 16}px`
+    const w = tip.offsetWidth, h = tip.offsetHeight, mid = r.top + r.height / 2 - h / 2
+    const clampX = (x) => Math.max(8, Math.min(x, innerWidth - 8 - w)), clampY = (y) => Math.max(8, Math.min(y, innerHeight - 8 - h))
+    if (r.right + 8 + w <= innerWidth - 8) Object.assign(tip.style, { left: `${r.right + 8}px`, top: `${clampY(mid)}px` })
+    else if (r.left - 8 - w >= 8) Object.assign(tip.style, { left: `${r.left - 8 - w}px`, top: `${clampY(mid)}px` })
+    else Object.assign(tip.style, { left: `${clampX(r.left)}px`, top: `${clampY(r.bottom + 6)}px` })
   }
   const hide = () => { clearTimeout(timer); tip?.remove(); tip = null }
   row.addEventListener('mouseenter', () => { clearTimeout(timer); timer = setTimeout(show, 500) })
@@ -1139,7 +1144,7 @@ const FRAMES = [
     ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }],
     ['s6-openpath', 'Open path', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6({ openSub: true }) }]]],
   ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-start', 'How 2+ rows start', () => drawBoard('start')], ['s7-sim', 'Shell sequences A/B', () => drawBoard('sim')], ['s7-spot', 'Shell spotlight', () => drawBoard('spot')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
-  ['Stage 7 Preview', [['pv1', '1 Lights', () => pvFrame(1)], ['pv2', '2 Menu open', () => pvFrame(2)], ['pv3', '3 Sim: basic room', () => pvFrame(3)], ['pv4', '4 Testing', () => pvFrame(4)], ['pv5', '5 Test ended', () => pvFrame(5)], ['pv6', '6 No lights', () => pvFrame(6)], ['pv7', '7 No lights, no map', () => pvFrame(7)], ['pv8', '8 Collapsed in test', () => pvFrame(8)], ['pv9', '9 Longest name', () => pvFrame(9)], ['pv10', '10 Two outputs', () => pvFrame(10)]]],
+  ['Stage 7 Preview', [['pv1', '1 Lights', () => pvFrame(1)], ['pv2', '2 Menu open', () => pvFrame(2)], ['pv3', '3 Sim: basic room', () => pvFrame(3)], ['pv4', '4 Testing', () => pvFrame(4)], ['pv5', '5 Test ended', () => pvFrame(5)], ['pv6', '6 No lights', () => pvFrame(6)], ['pv7', '7 No lights, no map', () => pvFrame(7)], ['pv8', '8 Collapsed in test', () => pvFrame(8)], ['pv9', '9 Longest name', () => pvFrame(9)], ['pv10', '10 Two outputs', () => pvFrame(10)], ['pv11', '11 Long area name', () => pvFrame(11)], ['pv12', '12 Short area name', () => pvFrame(12)]]],
   ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 

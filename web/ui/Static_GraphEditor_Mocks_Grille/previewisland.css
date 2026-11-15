@@ -12,3 +12,6 @@
 .pv-card .pv-toggle:hover { background: var(--ui-color-control-bg-hover); }
 .pv-card .pv-toggle:active { background: var(--ui-color-control-bg-active); }
 .pv-lock { display: block; }
+/* The layout name follows the title button: the button caps at 28ch (.editor-title-menu) and its label ends in an ellipsis. */
+.pv-card .pv-layout { max-width: 28ch; }
+.pv-card .pv-layout .pv-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

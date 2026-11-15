@@ -658,3 +658,33 @@ Applies-when: finishing a static or scripted mock frame before showing it to the
 `playwright-core` in `tools/browser-check` with the cached Chromium loads the file mock directly (no server) and gave a screenshot plus logged text per frame. It caught a stale shared array, a missing re-open message and an always-empty first paint. A separator dot the owner had cut survived in a helper until a grep for its class; the gap it left stayed one more round.
 
 **Fix:** after each edit, run the frame headless, print the measured and logged values, and look at one screenshot. When something is cut, grep the markup, CSS and captions for its class and wording.
+
+---
+
+## An overlay anchored to an edge control needs a measured placement and a narrow-width check, in the mock and the build
+Tags: planning, design-process, mocks, webui, tooltip, callout, narrow
+Applies-when: a mock or component draws its own tooltip, callout or popup next to a control near a window edge
+
+Aurora-u8jx.6's Preview island mock placed a truncation tooltip right of its row and flipped it left when it overflowed. At 360 px wide the flipped box still left the window, because the tooltip is wider than the room on either side. The same failure already shipped once: the refused-save callout (Aurora-h55g, `docs/log/2026-11-13-h55g-refused-callout-narrow.md`) was anchored left of the problems chip, started at x=-300 at 400 px, and passed because its mock and browser check were desktop only. That log filed no lesson. The real editor's Grille tooltips are placed by React Aria, which flips and clamps, so only hand-built overlays (mocks, `ProblemsChip.tsx`) hit this.
+
+**Fix:** place by measured room, not a breakpoint: preferred side if it fits between the anchor and the gutter, else the other side, else below, then clamp both axes inside the window and cap the width at the window width minus a margin. `ProblemsChip.tsx` `placeCallout` is the reference. Check each such overlay at 1100, 700, 400 and 360 px against `innerWidth` and `innerHeight`, and on the first show after a fresh load. The frame strip wraps tall at narrow widths and can push the control off screen, so judge narrow widths in the popup links.
+
+---
+
+## Before drawing a state in a mock, find the built component and the existing message for it
+Tags: planning, design-process, mocks, webui, verification
+Applies-when: a mock frame shows a button, island or message that the editor or core already produces
+
+Aurora-u8jx.6's first Preview mock got four review corrections that one search each would have avoided. It forced the old "Test on lights" button when `SplitTestButton.tsx` (labels `Test (15s)`, `Stop 0:12`) is the built control. It drew a "Testing on Hue" shell row for a test the user started, which Stage 6 reserves for what the user did not cause. It invented "Can't reach the Hue bridge." while core already raises `kUnreachableMessage` for exactly that state. It drew sim layouts as quadrants and a ring when the live island draws plain cells. The bead's own frame text carried two of these assumptions, so copying the frame list was not enough.
+
+**Fix:** for every frame, name the built component, the existing message and the existing drawing rule before styling anything, and write them in the frame's caption. Treat frame text in a bead as a lean to check against the code, not a spec.
+
+---
+
+## Review the mock's controls against the design system, not just its colours
+Tags: planning, design-process, mocks, grille, webui
+Applies-when: a mock builds a new control (select, menu, header row) next to existing Grille dropdowns
+
+The first Preview island used a Grille select (bold selected row), an icon-only collapse chevron beside a title, and a hand-tuned card. Review asked why it did not use the tick menu the Test caret uses, and why it read as two dropdowns stacked. The fixes were reuse, not restyle: the shared tick menu, one whole-row button that is transparent when idle, and the popup surface the other open menus have. Measured in the browser, the open card already matched the other popups (`#1a1a1a`, `#333` border, same shadow). The difference people saw was against the closed button's `#333` face.
+
+**Fix:** before building a control, list the neighbouring controls that do the same job (here the zoom, title and Test caret menus) and copy their structure. Compare computed colours of the open states in the browser instead of arguing from tokens.

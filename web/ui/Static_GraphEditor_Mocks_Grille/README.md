@@ -75,6 +75,8 @@ Strip group **Stage 7 Preview**, frames `#pv1` to `#pv10` (the ten frames of the
 - Scenario toggles (strip, **Preview scenario**): Lights reachable, Saved room map. Flipping them replays the automatic switches, with the Announcer text in a dashed caption. A user pick is never announced.
 - Shell: no row for a test the user started (Stage 6 keeps rows for what the user did not cause, and the button reads Stop). With no lights the shell already shows core's `output_link` row, `OutputLinkMonitor.hpp` kUnreachableMessage, drawn as is.
 - A running test pins the island to Lights and locks the layout menu (label stays "Lights", tooltip "Showing the lights while a test runs"). Island width is 142 px at rest, 168 px with the longest name (`#pv9` prints it). `Preview 400x800` and `Preview 360x800` open popups.
+- Named area (`#pv11` long, `#pv12` short): with a known Hue entertainment area the real layout is named after it instead of "Lights". The layout button follows the title button: capped at 28ch (`.editor-title-menu`), label ends in an ellipsis, the full name shows as a tooltip on hover only when cut off (the tooltip flips left at the window edge). The menu row caps at 30ch (`.editor-menu-title`). A 47-character name makes the card 248 px wide, against 142 px otherwise.
 - Frames force the Test split switch on.
+- Card color: decided (owner, 2026-11-15) the `#1a1a1a` popup card, same as the other open menus. The `#333` variant was tried and dropped.
 
 Decided (owner, 2026-11-15): Sim: your room is left out of the select when there is no saved map (frame 7). Open: the greyed Lights option carries no reason of its own (React Aria skips disabled options on arrow keys), so a keyboard user hears it from the shell row and the Test tooltip.
