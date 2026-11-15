@@ -29,6 +29,43 @@ async function keyboardReachesUndoRedo(page, width) {
   assert.fail(`${width} px: Undo/Redo not reachable by keyboard; tabbed through ${JSON.stringify(seen)}`)
 }
 
+// Aurora-u8jx.9.1: title is the whole title control (.editor-title-menu, dot and chevron included), spare is the gap before the chip.
+// The label form gives back GIVE px, so the title would be title + spare - GIVE (capped by its natural width) if Test showed its label.
+const TITLE_MIN = 100
+const readForm = (page) => page.evaluate(() => ({
+  title: Math.round(document.querySelector('.editor-title-menu').getBoundingClientRect().width),
+  spare: Math.round(document.querySelector('.editor-bar-end').getBoundingClientRect().width),
+  test: Math.round(document.querySelector('.editor-split-main').getBoundingClientRect().width),
+  bar: Math.round(document.querySelector('.editor-header').getBoundingClientRect().width),
+  icon: document.querySelector('.editor-split').hasAttribute('data-icon-form'),
+}))
+const GIVE = 52
+const assertForm = (width, what, f) => {
+  const label = f.icon ? Math.min(f.title + f.spare - GIVE, 123) : f.title
+  if (f.icon) assert.ok(label < TITLE_MIN + 1, `${width} px, ${what}: icon Test but the title would still be ${label} px in label form: ${JSON.stringify(f)}`)
+  else assert.ok(f.title >= TITLE_MIN, `${width} px, ${what}: label Test but the title is ${f.title} px: ${JSON.stringify(f)}`)
+}
+// Sweep the width down and back up: the form changes once each way at most and never flips at a fixed width.
+async function sweep(page, what, widths) {
+  let last = null
+  let toggles = 0
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 800 })
+    await page.waitForTimeout(250)
+    const a = await readForm(page)
+    await page.waitForTimeout(250)
+    const b = await readForm(page)
+    assert.equal(a.icon, b.icon, `${width} px, ${what}: Test flipped at a fixed width: ${JSON.stringify([a, b])}`)
+    assertForm(width, what, b)
+    if (last !== null && last !== b.icon) toggles++
+    last = b.icon
+  }
+  console.log('sweep', what, widths.join(','), 'toggles:', toggles)
+  assert.ok(toggles <= 2, `${what}: the form toggled ${toggles} times in one sweep down and up`)
+  return toggles
+}
+const SWEEP = [460, 450, 440, 430, 420, 410, 400, 390, 380, 370, 360, 370, 380, 390, 400, 410, 420, 430, 440, 450, 460]
+
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
   let page = await browser.newPage({ viewport: { width: 1470, height: 900 } })
@@ -148,6 +185,18 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.waitForSelector('.aurora-node')
     await page.waitForTimeout(1500)
     const barHeight = await page.evaluate(() => document.querySelector('.editor-header').getBoundingClientRect().height)
+    for (const width of [520, 450, 420, 400, 360]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.waitForTimeout(400)
+      const f = await readForm(page)
+      console.log(width, 'title/test (no problem):', JSON.stringify(f))
+      assertForm(width, 'no problem', f)
+      if (width >= 400) assert.ok(!f.icon, `${width} px, no problem: Test dropped to its icon with a ${f.title} px title`)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/bar-${width}-clean.png`, clip: { x: 0, y: 0, width, height: 70 } })
+    }
+    await sweep(page, 'no problem', SWEEP)
+    await page.setViewportSize({ width: 1470, height: 900 })
+    await page.waitForTimeout(300)
     const mid = await page.locator('.react-flow__edge[data-id*="ease_hue.frame"][data-id*="gain_hue.frame"] path.react-flow__edge-path').first().evaluate((p) => {
       const m = p.getPointAtLength(p.getTotalLength() / 2)
       const pt = new DOMPoint(m.x, m.y).matrixTransform(p.getScreenCTM())
@@ -156,7 +205,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.click(mid.x, mid.y)
     await page.keyboard.press('Backspace')
     await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
-    for (const width of [1470, 1100, 900, 700, 520, 400, 360]) {
+    for (const width of [1470, 1100, 900, 700, 520, 450, 420, 400, 360]) {
       await page.setViewportSize({ width, height: 800 })
       await page.waitForTimeout(400)
       const g = await page.evaluate(() => {
@@ -175,8 +224,15 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.ok(g.chipLeft >= -1 && g.chipRight <= g.vw + 1, `${width} px: chip outside the window: ${JSON.stringify(g)}`)
       assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Undo: ${JSON.stringify(g)}`)
       assert.ok(g.splitLeft >= g.nextLeft && g.splitRight <= g.vw + 1, `${width} px: Test split button is not after Undo and inside the window: ${JSON.stringify(g)}`)
-      const test = await page.locator('.editor-split-main').innerText()
-      assert.equal(test, 'Test (15s)', `${width} px: the split button reads ${test}, not Test (15s)`)
+      const form = await readForm(page)
+      console.log(width, 'title/test (with a problem):', JSON.stringify(form))
+      assert.ok(width < 450 || !form.icon, `${width} px: Test is already an icon (label stays at 450 px and wider)`)
+      assertForm(width, 'with a problem', form)
+      if (SHOTS && [520, 450, 420, 400, 360].includes(width)) await page.screenshot({ path: `${SHOTS}/bar-${width}-problem.png`, clip: { x: 0, y: 0, width, height: 70 } })
+      const main = page.locator('.editor-split-main')
+      assert.equal(await main.getAttribute('aria-label'), form.icon ? 'Test (15s)' : 'Test on lights', `${width} px: Test's name`)
+      if (!form.icon) assert.equal(await main.innerText(), 'Test (15s)', `${width} px: the label`)
+      assert.equal(await page.locator('.editor-problems-chip .ui-icon[data-chevron]').count(), 1, `${width} px: the chip has no chevron`)
       assert.equal(await page.locator('.editor-split-main').isDisabled(), true, `${width} px: Test is not disabled with problems`)
       await page.mouse.move(700, 400)
     await page.locator('.editor-split').hover({ force: true })
@@ -184,6 +240,29 @@ await withEditorStack(async ({ editorUrl }) => {
       const o = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
       assert.ok(o <= 0, `${width} px: page scrolls sideways by ${o}`)
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-problems.png` })
+      if (SHOTS && width === 400) await page.screenshot({ path: `${SHOTS}/400-icon-test.png`, clip: { x: 0, y: 0, width, height: 120 } })
+    }
+    const toggles = await sweep(page, 'with a problem', SWEEP)
+    assert.equal(toggles, 2, `with a problem the form should switch once each way, not ${toggles}`)
+    // Aurora-u8jx.9.1: with the problem undone, enabled Test in its icon form keeps its name and tooltip.
+    // Without a chip the title keeps its room down to 360 px, so this goes below the targets to reach the icon form.
+    for (const width of [340, 320]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.keyboard.press('Control+z')
+      await page.locator('.editor-problems-chip').waitFor({ state: 'detached' })
+      await page.waitForTimeout(400)
+      assert.ok((await readForm(page)).icon, `${width} px: expected the icon form`)
+      const main = page.locator('.editor-split-main')
+      assert.equal(await main.getAttribute('aria-label'), 'Test (15s)', `${width} px: enabled icon Test's name`)
+      assert.equal(await page.getByRole('button', { name: 'Test (15s)' }).count(), 1, `${width} px: Test is not reachable by name`)
+      assert.equal(await main.isDisabled(), false, `${width} px: Test is disabled with no problems`)
+      await main.hover()
+      await page.locator('.ui-tooltip').first().waitFor()
+      assert.match(await page.locator('.ui-tooltip').first().innerText(), /^Test \(15s\)\./, `${width} px: tooltip in icon form`)
+      console.log(width, 'icon Test tooltip:', JSON.stringify(await page.locator('.ui-tooltip').first().innerText()))
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-icon-test.png` })
+      await page.keyboard.press('Control+Shift+z')
+      await page.locator('.editor-problems-chip').waitFor()
     }
   } finally {
     await browser.close()

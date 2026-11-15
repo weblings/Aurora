@@ -731,6 +731,13 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
+/* Narrow bar (Aurora-u8jx.9.1): SplitTestButton sets data-icon-form when the title would fall under about
+   100 px, and idle Test is then its icon alone (state in aria-label and tooltip). */
+.editor-split[data-icon-form] .editor-split-main .editor-split-label { display: none; }
+.editor-split[data-icon-form] .editor-split-main { width: var(--ui-size-button-icon-size); padding: 0; justify-content: center; }
+.editor-split[data-icon-form] .editor-split-main .editor-split-icon-extra { display: block; }
+.editor-split-icon-extra { display: none; }
+
 .editor-header > .ui-button,
 .editor-header > .editor-sep,
 .editor-header > .editor-edited {

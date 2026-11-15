@@ -88,6 +88,13 @@ export function stopLabel(test: TestState): string {
   return `Stop ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
+// Stop's accessible name in the bar's icon form, where the countdown is not drawn.
+export function stopName(test: TestState): string {
+  if (test.mode === 'live') return 'Stop the test'
+  const s = Math.max(0, Math.ceil(test.remainingMs / 1000))
+  return `Stop the test, ${s} ${s === 1 ? 'second' : 'seconds'} left`
+}
+
 const at = (rank: StatusRank, label: string, action: Status['action'] = null): Status => ({ rank, label, action })
 
 export function pickStatus({ openError, unreachable, loop, test, otherHolder }: StatusInput): Status {

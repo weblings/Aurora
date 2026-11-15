@@ -41,6 +41,28 @@ await withEditorStack(async ({ editorUrl }) => {
       step(`${name}: clicking the trigger again closes it${chevron ? ' and the chevron flips and returns' : ''}`)
     }
 
+    // Aurora-u8jx.8: the Problems chip is a popover trigger with a chevron that flips the same way.
+    const mid = await page.locator('.react-flow__edge[data-id*="ease_hue.frame"][data-id*="gain_hue.frame"] path.react-flow__edge-path').first().evaluate((p) => {
+      const m = p.getPointAtLength(p.getTotalLength() / 2)
+      const pt = new DOMPoint(m.x, m.y).matrixTransform(p.getScreenCTM())
+      return { x: pt.x, y: pt.y }
+    })
+    await page.mouse.click(mid.x, mid.y)
+    await page.keyboard.press('Backspace')
+    const chip = page.locator('.editor-problems-chip')
+    await chip.waitFor()
+    assert.equal(await chip.locator('.ui-icon[data-chevron]').count(), 1, 'Problems chip: has a chevron')
+    await chip.click()
+    await page.getByRole('dialog', { name: 'Problems' }).waitFor()
+    assert.equal(await chip.getAttribute('aria-expanded'), 'true', 'Problems chip: aria-expanded while open')
+    await page.waitForTimeout(200)
+    assert.match(await rotate(chip), /^(180deg|3\.14)/, 'Problems chip: chevron flips while open')
+    await chip.click()
+    await page.getByRole('dialog', { name: 'Problems' }).waitFor({ state: 'detached' })
+    await page.waitForTimeout(200)
+    assert.match(await rotate(chip), /^(0deg|none|0)/, 'Problems chip: chevron back when closed')
+    step('Problems chip: the chevron flips with aria-expanded and returns')
+
     // The Add node search field fits the menu.
     await page.getByRole('button', { name: 'Add node' }).click()
     const dialog = page.getByRole('dialog', { name: 'Add node' })

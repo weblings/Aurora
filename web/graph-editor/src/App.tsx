@@ -46,7 +46,7 @@ import { converterFor, insertConverter, refuseConnection } from './graph/connect
 import { controlsOf } from './graph/controls'
 import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
-import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome } from './graph/status'
+import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
 import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
@@ -861,6 +861,7 @@ export function App() {
           mode={testMode}
           running={testing}
           stopText={stopLabel(lights.state)}
+          stopName={stopName(lights.state)}
           action={status.action}
           disabledReason={
             blocked ? status.label : noLights ? 'No lights reachable' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null

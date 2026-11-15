@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { initialLoop, type LoopState } from './loop'
 import { initialTest, testReducer, type TestState } from './lightTest'
-import { changeIsEdit, pickStatus, quietEndToast, stopAnnounced, stopLabel, testFailureToast, testOutcome, type StatusInput } from './status'
+import { changeIsEdit, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome, type StatusInput } from './status'
 
 const base: StatusInput = { openError: false, unreachable: false, loop: { ...initialLoop, valid: true, stream: 'live' }, test: initialTest, otherHolder: null }
 const withLoop = (l: Partial<LoopState>): StatusInput => ({ ...base, loop: { ...base.loop, ...l } })
@@ -103,6 +103,9 @@ describe('Stop label', () => {
     expect(stopLabel({ ...initialTest, phase: 'running', remainingMs: 12000 })).toBe('Stop 0:12')
     expect(stopLabel({ ...initialTest, phase: 'running', remainingMs: 11100 })).toBe('Stop 0:12')
     expect(stopLabel({ ...initialTest, mode: 'live', phase: 'running' })).toBe('Stop')
+    expect(stopName({ ...initialTest, phase: 'running', remainingMs: 12000 })).toBe('Stop the test, 12 seconds left')
+    expect(stopName({ ...initialTest, phase: 'running', remainingMs: 500 })).toBe('Stop the test, 1 second left')
+    expect(stopName({ ...initialTest, mode: 'live', phase: 'running' })).toBe('Stop the test')
   })
 })
 

@@ -385,6 +385,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx6-preview-island-planning` | [log/2026-11-15-u8jx6-preview-island-planning.md](log/2026-11-15-u8jx6-preview-island-planning.md) | Graph editor: Preview island and sim layouts planned, per-node previews filed |
 | `u8jx61-preview-island-build` | [log/2026-11-15-u8jx61-preview-island-build.md](log/2026-11-15-u8jx61-preview-island-build.md) | Graph editor: Preview island with a layout menu and sim layouts built |
 | `u8jx9-narrow-bar-mock` | [log/2026-11-15-u8jx9-narrow-bar-mock.md](log/2026-11-15-u8jx9-narrow-bar-mock.md) | Graph editor: narrow top bar mock, Test drops to its icon |
+| `u8jx91-narrow-top-bar` | [log/2026-11-15-u8jx91-narrow-top-bar.md](log/2026-11-15-u8jx91-narrow-top-bar.md) | Graph editor: narrow top bar, idle Test drops to its icon, the Problems chip gets a chevron |
 | `uds2-status-undrawn-fields` | [log/2026-11-13-uds2-status-undrawn-fields.md](log/2026-11-13-uds2-status-undrawn-fields.md) | Graph editor: Status no longer carries the undrawn detail and where fields, and Take over's tooltip is drawn |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
