@@ -63,3 +63,18 @@ Frames **Stage 6** in the strip (`#s6` all three, `#s6-shell`, `#s6-test`, `#s6-
 ## Button styling A / B / C (`Aurora-u8jx.7`)
 
 Frame **Button styling A/B/C** (`#s7-buttons`, strip group Stage 7). Every editor button type (top bar, Test split, Add node, View, Dashboard controls, drawer, param widgets, shell rows, toast Undo, dialog) drawn three ways side by side, plus an emphasis x state matrix (default, hover, pressed, focus, disabled; states forced through Grille's own `data-*` attributes). A = Grille small button, B = the bar's fixed 32px rule everywhere, C = Rocky Road XR scheme (`panel.css`). A measured-height table at the top reads the drawn buttons. Code is in `buttons.js` / `buttons.css` (scoped to `.bs-a/.bs-b/.bs-c`); the real editor is untouched.
+
+## Preview island (`Aurora-u8jx.6`)
+
+Strip group **Stage 7 Preview**, frames `#pv1` to `#pv10` (the ten frames of the bead's design field). Live, not a board: Test, Stop, the layout select and collapse all work. Code is in `previewisland.js` / `previewisland.css`, hooked into `mock.js` at `drawIslands`, `ACTS`, `FRAMES` and the Test split button. The real editor is untouched.
+
+- Island renamed **Preview**: a card whose first row is one Grille button (`Preview` + chevron, the whole row toggles, like the other dropdowns) that blends into the card when idle and fills on hover, so only the layout button reads as a button, then a Grille menu button for the layout (the same shared menu as the zoom and Test caret menus, tick on the checked row), then the cells. Collapsed it is the same Preview button at its own width. No output label today: with one output "Lights" already names it. A second output (`#pv10`) adds one section per output to the same layout menu, trigger reading `Hue: Lights`, so no second dropdown.
+- Layouts are all plain 14 px square cells, 8 per row, like the live island (`ZonesIsland.tsx`): Lights 10, Sim: your room 8, Sim: basic room 4. No quadrant or ring shapes, since those imply screen mapping the island dropped.
+- Test is the split button as built (`SplitTestButton.tsx`): `Test (15s)`, `Stop 0:12` while running. The mock's label now follows the code (it said `Test`). Disabled with no lights, reason as its tooltip.
+- The dashed text under the frame strip (mock note, announcement, measured width) is mock annotation, not editor UI. The announcement is the Announcer's visually hidden live region, never drawn.
+- Scenario toggles (strip, **Preview scenario**): Lights reachable, Saved room map. Flipping them replays the automatic switches, with the Announcer text in a dashed caption. A user pick is never announced.
+- Shell: no row for a test the user started (Stage 6 keeps rows for what the user did not cause, and the button reads Stop). With no lights the shell already shows core's `output_link` row, `OutputLinkMonitor.hpp` kUnreachableMessage, drawn as is.
+- A running test pins the island to Lights and locks the layout menu (label stays "Lights", tooltip "Showing the lights while a test runs"). Island width is 142 px at rest, 168 px with the longest name (`#pv9` prints it). `Preview 400x800` and `Preview 360x800` open popups.
+- Frames force the Test split switch on.
+
+Decided (owner, 2026-11-15): Sim: your room is left out of the select when there is no saved map (frame 7). Open: the greyed Lights option carries no reason of its own (React Aria skips disabled options on arrow keys), so a keyboard user hears it from the shell row and the Test tooltip.

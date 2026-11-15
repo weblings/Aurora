@@ -245,7 +245,7 @@ function drawBar() {
   const bar = $('bar')
   const count = probN()
   const problems = state.problems ? btn([warnIcon(), `${count} ${count === 1 ? 'problem' : 'problems'}`], { class: 'ui-button ge-problems', 'data-act': 'problems', 'aria-haspopup': 'dialog' }) : null
-  const blocked = state.problems || Boolean(state.banner?.blocking)
+  const blocked = state.problems || Boolean(state.banner?.blocking) || Boolean(state.pv && !state.pv.lights)
   const testPart = opts.split ? splitTest(blocked) : state.testing
     ? [el('span', { class: 'ge-countdown' }, 'On the lights, reverts in 0:24'), btn('Revert', { 'data-act': 'revert' })]
     : [btn(state.other ? 'Take over the lights' : 'Test on lights', { variant: opts.testPrimary ? 'primary' : undefined, class: `ui-button${opts.testPrimary ? ' ge-primary' : ''}`, 'data-act': 'test', disabled: blocked, title: 'Show this graph on the real lights for a while, then put them back' })]
@@ -273,14 +273,14 @@ function splitTest(blocked) {
   const primary = opts.testPrimary
   const cls = `ui-button ge-split-part${primary ? ' ge-primary' : ''}`
   const v = primary ? 'primary' : undefined
-  const reason = state.problems ? 'Fix the problems first' : state.banner?.blocking ? 'Cannot reach Aurora' : undefined
+  const reason = state.problems ? 'Fix the problems first' : state.banner?.blocking ? 'Cannot reach Aurora' : state.pv && !state.pv.lights ? 'No lights reachable' : undefined
   if (state.status?.action) return btn(state.status.action.label, { variant: v, class: `ui-button${primary ? ' ge-primary' : ''}`, 'data-act': state.status.action.act, title: 'Another session took over the preview' })
   if (state.testing) {
     const label = test.mode === 'once' ? `Stop ${clock(test.left)}` : 'Stop'
     return el('span', { class: 'ge-split' }, btn([vsicon(VS.stop), el('span', { class: 'ge-countdown-in' }, label)], { variant: v, class: cls, 'data-act': 'revert', title: 'Stop and put the lights back' }),
       btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu' }))
   }
-  const label = state.other ? 'Take over' : 'Test'
+  const label = state.other ? 'Take over' : test.mode === 'once' ? 'Test (15s)' : 'Test (Live)' // as SplitTestButton.tsx
   return el('span', { class: 'ge-split', title: reason }, btn([vsicon(VS.play), label], { variant: v, class: cls, 'data-act': 'test', disabled: blocked, title: reason ?? (test.mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop') }),
     btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu', disabled: blocked }))
 }
@@ -334,6 +334,7 @@ function zonesIsland() {
 
 function drawIslands() {
   $('controls-btn').replaceChildren('Dashboard controls ', el('span', { class: 'ge-count' }, String(state.controls.length)))
+  if (state.pv) { $('preview').replaceChildren(pvIsland()); return }
   if (opts.split) { $('preview').replaceChildren(zonesIsland()); return }
   $('preview').replaceChildren(el('div', { class: `ge-zones${state.problems ? ' stale' : ''}` },
     el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen }, 'Zone preview', chevron('cc-chev', state.zonesOpen ? 'up' : 'down' === 'up')),
@@ -352,6 +353,7 @@ function toast(text) {
 // --- Popups ------------------------------------------------------------------
 
 function closePopups() {
+  document.querySelectorAll('.pv-layout[aria-expanded="true"]').forEach((n) => n.setAttribute('aria-expanded', 'false'))
   state.popup = null
   layer.replaceChildren()
   $('canvas').classList.remove('drawer-open', 'drawer-full')
@@ -1137,6 +1139,7 @@ const FRAMES = [
     ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }],
     ['s6-openpath', 'Open path', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6({ openSub: true }) }]]],
   ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-start', 'How 2+ rows start', () => drawBoard('start')], ['s7-sim', 'Shell sequences A/B', () => drawBoard('sim')], ['s7-spot', 'Shell spotlight', () => drawBoard('spot')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
+  ['Stage 7 Preview', [['pv1', '1 Lights', () => pvFrame(1)], ['pv2', '2 Menu open', () => pvFrame(2)], ['pv3', '3 Sim: basic room', () => pvFrame(3)], ['pv4', '4 Testing', () => pvFrame(4)], ['pv5', '5 Test ended', () => pvFrame(5)], ['pv6', '6 No lights', () => pvFrame(6)], ['pv7', '7 No lights, no map', () => pvFrame(7)], ['pv8', '8 Collapsed in test', () => pvFrame(8)], ['pv9', '9 Longest name', () => pvFrame(9)], ['pv10', '10 Two outputs', () => pvFrame(10)]]],
   ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 
@@ -1150,7 +1153,11 @@ function drawFrames(current) {
     toggle('Zones island: no resize', opts.zonesPlain, 'zonesPlain'),
     el('a', { href: '#', role: 'button', class: 'on', onclick: (e) => { e.preventDefault(); e.stopPropagation(); const modes = ['tip', 'toast', 'none']; opts.refused = modes[(modes.indexOf(opts.refused) + 1) % modes.length]; showFrame() } },
       `Refused save: ${{ tip: 'tooltip, then ping', toast: 'toast, then ping', none: 'ping only' }[opts.refused]}`),
+    el('b', {}, 'Preview scenario'),
+    el('a', { href: '#', role: 'switch', 'aria-checked': String(!state.pv || state.pv.lights), class: !state.pv || state.pv.lights ? 'on' : undefined, onclick: (e) => { e.preventDefault(); e.stopPropagation(); pvToggle('lights'); drawFrames(id) } }, 'Lights reachable'),
+    el('a', { href: '#', role: 'switch', 'aria-checked': String(!state.pv || state.pv.saved), class: !state.pv || state.pv.saved ? 'on' : undefined, onclick: (e) => { e.preventDefault(); e.stopPropagation(); pvToggle('saved'); drawFrames(id) } }, 'Saved room map'),
     el('b', {}, 'Narrow (new window)'),
+    ...[['Preview 400x800', 400, 800, '#pv9'], ['Preview 360x800', 360, 800, '#pv9']].map(([label, w, h, hash]) => el('a', { href: hash, onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}${hash}`, '_blank', `popup,width=${w},height=${h}`) } }, label)),
     ...[['Dock 400x800', 400, 800], ['Side 700x900', 700, 900], ['Side 1000x600', 1000, 600]].map(([label, w, h]) => el('a', { href: '#controls', onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}#controls`, '_blank', `popup,width=${w},height=${h}`) } }, label)))
 }
 
@@ -1158,6 +1165,9 @@ function showFrame() {
   const id = location.hash.slice(1) || 'rest'
   closePopups()
   stopTimer()
+  document.querySelectorAll('.pv-shell, .pv-note').forEach((n) => n.remove())
+  state.pv = null
+  state.zonesOpen = true
   $('toast').hidden = true
   Object.assign(test, { mode: 'once', left: 12 })
   Object.assign(state, { minimap: false, zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false, s6: false, title: 'Screen colors', effectId: 'screen', problemCount: null })
@@ -1168,15 +1178,17 @@ function showFrame() {
   document.body.classList.toggle('board-on', board)
   $('board').hidden = !board
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
+  drawFrames(id)
 }
 
 const ACTS = {
   add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: () => (state.s6 ? openTitleS6() : openTitle()), problems: () => openProblems(),
   back: () => toast('Goes to the Dashboard. Unsaved edits stay in the browser backup.'),
   'toast-undo': () => toast('Undo'),
-  test: () => { if (opts.split) startTest(test.mode); else { state.testing = true; drawBar() } },
+  test: () => { if (state.pv) pvEvent('test-start'); else if (opts.split) startTest(test.mode); else { state.testing = true; drawBar() } },
   'test-menu': testMenu,
-  revert: () => { stopTimer(); state.testing = false; drawBar(); toast('Lights put back') },
+  revert: () => { if (state.pv) { pvEvent('test-end'); return } stopTimer(); state.testing = false; drawBar(); toast('Lights put back') },
+  'pv-layout': pvLayoutMenu,
   'toast-restore': () => { state.banner = null; state.unsaved = true; drawBar(); drawBanner(); toast('Restored your earlier changes') },
   'toast-discard': () => { state.banner = null; drawBar(); drawBanner(); toast('Discarded the earlier copy') },
   reconnect: () => { state.status = null; state.other = false; drawBar(); toast('Preview reconnected') },
