@@ -2,8 +2,8 @@
 
 Id: api-v1-plan
 
-Status: Lane A filed for 1.1.4 (2026-10-23), A9 to A16 added from the
-Lane A review (2026-10-24). Lane B filed for 1.1.4 (2026-10-25) after a
+Status: Lane A filed for 1.1.4 (now 1.2.0) (2026-10-23), A9 to A16 added from the
+Lane A review (2026-10-24). Lane B filed for 1.1.4 (now 1.2.0) (2026-10-25) after a
 read of the route code, which changed the bead list. Lane C is a plan
 here, not beads yet. The reasoning for every item is in [[api-v1-review]].
 This doc only orders the work. Sizes: S is under a day, M is one to
@@ -11,23 +11,23 @@ three days.
 
 ## Release scoping
 Status: revised 2026-10-25. The 2026-10-23 split put `/api/v1` in 1.2.0.
-The owner moved Lane B into 1.1.4.
+The owner moved Lane B into 1.1.4 (now 1.2.0). Revised 2026-11-15: 1.1.4 grew large enough to ship as 1.2.0.
 
-- **1.1.4: Lanes A and B.** Groundwork on today's unversioned routes,
+- **1.2.0: Lanes A and B.** Groundwork on today's unversioned routes,
   then `/api/v1` itself. The app version and `apiVersion` are separate
   numbers, and clients key on `apiVersion`, which starts at `1.0.0`. The
   project already ships features in patch releases (v1.1.2, v1.1.3), so
-  1.1.4 carries both lanes. B8 (source selection) missed its gate on
+  1.2.0 carries both lanes. B8 (source selection) missed its gate on
   2026-10-26 and moved to C1.
-- **After 1.1.4: additive v1.x.** Source selection (C1), the MQTT
+- **After 1.2.0: additive v1.x.** Source selection (C1), the MQTT
   bridge, the Muse skill. Each bumps `apiVersion` minor only.
 
 **Out of scope throughout:** moving the WebUI onto `/api/v1`. It stays on
 the internal routes, which is the point of the thin layer. The demo shim
 only gains additive fields (effect titles, `graphInputs`).
 
-## Lane A: groundwork (1.1.4, filed)
-Status: filed 2026-10-23, labels `v1-api` and `1.1.4`, under epic
+## Lane A: groundwork (1.2.0, filed)
+Status: filed 2026-10-23, labels `v1-api` and `1.2.0`, under epic
 Aurora-5ipy. All independent of each other.
 
 | Plan id | Bead | Work | Size |
@@ -63,11 +63,11 @@ Aurora-5ipy. All independent of each other.
   (Aurora-5ipy.27), and A14 and A15 block A4 (Aurora-5ipy.24), since
   they carry those beads' CI and launch-check acceptance.
 
-Other 1.1.4 items, not part of this plan: Aurora-lswm, Aurora-kep2,
+Other 1.2.0 items, not part of this plan: Aurora-lswm, Aurora-kep2,
 Aurora-51nv.
 
-## Lane B: v1 (1.1.4, filed)
-Status: filed 2026-10-25, labels `v1-api` and `1.1.4`, under epic
+## Lane B: v1 (1.2.0, filed)
+Status: filed 2026-10-25, labels `v1-api` and `1.2.0`, under epic
 Aurora-5ipy.
 
 | Plan id | Bead | Work | Size | Depends on |
@@ -117,7 +117,7 @@ Aurora-5ipy.
   that one WebUI tab, one MCP client and one MQTT bridge fit, or raises
   the default.
 
-## Lane C: after 1.1.4 (v1.x, plan)
+## Lane C: after 1.2.0 (v1.x, plan)
 Status: C1 is Aurora-5ipy.44 (the former B8 bead). Aurora-5ipy.11 and .12
 already exist. All three wait on the freeze (Aurora-5ipy.9, B6).
 
