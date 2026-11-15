@@ -6,6 +6,7 @@
 #include <exception>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -96,19 +97,36 @@ namespace Aurora::Runtime
   std::optional<PipelineSummary::GraphInputs> effectInputs(const std::filesystem::path& configRoot, const std::string& id);
 
 
+  // A build failure that names its cause for clients that word it themselves (Aurora-u8jx.15).
+  // The message stays the agent text. `detail` holds the names a sentence needs
+  // (inputKind, inputName, node, effectTitle).
+  class CodedBuildError : public std::runtime_error
+  {
+  public:
+    CodedBuildError(const std::string& message, std::string code, std::map<std::string, std::string> detail = {}):
+    std::runtime_error(message), code(std::move(code)), detail(std::move(detail)){}
+
+    std::string code;
+    std::map<std::string, std::string> detail;
+  };
+
+
   // A build that failed because the requested effect cannot run (Aurora-kep2.4).
   // what() is the banner copy, naming the effect. retryable is false when the
   // cause cannot change outside Aurora (a bad graph file, no input of that kind).
-  class EffectBuildError : public std::runtime_error
+  class EffectBuildError : public CodedBuildError
   {
   public:
     EffectBuildError(
       std::string effectId,
       const std::string& message,
       bool retryable,
-      std::optional<PipelineSummary::GraphInputs> inputs
+      std::optional<PipelineSummary::GraphInputs> inputs,
+      std::string code = {},
+      std::map<std::string, std::string> detail = {}
     ):
-    std::runtime_error(message), effectId(std::move(effectId)), retryable(retryable), inputs(inputs){}
+    CodedBuildError(message, std::move(code), std::move(detail)),
+    effectId(std::move(effectId)), retryable(retryable), inputs(inputs){}
 
     std::string effectId;
     bool retryable;
@@ -395,6 +413,10 @@ namespace Aurora::Runtime
     // Whether resending the saved config could fix it. False for a failed
     // effect switch whose cause is inside Aurora, so the banner omits Retry.
     bool retry{true};
+    // Why it failed when core knows, with the names a sentence needs (Aurora-u8jx.15).
+    // Empty otherwise. The message above stays the agent text.
+    std::string code;
+    std::map<std::string, std::string> detail;
   };
 
   // State and errors always read together, so a poll never sees Failed with
@@ -699,7 +721,9 @@ namespace Aurora::Runtime
       std::uint64_t epoch,
       const Registry& registry,
       const Config& config,
-      const std::filesystem::path& configRoot
+      const std::filesystem::path& configRoot,
+      const std::string& code = {},
+      const std::map<std::string, std::string>& detail = {}
     );
 
     // Builds the failure light, borrowing `outputsFrom`'s outputs when given.
@@ -714,13 +738,17 @@ namespace Aurora::Runtime
     // same build, so it supersedes the earlier build entries instead of
     // sitting beside them (a failed retry of a failed startup shows one row,
     // not two). Entries other components hold are kept. Caller holds m_mutex.
-    void _setBuildErrorLocked(const std::string& source, const std::string& message, bool retry = true);
+    void _setBuildErrorLocked(
+      const std::string& source, const std::string& message, bool retry = true,
+      const std::string& code = {}, const std::map<std::string, std::string>& detail = {});
 
     // A failed build. Takes the locks itself and stores nothing when a pause
     // landed during the build or when a successful build landed since it
     // started (`epoch`, read before the build): that error describes a
     // config the host has since replaced.
-    void _recordFailure(const char* source, const std::string& message, std::uint64_t epoch);
+    void _recordFailure(
+      const char* source, const std::string& message, std::uint64_t epoch,
+      const std::string& code = {}, const std::map<std::string, std::string>& detail = {});
 
     PipelineOptions m_options;
     std::mutex m_mutex;

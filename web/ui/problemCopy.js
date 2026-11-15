@@ -1,8 +1,8 @@
 // People's words for what the server reports, keyed by its plain-string code (Aurora-u8jx.1).
 // The server's own text (GraphLoader.cpp, TestRoutes.cpp) is written for agents and stays as it is;
 // the editor shows these instead, and any code not listed here shows the server's text. The table is
-// open: a later bead adds entries (runtime preview failures, Aurora's host-error codes for the
-// shell) by adding to COPY, not by reshaping anything. Graph issues are "problems", never "errors".
+// open: a later bead adds entries (runtime preview failures, shell rows) by adding to COPY or HOST_COPY,
+// not by reshaping anything. Graph issues are "problems", never "errors".
 //
 // An entry is a string, or a function of the fields the server sent with the issue
 // ({ node, port, param, options }), returning a string. Fields may be missing.
@@ -10,6 +10,8 @@
 /**
  * @typedef {{ node?: string | null, port?: string | null, param?: string | null, options?: readonly string[] | null, message?: string | null }} CopyFields
  * @typedef {string | ((fields: CopyFields) => string)} CopyEntry
+ * @typedef {{ effectTitle?: string, node?: string, inputKind?: string, inputName?: string }} HostFields
+ * @typedef {string | ((fields: HostFields) => string)} HostEntry
  */
 
 // Graph file damaged or written by hand: these only come from a file the editor did not make.
@@ -71,6 +73,43 @@ export const COPY = {
   no_test: 'No test is running',
 }
 for (const code of STRUCTURAL_CODES) COPY[code] = STRUCTURAL_MESSAGE
+
+// Host errors in the shell (Aurora-u8jx.15): why an effect or a reload failed, from /api/state's error
+// `code` and `detail`. Each entry is the clause after the row's prefix ("Couldn't start Sunset: "), so it
+// starts lowercase. Graph-load codes reuse the graph table's codes but not its words, which say "this node".
+const NOT_GRAPH_LOAD = new Set(['node_tick_failed', 'no_draft', 'invalid_session', 'invalid_body', 'invalid_mode', 'draft_changed', 'no_test'])
+
+const kindOf = (kind) => (kind === 'audio' ? 'an audio input' : kind === 'video' ? 'a video input' : 'an input')
+
+const GRAPH_LOAD_REASON = 'its graph has a problem. Open it in the editor to see what to fix.'
+
+/** @type {Record<string, HostEntry>} */
+export const HOST_COPY = {
+  input_not_configured: ({ inputKind }) => `it needs ${kindOf(inputKind)}. Choose one in Settings.`,
+  input_unavailable: ({ inputKind, inputName }) =>
+    `the ${inputKind === 'audio' || inputKind === 'video' ? `${inputKind} ` : ''}input${inputName ? ` ${quoted(inputName)}` : ''} isn't available.`,
+  no_outputs: 'no lights are set up. Choose them in Settings.',
+  effect_unreadable: 'its file is missing or damaged.',
+  node_construct_failed: ({ node }) =>
+    `${node ? `the ${quoted(node)} node` : 'a node'} can't be set up. Open it in the editor to fix it.`,
+}
+for (const code of Object.keys(COPY)) {
+  if (!Object.hasOwn(HOST_COPY, code) && !NOT_GRAPH_LOAD.has(code)) HOST_COPY[code] = GRAPH_LOAD_REASON
+}
+
+/**
+ * The clause for a host error's code, filled from its `detail`; `fallback` when the code is unknown or
+ * missing (an older server), so the row keeps the server's text.
+ * @param {string | null | undefined} code
+ * @param {Record<string, string> | null | undefined} detail
+ * @param {string | null} fallback
+ */
+export function hostCopy(code, detail, fallback) {
+  if (typeof code !== 'string' || !Object.hasOwn(HOST_COPY, code)) return fallback
+  const entry = HOST_COPY[code]
+  const fields = detail && typeof detail === 'object' ? detail : {}
+  return (typeof entry === 'function' ? entry(fields) : entry) || fallback
+}
 
 /** True when the table has words of its own for this code. */
 export function hasCopy(code) {

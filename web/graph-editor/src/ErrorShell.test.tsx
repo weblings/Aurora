@@ -119,6 +119,10 @@ const cases: Case[] = [
   { name: 'two errors open: rows and Show less', errors: [reload, effect], open: true },
   { name: 'a condition and an error', errors: [reload], conditions: [{ source: 'local_network', message: 'x' }], open: true },
   { name: 'an unknown condition shows its message', conditions: [{ source: 'other', message: 'Something <b>is</b> off' }] },
+  { name: 'a failed effect with a known code reads the table, an unknown code keeps the server text', errors: [
+    { source: 'effect', message: "Couldn't start Sunset: graph needs an audio input but none is configured", id: 3, retry: false, code: 'input_not_configured', detail: { effectTitle: 'Sunset', inputKind: 'audio' } },
+    { source: 'reload', message: 'brand new failure', id: 2, code: 'brand_new_code' },
+  ], open: true },
   { name: 'a macOS permission error on a Mac', platform: 'mac', errors: [{ source: 'reload', message: 'permission_denied: no', id: 1 }] },
   { name: 'the audio permission row', platform: 'mac', errors: [{ source: 'audio_permission', message: 'silent', id: 1 }] },
   { name: 'an agent testing, with a countdown', test: { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } } },

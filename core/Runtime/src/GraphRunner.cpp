@@ -101,10 +101,12 @@ namespace Aurora::Runtime
 
 
   bool GraphRunner::_load(
-    const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError) const
+    const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError,
+    Graph::LoadIssue& customIssue) const
   {
     custom = false;
     customError.clear();
+    customIssue = {};
     if(m_customDoc){
       Graph::LoadOptions options;
       options.knownOutputs = std::unordered_set<std::string>(m_outputNames.begin(), m_outputNames.end());
@@ -114,6 +116,7 @@ namespace Aurora::Runtime
         return true;
       }
       customError = result.error;
+      if(!result.issues.empty()){ customIssue = result.issues.front(); }
     }
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
     if(m_isAudio){
@@ -199,7 +202,7 @@ namespace Aurora::Runtime
     }
 
     Graph::LoadResult loaded;
-    if(!_load(m_config, loaded, m_runningCustom, m_customError)){
+    if(!_load(m_config, loaded, m_runningCustom, m_customError, m_customIssue)){
       throw std::runtime_error("built-in graph failed to load: " + loaded.error);
     }
     m_graph = std::move(loaded.graph);
@@ -329,7 +332,8 @@ namespace Aurora::Runtime
     Graph::LoadResult loaded;
     bool custom = false;
     std::string customError;
-    if(!_load(config, loaded, custom, customError)){
+    Graph::LoadIssue customIssue;
+    if(!_load(config, loaded, custom, customError, customIssue)){
       errorOut = loaded.error;
       return false;
     }
@@ -341,6 +345,7 @@ namespace Aurora::Runtime
     m_config = std::move(config);
     m_runningCustom = custom;
     m_customError = std::move(customError);
+    m_customIssue = std::move(customIssue);
     return true;
   }
 
@@ -360,6 +365,7 @@ namespace Aurora::Runtime
     m_customDoc = std::move(doc);
     m_runningCustom = true;
     m_customError.clear();
+    m_customIssue = {};
     return true;
   }
 

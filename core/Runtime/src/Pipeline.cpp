@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 
 #include <Aurora/Runtime/ConfigApply.hpp>
@@ -131,6 +132,7 @@ namespace Aurora::Runtime
       bool bothInputs{false};
       // Set when the graph needs a source whose input is not configured.
       std::string missing;
+      std::string missingKind; // "video" or "audio" when missing is set
     };
 
     // Which inputs a pipeline runs: the config picks (video wins when both
@@ -147,7 +149,8 @@ namespace Aurora::Runtime
       const bool haveVideo = !config.activeInputName().empty();
       const bool haveAudio = !config.activeAudioInputName().empty();
       if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
-        plan.missing = std::string("graph needs ") + (needs.video && !haveVideo ? "a video" : "an audio")
+        plan.missingKind = needs.video && !haveVideo ? "video" : "audio";
+        plan.missing = std::string("graph needs ") + (plan.missingKind == "video" ? "a video" : "an audio")
           + " input but none is configured";
       }
       else if(needs.video && needs.audio){
@@ -168,10 +171,33 @@ namespace Aurora::Runtime
       return "Couldn't start " + effectInfo(configRoot, id).title + ": " + reason;
     }
 
+    // The effect's title rides in detail so a client can word "Couldn't start <title>" itself.
     EffectBuildError _effectError(
-      const std::filesystem::path& configRoot, const std::string& id, const std::string& reason, bool retryable)
+      const std::filesystem::path& configRoot, const std::string& id, const std::string& reason, bool retryable,
+      const std::string& code = {}, std::map<std::string, std::string> detail = {})
     {
-      return EffectBuildError(id, _effectFailureMessage(configRoot, id, reason), retryable, effectInputs(configRoot, id));
+      detail["effectTitle"] = effectInfo(configRoot, id).title;
+      return EffectBuildError(
+        id, _effectFailureMessage(configRoot, id, reason), retryable, effectInputs(configRoot, id), code, std::move(detail));
+    }
+
+    // The code and names a failure carries, empty for an uncoded one.
+    std::string _codeOf(const std::exception& e)
+    {
+      const auto* coded = dynamic_cast<const CodedBuildError*>(&e);
+      return coded ? coded->code : std::string{};
+    }
+
+    std::map<std::string, std::string> _detailOf(const std::exception& e)
+    {
+      const auto* coded = dynamic_cast<const CodedBuildError*>(&e);
+      return coded ? coded->detail : std::map<std::string, std::string>{};
+    }
+
+    // An input the registry cannot open: the name from the config, kind video or audio.
+    CodedBuildError _inputUnavailable(const std::string& message, const char* kind, const std::string& name)
+    {
+      return CodedBuildError(message, "input_unavailable", {{"inputKind", kind}, {"inputName", name}});
     }
 
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
@@ -242,7 +268,7 @@ namespace Aurora::Runtime
     else if(!customId.empty()){
       customDoc = EffectStore(configRoot).read(customId, customFailure);
       if(!customDoc){
-        throw _effectError(configRoot, customId, customFailure, /*retryable*/ false);
+        throw _effectError(configRoot, customId, customFailure, /*retryable*/ false, "effect_unreadable");
       }
     }
 
@@ -279,7 +305,7 @@ namespace Aurora::Runtime
     }
 
     if(pipeline->m_outputPtrs.empty()){
-      throw std::runtime_error("No outputs available -- nothing to drive");
+      throw CodedBuildError("No outputs available -- nothing to drive", "no_outputs");
     }
 
     // A missing input of a kind the effect needs is picked here, so every
@@ -320,7 +346,8 @@ namespace Aurora::Runtime
           throw std::runtime_error(plan.missing);
         }
         pipeline->shutdown(/*isReplacement*/ false);
-        throw _effectError(configRoot, customId, plan.missing, /*retryable*/ false);
+        throw _effectError(
+          configRoot, customId, plan.missing, /*retryable*/ false, "input_not_configured", {{"inputKind", plan.missingKind}});
       }
       else{
         useAudioMode = plan.audioMode;
@@ -365,7 +392,7 @@ namespace Aurora::Runtime
       // the order shows which one blocks the other.
       auto audioInput = registry.createAudioInput(config.activeAudioInputName());
       if(!audioInput){
-        throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+        throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
       }
       pipeline->m_audioRunner.emplace(
         *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
@@ -384,7 +411,7 @@ namespace Aurora::Runtime
       if(!borrowedAudio){
         audioInput = registry.createAudioInput(config.activeAudioInputName());
         if(!audioInput){
-          throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+          throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
         }
       }
 
@@ -412,7 +439,7 @@ namespace Aurora::Runtime
       if(!borrowedVideo && !inputFree){
         input = registry.createInput(inputName);
         if(!input){
-          throw std::runtime_error("Unknown input '" + inputName + "'");
+          throw _inputUnavailable("Unknown input '" + inputName + "'", "video", inputName);
         }
         input->init();
       }
@@ -424,7 +451,7 @@ namespace Aurora::Runtime
         if(!borrowedAudio){
           audioInput = registry.createAudioInput(config.activeAudioInputName());
           if(!audioInput){
-            throw std::runtime_error("Unknown audio input '" + config.activeAudioInputName() + "'");
+            throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
           }
         }
         pipeline->m_videoRunner.emplace(
@@ -518,7 +545,10 @@ namespace Aurora::Runtime
       }
       else{
         pipeline->shutdown(/*isReplacement*/ false);
-        throw _effectError(configRoot, customId, primary.customError(), /*retryable*/ false);
+        const Graph::LoadIssue& issue = primary.customIssue();
+        std::map<std::string, std::string> detail;
+        if(!issue.node.empty()){ detail["node"] = issue.node; }
+        throw _effectError(configRoot, customId, primary.customError(), /*retryable*/ false, issue.code, std::move(detail));
       }
     }
     if(!pipeline->m_summary.graphInputs){
@@ -955,11 +985,13 @@ namespace Aurora::Runtime
     if(!m_pipeline && startupFailure){
       try{ std::rethrow_exception(startupFailure); }
       catch(const EffectBuildError& e){
-        errors.push_back({"effect", e.what(), 0, e.retryable});
+        errors.push_back({"effect", e.what(), 0, e.retryable, e.code, e.detail});
         m_summary.requestedEffect = e.effectId;
         m_summary.graphInputs = e.inputs;
       }
-      catch(const std::exception& e){ errors.push_back({"startup", _describeBuildError(e)}); }
+      catch(const std::exception& e){
+        errors.push_back({"startup", _describeBuildError(e), 0, true, _codeOf(e), _detailOf(e)});
+      }
       catch(...){ errors.push_back({"startup", "unknown error"}); }
     }
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -1021,7 +1053,9 @@ namespace Aurora::Runtime
   }
 
 
-  void PipelineHost::_setBuildErrorLocked(const std::string& source, const std::string& message, bool retry)
+  void PipelineHost::_setBuildErrorLocked(
+    const std::string& source, const std::string& message, bool retry,
+    const std::string& code, const std::map<std::string, std::string>& detail)
   {
     const auto isBuildSource = [](const std::string& name){
       return name == "startup" || name == "resume" || name == "reload" || name == "effect";
@@ -1031,7 +1065,7 @@ namespace Aurora::Runtime
       std::remove_if(errors.begin(), errors.end(), [&](const HostError& e){ return isBuildSource(e.source); }),
       errors.end()
     );
-    errors.push_back({source, message, m_nextErrorId++, retry});
+    errors.push_back({source, message, m_nextErrorId++, retry, code, detail});
     _publishStatusLocked(std::move(errors));
   }
 
@@ -1044,7 +1078,9 @@ namespace Aurora::Runtime
     std::uint64_t epoch,
     const Registry& registry,
     const Config& config,
-    const std::filesystem::path& configRoot
+    const std::filesystem::path& configRoot,
+    const std::string& code,
+    const std::map<std::string, std::string>& detail
   )
   {
     std::unique_ptr<Pipeline> previous;
@@ -1075,7 +1111,7 @@ namespace Aurora::Runtime
         m_summary.requestedEffect = effectId;
         m_summary.graphInputs = inputs;
       }
-      _setBuildErrorLocked("effect", message, retryable);
+      _setBuildErrorLocked("effect", message, retryable, code, detail);
     }
     // Outside the lock, like pause(): Hue's disableStreaming blocks. A light on
     // fresh outputs is a replacement, so the bridge is not told to stop.
@@ -1143,12 +1179,14 @@ namespace Aurora::Runtime
   }
 
 
-  void PipelineHost::_recordFailure(const char* source, const std::string& message, std::uint64_t epoch)
+  void PipelineHost::_recordFailure(
+    const char* source, const std::string& message, std::uint64_t epoch,
+    const std::string& code, const std::map<std::string, std::string>& detail)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     std::lock_guard<std::mutex> lock(m_mutex);
     if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
-    _setBuildErrorLocked(source, message);
+    _setBuildErrorLocked(source, message, true, code, detail);
   }
 
 
@@ -1516,7 +1554,7 @@ namespace Aurora::Runtime
     }
     catch(const EffectBuildError& e){
       errorOut = e.what();
-      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot);
+      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot, e.code, e.detail);
       return false;
     }
     catch(const std::exception& e){
@@ -1530,11 +1568,14 @@ namespace Aurora::Runtime
       const PipelineSummary running = summary();
       if(!running.requestedEffect.empty() && (running.requestedEffect != requested || running.effect.empty())){
         errorOut = _effectFailureMessage(configRoot, requested, errorOut);
+        std::map<std::string, std::string> detail = _detailOf(e);
+        detail["effectTitle"] = effectInfo(configRoot, requested).title;
         _failEffect(
-          requested, errorOut, /*retryable*/ true, effectInputs(configRoot, requested), epoch, registry, config, configRoot);
+          requested, errorOut, /*retryable*/ true, effectInputs(configRoot, requested), epoch, registry, config, configRoot,
+          _codeOf(e), detail);
       }
       else{
-        _recordFailure("reload", errorOut, epoch);
+        _recordFailure("reload", errorOut, epoch, _codeOf(e), _detailOf(e));
         // A failed retry of a failed host whose light could not show before.
         _ensureFailureLight(registry, config, configRoot);
       }
@@ -1714,7 +1755,7 @@ namespace Aurora::Runtime
       // keep the reason on the paused snapshot.
       std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
-      _setBuildErrorLocked("resume", errorOut);
+      _setBuildErrorLocked("resume", errorOut, true, _codeOf(e), _detailOf(e));
       return false;
     }
 

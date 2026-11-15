@@ -146,6 +146,9 @@ namespace Aurora::Runtime
     // Why the custom graph was not loaded; empty when it was, or none was set.
     const std::string& customError() const { return m_customError; }
 
+    // The first problem that kept it from loading (code and node), empty fields when none.
+    const Graph::LoadIssue& customIssue() const { return m_customIssue; }
+
     // Post-derivation for video (refreshRate/subsampleWidth filled in).
     const Config& config() const { return m_config; }
 
@@ -168,7 +171,9 @@ namespace Aurora::Runtime
 
     // Loads the custom graph if one is set, else (or when it fails, with
     // customError set) the built-in one.
-    bool _load(const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError) const;
+    bool _load(
+      const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError,
+      Graph::LoadIssue& customIssue) const;
 
     bool m_isAudio{false};
     Input::IVideoInput* m_videoInput{nullptr};
@@ -185,6 +190,7 @@ namespace Aurora::Runtime
     std::optional<nlohmann::json> m_customDoc;
     bool m_runningCustom{false};
     std::string m_customError;
+    Graph::LoadIssue m_customIssue;
     Host m_host{*this};
     std::map<std::string, std::shared_ptr<GraphPreview>> m_previews;
 

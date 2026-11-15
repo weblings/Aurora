@@ -721,11 +721,11 @@ So graph issues are never called errors, and runtime preview failures read "Runs
 | `.7`, `.11`, `.10` | One button look: Rocky Road scheme with a 6 px gap, Grille's 31 px default button (`dev.16`), local overrides removed | Done |
 | `.12`, `.14`, `.13` | Shell mocks: 2+ rows start collapsed, one-pulse arrival, 60vh cap; shell as tabs not pursued | Done; built in `Aurora-9hqa` (with `.5`) |
 | `.1` 7a | Copy per issue code in the popover and node badges; refused test starts too. The table is plain JS in `web/ui` (`problemCopy.js`) so the shell can reuse it | Done ([[u8jx1-problem-copy]]) |
-| `.15` 7d | Shell rows for an effect that fails to start or apply use 7a's copy; core attaches a code to host errors | After 7a |
+| `.15` 7d | Shell rows for an effect that fails to start or apply use 7a's copy; core attaches a code to host errors | Done ([[u8jx15-shell-effect-copy]]) |
 | `.2` 7b | A fitting action per Whole graph code, or none | Done ([[u8jx2-whole-graph-actions]]) |
 | `.3` 7c | Runtime preview errors worded apart from validation | Done ([[u8jx3-runtime-wording]]) |
-| `.6` 7.0g | Preview island (was Zones): a layout menu with sim layouts, shown when no lights are reachable or picked on purpose | Mock first, brief settled 2026-11-15 (bead design) |
-| `.17` | Core test: graph doc `ui` entries keep extra keys through draft PUT, GET and save, ahead of per-node previews (`Aurora-z9vu`, 1.2.1) | Open, 1.2.0 |
+| `.6` 7.0g | Preview island (was Zones): a layout menu with sim layouts, shown when no lights are reachable or picked on purpose | Done ([[u8jx61-preview-island-build]]) |
+| `.17` | Core test: graph doc `ui` entries keep extra keys through draft PUT, GET and save, ahead of per-node previews (`Aurora-z9vu`, 1.2.1) | Done ([[u8jx17-ui-extra-keys]]) |
 | `.8` | Problems chip gains a chevron; the compact form | Compact form settled 2026-11-15 (chevron at every width); build with `.9.1` |
 | `.9` | Narrow top bar: Test drops to its icon when the title gets short | Mock settled 2026-11-15 ([[u8jx9-narrow-bar-mock]]); build `.9.1` |
 
