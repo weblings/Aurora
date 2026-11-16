@@ -1,11 +1,11 @@
 import { useMemo, type MutableRefObject, type ReactNode, type RefObject } from 'react'
-import { Dialog, Icon, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem, dotIcon } from '@weblings/grille'
+import { Dialog, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { keptCopies } from './graph/autosave'
 import { openGroups, startPoints } from './graph/titleMenu'
 import type { EffectListEntry } from './graph/types'
 
-// The screen-reader text of every unsaved dot: MenuItem `description` on an item, hidden text on a heading.
+// The screen-reader text of every unsaved asterisk: MenuItem `description` on an item, hidden text on a heading.
 export const UNSAVED_TEXT = 'unsaved changes'
 
 export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'revert'
@@ -106,7 +106,7 @@ export function TitleMenu({
                       >
                         <span className="editor-menu-line">
                           <span className="editor-menu-title">{e.title}</span>
-                          {e.unsaved ? <Icon icon={dotIcon} size="sm" /> : null}
+                          {e.unsaved ? <span className="editor-unsaved-mark" aria-hidden="true">*</span> : null}
                         </span>
                       </MenuItem>
                     ))}
@@ -121,13 +121,13 @@ export function TitleMenu({
   )
 }
 
-// "Not saved yet" ends with the dot, with the same screen-reader text as an item's.
+// "Not saved yet" ends with the asterisk, with the same screen-reader text as an item's.
 function headingOf(name: string, unsaved: boolean): ReactNode {
   if (!unsaved) return name
   return (
-    <span className="editor-heading-dot">
+    <span className="editor-heading-mark">
       {name}
-      <Icon icon={dotIcon} size="sm" />
+      <span className="editor-unsaved-mark" aria-hidden="true">*</span>
       <span className="visually-hidden">, {UNSAVED_TEXT}</span>
     </span>
   )

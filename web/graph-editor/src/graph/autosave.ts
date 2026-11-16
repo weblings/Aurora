@@ -108,7 +108,7 @@ export function openKept(effectId: string, server: GraphDoc, storage: Storage | 
   return { kind: 'restore', doc: kept.doc }
 }
 
-// The unsaved state the top bar draws from (the dot in 6d): the open graph
+// The unsaved state the top bar draws from (the * on the title): the open graph
 // differs from the saved baseline.
 export function isUnsaved(baseline: GraphDoc | null, doc: GraphDoc | null): boolean {
   return baseline !== null && doc !== null && !sameDoc(baseline, doc)

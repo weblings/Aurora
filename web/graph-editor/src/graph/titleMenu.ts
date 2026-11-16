@@ -15,7 +15,7 @@ export function startPoints(effects: EffectListEntry[], hasAudio: boolean): { id
 
 // The Open submenu's groups, in order: Not saved yet (new effects that exist only as a kept copy,
 // 6b), Custom, Built-in. The open effect is left out, and so is an empty group. `unsaved` marks
-// what gets the dot (Aurora-u68h.4): a Custom or Built-in effect with a kept copy; a Not saved yet
+// what gets the * (Aurora-ge1i.3): a Custom or Built-in effect with a kept copy; a Not saved yet
 // group carries it on the heading instead, since every item in it is unsaved by definition.
 export type OpenItem = { id: string; title: string; unsaved: boolean }
 export type OpenGroup = { name: string; unsaved: boolean; items: OpenItem[] }

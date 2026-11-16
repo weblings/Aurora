@@ -1,8 +1,8 @@
 // Aurora-u68h.4 (stage 6d) and Aurora-u68h.8: a Save, Save as new or Save and apply with problems
 // writes nothing and points at the problems chip (callout, then a ping, popover closed, focus on
 // the chip); a problems row moves focus to its node; Enter on the chip lands on the first row; the
-// unsaved dot (Grille's dotIcon) on the title, on Open items and on the "Not saved yet" heading,
-// each with its screen-reader text. SHOTS=<dir> saves the callout, the ping, the title dot and Open.
+// unsaved * mark on the title, on Open items and on the "Not saved yet" heading,
+// each with its screen-reader text. SHOTS=<dir> saves the callout, the ping, the title * and Open.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
@@ -267,15 +267,17 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.locator(nodeSel).evaluate((el) => el === document.activeElement && !el.matches(':focus-visible')), true, 'mouse: focus on the node, no ring')
     step('a row picked by mouse focuses the node without a ring')
 
-    // The dot: title, with the screen-reader text, none of the old word.
+    // The *: title, with the screen-reader text, none of the old word.
     await page.getByRole('button', { name: 'Effect menu, unsaved changes' }).waitFor()
-    assert.equal(await unsavedTitle.locator('svg').count(), 2, 'the dot and the chevron are Grille icons')
+    assert.equal(await unsavedTitle.locator('.editor-unsaved-mark').textContent(), '*', 'the title ends with a *')
+    assert.equal(await unsavedTitle.locator('.editor-unsaved-mark').getAttribute('aria-hidden'), 'true')
+    assert.equal(await unsavedTitle.locator('svg').count(), 1, 'only the chevron is an icon')
     assert.equal(await page.locator('.editor-dirty, .editor-dirty-mark').count(), 0, 'no old word or CSS dot')
     assert.equal(await page.getByText('Unsaved', { exact: true }).count(), 0)
     await shot('title-dot')
-    step('the title shows Grille\'s dotIcon with the name "Effect menu, unsaved changes"')
+    step('the title shows a trailing * with the name "Effect menu, unsaved changes"')
 
-    // Open: a Custom item with a kept copy gets the dot; the New effect's group ends with it.
+    // Open: a Custom item with a kept copy gets the *; the New effect's group ends with it.
     await page.evaluate(() => localStorage.clear())
     await open('builtin.video')
     await setName(page, 'Refused save b')
@@ -302,27 +304,27 @@ await withEditorStack(async ({ editorUrl }) => {
     const flyout = page.getByRole('menu', { name: 'Open', exact: true })
     await flyout.waitFor()
     const groups = await flyout.getByRole('group').evaluateAll((els) => els.map((g) => g.querySelector('.ui-menu-section-header')?.textContent.replace(/\s+/g, ' ').trim()))
-    assert.deepEqual(groups.slice(0, 2), ['Not saved yet, unsaved changes', 'Custom'])
+    assert.deepEqual(groups.slice(0, 2), ['Not saved yet*, unsaved changes', 'Custom'])
     const heading = flyout.getByRole('group', { name: /^Not saved yet.*unsaved changes$/ })
-    assert.equal(await heading.locator('.ui-menu-section-header svg').count(), 1, 'the heading ends with the dot')
+    assert.equal(await heading.locator('.ui-menu-section-header .editor-unsaved-mark').count(), 1, 'the heading ends with the *')
     assert.equal((await heading.getByRole('menuitem').count()) > 0, true)
-    assert.equal(await heading.getByRole('menuitem').first().locator('svg').count(), 0, 'no dot on Not saved yet items')
+    assert.equal(await heading.getByRole('menuitem').first().locator('.editor-unsaved-mark').count(), 0, 'no * on Not saved yet items')
     assert.equal(await heading.getByRole('menuitem').first().locator('[slot=description], .ui-visually-hidden').count(), 0, 'no description on Not saved yet items')
     const itemA = flyout.getByRole('menuitem', { name: /Refused save a/ })
-    assert.equal(await itemA.locator('svg').count(), 1, 'the Custom item with a kept copy has a dot')
+    assert.equal(await itemA.locator('.editor-unsaved-mark').count(), 1, 'the Custom item with a kept copy has a *')
     const described = await itemA.evaluate((el) => (el.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent).join(' ').trim())
     assert.equal(described, 'unsaved changes', 'screen-reader text on the item')
-    assert.equal(await flyout.getByRole('menuitem', { name: /Candle|Screen colors|Music pulse/ }).first().locator('svg').count(), 0, 'a saved Built-in has no dot')
+    assert.equal(await flyout.getByRole('menuitem', { name: /Candle|Screen colors|Music pulse/ }).first().locator('.editor-unsaved-mark').count(), 0, 'a saved Built-in has no *')
     assert.equal(await flyout.locator('.problem-badge, .problem-mark').count(), 0, 'no problem counts in Open')
     await shot('open-dots')
-    step('Open: Custom item with the dot and "unsaved changes"; "Not saved yet" heading ends with the dot, its items have none')
-    // Opening a kept copy is silent: dot and chip, no toast, no callout.
+    step('Open: Custom item with the * and "unsaved changes"; "Not saved yet" heading ends with the *, its items have none')
+    // Opening a kept copy is silent: * and chip, no toast, no callout.
     await itemA.click()
     await waitEffect(page, 'refused-save-a')
     await unsavedTitle.waitFor()
     assert.equal(await page.locator('.editor-toast[data-shown="true"]').count(), 0, 'no toast')
     assert.equal(await callout.count(), 0, 'no callout')
-    step('opening an effect with a kept copy is silent: the dot, no toast or callout')
+    step('opening an effect with a kept copy is silent: the *, no toast or callout')
     void fresh
   } finally {
     for (const id of created) await api('DELETE', `/api/effects/${id}`).catch(() => {})

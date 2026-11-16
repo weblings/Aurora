@@ -28,7 +28,7 @@ import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, dotIcon, redoIcon, undoIcon } from '@weblings/grille'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
 import { NEW_EFFECT_TITLE } from './graph/titleMenu'
@@ -771,7 +771,7 @@ export function App() {
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
           <span className="editor-title-label">{barTitle()}</span>
-          {dirty ? <Icon icon={dotIcon} size="sm" /> : null}
+          {dirty ? <span className="editor-unsaved-mark" aria-hidden="true">*</span> : null}
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {catalog ? (

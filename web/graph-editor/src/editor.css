@@ -532,6 +532,11 @@ button.editor-problem-row:hover {
   gap: var(--aurora-space-2);
 }
 
+/* The * hugs the title text, so the gap goes on the mark's far side. */
+.editor-title-menu > .editor-unsaved-mark {
+  margin-inline-start: calc(-1 * var(--aurora-space-2));
+}
+
 .editor-title-label {
   min-width: 0;
   overflow: hidden;
@@ -766,12 +771,15 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-/* Unsaved dot (Aurora-u68h.4, drawn with Grille's dotIcon, which follows currentColor): beside the
-   title, after an Open item's title and at the end of the "Not saved yet" heading. */
+/* Unsaved mark (Aurora-ge1i.3): a trailing * after the title, an Open item's title and the
+   "Not saved yet" heading. It never shrinks, so ellipsis truncation cannot cut it. */
+.editor-unsaved-mark {
+  flex: 0 0 auto;
+}
+
 .editor-menu-line {
   display: flex;
-  align-items: center;
-  gap: var(--aurora-space-2);
+  align-items: baseline;
 }
 
 .editor-menu-line > .editor-menu-title {
@@ -779,11 +787,9 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-/* The "Not saved yet" heading ends with the dot (a Header, so the dot is inline with its text). */
-.editor-heading-dot {
+.editor-heading-mark {
   display: inline-flex;
-  align-items: center;
-  gap: var(--aurora-space-2);
+  align-items: baseline;
 }
 
 @media (max-width: 649px) {

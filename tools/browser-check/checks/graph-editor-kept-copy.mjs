@@ -38,7 +38,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.waitForSelector('.aurora-node')
     assert.equal(await unsaved(), false, 'a saved effect is not unsaved')
 
-    // Silent restore, and the unsaved state a dot can draw from.
+    // Silent restore, and the unsaved state the * draws from.
     await makeEdit(page)
     assert.equal(await unsaved(), true)
     await page.reload()

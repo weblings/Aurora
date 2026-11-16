@@ -22,7 +22,7 @@ describe('title menu lists', () => {
   it('Open leaves out an empty group', () => {
     expect(openGroups(effects.filter((x) => x.builtin), 'builtin.video').map((g) => g.name)).toEqual(['Built-in'])
   })
-  it('Open marks Custom and Built-in effects with a kept copy; Not saved yet carries the dot on its heading', () => {
+  it('Open marks Custom and Built-in effects with a kept copy; Not saved yet carries the * on its heading', () => {
     const doc = { version: 1, nodes: [], edges: [], title: 'Mine, edited' } as never
     const kept = new Map([['other', doc], ['builtin.video', doc], ['@new-abc123', doc], ['@new-zzz999', { ...(doc as object), title: '' } as never], ['gone', doc]])
     const groups = openGroups(effects, 'mine', kept)
