@@ -235,7 +235,7 @@ await withEditorStack(async ({ editorUrl }) => {
     const animation = await chip.evaluate((el) => getComputedStyle(el, '::after').animationName)
     const border = await chip.evaluate((el) => getComputedStyle(el, '::after').borderTopStyle)
     assert.equal(animation, 'none', 'no pulse under reduced motion')
-    assert.equal(border, 'dashed', 'the border holds')
+    assert.equal(border, 'solid', 'the border holds')
     await timeline()
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     step('reduced motion: the border holds, no pulse')

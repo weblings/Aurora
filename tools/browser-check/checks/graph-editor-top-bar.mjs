@@ -41,11 +41,12 @@ await withEditorStack(async ({ editorUrl }) => {
     // Grille bar (Aurora-s1t7.1): every bar control is a ui-button, 31 px tall (Grille's default size, no data-size), two dividers.
     const bar = await page.locator('.editor-header > .ui-button, .editor-header > .editor-split > .ui-button').evaluateAll((els) => els.map((e) => ({ h: e.getBoundingClientRect().height, size: e.dataset.size, legacy: e.classList.contains('btn') })))
     assert.ok(bar.length >= 5, `bar buttons: ${bar.length}`)
-    // Every bar button is Grille's 31 px tall, like the text buttons.
-    for (const b of bar) assert.deepEqual(b, { h: 31, size: undefined, legacy: false }, JSON.stringify(bar))
+    // Grille's button is 8 + one text line + 8: 31 px where the line is 15 px (Mac), 32 px where it is 16 (Windows). All must match.
+    assert.ok([31, 32].includes(bar[0].h), `bar button height ${bar[0].h}: ${JSON.stringify(bar)}`)
+    for (const b of bar) assert.deepEqual(b, { h: bar[0].h, size: undefined, legacy: false }, JSON.stringify(bar))
     assert.equal(await page.locator('.editor-header > .btn').count(), 0)
     assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
-    step('bar controls are Grille ui-buttons, 31 px tall, with two dividers')
+    step('bar controls are Grille ui-buttons, all one height (31 or 32 px), with two dividers')
 
     // Title menu: file actions, then New and Open submenus; no Name field, no second menu.
     await openTitleMenu(page)
@@ -99,10 +100,14 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.deepEqual(await starts.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent)), ['Start from'])
     const startNames = await starts.getByRole('menuitem').allInnerTexts()
     assert.equal(startNames[0], 'Empty')
-    assert.ok(startNames.includes('Screen colors'), 'built-ins follow Empty')
+    assert.equal(startNames[1], 'Built-in', 'the Built-in sub-menu follows Empty (Aurora-l8ua)')
+    await starts.getByRole('menuitem', { name: 'Built-in', exact: true }).hover()
+    const builtins = page.getByRole('menu', { name: 'Built-in', exact: true })
+    await builtins.waitFor()
+    assert.ok((await builtins.getByRole('menuitem').allInnerTexts()).includes('Screen colors'), 'the built-ins are in the Built-in sub-menu')
     await starts.getByRole('menuitem', { name: 'Empty', exact: true }).click()
     await page.waitForFunction(() => /^@new-[a-z0-9]{6}$/.test(document.querySelector('[data-effect]')?.dataset.effect ?? ''))
-    step('New offers Start from, Empty then the built-ins; Empty opens a blank graph')
+    step('New offers Start from, Empty then the Built-in sub-menu; Empty opens a blank graph')
 
     // View menu.
     await page.goto(`${editorUrl}?effect=builtin.video`)

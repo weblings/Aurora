@@ -29,7 +29,8 @@ import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
 import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
-import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
+import { COMPACT_BAR, DOCK_BOTTOM, useMedia } from './useMedia'
+import { stageAttrs, useBarStage } from './barStage'
 import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
 import { NEW_EFFECT_TITLE } from './graph/titleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
@@ -113,7 +114,8 @@ export function App() {
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
   const compactBar = useMedia(COMPACT_BAR)
-  const tightBar = useMedia(TIGHT_BAR)
+  const [barEl, setBarEl] = useState<HTMLElement | null>(null)
+  const barStage = useBarStage(barEl)
   const drawerSide = useMedia(DOCK_BOTTOM) ? 'bottom' : 'right'
   // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
   const [naming, setNaming] = useState<
@@ -932,10 +934,10 @@ export function App() {
         onDismiss={(error) => void host.dismiss(error)}
         onStopTest={() => void host.stopTest()}
       />
-      <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
-        <a className="ui-button editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
+      <header ref={setBarEl} className="editor-header" data-preview={status.label} data-status-rank={status.rank} {...stageAttrs(barStage)}>
+        <a className="ui-button editor-back" href="/" aria-label="Dashboard">
           <Icon icon={arrowLeftIcon} size="sm" />
-          {tightBar ? null : 'Dashboard'}
+          <span className="editor-back-label">Dashboard</span>
         </a>
         <span className="editor-sep" aria-hidden="true" />
         <button
@@ -1038,6 +1040,7 @@ export function App() {
           running={testing}
           stopText={stopLabel(lights.state)}
           stopName={stopName(lights.state)}
+          iconForm={barStage >= 2}
           action={status.action}
           disabledReason={
             blocked ? status.label : noLights ? 'No lights reachable' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null

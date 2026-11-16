@@ -441,6 +441,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `yqu8-settings-put-transport-retry` | [log/2026-11-13-yqu8-settings-put-transport-retry.md](log/2026-11-13-yqu8-settings-put-transport-retry.md) | Core test: concurrent settings PUTs retry a refused connection instead of failing under load |
 | `ytlo-no-console-windows-in-tests` | [log/2026-11-15-ytlo-no-console-windows-in-tests.md](log/2026-11-15-ytlo-no-console-windows-in-tests.md) | Windows tests: no console windows, no stolen focus |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
+| `z5y5-bar-collapse-stages` | [log/2026-11-16-z5y5-bar-collapse-stages.md](log/2026-11-16-z5y5-bar-collapse-stages.md) | Graph editor: the header collapses by measured stage, not by three separate rules |
 | `z6kw-port-type-glossary` | [log/2026-11-11-z6kw-port-type-glossary.md](log/2026-11-11-z6kw-port-type-glossary.md) | Port type glossary |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
 | `zl32-no-input-running` | [log/2026-11-05-zl32-no-input-running.md](log/2026-11-05-zl32-no-input-running.md) | Source-less effects run with no inputs configured |

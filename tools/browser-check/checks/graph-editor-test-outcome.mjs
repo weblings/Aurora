@@ -113,7 +113,7 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // Undo back to the saved graph.
     await stopFromDashboard()
-    await button('Undo').click()
+    await editAction(page, 'Undo')
     assert.deepEqual(await menuLines(), MENU)
     await closeMenu()
     step('undo leaves the menu plain')

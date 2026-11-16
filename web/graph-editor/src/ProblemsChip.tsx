@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
 import { Button, Dialog, Icon, chevronDownIcon, warningIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
-import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
 import type { GraphRowAction } from './graph/problemActions'
 
@@ -52,7 +51,6 @@ export function ProblemsChip({
   onGraphAction: (run: GraphRowAction['run']) => void
 }) {
   const [open, setOpen] = useState(false)
-  const compact = useMedia(COMPACT_BAR)
   const count = problemCount(problems)
   const [callout, setCallout] = useState<string | null>(null)
   const [pinging, setPinging] = useState(false)
@@ -148,11 +146,12 @@ export function ProblemsChip({
           data-pinging={pinging ? 'true' : undefined}
           aria-haspopup="dialog"
           aria-expanded={open}
-          aria-label={compact ? `${count} ${count === 1 ? 'problem' : 'problems'}` : undefined}
+          aria-label={`${count} ${count === 1 ? 'problem' : 'problems'}`}
           onClick={() => setOpen((o) => !o)}
         >
           <Icon icon={warningIcon} size="sm" />
-          {compact ? count : `${count} ${count === 1 ? 'problem' : 'problems'}`}
+          <span className="editor-chip-full" aria-hidden="true">{`${count} ${count === 1 ? 'problem' : 'problems'}`}</span>
+          <span className="editor-chip-count" aria-hidden="true">{count}</span>
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {/* Always mounted, so a screen reader hears the text when it appears. */}
