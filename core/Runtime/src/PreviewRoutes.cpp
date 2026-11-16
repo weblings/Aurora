@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -70,6 +71,16 @@ namespace Aurora::Runtime
 
       double change() const { return samples > 1 ? totalStep / (samples - 1) : 0.0; }
     };
+
+    // ?layout=lights|room|basic on the stream; absent means lights.
+    std::optional<PreviewLayout> _layoutParam(const Request& req)
+    {
+      const auto asked = req.queryParams.find("layout");
+      if(asked == req.queryParams.end() || asked->second == "lights"){ return PreviewLayout::Lights; }
+      if(asked->second == "room"){ return PreviewLayout::Room; }
+      if(asked->second == "basic"){ return PreviewLayout::Basic; }
+      return std::nullopt;
+    }
 
     nlohmann::json _snapshotJson(const std::string& session, const GraphPreview::Snapshot& snapshot)
     {
@@ -199,6 +210,19 @@ namespace Aurora::Runtime
       }
     );
 
+    // What the editor's Preview layout menu can offer: Sim: your room needs a saved zone map.
+    server.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/graph/preview/layouts",
+      [&pipelineHost](const Request&, Aurora::Network::Http::Server::Response& res){
+        _reply(res, 200, {
+          {"output", pipelineHost.listZones().outputName},
+          {"savedZones", pipelineHost.savedZoneCount()},
+          {"basicZones", basicRoomZoneMap().size()}
+        });
+      }
+    );
+
     server.addStreamRoute(
       "/api/graph/preview",
       [&pipelineHost, &registry, drafts, options](const Request& req, EventStream& stream){
@@ -206,6 +230,11 @@ namespace Aurora::Runtime
         const std::string session = asked == req.queryParams.end() ? std::string() : asked->second;
         if(!DraftStore::validSession(session)){
           _fail(stream, "invalid_session");
+          return;
+        }
+        const auto layout = _layoutParam(req);
+        if(!layout){
+          _fail(stream, "invalid_layout");
           return;
         }
         auto draft = drafts->get(session);
@@ -216,7 +245,7 @@ namespace Aurora::Runtime
 
         const std::uint64_t epoch = pipelineHost.buildEpoch();
         std::string error;
-        std::shared_ptr<GraphPreview> preview = pipelineHost.openPreview(session, *draft, registry, error);
+        std::shared_ptr<GraphPreview> preview = pipelineHost.openPreview(session, *draft, registry, error, *layout);
         if(!preview){
           _fail(stream, "cannot_preview", error);
           return;

@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -19,6 +20,7 @@
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphHost.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/ZoneMap.hpp>
 
 // A draft graph evaluated beside the live one in the same tick (Aurora-52oz.6).
 // It reads the live inputs and zone maps, but every output.send lands in a
@@ -26,6 +28,10 @@
 // latest zone colors per output are kept for readers on other threads.
 namespace Aurora::Runtime
 {
+  // Which zones the editor preview draws: the live output's, the saved zone map
+  // (which outlives an unreachable bridge), or the built-in basic room.
+  enum class PreviewLayout { Lights, Room, Basic };
+
   class GraphPreview
   {
   public:
@@ -83,6 +89,10 @@ namespace Aurora::Runtime
       std::unique_ptr<Input::IAudioInput> audio;
     };
     void setInputs(Inputs inputs) { m_inputs = std::move(inputs); }
+    // A sim layout (Aurora-u8jx.6.1): every output the graph sends to samples these zones instead
+    // of the live zone map, and nothing is sent anywhere. Unset draws the live zones.
+    void setSimZones(ZoneMap zones) { m_simZones = std::move(zones); }
+
     bool hasVideo() const { return m_inputs.video != nullptr; }
     bool hasAudio() const { return m_inputs.audio != nullptr; }
 
@@ -132,7 +142,10 @@ namespace Aurora::Runtime
         return m_owner.m_inputs.audio ? m_owner.m_inputs.audio.get() : m_live.audioInput();
       }
       Output::IOutput* output(std::string_view name) override;
-      const ZoneMap* zoneMap(std::string_view outputName) override { return m_live.zoneMap(outputName); }
+      const ZoneMap* zoneMap(std::string_view outputName) override
+      {
+        return m_owner.m_simZones ? &*m_owner.m_simZones : m_live.zoneMap(outputName);
+      }
 
     private:
       GraphPreview& m_owner;
@@ -155,6 +168,7 @@ namespace Aurora::Runtime
       std::string& errorOut);
 
     Inputs m_inputs;
+    std::optional<ZoneMap> m_simZones;
     Graph::Graph m_graph;
     std::vector<SendNode> m_sends;
     std::map<std::string, std::unique_ptr<Sink>, std::less<>> m_sinks;

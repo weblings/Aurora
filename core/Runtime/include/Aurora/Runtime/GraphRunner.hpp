@@ -113,9 +113,14 @@ namespace Aurora::Runtime
     // replacing (and closing) that session's earlier preview. Its output.send
     // nodes reach preview sinks, never an output (Aurora-52oz.6). Null with
     // errorOut set if `doc` fails to load. `inputs` are the preview's own, for
-    // sources this runner lacks.
+    // sources this runner lacks. `layout` picks the zones the preview draws; Room with no saved
+    // zone map fails with errorOut set.
     std::shared_ptr<GraphPreview> openPreview(
-      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut);
+      const std::string& session, const nlohmann::json& doc, GraphPreview::Inputs inputs, std::string& errorOut,
+      PreviewLayout layout = PreviewLayout::Lights);
+
+    // Zones in the saved map of the first output: what "Sim: your room" would draw.
+    std::size_t savedZoneCount() const;
 
     // Swaps `doc` into a running preview, keeping node state. False with
     // errorOut set, preview untouched, if it fails to load.
@@ -141,6 +146,9 @@ namespace Aurora::Runtime
     // Why the custom graph was not loaded; empty when it was, or none was set.
     const std::string& customError() const { return m_customError; }
 
+    // The first problem that kept it from loading (code and node), empty fields when none.
+    const Graph::LoadIssue& customIssue() const { return m_customIssue; }
+
     // Post-derivation for video (refreshRate/subsampleWidth filled in).
     const Config& config() const { return m_config; }
 
@@ -163,7 +171,9 @@ namespace Aurora::Runtime
 
     // Loads the custom graph if one is set, else (or when it fails, with
     // customError set) the built-in one.
-    bool _load(const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError) const;
+    bool _load(
+      const Config& config, Graph::LoadResult& result, bool& custom, std::string& customError,
+      Graph::LoadIssue& customIssue) const;
 
     bool m_isAudio{false};
     Input::IVideoInput* m_videoInput{nullptr};
@@ -180,6 +190,7 @@ namespace Aurora::Runtime
     std::optional<nlohmann::json> m_customDoc;
     bool m_runningCustom{false};
     std::string m_customError;
+    Graph::LoadIssue m_customIssue;
     Host m_host{*this};
     std::map<std::string, std::shared_ptr<GraphPreview>> m_previews;
 

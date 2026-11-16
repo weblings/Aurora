@@ -1,6 +1,7 @@
 import { problemCopy } from '../../ui/problemCopy.js'
 import { parseZoneRegions, type ZoneRegions } from './graph/frame'
 import { setPortMeanings } from './graph/portStyle'
+import { readAreaCache, writeAreaCache } from './graph/previewLayout'
 import type { Holder } from './graph/lightTest'
 import type { ServerIssue } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, NodeTypeInfo } from './graph/types'
@@ -85,8 +86,45 @@ export async function putDraft(session: string, graph: GraphDoc, signal?: AbortS
   return { valid: body.valid === true, errors: body.errors ?? [] }
 }
 
-export function previewUrl(session: string): string {
-  return `/api/graph/preview?session=${encodeURIComponent(session)}`
+// `layout` is a sim's name (graph/previewLayout.ts layoutQuery); none draws the lights' own zones.
+export function previewUrl(session: string, layout: string | null = null): string {
+  return `/api/graph/preview?session=${encodeURIComponent(session)}${layout ? `&layout=${encodeURIComponent(layout)}` : ''}`
+}
+
+// What the Preview layout menu can offer, from GET /api/graph/preview/layouts; null when unavailable.
+export async function fetchPreviewLayouts(): Promise<{ output: string; savedZones: number } | null> {
+  try {
+    const body = await getJson<{ output?: unknown; savedZones?: unknown }>('/api/graph/preview/layouts')
+    return { output: typeof body.output === 'string' ? body.output : '', savedZones: Number(body.savedZones) || 0 }
+  } catch {
+    return null
+  }
+}
+
+// The name of the Hue entertainment area in use, for the real layout; null when none is chosen or it
+// cannot be told. The bridge lists names, so with it down the last name read stands in (cached by id).
+export async function fetchHueAreaName(): Promise<string | null> {
+  let id = ''
+  try {
+    const connection = await getJson<{ entertainmentConfigurationId?: unknown }>('/api/hue/connection')
+    id = typeof connection.entertainmentConfigurationId === 'string' ? connection.entertainmentConfigurationId : ''
+  } catch {
+    return null
+  }
+  if (!id) return null
+  try {
+    const res = await fetch('/api/hue/entertainment-configurations', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+    const body = (await res.json()) as { configurations?: { id?: unknown; name?: unknown }[] }
+    const found = (body.configurations ?? []).find((c) => c.id === id)
+    if (found && typeof found.name === 'string' && found.name) {
+      writeAreaCache({ id, name: found.name })
+      return found.name
+    }
+  } catch {
+    // Bridge down: fall back to the cached name below.
+  }
+  const cached = readAreaCache()
+  return cached && cached.id === id ? cached.name : null
 }
 
 type Reply = { ok: boolean; status: number; body: Record<string, unknown> }

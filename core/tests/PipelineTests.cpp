@@ -3275,6 +3275,123 @@ TEST_CASE("A startup that cannot run the saved effect fails with an effect error
 }
 
 
+TEST_CASE("GET /api/state gives each build failure a code and its names, and leaves the message alone (Aurora-u8jx.15)", "[Effects][PipelineRoutes]")
+{
+  using namespace Aurora::Network::Http::Server;
+
+  ScopedTempDir dir("effect-failure-codes");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  auto noAudioRegistry = makeRegistry(events, /*withAudio*/ false);
+  Registry noOutputs;
+  noOutputs.registerInput("fake-video", [events]{ return std::make_unique<FakeVideoInput>(events); });
+  std::string error;
+  EffectStore store(dir.path);
+  REQUIRE(store.write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  REQUIRE(store.write("audio-only", Graph::builtInAudioGraph({"out-a", "out-b"}), error));
+
+  PipelineHost host(nullptr, {});
+  HttpServer server;
+  registerStateRoute(server, host, registry, dir.path);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+  httplib::Client client("127.0.0.1", port);
+  auto firstError = [&](){
+    auto result = getWithRetry(client, "/api/state");
+    REQUIRE(result);
+    const auto state = nlohmann::json::parse(result->body);
+    REQUIRE(state["errors"].size() == 1);
+    return state["errors"][0];
+  };
+  auto reloadWith = [&](const Registry& with, const std::string& effect, const std::string& input){
+    Config config = videoConfig();
+    config.setActiveInputName(input);
+    config.setActiveEffectId(effect);
+    return host.reload(with, config, dir.path, error);
+  };
+
+  // A graph that fails to load carries the loader's issue code and the node.
+  CHECK_FALSE(reloadWith(registry, "gone-output", "fake-video"));
+  auto entry = firstError();
+  CHECK(entry["source"] == "effect");
+  CHECK(entry["code"] == "output_unregistered");
+  CHECK_FALSE(entry["detail"]["node"].get<std::string>().empty());
+  CHECK_FALSE(entry["detail"]["effectTitle"].get<std::string>().empty());
+  CHECK(entry["message"].get<std::string>().find("removed-out") != std::string::npos);
+
+  // A graph that needs an input the build cannot supply.
+  CHECK_FALSE(reloadWith(noAudioRegistry, "audio-only", "fake-video"));
+  entry = firstError();
+  CHECK(entry["source"] == "effect");
+  CHECK(entry["code"] == "input_not_configured");
+  CHECK(entry["detail"]["inputKind"] == "audio");
+  CHECK(entry["message"].get<std::string>().find("audio input") != std::string::npos);
+
+  // An effect file that is missing.
+  CHECK_FALSE(reloadWith(registry, "not-there", "fake-video"));
+  entry = firstError();
+  CHECK(entry["source"] == "effect");
+  CHECK(entry["code"] == "effect_unreadable");
+
+  // A device that is not registered, after a failed effect: the pick is the failed one, so it is an effect row.
+  CHECK_FALSE(reloadWith(registry, "builtin.video", "no-such-input"));
+  entry = firstError();
+  CHECK(entry["source"] == "effect");
+  CHECK(entry["code"] == "input_unavailable");
+  CHECK(entry["detail"]["inputKind"] == "video");
+  CHECK(entry["detail"]["inputName"] == "no-such-input");
+  CHECK_FALSE(entry["detail"]["effectTitle"].get<std::string>().empty());
+  CHECK(entry["message"].get<std::string>().find("Unknown input 'no-such-input'") != std::string::npos);
+
+  // No outputs registered at all.
+  CHECK_FALSE(reloadWith(noOutputs, "builtin.video", "fake-video"));
+  entry = firstError();
+  CHECK(entry["code"] == "no_outputs");
+  CHECK(entry["message"].get<std::string>().find("No outputs available -- nothing to drive") != std::string::npos);
+
+  // A running host that fails the same effect on a bad device: the reload row carries the code too.
+  REQUIRE(reloadWith(registry, "builtin.video", "fake-video"));
+  CHECK_FALSE(reloadWith(registry, "builtin.video", "no-such-input"));
+  entry = firstError();
+  CHECK(entry["source"] == "reload");
+  CHECK(entry["code"] == "input_unavailable");
+
+  // A switch to another effect that fails for a missing input wraps it as an effect row with the title.
+  CHECK_FALSE(reloadWith(noAudioRegistry, "builtin.audio", "fake-video"));
+  entry = firstError();
+  CHECK(entry["source"] == "effect");
+  CHECK(entry["code"] == "input_unavailable");
+  CHECK_FALSE(entry["detail"]["effectTitle"].get<std::string>().empty());
+
+  // An error nothing coded has neither field.
+  REQUIRE(reloadWith(registry, "builtin.video", "fake-video"));
+  REQUIRE(host.setError("audio_permission", "Needs permission"));
+  entry = firstError();
+  CHECK_FALSE(entry.contains("code"));
+  CHECK_FALSE(entry.contains("detail"));
+
+  server.stop();
+  serverThread.join();
+  host.shutdown();
+}
+
+
+TEST_CASE("A startup failure holds its code on the startup error (Aurora-u8jx.15)", "[Effects]")
+{
+  ScopedTempDir dir("startup-failure-code");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  PipelineHost host(nullptr, {}, buildFailure(registry, dir.path));
+  const HostStatus status = host.status();
+  REQUIRE(status.errors.size() == 1);
+  CHECK(status.errors[0].source == "startup");
+  CHECK(status.errors[0].code == "input_unavailable");
+  CHECK(status.errors[0].detail.at("inputName") == "nope");
+  host.shutdown();
+}
+
+
 TEST_CASE("A failed switch shows the failure light on the same outputs until an effect runs (Aurora-dh1p)", "[Effects]")
 {
   ScopedTempDir dir("failure-light-switch");
@@ -5385,6 +5502,58 @@ namespace
 }
 
 
+TEST_CASE("The basic room sim layout is the 4 quadrants the dev stack and web demo use (Aurora-u8jx.6.1)", "[Preview]")
+{
+  std::ifstream file(AURORA_ROOM_4ZONE_JSON);
+  REQUIRE(file);
+  const auto expected = nlohmann::json::parse(file);
+  const auto basic = basicRoomZoneMap();
+  REQUIRE(basic.size() == expected.size());
+  for(std::size_t i = 0; i < basic.size(); ++i){
+    CHECK(basic[i].zoneId == expected[i]["zoneId"].get<int>());
+    CHECK(basic[i].uvs.min.x == expected[i]["uvs"]["min"][0].get<float>());
+    CHECK(basic[i].uvs.min.y == expected[i]["uvs"]["min"][1].get<float>());
+    CHECK(basic[i].uvs.max.x == expected[i]["uvs"]["max"][0].get<float>());
+    CHECK(basic[i].uvs.max.y == expected[i]["uvs"]["max"][1].get<float>());
+  }
+}
+
+
+TEST_CASE("GET /api/graph/preview?layout= draws a sim layout and still sends nothing (Aurora-u8jx.6.1)", "[Preview]")
+{
+  PreviewHarness h("preview-layouts");
+  h.putDraft("editor", gainGraph(1.f));
+
+  SseReader basic(h.port, "/api/graph/preview?session=editor&layout=basic");
+  REQUIRE(basic.status() == 200);
+  REQUIRE(h.tickUntil(basic, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  const auto frame = eventsOf(basic.data(), "preview").back();
+  CHECK(frame["outputs"][0]["output"] == "out-a");
+  REQUIRE(frame["outputs"][0]["zones"].size() == 4);
+  CHECK(frame["outputs"][0]["zones"][3]["id"] == 3);
+
+  // The live outputs still get one send per tick each, and nothing extra from the sim.
+  const int before = h.events->sendCount;
+  for(int i = 0; i < 10; ++i){ h.host->tick(); }
+  CHECK(h.events->sendCount - before == 10 * 2);
+
+  // The saved zone map (written by the live reconcile) is what Sim: your room draws.
+  SseReader room(h.port, "/api/graph/preview?session=editor&layout=room");
+  REQUIRE(h.tickUntil(room, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+  CHECK(eventsOf(room.data(), "preview").back()["outputs"][0]["zones"].size() == 2);
+
+  auto layouts = h.client->Get("/api/graph/preview/layouts");
+  REQUIRE(layouts);
+  const auto body = nlohmann::json::parse(layouts->body);
+  CHECK(body["savedZones"] == 2);
+  CHECK(body["basicZones"] == 4);
+
+  SseReader bad(h.port, "/api/graph/preview?session=editor&layout=nope");
+  REQUIRE(bad.waitFor("event: error\n"));
+  CHECK(bad.data().find("invalid_layout") != std::string::npos);
+}
+
+
 TEST_CASE("GET /api/graph/preview/summary reports a frozen graph as still and an lfo graph as moving (Aurora-4xqt.5)", "[Preview]")
 {
   PreviewHarness h("preview-summary");
@@ -5864,6 +6033,21 @@ TEST_CASE("GET /api/v1/state trims the internal fields and reports percent brigh
 }
 
 
+TEST_CASE("GET /api/v1/state carries an error's code and detail (Aurora-u8jx.15)", "[PublicApi][v1]")
+{
+  V1Harness h("v1-state-code");
+  Config bad = videoConfig();
+  bad.setActiveInputName("no-such-input");
+  std::string error;
+  REQUIRE_FALSE(h.host->reload(h.registry, bad, h.dir.path, error));
+
+  const nlohmann::json state = h.get("/api/v1/state");
+  REQUIRE(state["errors"].size() == 1);
+  CHECK(state["errors"][0]["code"] == "input_unavailable");
+  CHECK(state["errors"][0]["detail"]["inputName"] == "no-such-input");
+}
+
+
 TEST_CASE("GET /api/v1/state reports a paused host as paused and an unset audio input as null (Aurora-5ipy.40)", "[PublicApi][v1]")
 {
   V1Harness h("v1-state-paused");
@@ -5986,6 +6170,43 @@ TEST_CASE("POST /api/v1/graph/save and /effects/:id/duplicate answer like the co
   CHECK(post("/api/v1/effects/kept/duplicate", {{"id", "screen-copy"}})->status == 409);
   CHECK(post("/api/v1/effects/nope/duplicate", {{"id", "fresh"}})->status == 404);
   CHECK(ConfigStore(h.dir.path).load().activeEffectId() == "");
+}
+
+
+TEST_CASE("Graph ui entries keep extra keys through draft PUT, GET and save on core and v1 routes (Aurora-u8jx.17)", "[PublicApi][v1][Drafts]")
+{
+  LightTestHarness h("ui-extra-keys");
+  nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+  const std::string nodeId = graph["nodes"][0]["id"].get<std::string>();
+  graph["ui"] = {{nodeId, {{"x", 40}, {"y", 80}, {"preview", true}, {"note", "hi"}}}};
+
+  const std::vector<std::pair<std::string, std::string>> routes = {
+    {"core", "/api/graph/"}, {"v1", "/api/v1/graph/"}};
+  for(const auto& [name, base] : routes){
+    const std::string session = "ui-" + name;
+    auto put = h.client->Put(base + "drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+    REQUIRE(put);
+    CHECK(put->status == 200);
+    const nlohmann::json putBody = nlohmann::json::parse(put->body);
+    CHECK(putBody["valid"] == true);
+    CHECK(putBody["errors"].empty());
+
+    auto got = h.client->Get(base + "drafts/" + session);
+    REQUIRE(got);
+    const nlohmann::json gotBody = nlohmann::json::parse(got->body);
+    CHECK(gotBody["graph"]["ui"] == graph["ui"]);
+    CHECK(gotBody["valid"] == true);
+    CHECK(gotBody["errors"].empty());
+
+    auto saved = h.client->Post(base + "save", nlohmann::json{{"session", session}, {"id", "kept-" + name}}.dump(),
+      "application/json");
+    REQUIRE(saved);
+    CHECK(saved->status == 200);
+    std::string error;
+    auto effect = EffectStore(h.dir.path).read("kept-" + name, error);
+    REQUIRE(effect.has_value());
+    CHECK((*effect)["ui"] == graph["ui"]);
+  }
 }
 
 

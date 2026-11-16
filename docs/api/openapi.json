@@ -2392,6 +2392,17 @@
           "id": {
             "type": "integer",
             "description": "Stamped when the entry is created or replaced."
+          },
+          "code": {
+            "type": "string",
+            "description": "Why it failed, when Aurora knows. An open set, for example `input_not_configured`, `input_unavailable`, `no_outputs`, `effect_unreadable`, or the code of the first problem that kept a graph from loading (`node_construct_failed`). Absent for other failures. `message` is the same text with or without it."
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Names that go with `code`, when there are any. Keys seen so far are `effectTitle`, `node`, `inputKind` (`video` or `audio`) and `inputName`."
           }
         }
       },

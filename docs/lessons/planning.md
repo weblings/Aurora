@@ -658,3 +658,54 @@ Applies-when: finishing a static or scripted mock frame before showing it to the
 `playwright-core` in `tools/browser-check` with the cached Chromium loads the file mock directly (no server) and gave a screenshot plus logged text per frame. It caught a stale shared array, a missing re-open message and an always-empty first paint. A separator dot the owner had cut survived in a helper until a grep for its class; the gap it left stayed one more round.
 
 **Fix:** after each edit, run the frame headless, print the measured and logged values, and look at one screenshot. When something is cut, grep the markup, CSS and captions for its class and wording.
+
+---
+
+## An overlay anchored to an edge control needs a measured placement and a narrow-width check, in the mock and the build
+Tags: planning, design-process, mocks, webui, tooltip, callout, narrow
+Applies-when: a mock or component draws its own tooltip, callout or popup next to a control near a window edge
+
+Aurora-u8jx.6's Preview island mock placed a truncation tooltip right of its row and flipped it left when it overflowed. At 360 px wide the flipped box still left the window, because the tooltip is wider than the room on either side. The same failure already shipped once: the refused-save callout (Aurora-h55g, `docs/log/2026-11-13-h55g-refused-callout-narrow.md`) was anchored left of the problems chip, started at x=-300 at 400 px, and passed because its mock and browser check were desktop only. That log filed no lesson. The real editor's Grille tooltips are placed by React Aria, which flips and clamps, so only hand-built overlays (mocks, `ProblemsChip.tsx`) hit this.
+
+**Fix:** place by measured room, not a breakpoint: preferred side if it fits between the anchor and the gutter, else the other side, else below, then clamp both axes inside the window and cap the width at the window width minus a margin. `ProblemsChip.tsx` `placeCallout` is the reference. Check each such overlay at 1100, 700, 400 and 360 px against `innerWidth` and `innerHeight`, and on the first show after a fresh load. The frame strip wraps tall at narrow widths and can push the control off screen, so judge narrow widths in the popup links.
+
+---
+
+## Baseline a mock to the plan of record (the built editor) before drawing anything new
+Tags: planning, design-process, mocks, webui, verification, grille
+Applies-when: starting a mock frame, or a new frame set, in a mock that has Decisions switches or older frames
+
+Aurora-u8jx.6's Preview mock was started from the bead's frame text and from a mock whose Decisions switches default to the old state (the Test split button switch defaulted to off, which draws "Test on lights" and a "Live preview" pill). The editor had shipped the split button (`SplitTestButton.tsx`, `Test (15s)`, `Stop 0:12`). Everything drawn on that base needed owner steering: the old Test button, a "Testing on Hue" shell row Stage 6 reserves for tests the user did not cause, an invented "Can't reach the Hue bridge." when core already raises `kUnreachableMessage`, quadrant and ring shapes where the live island draws plain cells, a Grille select where the Test caret uses the tick menu, and an icon-only chevron beside a title. Each is a difference between the mock's base and the built editor, found one review round at a time.
+
+The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it, drop the switch, and retire the frames that argued it.
+
+**Fix, in order, before styling anything:**
+1. Set every Decisions switch to the shipped editor's state and screenshot the mock's rest frame next to the real editor at the same width. Differences are mock bugs, not design choices.
+2. For each element the new frames touch, name the built component and file, the existing message in core or the shell, and the existing drawing rule (cell shape, truncation, tooltip). Put them in the frame's caption.
+3. Treat frame text in a bead as a lean to check against that baseline, not a spec.
+4. List anything the mock adds beyond the design field as "new in the mock" so the owner can accept or cut it.
+5. Test new labels with a worst-case string and copy the neighbouring control's overflow rule, keep mock annotations off the editor canvas, and check overlays at 1100, 700, 400 and 360 px.
+
+---
+
+## Review the mock's controls against the design system, not just its colours
+Tags: planning, design-process, mocks, grille, webui
+Applies-when: a mock builds a new control (select, menu, header row) next to existing Grille dropdowns
+
+The first Preview island used a Grille select (bold selected row), an icon-only collapse chevron beside a title, and a hand-tuned card. Review asked why it did not use the tick menu the Test caret uses, and why it read as two dropdowns stacked. The fixes were reuse, not restyle: the shared tick menu, one whole-row button that is transparent when idle, and the popup surface the other open menus have. Measured in the browser, the open card already matched the other popups (`#1a1a1a`, `#333` border, same shadow). The difference people saw was against the closed button's `#333` face.
+
+**Fix:** before building a control, list the neighbouring controls that do the same job (here the zoom, title and Test caret menus) and copy their structure. Compare computed colours of the open states in the browser instead of arguing from tokens.
+
+---
+
+## Tabulate each control's width and what folding really saves before drawing a fold
+Tags: planning, design-process, mocks, webui, narrow-windows, measurement
+Applies-when: a bead proposes folding bar controls into menus to fit a narrow window
+
+Aurora-u8jx.9 started as "fold Undo and Redo into History and the title into its menu". Measuring the real bar first (one logged line per control, per width) changed the brief: nothing overflowed down to 360 px, because the title is the one flexible control and truncates first. The idea that sounded biggest saved the least: a History menu button keeps its own chevron (about 12 px back) and a split `[Undo | caret]` saves about nothing, since it is still two 31 px buttons. The widest fixed control was Test (a 77 px label plus a 31 px caret), and showing only its icon returned about 46 px with no new menu and no new ARIA. A title fallback (dots icon) was drawn and dropped once the title was shown to stay readable down to the smallest supported width.
+
+**Fix:**
+1. Log each control's width at every supported width on the built editor (the narrow browser check can print it) and find what is flexible and what is the widest fixed control.
+2. Compute what each fold saves, counting the trigger's own chevron, before drawing it. Prefer dropping a label to an icon over folding icon buttons into a menu.
+3. Print the live title width in each frame's caption so the mock's flex layout is checked against the measured editor, and ask whether the squeezed control is actually unreadable before adding a fallback for it.
+4. When a label becomes an icon, carry every state's meaning into the aria-label and tooltip, and note what the surrounding UI (here the shell row) already says.

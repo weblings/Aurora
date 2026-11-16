@@ -307,6 +307,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx7-test-save-controls` | [log/2026-10-29-pvxx7-test-save-controls.md](log/2026-10-29-pvxx7-test-save-controls.md) | E4: test on lights, Save, Save and apply, Dashboard controls |
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
+| `q5eb-windows-no-browser-tab` | [log/2026-11-15-q5eb-windows-no-browser-tab.md](log/2026-11-15-q5eb-windows-no-browser-tab.md) | devstack: the Windows app no longer opens a browser tab on `up` |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `qjqy-light-test-modes-close-out` | [log/2026-11-11-qjqy-light-test-modes-close-out.md](log/2026-11-11-qjqy-light-test-modes-close-out.md) | Light test modes close-out |
 | `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |
@@ -369,7 +370,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
 | `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
 | `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx15-shell-effect-copy` | [log/2026-11-15-u8jx15-shell-effect-copy.md](log/2026-11-15-u8jx15-shell-effect-copy.md) | Shell: a failed effect or reload reads in 7a's words on the Dashboard and in the editor |
 | `u8jx16-popover-node-titles` | [log/2026-11-13-u8jx16-popover-node-titles.md](log/2026-11-13-u8jx16-popover-node-titles.md) | Graph editor: Problems popover node rows read the node's title, not its id |
+| `u8jx17-ui-extra-keys` | [log/2026-11-15-u8jx17-ui-extra-keys.md](log/2026-11-15-u8jx17-ui-extra-keys.md) | Graph doc ui entries keep extra keys through draft PUT, GET and save |
 | `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
 | `u8jx3-runtime-wording` | [log/2026-11-13-u8jx3-runtime-wording.md](log/2026-11-13-u8jx3-runtime-wording.md) | Graph editor: a node that fails during the preview reads "Runs, but this node fails", through 7a's table |
 | `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
@@ -379,6 +382,10 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `u8jx44-number-field-spinners` | [log/2026-11-13-u8jx44-number-field-spinners.md](log/2026-11-13-u8jx44-number-field-spinners.md) | Graph editor: node param number fields drop the native spin buttons |
 | `u8jx45-status-detail-reload-coverage` | [log/2026-11-13-u8jx45-status-detail-reload-coverage.md](log/2026-11-13-u8jx45-status-detail-reload-coverage.md) | Graph editor: the dead open-failure status detail is gone, the reload row's coverage is checked |
 | `u8jx5-shell-collapse` | [log/2026-11-13-u8jx5-shell-collapse.md](log/2026-11-13-u8jx5-shell-collapse.md) | Error shell collapses as one: baseline, snapshot, one toggle |
+| `u8jx6-preview-island-planning` | [log/2026-11-15-u8jx6-preview-island-planning.md](log/2026-11-15-u8jx6-preview-island-planning.md) | Graph editor: Preview island and sim layouts planned, per-node previews filed |
+| `u8jx61-preview-island-build` | [log/2026-11-15-u8jx61-preview-island-build.md](log/2026-11-15-u8jx61-preview-island-build.md) | Graph editor: Preview island with a layout menu and sim layouts built |
+| `u8jx9-narrow-bar-mock` | [log/2026-11-15-u8jx9-narrow-bar-mock.md](log/2026-11-15-u8jx9-narrow-bar-mock.md) | Graph editor: narrow top bar mock, Test drops to its icon |
+| `u8jx91-narrow-top-bar` | [log/2026-11-15-u8jx91-narrow-top-bar.md](log/2026-11-15-u8jx91-narrow-top-bar.md) | Graph editor: narrow top bar, idle Test drops to its icon, the Problems chip gets a chevron |
 | `uds2-status-undrawn-fields` | [log/2026-11-13-uds2-status-undrawn-fields.md](log/2026-11-13-uds2-status-undrawn-fields.md) | Graph editor: Status no longer carries the undrawn detail and where fields, and Take over's tooltip is drawn |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
 | `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |

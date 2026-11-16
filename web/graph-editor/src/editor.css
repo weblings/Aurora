@@ -409,40 +409,63 @@ button.editor-problem-row:hover {
   display: none;
 }
 
-/* The Zones island (Aurora-s1t7.4): header with the hide chevron, then 14 px
-   cells, 8 per row. Collapsed, it fits its header. */
-.zones-island {
+/* The Preview island (Aurora-s1t7.4, Aurora-u8jx.6.1): a card holding the Preview toggle, the layout menu
+   button and 14 px cells, 8 per row. Collapsed it is only the toggle button, at its own width. The controls
+   are Grille buttons; the card surface and the borderless toggle are local (Grille has neither). */
+.preview-island {
   position: absolute;
   right: var(--aurora-space-5);
   top: var(--aurora-space-5);
   z-index: 5;
-  background: var(--aurora-surface);
-  border: 1px solid var(--aurora-border);
-  border-radius: var(--aurora-radius-control);
-  overflow: hidden;
 }
 
-.zones-head {
+.preview-island.open {
   display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-md);
+  width: max-content;
+  min-width: calc(8 * 16px - 2px + 2 * var(--ui-size-space-md));
+  padding: var(--ui-size-space-md);
+  box-sizing: border-box;
+  background: var(--ui-color-popup-bg);
+  border: 1px solid var(--ui-color-popup-border);
+  border-radius: var(--ui-size-radius-sm);
+  box-shadow: var(--ui-shadow-popup);
+}
+
+.preview-island.open .ui-button {
+  box-shadow: none;
   width: 100%;
-  align-items: center;
   justify-content: space-between;
-  gap: var(--aurora-space-4);
-  padding: var(--aurora-space-2) var(--aurora-space-3);
-  background: none;
-  border: none;
-  color: var(--aurora-text-primary);
-  font: inherit;
-  cursor: pointer;
 }
 
-.zones-head:hover {
-  background: var(--aurora-surface-hover, rgb(128 128 128 / 0.15));
+/* Idle, the Preview row blends into the card; it fills on hover only. */
+.preview-island.open .preview-toggle {
+  background: transparent;
 }
 
-.zones-head:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: -2px;
+.preview-island.open .preview-toggle:hover {
+  background: var(--ui-color-control-bg-hover);
+}
+
+.preview-island.open .preview-toggle:active {
+  background: var(--ui-color-control-bg-active);
+}
+
+.preview-lock {
+  display: block;
+}
+
+/* The layout button caps at 28ch like the title button; a cut name ends in an ellipsis. */
+.preview-island .preview-layout {
+  max-width: 28ch;
+}
+
+.preview-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .zones-cells {
@@ -450,7 +473,6 @@ button.editor-problem-row:hover {
   grid-template-columns: repeat(8, 14px);
   grid-auto-rows: 14px;
   gap: 2px;
-  padding: 0 var(--aurora-space-3) var(--aurora-space-3);
 }
 
 .zones-cell {
@@ -463,7 +485,7 @@ button.editor-problem-row:hover {
   box-shadow: inset 0 0 0 1px #fff;
 }
 
-.zones-island-stale .zones-cells {
+.preview-island-stale .zones-cells {
   opacity: 0.4;
 }
 
@@ -709,6 +731,13 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
+/* Narrow bar (Aurora-u8jx.9.1): SplitTestButton sets data-icon-form when the title would fall under about
+   100 px, and idle Test is then its icon alone (state in aria-label and tooltip). */
+.editor-split[data-icon-form] .editor-split-main .editor-split-label { display: none; }
+.editor-split[data-icon-form] .editor-split-main { width: var(--ui-size-button-icon-size); padding: 0; justify-content: center; }
+.editor-split[data-icon-form] .editor-split-main .editor-split-icon-extra { display: block; }
+.editor-split-icon-extra { display: none; }
+
 .editor-header > .ui-button,
 .editor-header > .editor-sep,
 .editor-header > .editor-edited {
@@ -825,14 +854,14 @@ body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
   z-index: 6;
 }
 
-/* The Zones island (top-right of the canvas) steps left of a side drawer by the
+/* The Preview island (top-right of the canvas) steps left of a side drawer by the
    same token, so it stays visible while a control is slid (Aurora-daaa.35). The
    bottom dock leaves the top edge clear. */
-.zones-island {
+.preview-island {
   transition: right 0.15s;
 }
 
-body:has(.ui-drawer[data-side='right']) .zones-island {
+body:has(.ui-drawer[data-side='right']) .preview-island {
   right: calc(var(--ui-size-drawer-width) + var(--aurora-space-5));
 }
 

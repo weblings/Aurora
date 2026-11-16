@@ -1253,3 +1253,13 @@ Applies-when: snapshotting a server response into test fixtures, or asserting a 
 Aurora-pvxx.4: the editor's `/api/nodes` fixture came from `build/mac-app`, a binary older than the branch (no `title`, no port descriptions, empty `output` options; the duplicate route 404ed too). The test "every type has a title" used `expect(info.title).not.toBe('')`, which passes for `undefined`, so it went green on a snapshot with no titles at all. Only a screenshot with blank node headers showed it.
 
 **Fix:** assert the type and the value (`typeof x === 'string' && x !== ''`), not the absence of one bad value. Before snapshotting, rebuild the app and check a field the newest server commits added (`title`) is in the sample. A test over fixtures should fail when pointed at an old build.
+
+---
+
+## "No API exposes X" needs a repo-wide search, not the directories you guessed
+Tags: debugging, search, verification, planning
+Applies-when: about to tell the owner that a value or name is not available anywhere in code
+
+Asked whether the Hue entertainment area's name could label the Preview layout, a search of `core/Output`, `core/Runtime` and `web/graph-editor/src` found only `entertainmentConfigurationId`, and the answer given was that no API exposes the name. A repo-wide search then found `output/hue` (`ApiTools::loadEntertainmentConfigurations`, `PUT /api/hue/entertainment-configurations`) and the Dashboard's `EntertainmentConfigSelect.js`, which already show `{id, name}` from the bridge. The earlier answer was wrong.
+
+**Fix:** search from the repo root with several spellings (snake, camel, route and UI wording) before claiming absence, and say which paths were searched. Output modules live outside `core/`.

@@ -245,7 +245,7 @@ function drawBar() {
   const bar = $('bar')
   const count = probN()
   const problems = state.problems ? btn([warnIcon(), `${count} ${count === 1 ? 'problem' : 'problems'}`], { class: 'ui-button ge-problems', 'data-act': 'problems', 'aria-haspopup': 'dialog' }) : null
-  const blocked = state.problems || Boolean(state.banner?.blocking)
+  const blocked = state.problems || Boolean(state.banner?.blocking) || Boolean(state.pv && !state.pv.lights)
   const testPart = opts.split ? splitTest(blocked) : state.testing
     ? [el('span', { class: 'ge-countdown' }, 'On the lights, reverts in 0:24'), btn('Revert', { 'data-act': 'revert' })]
     : [btn(state.other ? 'Take over the lights' : 'Test on lights', { variant: opts.testPrimary ? 'primary' : undefined, class: `ui-button${opts.testPrimary ? ' ge-primary' : ''}`, 'data-act': 'test', disabled: blocked, title: 'Show this graph on the real lights for a while, then put them back' })]
@@ -273,14 +273,14 @@ function splitTest(blocked) {
   const primary = opts.testPrimary
   const cls = `ui-button ge-split-part${primary ? ' ge-primary' : ''}`
   const v = primary ? 'primary' : undefined
-  const reason = state.problems ? 'Fix the problems first' : state.banner?.blocking ? 'Cannot reach Aurora' : undefined
+  const reason = state.problems ? 'Fix the problems first' : state.banner?.blocking ? 'Cannot reach Aurora' : state.pv && !state.pv.lights ? 'No lights reachable' : undefined
   if (state.status?.action) return btn(state.status.action.label, { variant: v, class: `ui-button${primary ? ' ge-primary' : ''}`, 'data-act': state.status.action.act, title: 'Another session took over the preview' })
   if (state.testing) {
     const label = test.mode === 'once' ? `Stop ${clock(test.left)}` : 'Stop'
     return el('span', { class: 'ge-split' }, btn([vsicon(VS.stop), el('span', { class: 'ge-countdown-in' }, label)], { variant: v, class: cls, 'data-act': 'revert', title: 'Stop and put the lights back' }),
       btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu' }))
   }
-  const label = state.other ? 'Take over' : 'Test'
+  const label = state.other ? 'Take over' : test.mode === 'once' ? 'Test (15s)' : 'Test (Live)' // as SplitTestButton.tsx
   return el('span', { class: 'ge-split', title: reason }, btn([vsicon(VS.play), label], { variant: v, class: cls, 'data-act': 'test', disabled: blocked, title: reason ?? (test.mode === 'once' ? 'Show this graph on the real lights for 15 seconds' : 'Show this graph on the real lights until you stop') }),
     btn(chevron('cc-chev'), { variant: v, class: `${cls} ge-split-caret`, icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu', 'data-act': 'test-menu', disabled: blocked }))
 }
@@ -334,6 +334,7 @@ function zonesIsland() {
 
 function drawIslands() {
   $('controls-btn').replaceChildren('Dashboard controls ', el('span', { class: 'ge-count' }, String(state.controls.length)))
+  if (state.pv) { $('preview').replaceChildren(pvIsland()); return }
   if (opts.split) { $('preview').replaceChildren(zonesIsland()); return }
   $('preview').replaceChildren(el('div', { class: `ge-zones${state.problems ? ' stale' : ''}` },
     el('button', { type: 'button', class: 'ge-zones-head', 'data-act': 'zones', 'aria-expanded': state.zonesOpen }, 'Zone preview', chevron('cc-chev', state.zonesOpen ? 'up' : 'down' === 'up')),
@@ -352,6 +353,7 @@ function toast(text) {
 // --- Popups ------------------------------------------------------------------
 
 function closePopups() {
+  document.querySelectorAll('.pv-layout[aria-expanded="true"]').forEach((n) => n.setAttribute('aria-expanded', 'false'))
   state.popup = null
   layer.replaceChildren()
   $('canvas').classList.remove('drawer-open', 'drawer-full')
@@ -585,8 +587,13 @@ function truncTip(row) {
     const r = row.getBoundingClientRect()
     tip = el('div', { class: 'ui-tooltip s6-tip', role: 'tooltip' }, label.textContent)
     layer.append(tip)
-    tip.style.left = `${r.right + 8}px`
-    tip.style.top = `${r.top + r.height / 2 - tip.offsetHeight / 2}px`
+    // Right of the row, else left, else below, always inside the window (a mock stand-in for Grille's React Aria placement).
+    tip.style.maxWidth = `${innerWidth - 16}px`
+    const w = tip.offsetWidth, h = tip.offsetHeight, mid = r.top + r.height / 2 - h / 2
+    const clampX = (x) => Math.max(8, Math.min(x, innerWidth - 8 - w)), clampY = (y) => Math.max(8, Math.min(y, innerHeight - 8 - h))
+    if (r.right + 8 + w <= innerWidth - 8) Object.assign(tip.style, { left: `${r.right + 8}px`, top: `${clampY(mid)}px` })
+    else if (r.left - 8 - w >= 8) Object.assign(tip.style, { left: `${r.left - 8 - w}px`, top: `${clampY(mid)}px` })
+    else Object.assign(tip.style, { left: `${clampX(r.left)}px`, top: `${clampY(r.bottom + 6)}px` })
   }
   const hide = () => { clearTimeout(timer); tip?.remove(); tip = null }
   row.addEventListener('mouseenter', () => { clearTimeout(timer); timer = setTimeout(show, 500) })
@@ -1100,11 +1107,60 @@ function collapseSection() {
     s6note('Decided: the shell reads "N errors" in the error tone with Grille circled-exclamation, notices read "N notices" in the default colour with circled-info (added to Grille as circledInfoIcon, not yet released), the Problems chip keeps "N problems" in the warning tone with a chevron. Show less is secondary-coloured. A notice row has no mark. Open: whether the compact chip (at 649 px and below) keeps its chevron. As built the real bar fits at 400 px with the title shrinking to 74 px; a chevron takes the title to 48 px and at 360 px the bar overflows, so the narrow-bar bead decides, not this one. The light-test countdown must not count as a change when deciding to re-expand.'))
 }
 
+// ---- 7.0n: the narrow top bar (Aurora-u8jx.9) ----------------------------------------------------------------
+// Real editor, 1 problem, 31 px buttons: title 95 px at 400 and 55 px at 360 (as built, no chip chevron); the chip chevron costs ~26 px.
+// The Test button is 108 px (label 77 + caret 31). Every chevron here is Grille's own (gChev).
+// opt.test: 'label' (as built), 'icon' (idle Test is the play icon alone), 'stop' (the stop icon alone, the countdown in the aria-label and
+// tooltip), 'takeover' and 'reconnect' (the same play icon, the state in the aria-label and tooltip, the shell row explains why).
+function narrowBar({ test = 'label', chev = true, name = 'Screen colors' } = {}) {
+  const iconBtn = (icon, label) => btn(vsicon(icon), { class: 'ui-button ge-split-part s9-test-icon', icon: true, 'aria-label': label })
+  const main = {
+    label: () => btn([vsicon(VS.play), 'Test (15s)'], { class: 'ui-button ge-split-part' }),
+    icon: () => iconBtn(VS.play, 'Test (15s)'),
+    stop: () => iconBtn(VS.stop, 'Stop the test, 12 seconds left'),
+    takeover: () => iconBtn(VS.play, 'Take over the test'),
+    reconnect: () => iconBtn(VS.play, 'Reconnect'),
+  }[test]()
+  const split = s6('span', 'ge-split s6-testwrap', main,
+    btn(gChev(), { class: 'ui-button ge-split-part ge-split-caret', icon: true, 'aria-label': 'Test mode', 'aria-haspopup': 'menu' }))
+  return s6('div', 's6-bar ge-bar s9-bar',
+    btn(vsicon(VS.back, 32, 'ge-vs-back'), { icon: true, 'aria-label': 'Dashboard' }), s6('span', 'ge-sep'),
+    btn([s6('span', 'ge-title-text', name), gChev()], { class: 'ui-button ge-title', 'aria-haspopup': 'menu', 'aria-expanded': 'false' }),
+    s6('span', 'ge-spacer'),
+    btn(vsicon(ZEST.undo, 24), { icon: true, 'aria-label': 'Undo' }), btn(vsicon(ZEST.redo, 24), { icon: true, 'aria-label': 'Redo', disabled: true }),
+    s6('span', 'ge-sep'),
+    s6('span', 's6-chipwrap', btn([warnSvg(), ' 1', chev ? gChev() : null], { class: 'ui-button ge-problems', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', 'aria-label': '1 problem' }), split))
+}
+function narrowFrame(w, label, opt) {
+  const bar = narrowBar(opt)
+  const panel = s6panel(`${w}px: ${label}`, s6('div', `s7-w${w <= 649 ? ' s7-compact' : ''}`, { style: `width:${w}px` }, bar, s6('div', 's6-canvas', 'The graph canvas')))
+  // The title's width is measured live (the mock's flex layout, not the editor's), so the caption stays honest.
+  requestAnimationFrame(() => { const t = bar.querySelector('.ge-title'); panel.querySelector('figcaption').append(` (title ${Math.round(t.getBoundingClientRect().width)} px here)`) })
+  return panel
+}
+function narrowSection() {
+  const LONG = 'Warm sunset over the bay'
+  return s6section('s9-narrow', 'Aurora-u8jx.9 (7.0n)', 'The narrow top bar: Test drops to its icon when the title gets short',
+    'Proposed rule: the title truncates first, as it does today. Once it would drop under about 100 px (between 450 and 400 px with the chip chevron kept), Test shows only an icon and gives about 46 px back. Everything else stays: Undo and Redo are two buttons, the title has no fallback. In the icon form the state lives in the aria-label and tooltip: Test (15s) or Test (Live), Stop the test with the time left, Take over the test, Reconnect. The shell row already says why another view is testing. All chevrons are Grille\'s chevronDownIcon.',
+    s6('div', 's6-grid',
+      narrowFrame(520, 'Label stays: the title has room', {}),
+      narrowFrame(450, 'Label stays: still enough for the title', {}),
+      narrowFrame(420, 'Label, for comparison: the title is under 100 px', {}),
+      narrowFrame(420, 'Icon: from here down', { test: 'icon' }),
+      narrowFrame(400, 'Icon, chip chevron kept', { test: 'icon' }),
+      narrowFrame(360, 'Icon, chip chevron kept', { test: 'icon' }),
+      narrowFrame(360, 'Icon, a long name (' + LONG + '): the title clips with an ellipsis, as it does at every width', { test: 'icon', name: LONG }),
+      narrowFrame(360, 'While testing: the stop icon alone', { test: 'stop' }),
+      narrowFrame(360, 'Another view is testing: the play icon, labelled Take over the test', { test: 'takeover' }),
+      narrowFrame(360, 'This view lost the session: the play icon, labelled Reconnect', { test: 'reconnect' })),
+    s6note('The switch point is not a fixed width: it is where the title would fall under about 100 px, which depends on the chip (a count, with or without the chevron) and the name, so a container query on the bar fits better than a breakpoint. The mock draws the icon forms at 420 px and down. Disabled Test (Fix the problems) keeps its tooltip, which the icon form already has. Open: the 100 px threshold, and that the one-click Take over now needs the user to read the shell row or the tooltip to know it replaces another test.'))
+}
+
 function drawBoard(which) {
-  const sections = { shell: shellSection, test: testSection, prompt: promptSection, collapse: collapseSection, start: () => ssSection(s6section, s6note), sim: () => simBoard(s6section, s6note), spot: () => spotSection(s6section, s6note), buttons: () => bsSection(s6section, s6note), sizes: () => szSection(s6section, s6note) }
+  const sections = { shell: shellSection, test: testSection, prompt: promptSection, collapse: collapseSection, narrow: narrowSection, start: () => ssSection(s6section, s6note), sim: () => simBoard(s6section, s6note), spot: () => spotSection(s6section, s6note), buttons: () => bsSection(s6section, s6note), sizes: () => szSection(s6section, s6note) }
   const keys = which === 'all' ? ['shell', 'test', 'prompt'] : [which]
   $('board').replaceChildren(
-    which === 'spot' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0l: the shell without a scroll view'), s6('p', '', 'Frame for Aurora-u8jx.14. Live: press the events. Frozen frames stop the same pulse for comparison.')) : which === 'sim' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0k: shell sequences, A against B'), s6('p', '', 'Frame for Aurora-u8jx.12. Live: press the steps, or inject events yourself.')) : which === 'start' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0j: how a shell with 2+ rows starts'), s6('p', '', 'Frame for Aurora-u8jx.12. Static, but the C region scrolls. Pick A, B or C (or a mix).')) : which === 'sizes' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0i: button sizes on Grille dev.15'), s6('p', '', 'Frame for Aurora-u8jx.11. Static. Heights are measured live.')) : which === 'buttons' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0h: button styling A / B / C'), s6('p', '', 'Frame for Aurora-u8jx.7. Static: only forced states, hover works live. No editor code changed.')) : which === 'collapse' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0f: the shell collapses as one'), s6('p', '', 'Frame for Aurora-u8jx.5. Static: nothing here is wired. Drafted wording is new in this frame.')) : s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
+    which === 'spot' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0l: the shell without a scroll view'), s6('p', '', 'Frame for Aurora-u8jx.14. Live: press the events. Frozen frames stop the same pulse for comparison.')) : which === 'sim' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0k: shell sequences, A against B'), s6('p', '', 'Frame for Aurora-u8jx.12. Live: press the steps, or inject events yourself.')) : which === 'start' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0j: how a shell with 2+ rows starts'), s6('p', '', 'Frame for Aurora-u8jx.12. Static, but the C region scrolls. Pick A, B or C (or a mix).')) : which === 'sizes' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0i: button sizes on Grille dev.15'), s6('p', '', 'Frame for Aurora-u8jx.11. Static. Heights are measured live.')) : which === 'buttons' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0h: button styling A / B / C'), s6('p', '', 'Frame for Aurora-u8jx.7. Static: only forced states, hover works live. No editor code changed.')) : which === 'narrow' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0n: the narrow top bar'), s6('p', '', 'Frame for Aurora-u8jx.9. Static: nothing here is wired. Three options at 400 and 360 px.')) : which === 'collapse' ? s6('header', 's6-head', s6('h1', '', 'Stage 7.0f: the shell collapses as one'), s6('p', '', 'Frame for Aurora-u8jx.5. Static: nothing here is wired. Drafted wording is new in this frame.')) : s6('header', 's6-head', s6('h1', '', 'Stage 6: where each editor message lives'), s6('p', '', 'Frame for Aurora-u68h.1. The banner under the bar is gone in every state below. The title menu and Open path are the live frames #s6-menu, #s6-openpath and #s6-apply. The problems chip and the toast are unchanged and not drawn. Static: nothing here is wired.')),
     ...keys.map((k) => sections[k]()))
 }
 
@@ -1136,7 +1192,8 @@ const FRAMES = [
     ['s6-apply', 'Save and apply, problems', () => { Object.assign(state, { s6: true, problems: true, unsaved: true }); drawBar(); drawIslands(); drawNodes(); openTitleS6({ focus: 'Save and apply' }) }],
     ['s6-menu', 'Title menu, no problems', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6() }],
     ['s6-openpath', 'Open path', () => { Object.assign(state, { s6: true, unsaved: true }); drawBar(); openTitleS6({ openSub: true }) }]]],
-  ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-start', 'How 2+ rows start', () => drawBoard('start')], ['s7-sim', 'Shell sequences A/B', () => drawBoard('sim')], ['s7-spot', 'Shell spotlight', () => drawBoard('spot')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
+  ['Stage 7', [['s7-collapse', 'Lone row collapses', () => drawBoard('collapse')], ['s7-start', 'How 2+ rows start', () => drawBoard('start')], ['s7-sim', 'Shell sequences A/B', () => drawBoard('sim')], ['s7-spot', 'Shell spotlight', () => drawBoard('spot')], ['s9-narrow', 'Narrow top bar', () => drawBoard('narrow')], ['s7-buttons', 'Button styling A/B/C', () => drawBoard('buttons')], ['s7-sizes', 'Button sizes (dev.15)', () => drawBoard('sizes')]]],
+  ['Stage 7 Preview', [['pv1', '1 Lights', () => pvFrame(1)], ['pv2', '2 Menu open', () => pvFrame(2)], ['pv3', '3 Sim: basic room', () => pvFrame(3)], ['pv4', '4 Testing', () => pvFrame(4)], ['pv5', '5 Test ended', () => pvFrame(5)], ['pv6', '6 No lights', () => pvFrame(6)], ['pv7', '7 No lights, no map', () => pvFrame(7)], ['pv8', '8 Collapsed in test', () => pvFrame(8)], ['pv9', '9 Longest name', () => pvFrame(9)], ['pv10', '10 Two outputs', () => pvFrame(10)], ['pv11', '11 Long area name', () => pvFrame(11)], ['pv12', '12 Short area name', () => pvFrame(12)]]],
   ['States', [['testing', 'Testing', () => { state.unsaved = true; startTest('once', 12, false) }], ['testing-live', 'Testing live', () => { state.unsaved = true; startTest('live') }], ['problems', 'Problems', () => { state.problems = true; drawBar(); drawIslands(); drawNodes(); openProblems() }], ['refused', 'Refused wire', () => toast('Those ports do not match: an Image cannot connect to a Frame')], ['refused-float', 'Refused: Float to Angle', () => toast('A Float cannot connect to an Angle. Add a Float to Angle node between them.')], ['autoinsert', 'Auto-insert converter', autoInsert]]],
 ]
 
@@ -1150,7 +1207,11 @@ function drawFrames(current) {
     toggle('Zones island: no resize', opts.zonesPlain, 'zonesPlain'),
     el('a', { href: '#', role: 'button', class: 'on', onclick: (e) => { e.preventDefault(); e.stopPropagation(); const modes = ['tip', 'toast', 'none']; opts.refused = modes[(modes.indexOf(opts.refused) + 1) % modes.length]; showFrame() } },
       `Refused save: ${{ tip: 'tooltip, then ping', toast: 'toast, then ping', none: 'ping only' }[opts.refused]}`),
+    el('b', {}, 'Preview scenario'),
+    el('a', { href: '#', role: 'switch', 'aria-checked': String(!state.pv || state.pv.lights), class: !state.pv || state.pv.lights ? 'on' : undefined, onclick: (e) => { e.preventDefault(); e.stopPropagation(); pvToggle('lights'); drawFrames(id) } }, 'Lights reachable'),
+    el('a', { href: '#', role: 'switch', 'aria-checked': String(!state.pv || state.pv.saved), class: !state.pv || state.pv.saved ? 'on' : undefined, onclick: (e) => { e.preventDefault(); e.stopPropagation(); pvToggle('saved'); drawFrames(id) } }, 'Saved room map'),
     el('b', {}, 'Narrow (new window)'),
+    ...[['Preview 400x800', 400, 800, '#pv9'], ['Preview 360x800', 360, 800, '#pv9']].map(([label, w, h, hash]) => el('a', { href: hash, onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}${hash}`, '_blank', `popup,width=${w},height=${h}`) } }, label)),
     ...[['Dock 400x800', 400, 800], ['Side 700x900', 700, 900], ['Side 1000x600', 1000, 600]].map(([label, w, h]) => el('a', { href: '#controls', onclick: (e) => { e.preventDefault(); open(`${location.pathname}${location.search}#controls`, '_blank', `popup,width=${w},height=${h}`) } }, label)))
 }
 
@@ -1158,25 +1219,30 @@ function showFrame() {
   const id = location.hash.slice(1) || 'rest'
   closePopups()
   stopTimer()
+  document.querySelectorAll('.pv-shell, .pv-note').forEach((n) => n.remove())
+  state.pv = null
+  state.zonesOpen = true
   $('toast').hidden = true
   Object.assign(test, { mode: 'once', left: 12 })
   Object.assign(state, { minimap: false, zonesLarge: false, testing: false, problems: false, unsaved: false, selected: null, wire: null, banner: null, status: null, other: false, changed: false, wholeGraph: false, s6: false, title: 'Screen colors', effectId: 'screen', problemCount: null })
   effects6 = freshEffects()
   layoutGraph(); state.edges = GRAPH.edges.map(([from, to]) => ({ from, to }))
   drawNodes(); drawBar(); drawBanner(); drawIslands(); fit(); drawFrames(id)
-  const board = ['s6', 's6-shell', 's6-test', 's6-prompt', 's7-collapse', 's7-start', 's7-sim', 's7-spot', 's7-buttons', 's7-sizes'].includes(id)
+  const board = ['s6', 's6-shell', 's6-test', 's6-prompt', 's7-collapse', 's7-start', 's7-sim', 's7-spot', 's9-narrow', 's7-buttons', 's7-sizes'].includes(id)
   document.body.classList.toggle('board-on', board)
   $('board').hidden = !board
   FRAMES.flatMap(([, frames]) => frames).find(([key]) => key === id)?.[2]()
+  drawFrames(id)
 }
 
 const ACTS = {
   add: () => openAdd('browser'), controls: () => openControls(0), view: openView, title: () => (state.s6 ? openTitleS6() : openTitle()), problems: () => openProblems(),
   back: () => toast('Goes to the Dashboard. Unsaved edits stay in the browser backup.'),
   'toast-undo': () => toast('Undo'),
-  test: () => { if (opts.split) startTest(test.mode); else { state.testing = true; drawBar() } },
+  test: () => { if (state.pv) pvEvent('test-start'); else if (opts.split) startTest(test.mode); else { state.testing = true; drawBar() } },
   'test-menu': testMenu,
-  revert: () => { stopTimer(); state.testing = false; drawBar(); toast('Lights put back') },
+  revert: () => { if (state.pv) { pvEvent('test-end'); return } stopTimer(); state.testing = false; drawBar(); toast('Lights put back') },
+  'pv-layout': pvLayoutMenu,
   'toast-restore': () => { state.banner = null; state.unsaved = true; drawBar(); drawBanner(); toast('Restored your earlier changes') },
   'toast-discard': () => { state.banner = null; drawBar(); drawBanner(); toast('Discarded the earlier copy') },
   reconnect: () => { state.status = null; state.other = false; drawBar(); toast('Preview reconnected') },

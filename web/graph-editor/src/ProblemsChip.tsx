@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
-import { Button, Dialog, Icon, warningIcon } from '@weblings/grille'
+import { Button, Dialog, Icon, chevronDownIcon, warningIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { COMPACT_BAR, useMedia } from './useMedia'
 import type { Problems } from './graph/problems'
@@ -153,6 +153,7 @@ export function ProblemsChip({
         >
           <Icon icon={warningIcon} size="sm" />
           {compact ? count : `${count} ${count === 1 ? 'problem' : 'problems'}`}
+          <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {/* Always mounted, so a screen reader hears the text when it appears. */}
         <span

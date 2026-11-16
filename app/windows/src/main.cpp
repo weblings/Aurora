@@ -848,8 +848,14 @@ if(!instanceLock.held()){
     url = "http://" + browsableAddress(config.boundBackendIP())
       + ":" + std::to_string(config.restServerPort()) + "/";
     if(isFirstSetup){
-      logLine("WebUI: opening " + url + " in your browser");
-      openWebBrowser(url);
+      // Dev-only, presence-only (devstack sets it): keep browser checks from opening tabs.
+      if(std::getenv("AURORA_DEV_NO_BROWSER")){
+        logLine("WebUI: " + url + " (browser launch skipped, AURORA_DEV_NO_BROWSER)");
+      }
+      else{
+        logLine("WebUI: opening " + url + " in your browser");
+        openWebBrowser(url);
+      }
     }
     else{
       printClickableLink(url);

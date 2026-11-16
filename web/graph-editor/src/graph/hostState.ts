@@ -4,7 +4,15 @@
 
 import type { Holder } from './lightTest'
 
-export type HostError = { source: string; message: string; id?: number; retry?: boolean }
+export type HostError = {
+  source: string
+  message: string
+  id?: number
+  retry?: boolean
+  // Why it failed and the names a sentence needs; absent on an older server (Aurora-u8jx.15).
+  code?: string
+  detail?: Record<string, string>
+}
 export type HostCondition = { source: string; message: string }
 
 export type HostSnapshot = {

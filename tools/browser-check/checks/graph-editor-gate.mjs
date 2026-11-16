@@ -123,8 +123,8 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await waitStatus(/Live/)
     assert.equal(await page.locator('.problem-badge').count(), 0)
     await page.waitForFunction((was) => {
-      const c = document.querySelector('.zones-island')
-      return c && !c.classList.contains('zones-island-stale') && [...c.querySelectorAll('.zones-cell')].map((x) => x.style.backgroundColor).join('|') !== was
+      const c = document.querySelector('.preview-island')
+      return c && !c.classList.contains('preview-island-stale') && [...c.querySelectorAll('.zones-cell')].map((x) => x.style.backgroundColor).join('|') !== was
     }, held, { timeout: 10_000 })
     step('rewiring clears the badge and the thumbnail shows a new frame')
 

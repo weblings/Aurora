@@ -58,7 +58,11 @@ namespace Aurora::Runtime
 
     nlohmann::json errors = nlohmann::json::array();
     for(const HostError& error : snap.status.errors){
-      errors.push_back({{"source", error.source}, {"message", error.message}, {"id", error.id}, {"retry", error.retry}});
+      nlohmann::json entry{{"source", error.source}, {"message", error.message}, {"id", error.id}, {"retry", error.retry}};
+      // Optional: how a client words the failure itself (Aurora-u8jx.15). Absent when core has no code.
+      if(!error.code.empty()){ entry["code"] = error.code; }
+      if(!error.detail.empty()){ entry["detail"] = error.detail; }
+      errors.push_back(std::move(entry));
     }
 
     nlohmann::json conditions = nlohmann::json::array();

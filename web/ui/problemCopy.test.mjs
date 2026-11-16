@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { COPY, STRUCTURAL_CODES, STRUCTURAL_MESSAGE, describeIssue, hasCopy, problemCopy } from './problemCopy.js'
+import { COPY, HOST_COPY, STRUCTURAL_CODES, STRUCTURAL_MESSAGE, describeIssue, hasCopy, hostCopy, problemCopy } from './problemCopy.js'
 
 const LISTED = [
   'input_missing', 'output_unregistered', 'param_option_unknown', 'node_type_unknown', 'output_multiple_senders',
@@ -66,4 +66,28 @@ test('node_tick_failed reads "Runs, but <node> fails: <reason>" and never says e
   assert.equal(describeIssue({ code: 'node_tick_failed', message: '', node: null }), 'Runs, but this node fails')
   assert.equal(describeIssue({ code: 'node_tick_failed', message: 'boom' }), 'Runs, but a node fails: boom')
   assert.doesNotMatch(named, /error/i)
+})
+
+test('host codes read as a clause after the row prefix, filled from detail', () => {
+  assert.equal(hostCopy('input_not_configured', { inputKind: 'video' }, null), 'it needs a video input. Choose one in Settings.')
+  assert.equal(hostCopy('input_unavailable', { inputKind: 'audio', inputName: 'USB Mic' }, null), "the audio input \"USB Mic\" isn't available.")
+  assert.equal(hostCopy('input_unavailable', {}, null), "the input isn't available.")
+  assert.equal(hostCopy('no_outputs', undefined, null), 'no lights are set up. Choose them in Settings.')
+  assert.equal(hostCopy('node_construct_failed', { node: 'grad' }, null), "the \"grad\" node can't be set up. Open it in the editor to fix it.")
+  assert.equal(hostCopy('node_construct_failed', {}, null), "a node can't be set up. Open it in the editor to fix it.")
+})
+
+test('other graph-load codes share one clause, and refused-test and runtime codes are not host codes', () => {
+  for (const code of [...STRUCTURAL_CODES, 'output_unregistered', 'param_invalid', 'graph_cycle']) assert.match(hostCopy(code, {}, null), /graph has a problem/, code)
+  for (const code of ['no_draft', 'node_tick_failed', 'draft_changed']) assert.equal(hostCopy(code, {}, 'SERVER'), 'SERVER', code)
+})
+
+test('host copy falls back for unknown, missing and inherited codes, and never says error', () => {
+  assert.equal(hostCopy('brand_new_code', {}, 'SERVER'), 'SERVER')
+  assert.equal(hostCopy(undefined, {}, 'SERVER'), 'SERVER')
+  assert.equal(hostCopy('toString', {}, 'SERVER'), 'SERVER')
+  for (const [code, entry] of Object.entries(HOST_COPY)) {
+    const text = typeof entry === 'function' ? entry({ node: 'n', inputKind: 'audio', inputName: 'x' }) : entry
+    assert.doesNotMatch(text, /errors?/i, code)
+  }
 })

@@ -1,4 +1,5 @@
 import { friendlyReloadError } from './messages.js';
+import { hostCopy } from './problemCopy.js';
 import { testerName } from './testHolder.js';
 import { parseMacPermissionError, renderAudioPermissionBanner, renderLocalNetworkBanner, renderReloadError } from './MacPermissionRecovery.js';
 
@@ -27,11 +28,18 @@ export const SOURCE_PREFIX = {
 };
 
 // The row's sentence. A reload error on a running host means the old setup still drives the lights.
+// A code the table knows (Aurora-u8jx.15) swaps the server's reason for its words, under the same prefix.
 export function errorSentence(error, hostState) {
-  const message = friendlyReloadError(error.message);
-  return hostState === 'running' && error.source === 'reload'
-    ? `Saved, but couldn't apply: ${message}. Aurora is still running your previous setup and will try the new one next time it starts.`
-    : (SOURCE_PREFIX[error.source] ?? '') + message;
+  const reason = hostCopy(error.code, error.detail, null);
+  const message = reason ?? friendlyReloadError(error.message);
+  if (hostState === 'running' && error.source === 'reload') {
+    return `Saved, but couldn't apply: ${reason === null ? message : reason.replace(/\.$/, '')}. Aurora is still running your previous setup and will try the new one next time it starts.`;
+  }
+  if (reason !== null && error.source === 'effect') {
+    const title = typeof error.detail?.effectTitle === 'string' ? error.detail.effectTitle : '';
+    return `Couldn't start${title ? ` ${title}` : ''}: ${reason}`;
+  }
+  return (SOURCE_PREFIX[error.source] ?? '') + message;
 }
 
 // One count part: '1 notice', '2 notices', '1 error', '2 errors'.
