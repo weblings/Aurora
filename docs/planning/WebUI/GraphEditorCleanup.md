@@ -735,6 +735,20 @@ Open for the owner:
 - **Zones with no lights** (`.6`): decided 2026-11-15. The island becomes the editor's main preview, named Preview, and Test stays the only way to reach the lights (as Unity's Main Preview and Play mode). A layout menu offers Lights, Sim: your room (the saved zone map) and Sim: basic room (4 quadrants, the demo's `ROOM_ZONE_MAP`), and a sim can be picked over working lights. The island never changes Test's target. A running test pulls it to the real layout, and no reachable lights disables Test with a reason. The output is plain text until a second output exists. The rest (header anatomy, `/api/zones` per output with `Aurora-9sm`, session and fallback rules, narrow widths) is settled in the mock. The frames are in the bead's design field.
 - **Compact chip** (`.8`, `.9`): decided 2026-11-13: the chevron stays if it fits, and is cut first where it would cost another button its place; settled 2026-11-15 in the narrow-bar mock: idle Test drops to its icon when the title would fall under about 100 px, so the chevron stays at every width. Undo and Redo stay two buttons, the title has no fallback. See [[u8jx9-narrow-bar-mock]].
 
+## Stage 8 (filed 2026-11-15)
+
+Epic `Aurora-ge1i`, labelled 1.2.0. Four small, independent items from the owner's notes after stage 7. Nothing is built or mocked yet.
+
+| Bead | What | Notes |
+|---|---|---|
+| `.1` | Minimap contrast | Nodes sit at about 1.2:1 on the minimap background. Neither Grille nor RockyRoad tokens are used (the `--aurora-*` tokens are RockyRoad's grayscale). Follow the Grille mock: muted fill at reduced opacity, scrim mask kept. CSS only |
+| `.2` | Clipboard design: a mock of where Cut, Copy, Paste and Select all live | Grille mock checked at several widths. Add node stays separate, View is unchanged, the title menu stays file-only. Decided (owner, 2026-11-15): singleton types are skipped on paste with a count, the clipboard is the system clipboard with marked JSON (works across tabs), paste follows the pointer from the canvas menu and otherwise uses the canvas centre as Add node does. Open: dashboard checks on pasted nodes, repeat-paste offset, clipboard permission for the menu Paste |
+| `.2.1` | Build the clipboard as the mock decides | Pure copy and paste functions (fresh ids, internal wires only), menu items, Ctrl/Cmd+C, X, V and A, one edit per paste. Blocked by `.2` |
+| `.3` | Unsaved mark | A trailing `*` on the title in place of the dot, as Unity does. Revises the stage 6 dot decision. Open: whether the Open submenu and its heading follow |
+| `.4` | New > Start from, any effect, as an unsaved copy | Every pick fetches the effect's graph and opens it as a draft titled `X (Copy)`, saved only on Save. A client-side variant of the dashboard's Duplicate, which saves at once. Built-ins stay flat, Custom and Hidden become sub-menus. Optional Duplicate item in the title menu. Open: the draft loader must accept a seeded doc |
+
+No order is required, except `.2.1` after `.2`. `.2.1` is the largest, `.3` and `.1` the smallest.
+
 ## Known follow-ups (filed under `Aurora-daaa`)
 
 Small items found during stage 2 that are not part of any stage's scope yet. None is assigned
