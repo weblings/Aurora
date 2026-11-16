@@ -112,7 +112,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.keyboard.press('Backspace')
     await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
     await waitStatus(/Preview paused/)
-    await page.locator('.problem-badge').first().waitFor()
+    await page.locator('.aurora-node-problem').first().waitFor()
     step('a broken connection shows a problem badge, the chip count and Preview paused')
 
     // Fix it by dragging from ease_hue's output to gain_hue's input. The
@@ -121,7 +121,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await panTo(handle('gain_hue', 'target'))
     await drag(handle('ease_hue', 'source'), handle('gain_hue', 'target'))
     await waitStatus(/Live/)
-    assert.equal(await page.locator('.problem-badge').count(), 0)
+    assert.equal(await page.locator('.aurora-node-problem').count(), 0)
     await page.waitForFunction((was) => {
       const c = document.querySelector('.preview-island')
       return c && !c.classList.contains('preview-island-stale') && [...c.querySelectorAll('.zones-cell')].map((x) => x.style.backgroundColor).join('|') !== was
@@ -185,7 +185,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     assert.ok(added, `no new gain node among ${ids}`)
     await drag(handle('ease_hue', 'source'), handle(added, 'target'))
     await waitStatus(/Live/)
-    assert.equal(await page.locator('.problem-badge').count(), 0)
+    assert.equal(await page.locator('.aurora-node-problem').count(), 0)
     step('a menu-added node is added and wired in, preview Live')
 
     // An output-bound node starts on a registered output, so it has no problem badge.
@@ -193,7 +193,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await addNodeByName(page, 'Send to output')
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n + 1, beforeSend)
     const sendNode = page.locator('.aurora-node', { hasText: 'Send to output' }).last()
-    assert.equal(await sendNode.locator('.problem-badge').count(), 0)
+    assert.equal(await sendNode.locator('.aurora-node-problem').count(), 0)
     assert.equal(await sendNode.locator('select[aria-label=output]').inputValue(), 'hue')
     await sendNode.locator('.aurora-node-header').click()
     await page.keyboard.press('Backspace')

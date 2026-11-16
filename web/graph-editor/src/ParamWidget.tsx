@@ -1,6 +1,6 @@
 import { Hint } from './Hint'
 import type { CSSProperties } from 'react'
-import { Button, Icon, minusIcon, warningIcon } from '@weblings/grille'
+import { Button, Icon, minusIcon } from '@weblings/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
 
 const MAX_STOPS = 16
@@ -13,18 +13,16 @@ type Props = {
   // Every change; `onCommit` marks the end of a gesture (one undo step).
   onChange: (value: ParamValue) => void
   onCommit: () => void
-  // What the server said about this param, shown under it.
-  problems?: readonly string[]
 }
 
 // One widget per param kind. `nodrag nowheel` keep a drag or scroll on a
 // widget from moving the node or zooming the canvas.
-export function ParamWidget({ info, value, onChange, onCommit, problems }: Props) {
+export function ParamWidget({ info, value, onChange, onCommit }: Props) {
   const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
     <div
-      className={`param nodrag nowheel${problems ? ' param-problem' : ''}`}
+      className="param nodrag nowheel"
       onPointerUp={onCommit}
       // A typed value is one gesture until the box loses focus; a slider
       // moved by arrow keys has no pointer-up, so key-up ends its step.
@@ -42,11 +40,6 @@ export function ParamWidget({ info, value, onChange, onCommit, problems }: Props
         </span>
       </Hint>
       {renderInput(info, current, onChange, () => onCommit())}
-      {problems?.map((m) => (
-        <span className="problem-text" key={m}>
-          <Icon icon={warningIcon} size="sm" /> {m}
-        </span>
-      ))}
     </div>
   )
 }

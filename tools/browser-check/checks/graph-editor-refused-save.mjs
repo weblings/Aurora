@@ -315,7 +315,7 @@ await withEditorStack(async ({ editorUrl }) => {
     const described = await itemA.evaluate((el) => (el.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent).join(' ').trim())
     assert.equal(described, 'unsaved changes', 'screen-reader text on the item')
     assert.equal(await flyout.getByRole('menuitem', { name: /Candle|Screen colors|Music pulse/ }).first().locator('.editor-unsaved-mark').count(), 0, 'a saved Built-in has no *')
-    assert.equal(await flyout.locator('.problem-badge, .problem-mark').count(), 0, 'no problem counts in Open')
+    assert.equal(await flyout.locator('.aurora-node-problem').count(), 0, 'no problem counts in Open')
     await shot('open-dots')
     step('Open: Custom item with the * and "unsaved changes"; "Not saved yet" heading ends with the *, its items have none')
     // Opening a kept copy is silent: * and chip, no toast, no callout.

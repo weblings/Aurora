@@ -44,7 +44,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 })
     await page.mouse.up()
     await waitLive()
-    assert.equal(await page.locator('.problem-badge').count(), 0)
+    assert.equal(await page.locator('.aurora-node-problem').count(), 0)
     step('wired in, the preview is Live with no problems')
 
     await setName(page, 'Browser check add node')

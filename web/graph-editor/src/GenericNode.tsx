@@ -1,12 +1,11 @@
 import { memo } from 'react'
-import { Icon, menuHorizontalIcon, warningIcon } from '@weblings/grille'
+import { Icon, menuHorizontalIcon } from '@weblings/grille'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { Hint } from './Hint'
 import { useEditorActions } from './EditorContext'
 import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
 import { useNodeProblems } from './ProblemsContext'
-import { unattributed } from './graph/problems'
 import { nodeTitle } from './graph/nodeTitle'
 import { portMeaning, portStyle } from './graph/portStyle'
 
@@ -21,8 +20,6 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   const { setParam, commit, openNodeMenu } = useEditorActions()
   const { info, params, connectedInputs } = data
   const problems = useNodeProblems(id)
-  // Messages that named no port or param show under the header.
-  const loose = problems ? unattributed(problems) : []
 
   if (!info) {
     return (
@@ -40,13 +37,6 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
     <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`}>
       <div className="aurora-node-header">
         <Hint text={info.tip}><strong>{nodeTitle(info, data.type)}</strong></Hint>
-        {problems ? (
-          <Hint text={problems.messages}>
-            <span className="problem-badge" role="img" aria-label={`${problems.messages.length} problems`}>
-              <Icon icon={warningIcon} size="sm" /> {problems.messages.length}
-            </span>
-          </Hint>
-        ) : null}
         <small>{id}</small>
         <button
           type="button"
@@ -61,13 +51,6 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           <Icon icon={menuHorizontalIcon} size="sm" />
         </button>
       </div>
-      {loose.length > 0 ? (
-        <ul className="problem-list">
-          {loose.map((m) => (
-            <li key={m}><Icon icon={warningIcon} size="sm" /> {m}</li>
-          ))}
-        </ul>
-      ) : null}
       <div className="aurora-ports">
         <div className="aurora-ports-in">
           {info.inputs.map((port) => (
@@ -76,9 +59,8 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
               key={port.name}
             >
               <Handle type="target" position={Position.Left} id={port.name} {...handleLook(port.type)} />
-              <Hint text={problems?.ports.get(port.name) ?? port.description}><span className="aurora-port-name">{port.name}</span></Hint>
+              <Hint text={port.description}><span className="aurora-port-name">{port.name}</span></Hint>
               <Hint text={portMeaning(port.type)}><small>{port.type}</small></Hint>
-              {problems?.ports.has(port.name) ? <span className="problem-mark"><Icon icon={warningIcon} size="sm" /></span> : null}
             </div>
           ))}
         </div>
@@ -99,7 +81,6 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           value={params[param.name]}
           onChange={(value) => setParam(id, param.name, value)}
           onCommit={commit}
-          problems={problems?.params.get(param.name)}
         />
       ))}
     </div>

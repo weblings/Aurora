@@ -460,3 +460,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-16 | Graph editor clipboard: copy, cut, paste, Select all, Edit menu. [[ge1i21-clipboard]] | `bd show Aurora-ge1i.2.1` |
 | 2026-11-16 | Graph editor: New lists Built-in as its first sub-menu after Empty (`Aurora-l8ua`). [[l8ua-start-from-built-in-submenu]] | `bd show Aurora-l8ua` |
 | 2026-11-16 | Graph editor: Edit no longer triggers Firefox's Paste popup, disabled Test and Edit are greyed (`Aurora-1fwk`). [[1fwk-edit-paste-popup-disabled-look]] | `bd show Aurora-1fwk` |
+| 2026-11-16 | Graph editor: problems chip in the warning tone, dropdown rows at Grille menu-item metrics, a problem node is just a solid warning border (`Aurora-23wu`). [[23wu-problems-chip-dropdown-node-border]] | `bd show Aurora-23wu` |
