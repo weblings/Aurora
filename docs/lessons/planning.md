@@ -709,3 +709,13 @@ Aurora-u8jx.9 started as "fold Undo and Redo into History and the title into its
 2. Compute what each fold saves, counting the trigger's own chevron, before drawing it. Prefer dropping a label to an icon over folding icon buttons into a menu.
 3. Print the live title width in each frame's caption so the mock's flex layout is checked against the measured editor, and ask whether the squeezed control is actually unreadable before adding a fallback for it.
 4. When a label becomes an icon, carry every state's meaning into the aria-label and tooltip, and note what the surrounding UI (here the shell row) already says.
+
+---
+
+## A difficulty or cost estimate is a claim: say what was traced, or call it a guess
+Tags: planning, scoping, estimates, verification
+Applies-when: answering "how complex would X be" or filing a bead that states a cost, risk or unknown
+
+Asked how complex Start from would be, the first answer called it low to medium with one unknown and later said it needed "a new path". Neither came from tracing the code. The owner's follow-up questions then found the cheaper design, and a trade-off (save at once vs a new path) had been invented that did not exist. An estimate in a bead or doc reads as a finding and steers decisions, the same way a described component does (see "A described existing component is a claim to verify").
+
+**Fix:** before giving an estimate, trace the nearest existing operation end to end. Report it as "traced X, Y, Z" or "not checked", and record unknowns as questions with the file that would answer them, not as difficulty.

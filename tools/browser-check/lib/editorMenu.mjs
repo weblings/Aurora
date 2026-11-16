@@ -116,3 +116,18 @@ export async function addNodeByName(page, name) {
 export const announced = (page) => page.locator('[data-announcer]').innerText()
 export const waitAnnounced = (page, text, timeout = 15_000) =>
   page.waitForFunction((t) => document.querySelector('[data-announcer]')?.textContent.includes(t), text, { timeout })
+
+// The Edit dropdown (Aurora-ge1i.2): Undo, Redo, Cut, Copy, Paste, Select all and Delete.
+export const editMenuButton = (page) => page.getByRole('button', { name: 'Edit', exact: true })
+export const editMenu = (page) => page.getByRole('menu', { name: 'Edit actions' })
+
+export async function openEditMenu(page) {
+  await editMenuButton(page).click()
+  await editMenu(page).waitFor()
+}
+
+// Opens the Edit menu and picks `name` by mouse.
+export async function editAction(page, name) {
+  await openEditMenu(page)
+  await page.getByRole('menuitem', { name, exact: true }).click()
+}

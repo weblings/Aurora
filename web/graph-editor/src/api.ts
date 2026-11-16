@@ -50,6 +50,16 @@ export async function fetchCapabilities(): Promise<{ hasAudio: boolean; platform
   }
 }
 
+// Shipped builds report Release or MinSizeRel; a failed or older reply counts as shipped, so ids stay hidden.
+export async function fetchShowNodeIds(): Promise<boolean> {
+  try {
+    const { buildType } = await getJson<{ buildType?: unknown }>('/api/version')
+    return typeof buildType === 'string' && buildType !== '' && buildType !== 'Release' && buildType !== 'MinSizeRel'
+  } catch {
+    return false
+  }
+}
+
 export async function fetchEffectGraph(id: string): Promise<GraphDoc> {
   return (await getJson<{ graph: GraphDoc }>(`/api/effects/${encodeURIComponent(id)}`)).graph
 }

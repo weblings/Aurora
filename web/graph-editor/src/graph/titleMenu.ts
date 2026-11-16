@@ -1,10 +1,11 @@
 import type { EffectListEntry, GraphDoc } from './types'
 import { BLANK_ID, isDraftId, titleOf } from './save'
+import { buildGroups } from '../../../ui/EffectPanelModel.js'
 
 // What a new effect with no title is called in the title and in Open.
 export const NEW_EFFECT_TITLE = 'New empty effect'
 
-// What the title menu's New submenu offers: the dashboard's "Start from" list.
+// What the title menu's New submenu lists flat: the dashboard's "Start from" list.
 // Same rule as startPoints() in web/ui/EffectPanelModel.js (keep in sync):
 // Empty, then the built-ins, hidden ones included, and Music pulse only when
 // an audio input exists. Empty is the blank graph, as editorHref() sends it.
@@ -13,9 +14,21 @@ export function startPoints(effects: EffectListEntry[], hasAudio: boolean): { id
   return [{ id: BLANK_ID, title: 'Empty' }, ...builtins.map((e) => ({ id: e.id, title: e.title || e.id }))]
 }
 
+// The New submenu's sub-menus after Empty: Built-in, Custom, then Hidden (editor only). Built-in
+// holds every built-in, hidden ones included, and drops Music pulse without audio, as startPoints does.
+export function startGroups(effects: EffectListEntry[], hasAudio: boolean): { name: string; items: { id: string; title: string }[] }[] {
+  const groups = buildGroups(effects, { hasAudio }) as { id: string; name: string; effects: EffectListEntry[] }[]
+  const item = (e: EffectListEntry) => ({ id: e.id, title: e.title || e.id })
+  const builtins = startPoints(effects, hasAudio).filter((s) => s.id !== BLANK_ID)
+  const rest = groups
+    .filter((g) => g.id !== 'builtin')
+    .map((g) => ({ name: g.name, items: g.effects.filter((e) => !e.builtin).map(item) }))
+  return [{ name: 'Built-in', items: builtins }, ...rest].filter((g) => g.items.length > 0)
+}
+
 // The Open submenu's groups, in order: Not saved yet (new effects that exist only as a kept copy,
 // 6b), Custom, Built-in. The open effect is left out, and so is an empty group. `unsaved` marks
-// what gets the dot (Aurora-u68h.4): a Custom or Built-in effect with a kept copy; a Not saved yet
+// what gets the * (Aurora-ge1i.3): a Custom or Built-in effect with a kept copy; a Not saved yet
 // group carries it on the heading instead, since every item in it is unsaved by definition.
 export type OpenItem = { id: string; title: string; unsaved: boolean }
 export type OpenGroup = { name: string; unsaved: boolean; items: OpenItem[] }

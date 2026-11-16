@@ -67,7 +67,8 @@ def no_browser_env(env):
 def spawn(name, cmd, env=None, cwd=None):
     STATE.mkdir(exist_ok=True)
     log = open(STATE / f"{name}.log", "wb")
-    kw = {"creationflags": 0x00000008 | 0x00000200} if WIN else {"start_new_session": True}
+    # CREATE_NO_WINDOW, not DETACHED_PROCESS: a console-less py.exe makes its python child open a window. Aurora-ytlo.
+    kw = {"creationflags": 0x08000000 | 0x00000200} if WIN else {"start_new_session": True}
     p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, cwd=cwd, **kw)
     return p.pid
 

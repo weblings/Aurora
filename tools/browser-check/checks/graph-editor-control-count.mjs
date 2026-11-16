@@ -16,7 +16,7 @@ import { withEditorStack } from '../lib/stack.mjs'
 // Aurora-daaa.27.4 removed the inspector (menus and drawers replace it); mock target 11.
 // Aurora-s1t7.4 raised both to 10: the Zones island header is a button (the mock's hide chevron); the old thumbnail was a canvas.
 // Aurora-qjqy.3 raised video to 11, the mock's target: the Test split button's caret (Test mode) is its own button. Audio measures 10.
-const CEILING = { 'builtin.video': 11, 'builtin.audio': 10 }
+const CEILING = { 'builtin.video': 11, 'builtin.audio': 9 }
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()

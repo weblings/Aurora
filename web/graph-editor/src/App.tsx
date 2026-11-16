@@ -14,8 +14,8 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, putDraft, saveGraph, type WriteResult } from './api'
-import { EditorContext, type EditorActions } from './EditorContext'
+import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, fetchShowNodeIds, putDraft, saveGraph, type WriteResult } from './api'
+import { EditorContext, ShowNodeIdsContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
 import { clearShift } from './graph/clear'
@@ -28,8 +28,9 @@ import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, dotIcon, redoIcon, undoIcon } from '@weblings/grille'
-import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
+import { COMPACT_BAR, DOCK_BOTTOM, useMedia } from './useMedia'
+import { stageAttrs, useBarStage } from './barStage'
 import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
 import { NEW_EFFECT_TITLE } from './graph/titleMenu'
 import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
@@ -44,12 +45,14 @@ import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, sav
 import { NewerSavedPrompt } from './NewerSavedPrompt'
 import { converterFor, insertConverter, refuseConnection } from './graph/connection'
 import { controlsOf } from './graph/controls'
-import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
+import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
+import { EditMenu, type EditAction } from './EditMenu'
+import { hints, mod } from './graph/keys'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
-import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
+import { BLANK_ID, blankDoc, copyOf, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { draftIssues, groupProblems, sameProblems, type Problems } from './graph/problems'
@@ -78,12 +81,15 @@ export function App() {
   const [effects, setEffects] = useState<EffectListEntry[]>([])
   // Whether an audio input exists; New offers Music pulse only then, as the dashboard's Start from does.
   const [hasAudio, setHasAudio] = useState(false)
+  const [showNodeIds, setShowNodeIds] = useState(false)
   const [effectId, setEffectId] = useState(initialEffectId)
   // The whole graph, replaced by every edit, with its undo history.
   const [{ doc, past, future }, dispatch] = useReducer(editorReducer, emptyEditor)
   // What the server last gave us or accepted; unsaved edits are measured from it.
   const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
   // The kept copy of an earlier visit's edits when the saved effect has changed since: awaiting a choice.
+  // New and Duplicate seeds by draft id: read once by the loader below, then the kept copy carries them.
+  const seeds = useRef(new Map<string, GraphDoc>())
   const [outdated, setOutdated] = useState<GraphDoc | null>(null)
   // The effect or the catalog would not load although Aurora answered: a row in the error shell,
   // worded by cause, with no Retry (Aurora-u68h.9). When Aurora does not answer, the shell's takeover
@@ -108,7 +114,8 @@ export function App() {
   const [writing, setWriting] = useState(false)
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
   const compactBar = useMedia(COMPACT_BAR)
-  const tightBar = useMedia(TIGHT_BAR)
+  const [barEl, setBarEl] = useState<HTMLElement | null>(null)
+  const barStage = useBarStage(barEl)
   const drawerSide = useMedia(DOCK_BOTTOM) ? 'bottom' : 'right'
   // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
   const [naming, setNaming] = useState<
@@ -142,6 +149,7 @@ export function App() {
       setHasAudio(audio)
       setPlatform(p)
     })
+    fetchShowNodeIds().then(setShowNodeIds)
     Promise.all([fetchCatalog(), fetchEffects()])
       .then(([c, e]) => {
         setCatalog(c)
@@ -162,8 +170,12 @@ export function App() {
     opening
       .then((graph) => {
         if (stale) return
-        dispatch({ type: 'open', doc: graph })
+        // A seeded copy opens as the doc over a blank baseline, so it counts as unsaved until Save.
+        const seed = seeds.current.get(effectId)
+        seeds.current.delete(effectId)
+        dispatch({ type: 'open', doc: seed ?? graph })
         setBaseline({ id: effectId, doc: graph })
+        if (seed) return setOpenError(null)
         // A kept copy comes back without asking, as an edit on the saved graph (one Undo
         // reaches the saved version). If the saved effect moved on since the copy was
         // made, the graph stays as saved until the prompt is answered.
@@ -393,13 +405,16 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'z') return
+      const key = e.key.toLowerCase()
+      // Ctrl+Y is Redo on Windows and Linux; Cmd+Y is not bound on macOS.
+      const redoY = key === 'y' && e.ctrlKey && !e.metaKey && !e.shiftKey
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || (key !== 'z' && !redoY)) return
       // Text boxes keep their own undo.
       const target = e.target as HTMLElement | null
       if (target?.isContentEditable || target?.tagName === 'TEXTAREA') return
       if (target instanceof HTMLInputElement && ['text', 'number'].includes(target.type)) return
       e.preventDefault()
-      dispatch({ type: e.shiftKey ? 'redo' : 'undo' })
+      dispatch({ type: redoY || e.shiftKey ? 'redo' : 'undo' })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -590,12 +605,168 @@ export function App() {
     [catalog, edit, announce],
   )
 
+  // Clipboard (Aurora-ge1i.2.1): the system clipboard holds marked JSON, so a paste works in another tab.
+  // 'none' (readable, no Aurora nodes) disables Paste; 'unknown' (not readable) leaves it on.
+  const [clipState, setClipState] = useState<'unknown' | 'none' | 'clip'>('unknown')
+  const [editOpen, setEditOpen] = useState(false)
+  const editTrigger = useRef<HTMLButtonElement>(null)
+  const lastPaste = useRef<{ text: string; n: number } | null>(null)
+  // Where the pointer last was over the canvas, for Ctrl+V.
+  const pointer = useRef<{ x: number; y: number } | null>(null)
+  const countOf = (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`
+
+  const copyPicked = async (cut: boolean) => {
+    const current = docRef.current
+    if (!current || picked.length === 0) return
+    const ids = new Set(picked.map((n) => n.id))
+    const positions = Object.fromEntries(nodes.filter((n) => n.selected).map((n) => [n.id, n.position]))
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(copySelection(current, ids, positions)))
+    } catch {
+      showToast("Couldn't copy to the clipboard")
+      return
+    }
+    setClipState('clip')
+    lastPaste.current = null
+    if (cut) deleteNodes(ids)
+    announce(`${cut ? 'Cut' : 'Copied'} ${countOf(ids.size)}`)
+  }
+
+  // Returns false when the text holds no Aurora nodes.
+  const pasteText = (text: string, where: { x: number; y: number } | 'pointer' | 'centre'): boolean => {
+    const clip = parseClip(text)
+    const view = flow.current
+    const current = docRef.current
+    if (!clip || !view || !catalog || !current) return false
+    const box = canvas.current?.getBoundingClientRect()
+    const centre = { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+    const point = where === 'pointer' ? pointer.current ?? centre : where === 'centre' ? centre : where
+    // The same clip pasted again steps down and right, so copies do not stack.
+    const n = lastPaste.current?.text === text ? lastPaste.current.n + 1 : 0
+    const base = view.screenToFlowPosition(point)
+    const at = { x: base.x + 24 * n, y: base.y + 24 * n }
+    const result = pasteSelection(current, clip, at, catalog)
+    const note = pasteNote(result.added.size, result.skipped, catalog)
+    if (result.added.size > 0) {
+      lastPaste.current = { text, n }
+      edit((d) => (d === current ? result.doc : pasteSelection(d, clip, at, catalog).doc))
+      // The pasted nodes are the selection.
+      const fresh = [...result.added.values()].map((id) => ({ id, selected: true, position: { x: 0, y: 0 }, data: {} }) as unknown as Node<AuroraNodeData>)
+      setNodeView([...nodes.map((x) => ({ ...x, selected: false })), ...fresh])
+      if (!note) announce(`Pasted ${countOf(result.added.size)}`)
+    }
+    if (note) showToast(note)
+    return true
+  }
+
+  const pasteFromClipboard = async (where: { x: number; y: number } | 'centre') => {
+    let text: string
+    try {
+      text = await navigator.clipboard.readText()
+    } catch {
+      showToast(`Couldn't read the clipboard. Press ${mod}+V to paste.`)
+      return
+    }
+    if (!pasteText(text, where)) {
+      setClipState('none')
+      showToast('Nothing to paste')
+    }
+  }
+
+  const selectAll = () => {
+    if (nodes.length === 0) return
+    setNodeView(nodes.map((n) => ({ ...n, selected: true })))
+    announce(`Selected ${countOf(nodes.length)}`)
+  }
+
+  // Look at the clipboard when a menu with Paste opens, only where it is already allowed:
+  // Firefox answers readText with its own "Paste" popup, so there Paste stays on ('unknown').
+  const menuKind = menu?.kind
+  useEffect(() => {
+    if (!editOpen && menuKind !== 'canvas') return
+    let stale = false
+    const look = async () => {
+      try {
+        const allowed = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName })
+        if (allowed.state !== 'granted') return
+        const text = await navigator.clipboard.readText()
+        if (!stale) setClipState(parseClip(text) ? 'clip' : 'none')
+      } catch {
+        if (!stale) setClipState('unknown')
+      }
+    }
+    void look()
+    return () => {
+      stale = true
+    }
+  }, [editOpen, menuKind, menu])
+
+  const onEditAction = (a: EditAction) => {
+    if (a === 'undo') undo()
+    else if (a === 'redo') redo()
+    else if (a === 'cut') void copyPicked(true)
+    else if (a === 'copy') void copyPicked(false)
+    else if (a === 'paste') void pasteFromClipboard('centre')
+    else if (a === 'select-all') selectAll()
+    else deleteNodes(new Set(picked.map((n) => n.id)))
+  }
+
+  // Ctrl/Cmd+A, C and X, and the paste event, act on the canvas only: not in a text box, popup or drawer.
+  // With nodes selected, copy and cut take them even when a shift-click left page text selected.
+  const clipKeys = useRef({ copyPicked, pasteText, selectAll, hasPicked: false })
+  clipKeys.current = { copyPicked, pasteText, selectAll, hasPicked: picked.length > 0 }
+  useEffect(() => {
+    const onCanvas = (target: HTMLElement | null) => {
+      if (!target) return false
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return false
+      if (target.closest('.ui-popover, .ui-drawer, [role="dialog"]')) return false
+      return target === document.body || !!target.closest('.editor-canvas, .editor-header')
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !onCanvas(e.target as HTMLElement | null)) return
+      const key = e.key.toLowerCase()
+      if (key === 'a') clipKeys.current.selectAll()
+      else if ((key === 'c' || key === 'x') && clipKeys.current.hasPicked) void clipKeys.current.copyPicked(key === 'x')
+      else return
+      e.preventDefault()
+    }
+    const onPaste = (e: ClipboardEvent) => {
+      if (!onCanvas(e.target as HTMLElement | null)) return
+      if (clipKeys.current.pasteText(e.clipboardData?.getData('text/plain') ?? '', 'pointer')) e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('paste', onPaste)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('paste', onPaste)
+    }
+  }, [])
+  useEffect(() => {
+    const pane = canvas.current
+    if (!pane) return
+    const move = (e: PointerEvent) => {
+      pointer.current = { x: e.clientX, y: e.clientY }
+    }
+    const leave = () => {
+      pointer.current = null
+    }
+    pane.addEventListener('pointermove', move)
+    pane.addEventListener('pointerleave', leave)
+    return () => {
+      pane.removeEventListener('pointermove', move)
+      pane.removeEventListener('pointerleave', leave)
+    }
+  }, [])
+
   const onMenuAction = (a: MenuAction) => {
     const at = menu
     if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
     else if (a.type === 'undo') undo()
     else if (a.type === 'redo') redo()
     else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
+    else if (a.type === 'cut' || a.type === 'copy') void copyPicked(a.type === 'cut')
+    else if (a.type === 'paste') void pasteFromClipboard(at ? { x: at.x, y: at.y } : 'centre')
+    else if (a.type === 'select-all') selectAll()
     else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
     else if (a.type === 'details' || a.type === 'dashboard') {
@@ -698,6 +869,18 @@ export function App() {
     if (where === 'here') setEffectId(id === BLANK_ID ? newEffectId() : id)
   }
 
+  // A New or Duplicate pick: the graph opens as an unsaved copy under a new draft id, nothing written.
+  const openCopy = (graph: GraphDoc, listTitle: string) => {
+    const id = newEffectId()
+    seeds.current.set(id, copyOf(graph, listTitle, effects.map((e) => e.title || e.id)))
+    setEffectId(id)
+  }
+  const startFrom = (id: string) => {
+    if (id === BLANK_ID) return openEffect(id, 'here')
+    const listed = effects.find((e) => e.id === id)?.title || id
+    fetchEffectGraph(id).then((graph) => openCopy(graph, listed)).catch((e: Error) => loadFailed(e, id))
+  }
+
   // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
   // the kept copy goes with it.
   const revertToSaved = () => {
@@ -751,10 +934,10 @@ export function App() {
         onDismiss={(error) => void host.dismiss(error)}
         onStopTest={() => void host.stopTest()}
       />
-      <header className="editor-header" data-preview={status.label} data-status-rank={status.rank}>
-        <a className="ui-button editor-back" href="/" aria-label={tightBar ? 'Dashboard' : undefined}>
+      <header ref={setBarEl} className="editor-header" data-preview={status.label} data-status-rank={status.rank} {...stageAttrs(barStage)}>
+        <a className="ui-button editor-back" href="/" aria-label="Dashboard">
           <Icon icon={arrowLeftIcon} size="sm" />
-          {tightBar ? null : 'Dashboard'}
+          <span className="editor-back-label">Dashboard</span>
         </a>
         <span className="editor-sep" aria-hidden="true" />
         <button
@@ -771,7 +954,7 @@ export function App() {
           onClick={() => setTitleMenuOpen((open) => !open)}
         >
           <span className="editor-title-label">{barTitle()}</span>
-          {dirty ? <Icon icon={dotIcon} size="sm" /> : null}
+          {dirty ? <span className="editor-unsaved-mark" aria-hidden="true">*</span> : null}
           <Icon icon={chevronDownIcon} size="sm" />
         </button>
         {catalog ? (
@@ -801,10 +984,25 @@ export function App() {
             if (action === 'save') void write('save')
             else if (action === 'save-as-new') void write('save', true)
             else if (action === 'save-and-apply') void write('apply')
+            else if (action === 'duplicate') { if (doc) openCopy(doc, shownTitle) }
             else if (action === 'revert') revertToSaved()
             else setNaming({ kind: 'rename', initial: title })
           }}
           onOpenEffect={(id) => openEffect(id, 'here')}
+          onNewEffect={startFrom}
+        />
+        <EditMenu
+          isOpen={editOpen}
+          onOpen={() => setEditOpen(true)}
+          onClose={() => setEditOpen(false)}
+          triggerRef={editTrigger}
+          disabled={!doc}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          hasSelection={picked.length > 0}
+          canPaste={clipState !== 'none'}
+          hints={hints}
+          onAction={onEditAction}
         />
         {naming ? (
           <NameDialog
@@ -835,26 +1033,6 @@ export function App() {
             if (run === 'openControls') setDrawer('controls')
           }}
         />
-        <Hint text="Undo (Ctrl/Cmd+Z)" placement="bottom">
-          <button
-            type="button" className="ui-button" data-icon
-            onClick={undo}
-            disabled={past.length === 0}
-            aria-label="Undo"
-          >
-            <Icon icon={undoIcon} size="sm" />
-          </button>
-        </Hint>
-        <Hint text="Redo (Shift+Ctrl/Cmd+Z)" placement="bottom">
-          <button
-            type="button" className="ui-button" data-icon
-            onClick={redo}
-            disabled={future.length === 0}
-            aria-label="Redo"
-          >
-            <Icon icon={redoIcon} size="sm" />
-          </button>
-        </Hint>
         {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
         <span className="editor-sep" aria-hidden="true" />
         <SplitTestButton
@@ -862,6 +1040,7 @@ export function App() {
           running={testing}
           stopText={stopLabel(lights.state)}
           stopName={stopName(lights.state)}
+          iconForm={barStage >= 2}
           action={status.action}
           disabledReason={
             blocked ? status.label : noLights ? 'No lights reachable' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
@@ -889,6 +1068,7 @@ export function App() {
           onPick={preview.choose}
         />
         <ProblemsContext.Provider value={problems}>
+        <ShowNodeIdsContext.Provider value={showNodeIds}>
         <EditorContext.Provider value={actions}>
           <ReactFlow
             nodes={nodes}
@@ -960,6 +1140,7 @@ export function App() {
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
           </ReactFlow>
         </EditorContext.Provider>
+        </ShowNodeIdsContext.Provider>
         </ProblemsContext.Provider>
       </div>
       </div>
@@ -993,7 +1174,7 @@ export function App() {
           catalog={catalog}
           canUndo={past.length > 0}
           canRedo={future.length > 0}
-          selectedCount={picked.length}
+          canPaste={clipState !== 'none'}
           onClose={() => setMenu(null)}
           onAction={onMenuAction}
         />

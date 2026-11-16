@@ -212,7 +212,7 @@ Frames for the states above are in the mock's `Gaps` group (`Aurora-daaa.6`): `#
 - **The naming dialog**: Save as new, and Save or Save and apply on a built-in or an unsaved new effect.
 - **The newer-saved-version prompt** (a Modal): the one question the editor still asks, when the saved effect changed since a kept copy was made.
 
-Fixed spots keep state out of the contest and show alongside everything else: the dot on the title and on Open items (unsaved changes), the problems chip, `Edited since the test` beside the Test button, and the Zones island's stale tint.
+Fixed spots keep state out of the contest and show alongside everything else: the trailing `*` on the title and on Open items (unsaved changes), the problems chip, `Edited since the test` beside the Test button, and the Zones island's stale tint.
 
 `graph/status.ts` `pickStatus` returns the first active row of the Test button's own states, highest first. The ranks keep their old numbers; there is no rank 2, 3 or 6 now.
 
@@ -220,7 +220,7 @@ Fixed spots keep state out of the contest and show alongside everything else: th
 |---|---|---|---|
 | 1 | Cannot reach Aurora | The takeover (`Aurora has stopped`; no shell rows with it). Test button disabled, tooltip `Cannot reach Aurora` | Aurora answers. One verdict from the host poll, shared by the takeover and the button |
 | 1 | The effect or catalog would not load although Aurora answers | Shell row worded by cause, no Retry. Test button disabled, tooltip `No effect is open`; Save items off, Open and New stay on | The user opens another effect |
-| - | (was 2) Restore or Discard a kept copy | Gone. A kept copy restores silently, marked by the dot, with Revert to saved in the title menu | |
+| - | (was 2) Restore or Discard a kept copy | Gone. A kept copy restores silently, marked by the `*`, with Revert to saved in the title menu | |
 | - | (was 3) Draft not sent | Shell row (too many editors; Couldn't check your last edit), no Retry. A draft too large is a `Whole graph` problem | The next draft goes through |
 | - | (was 3) Draft would not load | A `Whole graph` row in the problems popover | The draft loads |
 | 4 | Preview taken over | The button reads `Reconnect` | Reconnect, or the stream returns |
@@ -235,7 +235,7 @@ Fixed spots keep state out of the contest and show alongside everything else: th
 | - | Stop, Reverted | Live region only | |
 | - | Added a node | Live region only | |
 | - | Wire refused (`Those ports do not match`) | Toast | 3 s. It names its own cause, and the wire simply did not land |
-| - | Saved, Saved and live, Inserted a converter | Toast | 3 s. The title's dot already shows the new state |
+| - | Saved, Saved and live, Inserted a converter | Toast | 3 s. The title's `*` already shows the new state |
 | - | Removed N Dashboard controls, Reverted to the saved version, Loaded the saved version | Toast with Undo | 8 s, held while hovered or focused; spent by the next edit |
 | - | Name the new effect | The naming dialog | Confirm or Cancel |
 | - | The saved effect changed since a kept copy was made | The newer-saved-version prompt: Load saved or Keep my edits | The user picks one |
@@ -261,12 +261,12 @@ How the old nine slots map (the first column is what the editor had before stage
 
 | # | Was | Is now |
 |---|---|---|
-| 1 | `editor-restore` (Restore, Discard) | Silent restore, the dot, Revert to saved; the newer-saved-version prompt when the saved effect changed |
+| 1 | `editor-restore` (Restore, Discard) | Silent restore, the `*`, Revert to saved; the newer-saved-version prompt when the saved effect changed |
 | 2 | `editor-status` (`summarize`) | Test button labels (ranks 4, 5), nowhere for rank 7, the problems chip when it reports problems |
 | 3 | Reconnect button | Rank 4, the Test button's `Reconnect` |
 | 4 | `editor-refusal` | Toast (a wire or a test start), or the chip's callout (a Save with problems) |
 | 5 | `editor-error` (`Cannot reach Aurora`, `Cannot open`) | The takeover; the open-failure shell row |
-| 6 | `editor-dirty` (`Unsaved changes`) | The dot on the title and on Open items |
+| 6 | `editor-dirty` (`Unsaved changes`) | The `*` on the title and on Open items |
 | 7 | `editor-test-note` (`describeTest`) | Live region and the first line of the Test caret menu. `Kept` no longer exists. `Reverted` is announced only |
 | 8 | `editor-notice` (`write` results) | Success: toast. A Save with problems: the chip's callout. A failed write: the shell's `Couldn't save <title>: <reason>` row. `Reload: ...`: a host row. `Name the new effect first`: inside the naming dialog |
 | 9 | `editor-graph-problems` list over the canvas | The problems chip, with `Whole graph` rows in its popover |
@@ -580,7 +580,7 @@ Decided:
 
 - **Top bar shrinks by priority, never wraps.** Test on lights, the title and the back
   link always stay. Below about 650 px, Undo and Redo become icon buttons and `Unsaved`
-  becomes a mark on the title (from 6d the mark is the title's dot at every width). Below about 520 px, the back link shows only its arrow and
+  becomes a mark on the title (from 6d the mark is the title's dot at every width, a trailing `*` since stage 8 `.3`). Below about 520 px, the back link shows only its arrow and
   Undo and Redo move into a More (`⋯`) menu on `EditorPopup`. At the floor, Test on lights
   reads `Test`, keeping the full name as its tooltip and accessible name. (The below-600 px
   desktop-window line was dropped, `Aurora-u68h.5`.) A finer pass on what each
@@ -681,7 +681,7 @@ The editor's banner under the bar held five kinds of message: Aurora unreachable
 - **No error/warning severity tiers**, in the problems popover or the shell. Today every validation issue blocks; only runtime preview errors do not, and they are rare. Tone would mean "does this block you" (as in RockyRoadImport's status tones) if tiers are ever added, for example with checks that do not block such as "nothing reaches the lights".
 - **The React shell is the one we keep.** Stage 6 builds it in the editor (`Aurora-s1t7.9`), with rows fed in from outside and `shell.css` markup. The Dashboard keeps `web/ui/shell.js` until it moves to React (`Aurora-4nqt`), then adopts the component and Grille styling. Mounting a React island in the vanilla Dashboard now was rejected: it adds a build step to `web/ui` and the demo mirror for one component.
 - **A saved effect is always runnable.** A graph with problems is never written to the effect file. Save, Save as new and Save and apply stay enabled and refuse with problems, pointing at the problems chip; see Decisions (owner, refused saves and unsaved marks, 2026-11-12), which revises the first version of this line (Save and apply off, with its reason).
-- **Two effect states: Saved, and Unsaved changes.** A kept copy restores silently when the effect opens, marked by a dot on the title (revised 2026-11-12, was the word `Unsaved`), with Revert to saved in the title menu (as VS Code's hot exit does). The editor only asks when the saved effect changed since the copy was made. Revises Open direction 6 (Restore offered on return). Each new effect gets its own id when created. Open ▸ marks effects with unsaved changes with the same dot.
+- **Two effect states: Saved, and Unsaved changes.** A kept copy restores silently when the effect opens, marked by a dot on the title (revised 2026-11-12, was the word `Unsaved`; a trailing `*` since stage 8 `.3`), with Revert to saved in the title menu (as VS Code's hot exit does). The editor only asks when the saved effect changed since the copy was made. Revises Open direction 6 (Restore offered on return). Each new effect gets its own id when created. Open ▸ marks effects with unsaved changes with the same mark.
 - **Graph problems get user-facing copy** keyed by issue code; the server's messages stay as they are for agents and MCP. This follows Open direction 3 (two texts).
 - **Room for editor tabs** (`Aurora-yrhp`, not committed): unique ids, one kept copy per effect, and one `openEffect(id, where)` route keep tabs possible later. The draft, preview and light test are per browser tab today, so tabs would need a rule for the inactive ones.
 
@@ -696,12 +696,12 @@ Why it changed: the user needs to learn why a save did not happen, which effects
 - **Problems live only in the chip and its popover.** The title menu shows no reasons and no problem counts.
 - **Saves are never disabled for problems.** Save, Save as new and Save and apply stay enabled. Chosen with problems, they write nothing, close the menu, and point at the chip in order: a tooltip-style callout on the chip's left (below the chip, wrapped, where the left has no room between the chip and the title button, and clear of Add node; `Aurora-h55g`, `Aurora-u8jx.4.1`) with the problem node's warning border (`Couldn't save. Fix 2 problems first.`; plain Save adds `Your changes are kept in this browser.`), `role="status"`, about 4 s; then, after a beat of about 1.5 s, the chip alone pings with the same border, ending as the callout closes. One ping, on one target. The popover stays closed, and focus moves to the chip so Enter opens it. The focus ring shows only after keyboard use. Reduced motion holds the border without the pulse. Mock timings: `PING_BEAT_MS` 1450, callout 4200.
 - **Picking a problem goes to its node.** A popover row already selects the node and fits the view to it. 6d also moves keyboard focus to the node: today focus returns to the chip (browser check, 2026-11-12).
-- **Unsaved changes are a dot.** It sits next to the name on the title (replacing the word `Unsaved`) and on items inside Open ▸, never on the Open row itself, with the screen-reader text `unsaved changes` (Grille MenuItem `description`). No problem count in Open: a kept copy's problems show on the chip once it is open. Every Open entry still runs as saved, so there is no error state to show there.
-- **Opening an effect is silent.** Its kept copy restores with the dot and the chip; no toast and no ping, since nothing was refused.
+- **Unsaved changes are a dot** (revised by stage 8 `.3`, 2026-11-15: a trailing `*`, in the same places, with the same screen-reader text). It sits next to the name on the title (replacing the word `Unsaved`) and on items inside Open ▸, never on the Open row itself, with the screen-reader text `unsaved changes` (Grille MenuItem `description`). No problem count in Open: a kept copy's problems show on the chip once it is open. Every Open entry still runs as saved, so there is no error state to show there.
+- **Opening an effect is silent.** Its kept copy restores with the unsaved mark and the chip; no toast and no ping, since nothing was refused.
 - **Long titles in Open ▸** cut off at 30ch and show the whole title as a row tooltip on hover or arrow-key focus, only when cut off (Grille `dev.12`'s `tooltip` and `tooltipOnlyWhenTruncated`, in use since 6d; Aurora's `Hint` and its 24-character guess are gone from the menu).
 - **What Aurora needs from Grille's menu:** only the row `tooltip` and `tooltipOnlyWhenTruncated`. Not the visible description line, `warning`, warnings on submenu rows, or a focusable blocked item.
 
-Settled by the owner on 2026-11-13: "Not saved yet" items carry no dot; the group heading ends with it (`Not saved yet •`, screen-reader text `unsaved changes`).
+Settled by the owner on 2026-11-13: "Not saved yet" items carry no dot; the group heading ends with it (`Not saved yet •`, screen-reader text `unsaved changes`). Since stage 8 `.3` the mark is `*` (`Not saved yet*`).
 
 ## Stage 7 (status 2026-11-13)
 
@@ -734,6 +734,32 @@ Open for the owner:
 - ~~The reload row's words~~: decided 2026-11-13. 7a keeps its table in `web/ui`; the shell's effect and reload rows follow in 7d (`.15`).
 - **Zones with no lights** (`.6`): decided 2026-11-15. The island becomes the editor's main preview, named Preview, and Test stays the only way to reach the lights (as Unity's Main Preview and Play mode). A layout menu offers Lights, Sim: your room (the saved zone map) and Sim: basic room (4 quadrants, the demo's `ROOM_ZONE_MAP`), and a sim can be picked over working lights. The island never changes Test's target. A running test pulls it to the real layout, and no reachable lights disables Test with a reason. The output is plain text until a second output exists. The rest (header anatomy, `/api/zones` per output with `Aurora-9sm`, session and fallback rules, narrow widths) is settled in the mock. The frames are in the bead's design field.
 - **Compact chip** (`.8`, `.9`): decided 2026-11-13: the chevron stays if it fits, and is cut first where it would cost another button its place; settled 2026-11-15 in the narrow-bar mock: idle Test drops to its icon when the title would fall under about 100 px, so the chevron stays at every width. Undo and Redo stay two buttons, the title has no fallback. See [[u8jx9-narrow-bar-mock]].
+
+## Stage 8 (filed 2026-11-15)
+
+Epic `Aurora-ge1i`, labelled 1.2.0. Four small, independent items from the owner's notes after stage 7. `.1`, `.3` and `.4` built 2026-11-15, see [[ge1i-stage8-minimap-mark-start-from]]; the clipboard (`.2`, `.2.1`) built 2026-11-16.
+
+| Bead | What | Notes |
+|---|---|---|
+| `.1` | Minimap contrast | Done: nodes in text-secondary at 0.6 fill opacity, about 4.5:1 (was 1.2:1); viewport outline text-secondary; scrim mask kept. CSS only. Problem-node colouring not done |
+| `.2` | Clipboard design: a mock of where Cut, Copy, Paste and Select all live | Grille mock checked at several widths. Add node stays separate, View is unchanged, the title menu stays file-only. Decided (owner, 2026-11-15): singleton types are skipped on paste with a count, the clipboard is the system clipboard with marked JSON (works across tabs), paste follows the pointer from the canvas menu and otherwise uses the canvas centre as Add node does. Open: dashboard checks on pasted nodes, repeat-paste offset, clipboard permission for the menu Paste |
+| `.2.1` | Build the clipboard as the mock decides | Done: `copySelection`, `parseClip`, `pasteSelection` and `pasteNote` in `graph/doc.ts`; the top bar's Undo and Redo buttons became an Edit dropdown (`EditMenu.tsx`), the canvas and node menus follow the `.2` mock, Ctrl/Cmd+A, C, X (keydown) and V (the paste event, so no permission prompt), Ctrl+Y redo. One edit per paste or cut. A singleton is a catalog type with a `sink` (the output node) and is skipped only when the graph already has one, so Cut then Paste of it works. `graph-editor:clipboard` checks it |
+| `.3` | Unsaved mark | Done: a trailing `*` on the title in place of the dot, as Unity does, in a span that truncation never cuts. Revises the stage 6 dot decision. The Open items and the Not saved yet heading follow (`Not saved yet*`) |
+| `.4` | New > Start from, any effect, as an unsaved copy | Every pick fetches the effect's graph and opens it as a draft titled `X (Copy)`, saved only on Save. A client-side variant of the dashboard's Duplicate, which saves at once. Built-ins started flat, Custom and Hidden are sub-menus (Built-in became the first sub-menu in stage 9, `Aurora-l8ua`). Done: the loader opens a seed over the blank baseline, so the copy is unsaved. Empty stays the blank graph. Hidden holds hidden custom effects (hidden built-ins are flat). A Duplicate item copies the open graph, unsaved edits included. The dashboard's Start from is unchanged and still opens the built-in itself |
+
+No order is required, except `.2.1` after `.2`. `.2.1` is the largest, `.3` and `.1` the smallest.
+
+## Stage 9 (filed 2026-11-16)
+
+Graph UX cleanup from the owner's hands-on use after stage 8, labelled 1.2.0. Five independent items, no required order.
+
+| Bead | What | Notes |
+|---|---|---|
+| `Aurora-l8ua` | Start from lists Built-in as its first sub-menu, right after Empty | Done: New is Empty, then Built-in (every built-in, hidden ones included, Music pulse only with audio), then Custom, Hidden. Revises stage 8 `.4`, where built-ins were flat. The dashboard's Start from is unchanged |
+| `Aurora-z5y5` | Wide to narrow header switch is too sensitive | Bug: Dashboard and Test button text are cut too early |
+| `Aurora-23wu` | Problems chip, problems dropdown and node problem visuals differ from the mock | Bring them back to the mock |
+| `Aurora-1fwk` | Edit menu and Test caret clicks misbehave | Bug (P2): the native right-click menu shows on a left click |
+| `Aurora-3xqi` | Node ids only in developer builds | Done: `GET /api/version` gains `buildType` (the CMake config), not `/api/v1/version`. The editor hides ids when it is `Release` or `MinSizeRel`. Otherwise (Debug, RelWithDebInfo) the node label tooltip adds `Title (id)` and Details shows the id as its subtitle |
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 

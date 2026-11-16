@@ -10,6 +10,7 @@
     "graph-editor:popover-toggle": "node checks/graph-editor-popover-toggle.mjs",
     "graph-editor:tooltips": "node checks/graph-editor-tooltips.mjs",
     "graph-editor:context-menus": "node checks/graph-editor-context-menus.mjs",
+    "graph-editor:clipboard": "node checks/graph-editor-clipboard.mjs",
     "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
     "graph-editor:converter": "node checks/graph-editor-converter.mjs",
     "graph-editor:port-types": "node checks/graph-editor-port-types.mjs",

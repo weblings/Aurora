@@ -70,6 +70,10 @@ target_link_libraries(AuroraRuntime PUBLIC
 
 target_compile_features(AuroraRuntime PUBLIC cxx_std_20)
 
+# Reported by GET /api/version as buildType. $<CONFIG> is empty on single-config builds
+# with no CMAKE_BUILD_TYPE (CI), so fall back to "unknown".
+set_source_files_properties(src/HostRoutes.cpp PROPERTIES COMPILE_DEFINITIONS "AURORA_BUILD_TYPE=\"$<IF:$<BOOL:$<CONFIG>>,$<CONFIG>,unknown>\"")
+
 if(WIN32)
   # DevFrameDump's Winsock sender (static lib, so consumers -- including
   # core's own test exes -- must resolve the symbols).

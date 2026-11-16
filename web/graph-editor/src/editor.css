@@ -101,11 +101,16 @@ body {
 
   --xy-minimap-background-color: var(--aurora-surface);
   --xy-minimap-mask-background-color: var(--aurora-scrim);
-  --xy-minimap-mask-stroke-color: var(--aurora-accent);
-  --xy-minimap-node-background-color: var(--aurora-surface-hover);
-  --xy-minimap-node-stroke-color: var(--aurora-border);
+  --xy-minimap-mask-stroke-color: var(--aurora-text-secondary);
+  --xy-minimap-node-background-color: var(--aurora-text-secondary);
+  --xy-minimap-node-stroke-color: transparent;
 
   --xy-attribution-background-color: var(--aurora-surface);
+}
+
+/* Minimap nodes: muted fill via opacity, as in the Grille mock (Aurora-ge1i.1). */
+.react-flow__minimap-node {
+  fill-opacity: 0.6;
 }
 
 .react-flow__attribution a {
@@ -266,8 +271,8 @@ select {
   accent-color: var(--aurora-accent);
 }
 
-/* Draft loop (Aurora-pvxx.6). The editor chrome is monochrome, so problems read by
-   glyph, dashed outline and text, not by colour. */
+/* Draft loop (Aurora-pvxx.6). Problems read in the warning tone: the chip, the node border
+   and the ping (Aurora-23wu). */
 .editor-canvas {
   position: relative;
 }
@@ -337,7 +342,8 @@ select {
   margin: 0;
   padding: 0;
   list-style: none;
-  width: 360px;
+  width: max-content;
+  max-width: 320px;
   max-height: 280px;
   overflow-y: auto;
 }
@@ -348,12 +354,21 @@ select {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: var(--aurora-space-2) var(--aurora-space-3);
+  padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x);
+  border-radius: var(--ui-size-radius-sm);
   text-align: left;
   background: none;
   border: 0;
-  color: var(--aurora-text-primary);
+  color: var(--ui-color-text-secondary);
   font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.editor-problem-text strong {
+  color: var(--ui-color-text-default);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* Node id above the message, so the message gets the whole row width
@@ -379,7 +394,7 @@ button.editor-problem-row {
 }
 
 button.editor-problem-row:hover {
-  background: var(--aurora-surface-hover);
+  background: var(--ui-color-popup-bg-hover);
 }
 
 .editor-toast {
@@ -490,29 +505,7 @@ button.editor-problem-row:hover {
 }
 
 .aurora-node-problem {
-  border: 1px dashed var(--aurora-text-primary);
-}
-
-.problem-badge,
-.problem-mark {
-  font-weight: 600;
-  color: var(--aurora-text-primary);
-}
-
-.problem-list {
-  margin: var(--aurora-space-3) var(--aurora-space-5) 0;
-  padding: 0;
-  list-style: none;
-  color: var(--aurora-text-primary);
-}
-
-.param-problem {
-  outline: 1px dashed var(--aurora-text-primary);
-  outline-offset: -2px;
-}
-
-.problem-text {
-  color: var(--aurora-text-primary);
+  border: 1px solid var(--ui-color-text-warning);
 }
 
 .editor-title-menu {
@@ -525,6 +518,11 @@ button.editor-problem-row:hover {
   display: inline-flex;
   align-items: center;
   gap: var(--aurora-space-2);
+}
+
+/* The * hugs the title text, so the gap goes on the mark's far side. */
+.editor-title-menu > .editor-unsaved-mark {
+  margin-inline-start: calc(-1 * var(--aurora-space-2));
 }
 
 .editor-title-label {
@@ -731,12 +729,17 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-/* Narrow bar (Aurora-u8jx.9.1): SplitTestButton sets data-icon-form when the title would fall under about
-   100 px, and idle Test is then its icon alone (state in aria-label and tooltip). */
-.editor-split[data-icon-form] .editor-split-main .editor-split-label { display: none; }
-.editor-split[data-icon-form] .editor-split-main { width: var(--ui-size-button-icon-size); padding: 0; justify-content: center; }
-.editor-split[data-icon-form] .editor-split-main .editor-split-icon-extra { display: block; }
+/* Narrow bar (Aurora-z5y5): barStage.ts tries stages on the bar until the title keeps about 100 px.
+   Stage 1 data-back-icon (Dashboard is its arrow), 2 data-test-icon (idle Test is its icon, state in
+   aria-label and tooltip), 3 data-chip-compact (the chip is its count). Each stage includes the last. */
+.editor-header[data-back-icon] .editor-back-label { display: none; }
+.editor-header[data-test-icon] .editor-split-main .editor-split-label { display: none; }
+.editor-header[data-test-icon] .editor-split-main { width: var(--ui-size-button-icon-size); padding: 0; justify-content: center; }
+.editor-header[data-test-icon] .editor-split-main .editor-split-icon-extra { display: block; }
 .editor-split-icon-extra { display: none; }
+.editor-chip-count { display: none; }
+.editor-header[data-chip-compact] .editor-chip-full { display: none; }
+.editor-header[data-chip-compact] .editor-chip-count { display: inline; }
 
 .editor-header > .ui-button,
 .editor-header > .editor-sep,
@@ -761,12 +764,15 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-/* Unsaved dot (Aurora-u68h.4, drawn with Grille's dotIcon, which follows currentColor): beside the
-   title, after an Open item's title and at the end of the "Not saved yet" heading. */
+/* Unsaved mark (Aurora-ge1i.3): a trailing * after the title, an Open item's title and the
+   "Not saved yet" heading. It never shrinks, so ellipsis truncation cannot cut it. */
+.editor-unsaved-mark {
+  flex: 0 0 auto;
+}
+
 .editor-menu-line {
   display: flex;
-  align-items: center;
-  gap: var(--aurora-space-2);
+  align-items: baseline;
 }
 
 .editor-menu-line > .editor-menu-title {
@@ -774,11 +780,9 @@ button.editor-problem-row:hover {
   min-width: 0;
 }
 
-/* The "Not saved yet" heading ends with the dot (a Header, so the dot is inline with its text). */
-.editor-heading-dot {
+.editor-heading-mark {
   display: inline-flex;
-  align-items: center;
-  gap: var(--aurora-space-2);
+  align-items: baseline;
 }
 
 @media (max-width: 649px) {
@@ -885,12 +889,20 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 /* Tooltip lists (Hint.tsx): several lines become a short list. */
 .hint-list { margin: 0; padding-left: 1.1em; }
 
+/* Grille greys only [data-disabled] (React Aria's attribute); the editor's plain buttons (Test, Edit) set
+   `disabled`, so give them the same look. */
+.ui-button:disabled {
+  background: var(--ui-color-control-bg);
+  color: var(--ui-color-text-disabled);
+  cursor: not-allowed;
+}
+
 /* A disabled button sends no pointer events, so the group takes them and its
    tooltip (the reason Test is off) still shows. */
 .editor-split[data-off] button { pointer-events: none; }
 
 /* A refused Save points at the problems chip (Aurora-u68h.4): a tooltip-look callout on its left and a
-   ping, both with the problem node's border (.aurora-node-problem: 1px dashed). Focus moves to the chip. */
+   ping, both with the problem node's border (.aurora-node-problem: 1px solid, warning color). Focus moves to the chip. */
 .editor-chip-wrap {
   position: relative;
   display: inline-flex;
@@ -911,7 +923,7 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   position: relative;
   max-width: none;
   white-space: nowrap;
-  border: 1px dashed var(--aurora-text-primary);
+  border: 1px solid var(--ui-color-text-warning);
 }
 
 /* No room on the chip's left (measured in ProblemsChip.tsx, Aurora-h55g): below the chip, wrapped, inside a
@@ -940,8 +952,8 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   translate: none;
   rotate: 45deg;
   border: 0;
-  border-left: 1px dashed var(--aurora-text-primary);
-  border-top: 1px dashed var(--aurora-text-primary);
+  border-left: 1px solid var(--ui-color-text-warning);
+  border-top: 1px solid var(--ui-color-text-warning);
 }
 
 /* Dropped under the Add node button, away from the chip: no pointer (Aurora-u8jx.4.1). */
@@ -960,13 +972,20 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   translate: 0 -50%;
   rotate: 45deg;
   background: var(--ui-color-popup-bg);
-  border-right: 1px dashed var(--aurora-text-primary);
-  border-top: 1px dashed var(--aurora-text-primary);
+  border-right: 1px solid var(--ui-color-text-warning);
+  border-top: 1px solid var(--ui-color-text-warning);
 }
 
 /* The ping is a pseudo-element, so the chip's own focus ring is left alone. */
 .editor-problems-chip {
   position: relative;
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-text-warning);
+}
+
+.editor-problems-chip [data-chevron] {
+  color: var(--ui-color-text-default);
+  margin-inline: -2px;
 }
 
 .editor-problems-chip[data-pinging]::after {
@@ -974,7 +993,7 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  border: 1px dashed var(--aurora-text-primary);
+  border: 1px solid var(--ui-color-text-warning);
   pointer-events: none;
   animation: shell-ping 1375ms ease-out 2;
 }
@@ -986,4 +1005,26 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
   .editor-problems-chip[data-pinging]::after {
     animation: none;
   }
+}
+
+/* Edit menu rows (Aurora-ge1i.2.1): the label, with its key hint at the far end. */
+.editor-menu-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--aurora-space-6, 24px);
+  width: 100%;
+}
+
+.editor-menu-key {
+  color: var(--ui-color-text-muted);
+}
+
+.editor-edit-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
+}
+
+.editor-header > .editor-edit-menu {
+  flex: 0 0 auto;
 }

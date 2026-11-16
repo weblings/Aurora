@@ -42,7 +42,7 @@ namespace Aurora::Runtime
     bool canSelectMonitor
   );
 
-  // GET /api/version: {"version", "apiVersion"}, the superbuild VERSION baked in as
+  // GET /api/version: {"version", "apiVersion", "buildType"}, the superbuild VERSION baked in as
   // AURORA_VERSION (or "dev" for standalone slice configures).
   void registerVersionRoute(
     Aurora::Network::Http::Server::HttpServer& server,

@@ -6,6 +6,16 @@ Component behavior, callbacks, data shapes, and side effects. See [README.md](RE
 
 ---
 
+## A mock's hand-drawn popover is not a Grille spec
+Tags: webui, grille, popover, mock
+Applies-when: building a custom list or panel inside a Grille Popover from a Grille mock
+
+The problems dropdown was built to the mock's `.ge-probpop` (320 px, square full-bleed rows), but the real one sits in Grille's `Popover`, which already pads 4 px, so the rows floated in a gap and the hover had square corners. The mock draws its popovers by hand (`.ge-pop`).
+
+**Fix:** inside a Grille Popover, style custom rows with the `ui-menu-item` metrics (6 px by 12 px padding, `radius-sm`, `popup-bg-hover`), add no list padding, and size to content with a max width. Prefer `Menu` and `MenuItem` when rows are one line with no action button.
+
+---
+
 ## An ARIA pattern that commits a value on every interaction needs adapting when the commit callback has real side effects
 Tags: webui, aria, dropdown
 Applies-when: reusing an ARIA pattern with side-effecting commit callbacks

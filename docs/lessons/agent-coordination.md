@@ -109,3 +109,23 @@ Applies-when: briefing or reviewing an agent whose change swaps the inputs of a 
 Aurora-ajr5 (2026-11-13): pipeline capabilities moved from `!m_isAudioMode` / `m_isDualCapture` to the running graph's nodes. The agent reported that dual capture "reports what it did before" because the existing tests passed. `m_isDualCapture` is set in two places, and the `AURORA_DEV_DUAL_CAPTURE` spike has no test: it runs the built-in audio graph beside the video graph that `graphJson()` returns, so it would have lost `usesAudioInput`. The coordinator found it only by grepping the flag's assignments on review.
 
 **Fix:** in the brief, ask the agent to grep every assignment of the old inputs and say, path by path, what the new derivation gives there, naming any path no test covers. On review, run that grep yourself. Passing tests prove only the paths that have tests.
+
+---
+
+## On Windows the browser-check stack needs a mkdir lock, and Node needs C:/ paths
+Tags: windows, browser-check, subagents, parallel, lock, msys, paths
+Applies-when: running agents in parallel on Windows that share the browser-check stack, or briefing them to write throwaway Node scripts
+
+Aurora-ge1i.1 and .3 (2026-11-15): `lockf` from "The browser-check stack is one per machine" is macOS-only. In Git Bash, `until mkdir "$L" 2>/dev/null; do sleep 5; done; <cmd>; rc=$?; rmdir "$L"; (exit $rc)` serialized two agents' checks and builds with no collisions. Separately, one agent passed an MSYS path (`/c/Users/...`) to Node, which resolved it against the current drive and created a stray `D:\c\Users\...` tree.
+
+**Fix:** on Windows, put the mkdir lock (release it on failure too) in each brief, and tell agents to pass `C:/...` paths to Node, never `/c/...`. A killed agent can leave the lock directory behind: check `git status` and running processes before deleting it.
+
+---
+
+## Close the bead, write its log and stage the export in the bead's own commit
+Tags: commits, close-gate, beads, work-log, verification, subagents, git-apply
+Applies-when: committing an agent's verified work for a bead, especially when two beads' edits share a file
+
+Aurora-ge1i.1 and .3 (2026-11-15): both were committed before `bd close`, so the close gate (which checks the staged `.beads/issues.jsonl`) did not run and neither commit carried a log entry. The gate fired on the next, unrelated commit (`.4`), which then had to carry all three beads' log, lesson and export. Separately, `.1` and `.3` both edited `editor.css`. The coordinator committed them apart by filtering the file's `git diff` to `.1`'s hunks and running `git apply --cached`, then committing the rest. The first filter kept one hunk too many, and only `git diff --cached` showed it.
+
+**Fix:** per bead: verify, `bd close`, write the `docs/log/` entry and INDEX row, `bd export -o .beads/issues.jsonl`, stage them with the code, then commit. When beads share a file, stage one bead's hunks with a filtered patch and `git apply --cached`, and read `git diff --cached` before committing.

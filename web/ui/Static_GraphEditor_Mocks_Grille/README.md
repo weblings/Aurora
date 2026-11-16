@@ -80,3 +80,14 @@ Strip group **Stage 7 Preview**, frames `#pv1` to `#pv10` (the ten frames of the
 - Card color: decided (owner, 2026-11-15) the `#1a1a1a` popup card, same as the other open menus. The `#333` variant was tried and dropped.
 
 Decided (owner, 2026-11-15): Sim: your room is left out of the select when there is no saved map (frame 7). Open: the greyed Lights option carries no reason of its own (React Aria skips disabled options on arrow keys), so a keyboard user hears it from the shell row and the Test tooltip.
+
+## Clipboard (`Aurora-ge1i.2`)
+
+Frame **Clipboard** (`#s8-clip`, strip group Stage 8). Static board in `clipboardmock.js` / `clipboardmock.css`, hooked into `mock.js` at `drawBoard` and `FRAMES`. Nothing is wired and the real editor is untouched.
+
+- Menus follow `web/graph-editor/src/ContextMenu.tsx` (Add node submenu), not the older live Right-click frames, which still show the pre-stage mock menus.
+- Canvas menu: Add node (untouched), then Undo, Redo, Fit view, then Paste and Select all. Node menu: Details and Show on the Dashboard, then Cut and Copy, then Delete. Labels are plain Cut, Copy and Delete and act on the selection.
+- Platform hints: Redo reads Ctrl+Y on Windows, Ctrl+Shift+Z on Linux, Cmd+Shift+Z on macOS.
+- Top bar at 1000, 700, 400 and 360 px: Undo and Redo leave the bar and an Edit dropdown sits beside the title (decided). Captions print the measured widths.
+- Toasts: skipped nodes, nothing pasted, clipboard read denied.
+- New in the mock: shortcut hints on the canvas rows, the platform hints, the toast sentences.

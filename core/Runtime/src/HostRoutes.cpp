@@ -65,6 +65,10 @@ namespace Aurora::Runtime
   }
 
 
+  // AURORA_BUILD_TYPE is the CMake config name; the editor shows node ids unless it is a shipped one.
+#ifndef AURORA_BUILD_TYPE
+#define AURORA_BUILD_TYPE "unknown"
+#endif
   void registerVersionRoute(HttpServer& server, std::string version)
   {
     server.addRoute(
@@ -72,7 +76,7 @@ namespace Aurora::Runtime
       "/api/version",
       [version = std::move(version)](const Request&, Response& res){
         res.contentType = "application/json";
-        res.body = nlohmann::json{{"version", version}, {"apiVersion", kApiVersion}}.dump();
+        res.body = nlohmann::json{{"version", version}, {"apiVersion", kApiVersion}, {"buildType", AURORA_BUILD_TYPE}}.dump();
       }
     );
   }

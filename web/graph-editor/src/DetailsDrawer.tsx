@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Drawer } from '@weblings/grille'
 import { CommitInput } from './CommitInput'
+import { useShowNodeIds } from './EditorContext'
 import { addControl, controlIndex, controlsOf, removeControl, updateControl, type ControlText } from './graph/controls'
 import type { Catalog, GraphDoc } from './graph/types'
 
@@ -24,6 +25,7 @@ export function DetailsDrawer({ isOpen, onClose, top, side, doc, catalog, select
   const node = selected ? doc.nodes.find((n) => n.id === selected) : undefined
   const info = node ? catalog.get(node.type) : undefined
   const checks = useRef<HTMLDivElement>(null)
+  const showIds = useShowNodeIds()
 
   useEffect(() => {
     if (!isOpen || focusChecks === 0) return
@@ -34,7 +36,7 @@ export function DetailsDrawer({ isOpen, onClose, top, side, doc, catalog, select
 
   const controls = controlsOf(doc)
   return (
-    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={node && info ? info.title || node.type : 'Details'} subtitle={node ? node.id : undefined} top={top} side={side}>
+    <Drawer isOpen={isOpen} onOpenChange={(open) => !open && onClose()} title={node && info ? info.title || node.type : 'Details'} subtitle={node && showIds ? node.id : undefined} top={top} side={side}>
       {node && info ? (
         <div className="drawer-details">
           <p>{info.purpose}</p>

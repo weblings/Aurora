@@ -1310,3 +1310,16 @@ Applies-when: finding that Grille (`@weblings/grille`) lacks or gets a component
 - Aurora-fhal / Grille-7o0 (slider fill) was first filed in Aurora's beads alone and reported as the Grille request. The rule was already in `docs/planning/WebUI/GraphEditorCleanup.md` and a dated log, but neither is where an agent looks while filing.
 
 **Fix:** state the repo in the report ("Grille-xxx in GrilleDS") so a missing Grille bead is visible.
+
+---
+
+## Before building new behavior, find the app's existing equivalent operation and compose from it
+Tags: process, reuse, scoping, code, webui
+Applies-when: scoping or writing a feature that resembles something the app already does elsewhere (copy, duplicate, add, open, new)
+
+Stage 8 planning (Aurora-ge1i) scoped "Start from any effect" as a new path with an unknown, and proposed paste positioning from scratch. Both had existing equivalents: the dashboard's Duplicate (a server route, so a client-side draft variant only needs `fetchEffectGraph`, `distinctTitle`, `newEffectId` and the kept-copy machinery) and `addFromMenu` (pointer else canvas centre, via `screenToFlowPosition`). They surfaced only after the owner asked "wouldn't Duplicate already do most of this?" The search had stopped at the files the question named (the menu code). The same habit costs in code: a second copy of a position rule, id remap or title rule drifts from the first.
+
+**Fix:**
+1. Before designing or writing, grep the app for the operation by its verbs (duplicate, add, new, open, copy) in the editor, the dashboard and the core routes. Read the match, not just its name.
+2. State what was reused and what is new. If nothing was found, say what was searched.
+3. Build new code as a variant of the existing path (a client-side draft of Duplicate, a paste that calls the add-node position rule), and extract a shared helper only when a second caller is real.

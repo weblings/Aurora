@@ -47,7 +47,7 @@ await withEditorStack(async ({ editorUrl }) => {
     // Right-click node: Delete acts on it.
     await page.locator('.aurora-node-header').first().click({ button: 'right' })
     await menu('Node actions').waitFor()
-    await page.getByRole('menuitem', { name: 'Delete node' }).click()
+    await page.getByRole('menuitem', { name: 'Delete', exact: true }).click()
     assert.equal(await nodeCount(), nodes0 - 1)
     step('node menu Delete removes the node')
 
