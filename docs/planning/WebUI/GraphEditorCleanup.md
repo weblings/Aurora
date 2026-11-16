@@ -761,6 +761,30 @@ Graph UX cleanup from the owner's hands-on use after stage 8, labelled 1.2.0. Fi
 | `Aurora-1fwk` | Edit menu and Test caret clicks misbehave | Bug (P2): the native right-click menu shows on a left click |
 | `Aurora-3xqi` | Node ids only in developer builds | Done: `GET /api/version` gains `buildType` (the CMake config), not `/api/v1/version`. The editor hides ids when it is `Release` or `MinSizeRel`. Otherwise (Debug, RelWithDebInfo) the node label tooltip adds `Title (id)` and Details shows the id as its subtitle |
 
+## Stage 10 (filed 2026-11-16)
+
+Epic `Aurora-e4bi`, labelled 1.2.0: redesign the Dashboard controls drawer. Planning log: [[e4bi-controls-panel-planning]]. The drawer's rows truncate (node title and param id share a line with three buttons) and "No label" repeats on every row. No file-format change.
+
+| Bead | What | Notes |
+|---|---|---|
+| `.1` | Grille mock of the drawer | Cards, section headings, accordions, the three menus, drag handles, the narrow popover, bottom dock and expanded widths, long names, a General-only list. Gates `.3` onward |
+| `.2` | Section helpers and the Tuning General heading | Pure code in `graph/controls.ts` with tests, plus one line in `TuningFields.js`. Starts with `.1` |
+| `.3` | Card list, card menu, select-node | Needs `.1` and `.2` |
+| `.4` | Sections: panel menu, section menu, accordions | Needs `.3` |
+| `.5` | Drag handles for controls and sections | Needs `.4`. Riskiest, may slip past 1.2.0 because the menus already do every move |
+| `.6` | Browser check, README, log, lessons | Starts with `.3`, finished after `.5` |
+
+### Decisions (owner, 2026-11-16)
+
+- Cards show the effective label (the label, else the param's own label). Node and param move to the tooltip and accessible name. No "No label" line.
+- Sections are derived from the `controls` array as runs of the same section string, not stored objects. Tuning needs no change except below.
+- General is the default section: an empty string, always last in the drawer, so new controls append into it. Tuning headings a headless group that is not first as "General". Deleting a section moves its controls to General.
+- Panel menu: Add section, Collapse all, Expand all. Section menu: Rename, Delete, Move up and down (none on General). Sections are accordions with local, unsaved collapse state. Empty sections vanish on reload.
+- Card menu: Move up, Move down, Move to section (a submenu of existing sections), Show on node, Remove. Double-click or Enter on a card selects the node and fits the view, no ping.
+- Drag moves controls between sections and reorders sections, with the menus as the WCAG 2.5.7 alternative.
+- The corner Dashboard controls button stays this version and may move later.
+- A Details edit of a Section string goes through the regroup, so it cannot split a run.
+
 ## Known follow-ups (filed under `Aurora-daaa`)
 
 Small items found during stage 2 that are not part of any stage's scope yet. None is assigned
