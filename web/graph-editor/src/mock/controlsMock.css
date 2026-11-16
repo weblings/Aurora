@@ -1,0 +1,473 @@
+/* Controls panel mock (Aurora-e4bi.1). Dev-only page, not in the build.
+   Unlayered, so it wins over Grille's @layer ui. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ui-color-surface-page);
+  color: var(--ui-color-text-default);
+  font-family: var(--ui-font-family-sans);
+}
+
+/* Mock annotation: dashed, never editor UI. */
+.cp-strip {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 48px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px dashed var(--ui-color-border-default);
+  font-size: 12px;
+  color: var(--ui-color-text-muted);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.cp-strip select,
+.cp-strip button {
+  font: inherit;
+  background: var(--ui-color-control-bg);
+  color: var(--ui-color-text-default);
+  border: 0;
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.cp-strip a {
+  color: var(--ui-color-text-link);
+}
+
+.cp-canvas {
+  position: fixed;
+  inset: 48px 0 0 0;
+  background-color: #111;
+  background-image: radial-gradient(#2a2a2a 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.cp-note {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: 340px;
+  padding: 8px 10px;
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: 6px;
+  background: rgb(10 10 10 / 0.85);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ui-color-text-muted);
+}
+.cp-measure {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The corner button, placed as the editor places it (editor.css, daaa.29.4). */
+.cp-corner {
+  position: fixed;
+  right: 15px;
+  bottom: 15px;
+}
+.cp-corner-count,
+.cp-title-count {
+  margin-left: var(--ui-size-space-sm);
+  color: var(--ui-color-text-muted);
+  font-weight: var(--ui-font-weight-regular);
+}
+.cp-root[data-drawer='right'] .cp-corner {
+  right: calc(var(--ui-size-drawer-width) + 15px);
+}
+.cp-root[data-drawer='bottom'] .cp-corner {
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - 48px) / 2) + 15px);
+}
+.cp-root[data-drawer='full'] .cp-corner {
+  display: none;
+}
+
+/* Head: content actions, a rule, then window controls. */
+.cp-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-xs);
+}
+.cp-head-rule {
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--ui-size-space-sm);
+  background: var(--ui-color-border-default);
+}
+
+/* Borderless icon button: Grille has none (mock README decision 1). */
+.cp-ghost {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  color: var(--ui-color-text-muted);
+}
+.cp-ghost[data-hovered],
+.cp-ghost[aria-expanded='true'] {
+  background: var(--ui-color-control-bg);
+  color: var(--ui-color-text-default);
+}
+.cp-ghost[data-pressed] {
+  background: var(--ui-color-control-bg-hover);
+}
+.cp-ghost-big {
+  width: var(--ui-size-button-icon-size);
+  height: var(--ui-size-button-icon-size);
+}
+
+/* Wide dock (portrait monitor): cap the list at the shell's 640 px column. */
+
+
+.cp-tree {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.cp-item {
+  outline: none;
+}
+
+/* Section heading: the Dashboard accordion pill (dashboard.css .accordion-header), one fill step up
+   because the drawer is already --aurora-surface. Rows are flat siblings, so sticky headings stack
+   and the latest one covers the rest. */
+.cp-item-sec {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: var(--ui-size-space-lg);
+  background: var(--ui-color-popup-bg);
+}
+.cp-tree > .cp-item-sec:first-child,
+.cp-tree > .cp-drop:first-child + .cp-item-sec {
+  padding-top: 0;
+}
+.cp-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-md);
+  border-radius: var(--aurora-radius-accordion);
+  background: var(--aurora-surface-hover);
+  font-size: 14px;
+  color: var(--aurora-text-primary);
+  cursor: pointer;
+}
+.cp-sec-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-count {
+  flex: 1;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-muted);
+}
+.cp-chev {
+  color: var(--aurora-text-secondary);
+}
+.cp-chev .ui-icon {
+  transition: rotate 0.1s;
+}
+.cp-item[data-expanded] .cp-chev .ui-icon {
+  rotate: 180deg;
+}
+.cp-empty {
+  margin: var(--ui-size-space-xs) 0 0 var(--ui-size-space-lg);
+  padding: var(--ui-size-space-md);
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+
+/* Card: outline, one text tier. */
+.cp-item-card {
+  margin-top: var(--ui-size-space-xs);
+}
+.cp-item-card[data-level='2'] {
+  padding-left: var(--ui-size-space-lg);
+}
+.cp-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 3px var(--ui-size-space-xs) 3px var(--ui-size-space-md);
+  border: 1px solid var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-default);
+}
+.cp-card:hover {
+  background: var(--aurora-surface-selected);
+}
+.cp-item[data-selected] .cp-card {
+  border-color: var(--ui-color-text-muted);
+}
+.cp-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-tip-sub {
+  color: var(--ui-color-text-muted);
+}
+
+.cp-item[data-focus-visible] .cp-card,
+.cp-item[data-focus-visible] .cp-pill {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: var(--ui-size-focus-ring-offset);
+}
+
+/* Grip: faint until its row is hovered. */
+.cp-grip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--ui-color-text-disabled);
+  cursor: grab;
+  outline: none;
+}
+.cp-pill:hover .cp-grip,
+.cp-card:hover .cp-grip {
+  color: var(--ui-color-text-muted);
+}
+.cp-grip[data-focus-visible] {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+}
+.cp-grip-space {
+  flex: none;
+  width: 12px;
+}
+
+/* Drag and drop states, from React Aria's data attributes. */
+.cp-item[data-dragging] {
+  opacity: 0.5;
+}
+.cp-item[data-drop-target] .cp-pill {
+  background: var(--ui-color-control-bg-hover);
+  outline: 1px solid var(--ui-color-control-accent);
+}
+.cp-drop {
+  height: 0;
+  outline: none;
+}
+.cp-drop-card {
+  margin-left: var(--ui-size-space-lg) !important;
+}
+.cp-drop[data-drop-target] {
+  position: relative;
+  z-index: 3;
+  height: 2px;
+  margin: -1px 0;
+  border-radius: 1px;
+  background: var(--ui-color-control-accent);
+}
+
+.cp-hint {
+  margin: 0;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-muted);
+}
+
+/* The editor centres its toast on the window, under any drawer (z 20 vs 30), so an open drawer hides Undo.
+   The mock centres it on the canvas left over. */
+.cp-root[data-drawer='right'] .editor-toast {
+  left: calc((100% - var(--ui-size-drawer-width)) / 2);
+}
+.cp-root[data-drawer='bottom'] .editor-toast {
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - 48px) / 2) + 15px);
+}
+
+/* Section name dialog, Grille only. The title is local: Grille has no dialog title. */
+.cp-gdialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-xl);
+  /* StatusMessage inherits its size; Grille consumers set it on the page. */
+  font-size: var(--ui-size-font-sm);
+}
+.cp-gdialog-title {
+  margin: 0;
+  font-size: var(--ui-size-font-sm);
+  font-weight: var(--ui-font-weight-bold);
+  color: var(--ui-color-text-default);
+}
+.cp-gdialog .ui-text-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Message cards. The live region stays mounted, so a card draws only with text.
+   Error and notice share the treatment from the strip: tinted in their own Grille tone colour, or raised. */
+.cp-gdialog .ui-status-message {
+  margin: 0;
+}
+.cp-gdialog .ui-status-message:empty {
+  display: none;
+}
+.cp-gdialog .ui-status-message:not(:empty) {
+  --tone: var(--ui-color-text-error);
+  padding: var(--ui-size-callout-pad-y) var(--ui-size-callout-pad-x);
+  border-radius: var(--ui-size-radius-md);
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-gdialog .ui-status-message[data-tone='warning'] {
+  --tone: var(--ui-color-text-warning);
+}
+/* Notice: Grille's neutral tone, no colour to tint with, so always the raised card. */
+.cp-gdialog .ui-status-message[data-tone='neutral'] {
+  color: var(--ui-color-text-secondary);
+}
+/* Tinted: the tone colour mixed into the surface. Needs Grille error and warning surface tokens. */
+.cp-err-tint .ui-status-message:not(:empty):not([data-tone='neutral']),
+.cp-err-house .ui-status-message[data-tone='error'] {
+  background: color-mix(in srgb, var(--tone) 10%, var(--ui-color-popup-bg));
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--ui-color-popup-bg));
+}
+/* Centred icon: Grille sits it on the first line (baseline row plus a translate). */
+.cp-icon-centre .ui-status-message {
+  align-items: center;
+}
+.cp-icon-centre .ui-status-message > .ui-icon {
+  translate: none;
+}
+.cp-gdialog .ui-text-input::placeholder {
+  color: var(--ui-color-text-muted);
+}
+
+/* Dialog states board: every message the unified dialog can show, live and editable. */
+.cp-board {
+  position: fixed;
+  inset: 48px 0 0 0;
+  z-index: 40;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--ui-size-space-2xl) var(--ui-size-space-xl);
+  align-items: start;
+  padding: var(--ui-size-space-2xl);
+  background: var(--ui-color-surface-page);
+}
+.cp-board-item {
+  margin: 0;
+}
+.cp-board-item figcaption {
+  margin-bottom: var(--ui-size-space-md);
+  padding: var(--ui-size-space-xs) var(--ui-size-space-md);
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+.cp-board-item figcaption b {
+  color: var(--ui-color-text-secondary);
+}
+.cp-board .ui-modal {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Grille paints every disabled button as a muted secondary. A disabled primary stays primary, dimmed. */
+.cp-gdialog .ui-button[data-variant='primary'][data-disabled] {
+  background: var(--ui-color-primary-bg);
+  color: var(--ui-color-text-on-primary);
+  opacity: 0.4;
+}
+.cp-gdialog-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--ui-size-space-lg);
+}
+
+/* Project rules (stage 7 words, shell.css marks): two tones only. Colour sits on the mark, text stays default.
+   Error: red-tinted card, red circled exclamation. Notice: raised card, circled info in the text colour. */
+.cp-err-house .ui-status-message:not(:empty) {
+  color: var(--ui-color-text-default);
+}
+.cp-err-house .ui-status-message[data-tone='error'] > .ui-icon {
+  color: var(--ui-color-text-error);
+}
+/* The shell row box (shell.css .shell-banner-row): no fill, 2px border, panel radius, 10/16 padding.
+   Notices take it as is; the error keeps its red tint (owner's pick) in the same shape. */
+.cp-err-house .ui-status-message:not(:empty) {
+  padding: var(--aurora-space-4) var(--aurora-space-6);
+  border-radius: var(--aurora-radius-panel);
+  text-wrap: pretty;
+}
+.cp-err-house .ui-status-message[data-tone='neutral'] {
+  background: none;
+  border: 2px solid var(--aurora-border);
+}
+.cp-err-house .ui-status-message[data-tone='error'] {
+  border-width: 2px;
+}
+/* Tint dropped (owner, 2026-11-16): the error is the shell row too, told apart only by its red mark. */
+.cp-err-house .ui-status-message[data-tone='error'] {
+  background: none;
+  border: 2px solid var(--aurora-border);
+}
+
+/* Card editing variants. Expanding card: the fields wrap under the card's row. */
+.cp-card .cp-fields {
+  flex-basis: 100%;
+  margin: var(--ui-size-space-xs) 0 var(--ui-size-space-sm);
+  padding-top: var(--ui-size-space-sm);
+  border-top: 1px solid var(--ui-color-border-default);
+}
+.cp-card-chev .ui-icon {
+  transition: rotate 0.1s;
+}
+.cp-card-chev[aria-expanded='true'] .ui-icon {
+  rotate: 180deg;
+}
+.cp-fields .ui-field {
+  padding: var(--ui-size-space-xs) 0;
+}
+.cp-fields .ui-field-label {
+  padding-right: var(--ui-size-space-lg);
+}
+.cp-fields .ui-text-input,
+.cp-fields .ui-select-trigger {
+  justify-self: stretch;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.cp-fields .ui-text-input::placeholder {
+  color: var(--ui-color-text-muted);
+}
+.cp-tip-note {
+  margin-top: var(--ui-size-space-xs);
+  color: var(--ui-color-text-secondary);
+}
+/* Details: the param a card opened scrolls into view with its fields. */
+.cp-details-param {
+  margin: 0 calc(-1 * var(--ui-size-space-md)) var(--ui-size-space-sm);
+  padding: var(--ui-size-space-xs) var(--ui-size-space-md);
+  border-radius: var(--ui-size-radius-sm);
+}
+.cp-details-param[data-target] {
+  background: var(--aurora-surface-selected);
+}

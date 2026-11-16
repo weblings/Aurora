@@ -537,3 +537,33 @@ Aurora-u8jx.2 (2026-11-13): `Problems` gained `graphActions` (the button a Whole
 
 **Fix:** when adding a field to a type, grep for its `same*`/equality helper and compare the new field there, with a test where only that field changes.
 
+
+---
+
+## React Aria's standalone Tooltip crashes without a TooltipTrigger
+Tags: webui, react-aria, tooltip, grille
+Applies-when: showing a tooltip on an element that is not its own focusable trigger (a Tree or GridList row, a card)
+
+In react-aria-components 1.22.1, `<Tooltip triggerRef isOpen>` outside a `TooltipTrigger` throws "Cannot read properties of null (reading 'isOpen')" on open. The outer `Tooltip` builds local state, but `TooltipInner` reads only `TooltipTriggerStateContext`. Found in the Aurora-e4bi.1 controls panel mock, where the card row is focused by the Tree, not by a trigger.
+
+**Fix:** wrap it in `TooltipTriggerStateContext.Provider` with `{ isOpen, open, close }` (see `web/graph-editor/src/mock/ControlsPanelMock.tsx`), or put the tooltip on a real focusable trigger.
+
+---
+
+## Text fields inside a React Aria Tree row lose their keys to the row
+Tags: webui, react-aria, tree, keyboard, input
+Applies-when: putting a text field, select or other editable control inside a Tree or GridList row (an expanding card, inline edit)
+
+In the Aurora-e4bi.1 mock's expanding card, ArrowLeft in the Label field moved focus to the row's chevron, Home went to the first section row, and ArrowDown and Space left the field. React Aria handles row keys in the capture phase, so a `stopPropagation` on the field's own `onKeyDown` runs too late. Saving the label on every keystroke also renamed the row while typing, which re-rendered it and threw the caret to the end ("Very " typed at the start came out as "VVividery ").
+
+**Fix:** stop the keys in `onKeyDownCapture` on an element above the collection when the target is inside the fields, letting Tab, Escape and Enter through; save on blur or Enter, as the editor's `CommitInput` does. Weigh both costs before choosing in-row editing over a dialog or a separate drawer.
+
+---
+
+## React Aria's replace selection is what makes double-click an action, and it selects on click and arrows
+Tags: webui, react-aria, tree, selection, keyboard
+Applies-when: a collection row should act on double-click or Enter (open, frame, select elsewhere) and do nothing on a single click
+
+`selectionMode="single"` with `selectionBehavior="replace"` gives double-click and Enter as `onAction`, but a single click and every arrow key also select the row and announce "selected". Without selection, `onAction` fires on a single click instead. In the Aurora-e4bi.1 mock, mirroring that selection to the canvas would have selected off-screen nodes while arrowing and on a drag press.
+
+**Fix:** no selection mode, `onDoubleClick` on the `TreeItem`, and Enter caught on an element above the Tree (neither `Tree` nor `TreeItem` takes `onKeyDown`), acting only when the event target is the row itself so an Enter that drops a keyboard drag is not caught.

@@ -32,11 +32,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [output.md](output.md) | streaming/protocol, any target | 23 | streaming/protocol/wire-format specific |
 | [rendering-apis.md](rendering-apis.md) | third-party rendering facts | 4 | Three.js/GLTFLoader/Blender behavior, not our design |
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
-| [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 37 | WebUI planning/design-process finding |
-| [components.md](components.md) | behavior, callbacks, data shapes | 33 | WebUI component finding |
+| [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 39 | WebUI planning/design-process finding |
+| [components.md](components.md) | behavior, callbacks, data shapes | 36 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 11 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 12 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 19 | WebUI layout/CSS finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 20 | WebUI layout/CSS finding |
 
 Counts as of 2026-10-15 — bump the count when adding entries
 (`grep -c '^## '` per file).

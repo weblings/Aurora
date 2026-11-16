@@ -91,3 +91,7 @@ Frame **Clipboard** (`#s8-clip`, strip group Stage 8). Static board in `clipboar
 - Top bar at 1000, 700, 400 and 360 px: Undo and Redo leave the bar and an Edit dropdown sits beside the title (decided). Captions print the measured widths.
 - Toasts: skipped nodes, nothing pasted, clipboard read denied.
 - New in the mock: shortcut hints on the canvas rows, the platform hints, the toast sentences.
+
+## Stage 10 controls panel (`Aurora-e4bi.1`)
+
+Not in this static mock. It is a dev-only React page so it runs on real Grille and React Aria (Tree drag and drop): `web/graph-editor/controls-mock.html`, code in `web/graph-editor/src/mock/`. Run `npm run dev` in `web/graph-editor` and open `/graph-editor/controls-mock.html`. The strip switches data (audio, long names, General only, empty) and the head (x with divider, chevron close), and opens popups at 1100, 700, 400, 360 and 900x1400. It is not part of `vite build`.
