@@ -1306,7 +1306,6 @@ Tags: grille, beads, process, upstream
 Applies-when: finding that Grille (`@weblings/grille`) lacks or gets a component, style or behavior wrong, and deciding where to record the request
 
 - Grille is its own repo (`weblings/GrilleDS`, a sibling checkout at `../GrilleDS`) with its own beads, prefix `Grille`. A bead in Aurora's `.beads` is not a Grille bead: nothing in GrilleDS sees it.
-- On the owner's Windows machine the sibling checkouts sit two levels above the repo root: `../../Grille`, `../../RockyRoad` and `../../RockyRoadImport` (found 2026-11-16). Search them for prior art and component source before searching the web. Grille has no list-reorder or drag component, and RockyRoad's `.song-row` card has only a title and a subtitle tier.
 - File the Grille bead first: `cd` to the GrilleDS checkout and run `bd create` there. Then file or update the Aurora bead for the consumer work (bump, copy CSS into the mock's `grille/`, adopt the change) and cross-reference both IDs in notes. The GrilleDS beads files are not committed, so the cross-reference in the Aurora bead is the only trail.
 - Aurora-fhal / Grille-7o0 (slider fill) was first filed in Aurora's beads alone and reported as the Grille request. The rule was already in `docs/planning/WebUI/GraphEditorCleanup.md` and a dated log, but neither is where an agent looks while filing.
 
