@@ -21,12 +21,14 @@ describe('title menu lists', () => {
       { ...e('builtin.video', 'Video', true), hidden: true, order: 0 },
     ]
     const groups = startGroups(list, true)
-    expect(groups.map((g) => g.name)).toEqual(['Custom', 'Hidden'])
-    expect(groups[0].items.map((i) => i.id)).toEqual(['a', 'b'])
-    expect(groups[1].items.map((i) => i.id)).toEqual(['h'])
+    expect(groups.map((g) => g.name)).toEqual(['Built-in', 'Custom', 'Hidden'])
+    expect(groups[0].items.map((i) => i.id)).toEqual(['builtin.video'])
+    expect(groups[1].items.map((i) => i.id)).toEqual(['a', 'b'])
+    expect(groups[2].items.map((i) => i.id)).toEqual(['h'])
   })
-  it('New leaves out an empty sub-menu', () => {
-    expect(startGroups(effects.filter((x) => x.builtin), true)).toEqual([])
+  it('New leaves out an empty sub-menu, and Built-in drops Music pulse without audio', () => {
+    expect(startGroups(effects.filter((x) => !x.builtin), true).map((g) => g.name)).toEqual(['Custom'])
+    expect(startGroups(effects, false)[0].items.map((i) => i.id)).toEqual(['builtin.video'])
   })
   it('a New or Duplicate pick is the source under a distinct title, nothing else changed', () => {
     const src = { version: 1, nodes: [], edges: [], title: 'Mine' } as never

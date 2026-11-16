@@ -3,6 +3,7 @@ import { Dialog, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem } from 
 import { EditorPopup } from './EditorPopup'
 import { keptCopies } from './graph/autosave'
 import { openGroups, startGroups, startPoints } from './graph/titleMenu'
+import { BLANK_ID } from './graph/save'
 import type { EffectListEntry } from './graph/types'
 
 // The screen-reader text of every unsaved asterisk: MenuItem `description` on an item, hidden text on a heading.
@@ -95,7 +96,7 @@ export function TitleMenu({
             <MenuSeparator />
             <SubmenuItem id="new" label="New" aria-label="New effect" onAction={pickNew}>
               <MenuSection title="Start from">
-                {startPoints(effects, hasAudio).map((s) => (
+                {startPoints(effects, hasAudio).filter((s) => s.id === BLANK_ID).map((s) => (
                   <MenuItem key={s.id} id={s.id}>{s.title}</MenuItem>
                 ))}
                 {starts.map((g) => (

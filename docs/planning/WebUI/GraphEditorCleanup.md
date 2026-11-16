@@ -745,9 +745,20 @@ Epic `Aurora-ge1i`, labelled 1.2.0. Four small, independent items from the owner
 | `.2` | Clipboard design: a mock of where Cut, Copy, Paste and Select all live | Grille mock checked at several widths. Add node stays separate, View is unchanged, the title menu stays file-only. Decided (owner, 2026-11-15): singleton types are skipped on paste with a count, the clipboard is the system clipboard with marked JSON (works across tabs), paste follows the pointer from the canvas menu and otherwise uses the canvas centre as Add node does. Open: dashboard checks on pasted nodes, repeat-paste offset, clipboard permission for the menu Paste |
 | `.2.1` | Build the clipboard as the mock decides | Done: `copySelection`, `parseClip`, `pasteSelection` and `pasteNote` in `graph/doc.ts`; the top bar's Undo and Redo buttons became an Edit dropdown (`EditMenu.tsx`), the canvas and node menus follow the `.2` mock, Ctrl/Cmd+A, C, X (keydown) and V (the paste event, so no permission prompt), Ctrl+Y redo. One edit per paste or cut. A singleton is a catalog type with a `sink` (the output node) and is skipped only when the graph already has one, so Cut then Paste of it works. `graph-editor:clipboard` checks it |
 | `.3` | Unsaved mark | Done: a trailing `*` on the title in place of the dot, as Unity does, in a span that truncation never cuts. Revises the stage 6 dot decision. The Open items and the Not saved yet heading follow (`Not saved yet*`) |
-| `.4` | New > Start from, any effect, as an unsaved copy | Every pick fetches the effect's graph and opens it as a draft titled `X (Copy)`, saved only on Save. A client-side variant of the dashboard's Duplicate, which saves at once. Built-ins stay flat, Custom and Hidden become sub-menus. Done: the loader opens a seed over the blank baseline, so the copy is unsaved. Empty stays the blank graph. Hidden holds hidden custom effects (hidden built-ins are flat). A Duplicate item copies the open graph, unsaved edits included. The dashboard's Start from is unchanged and still opens the built-in itself |
+| `.4` | New > Start from, any effect, as an unsaved copy | Every pick fetches the effect's graph and opens it as a draft titled `X (Copy)`, saved only on Save. A client-side variant of the dashboard's Duplicate, which saves at once. Built-ins started flat, Custom and Hidden are sub-menus (Built-in became the first sub-menu in stage 9, `Aurora-l8ua`). Done: the loader opens a seed over the blank baseline, so the copy is unsaved. Empty stays the blank graph. Hidden holds hidden custom effects (hidden built-ins are flat). A Duplicate item copies the open graph, unsaved edits included. The dashboard's Start from is unchanged and still opens the built-in itself |
 
 No order is required, except `.2.1` after `.2`. `.2.1` is the largest, `.3` and `.1` the smallest.
+
+## Stage 9 (filed 2026-11-16)
+
+Graph UX cleanup from the owner's hands-on use after stage 8, labelled 1.2.0. Four independent items, no required order.
+
+| Bead | What | Notes |
+|---|---|---|
+| `Aurora-l8ua` | Start from lists Built-in as its first sub-menu, right after Empty | Done: New is Empty, then Built-in (every built-in, hidden ones included, Music pulse only with audio), then Custom, Hidden. Revises stage 8 `.4`, where built-ins were flat. The dashboard's Start from is unchanged |
+| `Aurora-z5y5` | Wide to narrow header switch is too sensitive | Bug: Dashboard and Test button text are cut too early |
+| `Aurora-23wu` | Problems chip, problems dropdown and node problem visuals differ from the mock | Bring them back to the mock |
+| `Aurora-1fwk` | Edit menu and Test caret clicks misbehave | Bug (P2): the native right-click menu shows on a left click |
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 

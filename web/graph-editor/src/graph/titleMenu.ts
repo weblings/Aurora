@@ -14,15 +14,16 @@ export function startPoints(effects: EffectListEntry[], hasAudio: boolean): { id
   return [{ id: BLANK_ID, title: 'Empty' }, ...builtins.map((e) => ({ id: e.id, title: e.title || e.id }))]
 }
 
-// The New submenu's two sub-menus (editor only, the dashboard has no such list): Custom, then Hidden.
-// Built-ins are flat above, hidden ones included, so Hidden holds only custom effects. Groups come
-// from the dashboard's buildGroups, so order and the audio rule are the same.
+// The New submenu's sub-menus after Empty: Built-in, Custom, then Hidden (editor only). Built-in
+// holds every built-in, hidden ones included, and drops Music pulse without audio, as startPoints does.
 export function startGroups(effects: EffectListEntry[], hasAudio: boolean): { name: string; items: { id: string; title: string }[] }[] {
   const groups = buildGroups(effects, { hasAudio }) as { id: string; name: string; effects: EffectListEntry[] }[]
-  return groups
+  const item = (e: EffectListEntry) => ({ id: e.id, title: e.title || e.id })
+  const builtins = startPoints(effects, hasAudio).filter((s) => s.id !== BLANK_ID)
+  const rest = groups
     .filter((g) => g.id !== 'builtin')
-    .map((g) => ({ name: g.name, items: g.effects.filter((e) => !e.builtin).map((e) => ({ id: e.id, title: e.title || e.id })) }))
-    .filter((g) => g.items.length > 0)
+    .map((g) => ({ name: g.name, items: g.effects.filter((e) => !e.builtin).map(item) }))
+  return [{ name: 'Built-in', items: builtins }, ...rest].filter((g) => g.items.length > 0)
 }
 
 // The Open submenu's groups, in order: Not saved yet (new effects that exist only as a kept copy,
