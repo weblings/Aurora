@@ -49,7 +49,7 @@ import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
 import { initialTest, type TestMode } from './graph/lightTest'
-import { BLANK_ID, blankDoc, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
+import { BLANK_ID, blankDoc, copyOf, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
 import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { draftIssues, groupProblems, sameProblems, type Problems } from './graph/problems'
@@ -84,6 +84,8 @@ export function App() {
   // What the server last gave us or accepted; unsaved edits are measured from it.
   const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
   // The kept copy of an earlier visit's edits when the saved effect has changed since: awaiting a choice.
+  // New and Duplicate seeds by draft id: read once by the loader below, then the kept copy carries them.
+  const seeds = useRef(new Map<string, GraphDoc>())
   const [outdated, setOutdated] = useState<GraphDoc | null>(null)
   // The effect or the catalog would not load although Aurora answered: a row in the error shell,
   // worded by cause, with no Retry (Aurora-u68h.9). When Aurora does not answer, the shell's takeover
@@ -162,8 +164,12 @@ export function App() {
     opening
       .then((graph) => {
         if (stale) return
-        dispatch({ type: 'open', doc: graph })
+        // A seeded copy opens as the doc over a blank baseline, so it counts as unsaved until Save.
+        const seed = seeds.current.get(effectId)
+        seeds.current.delete(effectId)
+        dispatch({ type: 'open', doc: seed ?? graph })
         setBaseline({ id: effectId, doc: graph })
+        if (seed) return setOpenError(null)
         // A kept copy comes back without asking, as an edit on the saved graph (one Undo
         // reaches the saved version). If the saved effect moved on since the copy was
         // made, the graph stays as saved until the prompt is answered.
@@ -698,6 +704,18 @@ export function App() {
     if (where === 'here') setEffectId(id === BLANK_ID ? newEffectId() : id)
   }
 
+  // A New or Duplicate pick: the graph opens as an unsaved copy under a new draft id, nothing written.
+  const openCopy = (graph: GraphDoc, listTitle: string) => {
+    const id = newEffectId()
+    seeds.current.set(id, copyOf(graph, listTitle, effects.map((e) => e.title || e.id)))
+    setEffectId(id)
+  }
+  const startFrom = (id: string) => {
+    if (id === BLANK_ID) return openEffect(id, 'here')
+    const listed = effects.find((e) => e.id === id)?.title || id
+    fetchEffectGraph(id).then((graph) => openCopy(graph, listed)).catch((e: Error) => loadFailed(e, id))
+  }
+
   // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
   // the kept copy goes with it.
   const revertToSaved = () => {
@@ -801,10 +819,12 @@ export function App() {
             if (action === 'save') void write('save')
             else if (action === 'save-as-new') void write('save', true)
             else if (action === 'save-and-apply') void write('apply')
+            else if (action === 'duplicate') { if (doc) openCopy(doc, shownTitle) }
             else if (action === 'revert') revertToSaved()
             else setNaming({ kind: 'rename', initial: title })
           }}
           onOpenEffect={(id) => openEffect(id, 'here')}
+          onNewEffect={startFrom}
         />
         {naming ? (
           <NameDialog

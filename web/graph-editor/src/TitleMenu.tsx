@@ -2,13 +2,13 @@ import { useMemo, type MutableRefObject, type ReactNode, type RefObject } from '
 import { Dialog, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { keptCopies } from './graph/autosave'
-import { openGroups, startPoints } from './graph/titleMenu'
+import { openGroups, startGroups, startPoints } from './graph/titleMenu'
 import type { EffectListEntry } from './graph/types'
 
 // The screen-reader text of every unsaved asterisk: MenuItem `description` on an item, hidden text on a heading.
 export const UNSAVED_TEXT = 'unsaved changes'
 
-export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'revert'
+export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'duplicate' | 'revert'
 
 // The title menu (Aurora-daaa.11): a Dialog in a Popover with the file actions, then New and Open
 // submenus (Aurora-iryq). One menu, so the arrow keys reach everything; effects open on Enter or a
@@ -29,6 +29,7 @@ export function TitleMenu({
   focusAfter,
   onAction,
   onOpenEffect,
+  onNewEffect,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -48,8 +49,9 @@ export function TitleMenu({
   unsaved: boolean
   focusAfter: MutableRefObject<(() => HTMLElement | null) | null>
   onAction: (action: TitleMenuAction) => void
-  // New and Open both land here; App's openEffect decides where it opens.
   onOpenEffect: (id: string) => void
+  // A New pick: Empty opens blank, anything else opens an unsaved copy of that effect.
+  onNewEffect: (id: string) => void
 }) {
   // Save, Save as new and Save and apply are never disabled for problems (Aurora-u68h.4): React Aria skips
   // disabled items on arrow keys, so a reason on one would never reach a keyboard user. With problems
@@ -59,9 +61,14 @@ export function TitleMenu({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const kept = useMemo(() => (isOpen ? keptCopies() : new Map()), [isOpen, effects])
   const groups = openGroups(effects, currentId, kept)
+  const starts = startGroups(effects, hasAudio)
   const pick = (id: string) => {
     onClose()
     onOpenEffect(id)
+  }
+  const pickNew = (id: string) => {
+    onClose()
+    onNewEffect(id)
   }
   return (
     <EditorPopup isOpen={isOpen} onClose={onClose} label="Effect menu" triggerRef={triggerRef} focusAfter={focusAfter}>
@@ -74,7 +81,7 @@ export function TitleMenu({
             aria-label="Effect actions"
             onClose={onClose}
             onAction={(id) => {
-              if (id === 'new' || id === 'open') return
+              if (id === 'new' || id === 'open' || id.startsWith('start-')) return
               onClose()
               onAction(id as TitleMenuAction)
             }}
@@ -83,12 +90,22 @@ export function TitleMenu({
             {isBuiltin ? null : <MenuItem id="save-as-new" isDisabled={off}>Save as new</MenuItem>}
             <MenuItem id="save-and-apply" isDisabled={off}>Save and apply</MenuItem>
             {isBuiltin ? null : <MenuItem id="rename" isDisabled={nothingOpen}>Rename</MenuItem>}
+            <MenuItem id="duplicate" isDisabled={nothingOpen}>Duplicate</MenuItem>
             <MenuItem id="revert" isDisabled={!unsaved}>Revert to saved</MenuItem>
             <MenuSeparator />
-            <SubmenuItem id="new" label="New" aria-label="New effect" onAction={pick}>
+            <SubmenuItem id="new" label="New" aria-label="New effect" onAction={pickNew}>
               <MenuSection title="Start from">
                 {startPoints(effects, hasAudio).map((s) => (
                   <MenuItem key={s.id} id={s.id}>{s.title}</MenuItem>
+                ))}
+                {starts.map((g) => (
+                  <SubmenuItem key={g.name} id={`start-${g.name}`} label={g.name} aria-label={`Start from a ${g.name.toLowerCase()} effect`} onAction={pickNew}>
+                    {g.items.map((e) => (
+                      <MenuItem key={e.id} id={e.id} tooltip={e.title} tooltipOnlyWhenTruncated>
+                        {e.title}
+                      </MenuItem>
+                    ))}
+                  </SubmenuItem>
                 ))}
               </MenuSection>
             </SubmenuItem>

@@ -46,6 +46,13 @@ export function distinctTitle(title: string, taken: Iterable<string>): string {
   }
 }
 
+// The seed of a New or Duplicate pick: the source graph under a title no listed effect shows
+// ('X (Copy)'), kept to this browser until a Save writes it.
+export function copyOf(source: GraphDoc, fallbackTitle: string, taken: Iterable<string>): GraphDoc {
+  const title = titleOf(source) || fallbackTitle
+  return setTitle(source, distinctTitle(title, [...taken, title]))
+}
+
 // The document a write sends. A write that makes a new effect (a fork, or a
 // built-in saved under a name) takes a title no other effect shows; one that
 // overwrites a custom effect, sends the document as it is.

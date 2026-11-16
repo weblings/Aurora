@@ -1,16 +1,28 @@
 import type { EffectListEntry, GraphDoc } from './types'
 import { BLANK_ID, isDraftId, titleOf } from './save'
+import { buildGroups } from '../../../ui/EffectPanelModel.js'
 
 // What a new effect with no title is called in the title and in Open.
 export const NEW_EFFECT_TITLE = 'New empty effect'
 
-// What the title menu's New submenu offers: the dashboard's "Start from" list.
+// What the title menu's New submenu lists flat: the dashboard's "Start from" list.
 // Same rule as startPoints() in web/ui/EffectPanelModel.js (keep in sync):
 // Empty, then the built-ins, hidden ones included, and Music pulse only when
 // an audio input exists. Empty is the blank graph, as editorHref() sends it.
 export function startPoints(effects: EffectListEntry[], hasAudio: boolean): { id: string; title: string }[] {
   const builtins = effects.filter((e) => e.builtin && (hasAudio || e.id !== 'builtin.audio'))
   return [{ id: BLANK_ID, title: 'Empty' }, ...builtins.map((e) => ({ id: e.id, title: e.title || e.id }))]
+}
+
+// The New submenu's two sub-menus (editor only, the dashboard has no such list): Custom, then Hidden.
+// Built-ins are flat above, hidden ones included, so Hidden holds only custom effects. Groups come
+// from the dashboard's buildGroups, so order and the audio rule are the same.
+export function startGroups(effects: EffectListEntry[], hasAudio: boolean): { name: string; items: { id: string; title: string }[] }[] {
+  const groups = buildGroups(effects, { hasAudio }) as { id: string; name: string; effects: EffectListEntry[] }[]
+  return groups
+    .filter((g) => g.id !== 'builtin')
+    .map((g) => ({ name: g.name, items: g.effects.filter((e) => !e.builtin).map((e) => ({ id: e.id, title: e.title || e.id })) }))
+    .filter((g) => g.items.length > 0)
 }
 
 // The Open submenu's groups, in order: Not saved yet (new effects that exist only as a kept copy,

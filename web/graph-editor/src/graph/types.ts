@@ -75,4 +75,7 @@ export type EffectListEntry = {
   builtin: boolean
   title: string
   description: string | null
+  // The server's list also carries these; absent in older fixtures.
+  hidden?: boolean
+  order?: number
 }

@@ -109,3 +109,13 @@ Applies-when: briefing or reviewing an agent whose change swaps the inputs of a 
 Aurora-ajr5 (2026-11-13): pipeline capabilities moved from `!m_isAudioMode` / `m_isDualCapture` to the running graph's nodes. The agent reported that dual capture "reports what it did before" because the existing tests passed. `m_isDualCapture` is set in two places, and the `AURORA_DEV_DUAL_CAPTURE` spike has no test: it runs the built-in audio graph beside the video graph that `graphJson()` returns, so it would have lost `usesAudioInput`. The coordinator found it only by grepping the flag's assignments on review.
 
 **Fix:** in the brief, ask the agent to grep every assignment of the old inputs and say, path by path, what the new derivation gives there, naming any path no test covers. On review, run that grep yourself. Passing tests prove only the paths that have tests.
+
+---
+
+## On Windows the browser-check stack needs a mkdir lock, and Node needs C:/ paths
+Tags: windows, browser-check, subagents, parallel, lock, msys, paths
+Applies-when: running agents in parallel on Windows that share the browser-check stack, or briefing them to write throwaway Node scripts
+
+Aurora-ge1i.1 and .3 (2026-11-15): `lockf` from "The browser-check stack is one per machine" is macOS-only. In Git Bash, `until mkdir "$L" 2>/dev/null; do sleep 5; done; <cmd>; rc=$?; rmdir "$L"; (exit $rc)` serialized two agents' checks and builds with no collisions. Separately, one agent passed an MSYS path (`/c/Users/...`) to Node, which resolved it against the current drive and created a stray `D:\c\Users\...` tree.
+
+**Fix:** on Windows, put the mkdir lock (release it on failure too) in each brief, and tell agents to pass `C:/...` paths to Node, never `/c/...`. A killed agent can leave the lock directory behind: check `git status` and running processes before deleting it.
