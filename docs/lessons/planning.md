@@ -719,3 +719,13 @@ Applies-when: answering "how complex would X be" or filing a bead that states a 
 Asked how complex Start from would be, the first answer called it low to medium with one unknown and later said it needed "a new path". Neither came from tracing the code. The owner's follow-up questions then found the cheaper design, and a trade-off (save at once vs a new path) had been invented that did not exist. An estimate in a bead or doc reads as a finding and steers decisions, the same way a described component does (see "A described existing component is a claim to verify").
 
 **Fix:** before giving an estimate, trace the nearest existing operation end to end. Report it as "traced X, Y, Z" or "not checked", and record unknowns as questions with the file that would answer them, not as difficulty.
+
+---
+
+## A row that joins fields hides which field supplied the text: read the data before designing around it
+Tags: planning, dashboard-controls, verification, data
+Applies-when: describing or redesigning a UI string that is built from several fields or a fallback
+
+The Dashboard controls drawer prints `[label, section].filter(Boolean).join(' · ')`, so a control with only a `section` showed as a name. The audio preset sets `section` ("Response speed") and no label, and the first design pass called that text the human name and the node and param line the technical one. It was caught only when a card sketch needed the label, by opening `builtin.audio.json`. The same drawer printed "No label" for controls that do have one on the Dashboard, because Tuning falls back to `decl.label ?? decl.name`.
+
+**Fix:** before saying what a displayed string is, find the field that fed it in a real preset and read the consumer's own fallback (here `TuningControls.js`). Design from what the user sees on the surface that consumes it, not from the editor's summary of it.

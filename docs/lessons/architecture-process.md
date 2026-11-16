@@ -1306,6 +1306,7 @@ Tags: grille, beads, process, upstream
 Applies-when: finding that Grille (`@weblings/grille`) lacks or gets a component, style or behavior wrong, and deciding where to record the request
 
 - Grille is its own repo (`weblings/GrilleDS`, a sibling checkout at `../GrilleDS`) with its own beads, prefix `Grille`. A bead in Aurora's `.beads` is not a Grille bead: nothing in GrilleDS sees it.
+- On the owner's Windows machine the sibling checkouts sit two levels above the repo root: `../../Grille`, `../../RockyRoad` and `../../RockyRoadImport` (found 2026-11-16). Search them for prior art and component source before searching the web. Grille has no list-reorder or drag component, and RockyRoad's `.song-row` card has only a title and a subtitle tier.
 - File the Grille bead first: `cd` to the GrilleDS checkout and run `bd create` there. Then file or update the Aurora bead for the consumer work (bump, copy CSS into the mock's `grille/`, adopt the change) and cross-reference both IDs in notes. The GrilleDS beads files are not committed, so the cross-reference in the Aurora bead is the only trail.
 - Aurora-fhal / Grille-7o0 (slider fill) was first filed in Aurora's beads alone and reported as the Grille request. The rule was already in `docs/planning/WebUI/GraphEditorCleanup.md` and a dated log, but neither is where an agent looks while filing.
 
@@ -1323,3 +1324,13 @@ Stage 8 planning (Aurora-ge1i) scoped "Start from any effect" as a new path with
 1. Before designing or writing, grep the app for the operation by its verbs (duplicate, add, new, open, copy) in the editor, the dashboard and the core routes. Read the match, not just its name.
 2. State what was reused and what is new. If nothing was found, say what was searched.
 3. Build new code as a variant of the existing path (a client-side draft of Duplicate, a paste that calls the add-node position rule), and extract a shared helper only when a second caller is real.
+
+---
+
+## Filing an epic with children takes minutes, because every `bd` write runs a full export
+Tags: beads, tooling, timeouts, windows
+Applies-when: filing an epic with several children and dependencies in one script
+
+With about 750 beads each state-changing `bd` command printed "auto-export wrote 751 issues in 7s". One script that converted a task to an epic, created six children and added five dependencies passed the 120 s foreground timeout and was moved to the background, with the later commands still running. A second copy would have created duplicate children. This adds to the debounce lesson above: the export is slow, not only late.
+
+**Fix:** run a filing script with `run_in_background` and wait for its notification instead of starting it again, or batch the writes into fewer commands. Afterwards check the result with `bd show <epic>` (children and dependencies) before committing.

@@ -38,4 +38,6 @@ Id: e4bi-controls-panel-planning
 
 ## Lessons
 
-- none
+- A row that joins fields hides which field supplied the text: `../lessons/planning.md` "A row that joins fields hides which field supplied the text".
+- Filing an epic with children is slow, because every `bd` write exports: `../lessons/architecture-process.md` "Filing an epic with children takes minutes".
+- Sibling checkouts (`../../Grille`, `../../RockyRoad`) noted in the Grille change-request lesson.
