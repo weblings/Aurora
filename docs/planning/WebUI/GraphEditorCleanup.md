@@ -737,13 +737,13 @@ Open for the owner:
 
 ## Stage 8 (filed 2026-11-15)
 
-Epic `Aurora-ge1i`, labelled 1.2.0. Four small, independent items from the owner's notes after stage 7. `.1`, `.3` and `.4` built 2026-11-15, see [[ge1i-stage8-minimap-mark-start-from]]; the clipboard (`.2`, `.2.1`) is open.
+Epic `Aurora-ge1i`, labelled 1.2.0. Four small, independent items from the owner's notes after stage 7. `.1`, `.3` and `.4` built 2026-11-15, see [[ge1i-stage8-minimap-mark-start-from]]; the clipboard (`.2`, `.2.1`) built 2026-11-16.
 
 | Bead | What | Notes |
 |---|---|---|
 | `.1` | Minimap contrast | Done: nodes in text-secondary at 0.6 fill opacity, about 4.5:1 (was 1.2:1); viewport outline text-secondary; scrim mask kept. CSS only. Problem-node colouring not done |
 | `.2` | Clipboard design: a mock of where Cut, Copy, Paste and Select all live | Grille mock checked at several widths. Add node stays separate, View is unchanged, the title menu stays file-only. Decided (owner, 2026-11-15): singleton types are skipped on paste with a count, the clipboard is the system clipboard with marked JSON (works across tabs), paste follows the pointer from the canvas menu and otherwise uses the canvas centre as Add node does. Open: dashboard checks on pasted nodes, repeat-paste offset, clipboard permission for the menu Paste |
-| `.2.1` | Build the clipboard as the mock decides | Pure copy and paste functions (fresh ids, internal wires only), menu items, Ctrl/Cmd+C, X, V and A, one edit per paste. Blocked by `.2` |
+| `.2.1` | Build the clipboard as the mock decides | Done: `copySelection`, `parseClip`, `pasteSelection` and `pasteNote` in `graph/doc.ts`; the top bar's Undo and Redo buttons became an Edit dropdown (`EditMenu.tsx`), the canvas and node menus follow the `.2` mock, Ctrl/Cmd+A, C, X (keydown) and V (the paste event, so no permission prompt), Ctrl+Y redo. One edit per paste or cut. A singleton is a catalog type with a `sink` (the output node) and is skipped only when the graph already has one, so Cut then Paste of it works. `graph-editor:clipboard` checks it |
 | `.3` | Unsaved mark | Done: a trailing `*` on the title in place of the dot, as Unity does, in a span that truncation never cuts. Revises the stage 6 dot decision. The Open items and the Not saved yet heading follow (`Not saved yet*`) |
 | `.4` | New > Start from, any effect, as an unsaved copy | Every pick fetches the effect's graph and opens it as a draft titled `X (Copy)`, saved only on Save. A client-side variant of the dashboard's Duplicate, which saves at once. Built-ins stay flat, Custom and Hidden become sub-menus. Done: the loader opens a seed over the blank baseline, so the copy is unsaved. Empty stays the blank graph. Hidden holds hidden custom effects (hidden built-ins are flat). A Duplicate item copies the open graph, unsaved edits included. The dashboard's Start from is unchanged and still opens the built-in itself |
 

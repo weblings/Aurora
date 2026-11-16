@@ -11,8 +11,7 @@ const SHOTS = process.env.SHOTS
 const check = (width, what, p) => {
   assert.ok(p.scroll <= 0 && p.out.length === 0, `${width} px, ${what}: ${JSON.stringify(p)}`)
 }
-// Tab from the Dashboard link until focus is on Undo (enabled: the check dragged a node first); Redo is
-// an icon button beside it at every width.
+// Tab from the Dashboard link until focus is on the Edit button, which holds Undo and Redo at every width.
 async function keyboardReachesUndoRedo(page, width) {
   await page.locator('.editor-back').focus()
   const seen = []
@@ -20,11 +19,7 @@ async function keyboardReachesUndoRedo(page, width) {
     await page.keyboard.press('Tab')
     const name = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || document.activeElement?.textContent?.trim() || '')
     seen.push(name)
-    if (name === 'Undo') {
-      assert.equal(await page.getByRole('button', { name: 'Redo' }).count(), 1, `${width} px: no Redo button`)
-      assert.equal(await page.locator('.editor-header [aria-label="Undo"] svg').count(), 1, `${width} px: Undo is not an icon button`)
-      return
-    }
+    if (name === 'Edit') return
   }
   assert.fail(`${width} px: Undo/Redo not reachable by keyboard; tabbed through ${JSON.stringify(seen)}`)
 }
@@ -176,7 +171,7 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.waitForTimeout(300)
       assert.equal(await page.locator('.ui-drawer').count(), 0, `${w}x${h}: Esc left the drawer open`)
     }
-    // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Undo, and the bar still never wraps or overflows at every width.
+    // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Test, and the bar still never wraps or overflows at every width.
     const fresh = await browser.newContext({ viewport: { width: 1470, height: 900 } })
     await page.close()
     page = await fresh.newPage()
@@ -211,7 +206,7 @@ await withEditorStack(async ({ editorUrl }) => {
       const g = await page.evaluate(() => {
         const bar = document.querySelector('.editor-header').getBoundingClientRect()
         const chip = document.querySelector('.editor-problems-chip').getBoundingClientRect()
-        const next = document.querySelector('.editor-header [aria-label="Undo"]')?.getBoundingClientRect()
+        const next = document.querySelector('.editor-header .editor-split')?.getBoundingClientRect()
         const split = document.querySelector('.editor-split')?.getBoundingClientRect()
         return { barH: bar.height, chipLeft: chip.left, chipRight: chip.right, chipTop: chip.top, nextLeft: next?.left, nextTop: next?.top, splitLeft: split?.left, splitRight: split?.right, vw: innerWidth }
       })
@@ -219,11 +214,11 @@ await withEditorStack(async ({ editorUrl }) => {
       // Aurora-u8jx.9: per-control widths of the bar's direct children, to plan which controls fold.
       const parts = await page.evaluate(() => [...document.querySelector('.editor-header').children].map((el) => `${(el.getAttribute('aria-label') || el.className.toString().split(' ').find((c) => c.startsWith('editor-')) || el.tagName)}=${Math.round(el.getBoundingClientRect().width)}`))
       console.log(width, 'bar widths:', parts.join(' '))
-      assert.ok(g.nextLeft !== undefined, `${width} px: no Undo button`)
+      assert.ok(g.nextLeft !== undefined, `${width} px: no Test split button`)
       assert.ok(Math.abs(g.barH - barHeight) < 1, `${width} px: bar wrapped (${g.barH} px, was ${barHeight})`)
       assert.ok(g.chipLeft >= -1 && g.chipRight <= g.vw + 1, `${width} px: chip outside the window: ${JSON.stringify(g)}`)
-      assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Undo: ${JSON.stringify(g)}`)
-      assert.ok(g.splitLeft >= g.nextLeft && g.splitRight <= g.vw + 1, `${width} px: Test split button is not after Undo and inside the window: ${JSON.stringify(g)}`)
+      assert.ok(g.chipRight <= g.nextLeft + 1 && Math.abs(g.chipTop - g.nextTop) < 20, `${width} px: chip is not just before Test: ${JSON.stringify(g)}`)
+      assert.ok(g.splitRight <= g.vw + 1, `${width} px: Test split button is not inside the window: ${JSON.stringify(g)}`)
       const form = await readForm(page)
       console.log(width, 'title/test (with a problem):', JSON.stringify(form))
       assert.ok(width < 450 || !form.icon, `${width} px: Test is already an icon (label stays at 450 px and wider)`)

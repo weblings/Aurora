@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { addNodeByName, fileAction, openTitleMenu, setName, waitAnnounced } from '../lib/editorMenu.mjs'
+import { addNodeByName, editAction, fileAction, openTitleMenu, setName, waitAnnounced } from '../lib/editorMenu.mjs'
 
 const created = []
 

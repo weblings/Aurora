@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { makeEdit } from '../lib/editorMenu.mjs'
+import { editAction, makeEdit } from '../lib/editorMenu.mjs'
 import { pairingApi } from '../lib/pairing.mjs'
 import { fastPolls, finish, statePolls, stepLogger, until } from '../lib/waits.mjs'
 
@@ -488,7 +488,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     // Undo and Redo each change the document, so each one sends a new draft.
     let undone = false
     const nudge = async () => {
-      await page.getByRole('button', { name: undone ? 'Redo' : 'Undo', exact: true }).click()
+      await editAction(page, undone ? 'Redo' : 'Undo')
       undone = !undone
     }
     const noteSaid = (await spot()).said.length

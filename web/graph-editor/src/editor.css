@@ -998,3 +998,25 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
     animation: none;
   }
 }
+
+/* Edit menu rows (Aurora-ge1i.2.1): the label, with its key hint at the far end. */
+.editor-menu-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--aurora-space-6, 24px);
+  width: 100%;
+}
+
+.editor-menu-key {
+  color: var(--ui-color-text-muted);
+}
+
+.editor-edit-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aurora-space-2);
+}
+
+.editor-header > .editor-edit-menu {
+  flex: 0 0 auto;
+}

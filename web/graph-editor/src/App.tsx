@@ -28,7 +28,7 @@ import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon, redoIcon, undoIcon } from '@weblings/grille'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, TIGHT_BAR, useMedia } from './useMedia'
 import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
 import { NEW_EFFECT_TITLE } from './graph/titleMenu'
@@ -44,7 +44,9 @@ import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, sav
 import { NewerSavedPrompt } from './NewerSavedPrompt'
 import { converterFor, insertConverter, refuseConnection } from './graph/connection'
 import { controlsOf } from './graph/controls'
-import { addEdge, addNode, joinEndpoint, moveNodes, removeEdge, removeNodes, setParam } from './graph/doc'
+import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
+import { EditMenu, type EditAction } from './EditMenu'
+import { hints, mod } from './graph/keys'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
 import { SplitTestButton } from './SplitTestButton'
@@ -399,13 +401,16 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'z') return
+      const key = e.key.toLowerCase()
+      // Ctrl+Y is Redo on Windows and Linux; Cmd+Y is not bound on macOS.
+      const redoY = key === 'y' && e.ctrlKey && !e.metaKey && !e.shiftKey
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || (key !== 'z' && !redoY)) return
       // Text boxes keep their own undo.
       const target = e.target as HTMLElement | null
       if (target?.isContentEditable || target?.tagName === 'TEXTAREA') return
       if (target instanceof HTMLInputElement && ['text', 'number'].includes(target.type)) return
       e.preventDefault()
-      dispatch({ type: e.shiftKey ? 'redo' : 'undo' })
+      dispatch({ type: redoY || e.shiftKey ? 'redo' : 'undo' })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -596,12 +601,160 @@ export function App() {
     [catalog, edit, announce],
   )
 
+  // Clipboard (Aurora-ge1i.2.1): the system clipboard holds marked JSON, so a paste works in another tab.
+  // 'none' (readable, no Aurora nodes) disables Paste; 'unknown' (not readable) leaves it on.
+  const [clipState, setClipState] = useState<'unknown' | 'none' | 'clip'>('unknown')
+  const [editOpen, setEditOpen] = useState(false)
+  const editTrigger = useRef<HTMLButtonElement>(null)
+  const lastPaste = useRef<{ text: string; n: number } | null>(null)
+  // Where the pointer last was over the canvas, for Ctrl+V.
+  const pointer = useRef<{ x: number; y: number } | null>(null)
+  const countOf = (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`
+
+  const copyPicked = async (cut: boolean) => {
+    const current = docRef.current
+    if (!current || picked.length === 0) return
+    const ids = new Set(picked.map((n) => n.id))
+    const positions = Object.fromEntries(nodes.filter((n) => n.selected).map((n) => [n.id, n.position]))
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(copySelection(current, ids, positions)))
+    } catch {
+      showToast("Couldn't copy to the clipboard")
+      return
+    }
+    setClipState('clip')
+    lastPaste.current = null
+    if (cut) deleteNodes(ids)
+    announce(`${cut ? 'Cut' : 'Copied'} ${countOf(ids.size)}`)
+  }
+
+  // Returns false when the text holds no Aurora nodes.
+  const pasteText = (text: string, where: { x: number; y: number } | 'pointer' | 'centre'): boolean => {
+    const clip = parseClip(text)
+    const view = flow.current
+    const current = docRef.current
+    if (!clip || !view || !catalog || !current) return false
+    const box = canvas.current?.getBoundingClientRect()
+    const centre = { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+    const point = where === 'pointer' ? pointer.current ?? centre : where === 'centre' ? centre : where
+    // The same clip pasted again steps down and right, so copies do not stack.
+    const n = lastPaste.current?.text === text ? lastPaste.current.n + 1 : 0
+    const base = view.screenToFlowPosition(point)
+    const at = { x: base.x + 24 * n, y: base.y + 24 * n }
+    const result = pasteSelection(current, clip, at, catalog)
+    const note = pasteNote(result.added.size, result.skipped, catalog)
+    if (result.added.size > 0) {
+      lastPaste.current = { text, n }
+      edit((d) => (d === current ? result.doc : pasteSelection(d, clip, at, catalog).doc))
+      // The pasted nodes are the selection.
+      const fresh = [...result.added.values()].map((id) => ({ id, selected: true, position: { x: 0, y: 0 }, data: {} }) as unknown as Node<AuroraNodeData>)
+      setNodeView([...nodes.map((x) => ({ ...x, selected: false })), ...fresh])
+      if (!note) announce(`Pasted ${countOf(result.added.size)}`)
+    }
+    if (note) showToast(note)
+    return true
+  }
+
+  const pasteFromClipboard = async (where: { x: number; y: number } | 'centre') => {
+    let text: string
+    try {
+      text = await navigator.clipboard.readText()
+    } catch {
+      showToast(`Couldn't read the clipboard. Press ${mod}+V to paste.`)
+      return
+    }
+    if (!pasteText(text, where)) {
+      setClipState('none')
+      showToast('Nothing to paste')
+    }
+  }
+
+  const selectAll = () => {
+    if (nodes.length === 0) return
+    setNodeView(nodes.map((n) => ({ ...n, selected: true })))
+    announce(`Selected ${countOf(nodes.length)}`)
+  }
+
+  // Look at the clipboard when a menu with Paste opens.
+  const menuKind = menu?.kind
+  useEffect(() => {
+    if (!editOpen && menuKind !== 'canvas') return
+    let stale = false
+    navigator.clipboard
+      ?.readText()
+      .then((text) => !stale && setClipState(parseClip(text) ? 'clip' : 'none'))
+      .catch(() => !stale && setClipState('unknown'))
+    return () => {
+      stale = true
+    }
+  }, [editOpen, menuKind, menu])
+
+  const onEditAction = (a: EditAction) => {
+    if (a === 'undo') undo()
+    else if (a === 'redo') redo()
+    else if (a === 'cut') void copyPicked(true)
+    else if (a === 'copy') void copyPicked(false)
+    else if (a === 'paste') void pasteFromClipboard('centre')
+    else if (a === 'select-all') selectAll()
+    else deleteNodes(new Set(picked.map((n) => n.id)))
+  }
+
+  // Ctrl/Cmd+A, C and X, and the paste event, act on the canvas only: not in a text box, popup or drawer.
+  // With nodes selected, copy and cut take them even when a shift-click left page text selected.
+  const clipKeys = useRef({ copyPicked, pasteText, selectAll, hasPicked: false })
+  clipKeys.current = { copyPicked, pasteText, selectAll, hasPicked: picked.length > 0 }
+  useEffect(() => {
+    const onCanvas = (target: HTMLElement | null) => {
+      if (!target) return false
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return false
+      if (target.closest('.ui-popover, .ui-drawer, [role="dialog"]')) return false
+      return target === document.body || !!target.closest('.editor-canvas, .editor-header')
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !onCanvas(e.target as HTMLElement | null)) return
+      const key = e.key.toLowerCase()
+      if (key === 'a') clipKeys.current.selectAll()
+      else if ((key === 'c' || key === 'x') && clipKeys.current.hasPicked) void clipKeys.current.copyPicked(key === 'x')
+      else return
+      e.preventDefault()
+    }
+    const onPaste = (e: ClipboardEvent) => {
+      if (!onCanvas(e.target as HTMLElement | null)) return
+      if (clipKeys.current.pasteText(e.clipboardData?.getData('text/plain') ?? '', 'pointer')) e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('paste', onPaste)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('paste', onPaste)
+    }
+  }, [])
+  useEffect(() => {
+    const pane = canvas.current
+    if (!pane) return
+    const move = (e: PointerEvent) => {
+      pointer.current = { x: e.clientX, y: e.clientY }
+    }
+    const leave = () => {
+      pointer.current = null
+    }
+    pane.addEventListener('pointermove', move)
+    pane.addEventListener('pointerleave', leave)
+    return () => {
+      pane.removeEventListener('pointermove', move)
+      pane.removeEventListener('pointerleave', leave)
+    }
+  }, [])
+
   const onMenuAction = (a: MenuAction) => {
     const at = menu
     if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
     else if (a.type === 'undo') undo()
     else if (a.type === 'redo') redo()
     else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
+    else if (a.type === 'cut' || a.type === 'copy') void copyPicked(a.type === 'cut')
+    else if (a.type === 'paste') void pasteFromClipboard(at ? { x: at.x, y: at.y } : 'centre')
+    else if (a.type === 'select-all') selectAll()
     else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
     else if (a.type === 'details' || a.type === 'dashboard') {
@@ -826,6 +979,19 @@ export function App() {
           onOpenEffect={(id) => openEffect(id, 'here')}
           onNewEffect={startFrom}
         />
+        <EditMenu
+          isOpen={editOpen}
+          onOpen={() => setEditOpen(true)}
+          onClose={() => setEditOpen(false)}
+          triggerRef={editTrigger}
+          disabled={!doc}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          hasSelection={picked.length > 0}
+          canPaste={clipState !== 'none'}
+          hints={hints}
+          onAction={onEditAction}
+        />
         {naming ? (
           <NameDialog
             title={naming.kind === 'rename' ? 'Rename effect' : 'Name the new effect'}
@@ -855,26 +1021,6 @@ export function App() {
             if (run === 'openControls') setDrawer('controls')
           }}
         />
-        <Hint text="Undo (Ctrl/Cmd+Z)" placement="bottom">
-          <button
-            type="button" className="ui-button" data-icon
-            onClick={undo}
-            disabled={past.length === 0}
-            aria-label="Undo"
-          >
-            <Icon icon={undoIcon} size="sm" />
-          </button>
-        </Hint>
-        <Hint text="Redo (Shift+Ctrl/Cmd+Z)" placement="bottom">
-          <button
-            type="button" className="ui-button" data-icon
-            onClick={redo}
-            disabled={future.length === 0}
-            aria-label="Redo"
-          >
-            <Icon icon={redoIcon} size="sm" />
-          </button>
-        </Hint>
         {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
         <span className="editor-sep" aria-hidden="true" />
         <SplitTestButton
@@ -1013,7 +1159,7 @@ export function App() {
           catalog={catalog}
           canUndo={past.length > 0}
           canRedo={future.length > 0}
-          selectedCount={picked.length}
+          canPaste={clipState !== 'none'}
           onClose={() => setMenu(null)}
           onAction={onMenuAction}
         />

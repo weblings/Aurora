@@ -1,6 +1,8 @@
 import { Dialog, Menu, MenuItem, MenuSeparator, SubmenuItem } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { Row } from './AddNodeMenu'
+import { Keyed } from './EditMenu'
+import { hints } from './graph/keys'
 import { addGroups } from './graph/addMenu'
 import type { Catalog } from './graph/types'
 
@@ -13,7 +15,7 @@ export type MenuTarget =
 
 export type MenuAction =
   | { type: 'add'; nodeType: string }
-  | { type: 'undo' | 'redo' | 'fit' | 'details' | 'dashboard' | 'delete-nodes' | 'delete-edge' }
+  | { type: 'undo' | 'redo' | 'fit' | 'details' | 'dashboard' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete-nodes' | 'delete-edge' }
 
 // Right-click and node-button menus (Aurora-daaa.27.1): canvas, node and wire. One popup
 // anchored at a point; keyed on it so a second right-click moves the menu.
@@ -22,7 +24,7 @@ export function ContextMenu({
   catalog,
   canUndo,
   canRedo,
-  selectedCount,
+  canPaste,
   onClose,
   onAction,
 }: {
@@ -30,7 +32,8 @@ export function ContextMenu({
   catalog: Catalog
   canUndo: boolean
   canRedo: boolean
-  selectedCount: number
+  // False only when the clipboard is known to hold no Aurora nodes; an unreadable one stays enabled.
+  canPaste: boolean
   onClose: () => void
   onAction: (action: MenuAction) => void
 }) {
@@ -48,7 +51,7 @@ export function ContextMenu({
             aria-label="Canvas actions"
             onClose={onClose}
             onAction={(id) => {
-              if (id === 'undo' || id === 'redo' || id === 'fit') run({ type: id })
+              if (id === 'undo' || id === 'redo' || id === 'fit' || id === 'paste' || id === 'select-all') run({ type: id })
             }}
           >
             <SubmenuItem id="add" label="Add node" aria-label="Add node" onAction={(type) => run({ type: 'add', nodeType: type })}>
@@ -63,22 +66,28 @@ export function ContextMenu({
               ))}
             </SubmenuItem>
             <MenuSeparator />
-            <MenuItem id="undo" isDisabled={!canUndo}>Undo</MenuItem>
-            <MenuItem id="redo" isDisabled={!canRedo}>Redo</MenuItem>
+            <MenuItem id="undo" isDisabled={!canUndo}><Keyed hint={hints.undo}>Undo</Keyed></MenuItem>
+            <MenuItem id="redo" isDisabled={!canRedo}><Keyed hint={hints.redo}>Redo</Keyed></MenuItem>
             <MenuItem id="fit">Fit view</MenuItem>
+            <MenuSeparator />
+            <MenuItem id="paste" isDisabled={!canPaste}><Keyed hint={hints.paste}>Paste</Keyed></MenuItem>
+            <MenuItem id="select-all"><Keyed hint={hints['select-all']}>Select all</Keyed></MenuItem>
           </Menu>
         ) : target.kind === 'node' ? (
           <Menu
             aria-label="Node actions"
             onClose={onClose}
             onAction={(id) => {
-              if (id === 'details' || id === 'dashboard' || id === 'delete-nodes') run({ type: id })
+              if (id === 'details' || id === 'dashboard' || id === 'cut' || id === 'copy' || id === 'delete-nodes') run({ type: id })
             }}
           >
             <MenuItem id="details">Details</MenuItem>
             <MenuItem id="dashboard">Show on the Dashboard</MenuItem>
             <MenuSeparator />
-            <MenuItem id="delete-nodes">{selectedCount > 1 ? `Delete ${selectedCount} nodes` : 'Delete node'}</MenuItem>
+            <MenuItem id="cut"><Keyed hint={hints.cut}>Cut</Keyed></MenuItem>
+            <MenuItem id="copy"><Keyed hint={hints.copy}>Copy</Keyed></MenuItem>
+            <MenuSeparator />
+            <MenuItem id="delete-nodes"><Keyed hint={hints.delete}>Delete</Keyed></MenuItem>
           </Menu>
         ) : (
           <Menu aria-label="Connection actions" onClose={onClose} onAction={() => run({ type: 'delete-edge' })}>

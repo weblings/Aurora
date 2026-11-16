@@ -35,13 +35,13 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.locator('.react-flow__controls').count(), 0)
     assert.equal(await page.locator('.react-flow__minimap').count(), 0)
     assert.equal(await page.locator('.editor-header').getByRole('link', { name: 'Dashboard' }).count(), 1)
-    for (const name of ['Effect menu', 'Undo', 'Redo', 'Test on lights']) assert.equal(await page.locator('.editor-header').getByRole('button', { name }).count(), 1, name)
-    step('one bar: Dashboard, title menu, status, Undo, Redo, Test on lights; no controls, minimap off')
+    for (const name of ['Effect menu', 'Edit', 'Test on lights']) assert.equal(await page.locator('.editor-header').getByRole('button', { name }).count(), 1, name)
+    step('one bar: Dashboard, title menu, Edit, status, Test on lights; no controls, minimap off')
 
     // Grille bar (Aurora-s1t7.1): every bar control is a ui-button, 31 px tall (Grille's default size, no data-size), two dividers.
     const bar = await page.locator('.editor-header > .ui-button, .editor-header > .editor-split > .ui-button').evaluateAll((els) => els.map((e) => ({ h: e.getBoundingClientRect().height, size: e.dataset.size, legacy: e.classList.contains('btn') })))
     assert.ok(bar.length >= 5, `bar buttons: ${bar.length}`)
-    // Icon-only Undo and Redo are Grille's 31 px square (data-icon, dev.16), like the text buttons.
+    // Every bar button is Grille's 31 px tall, like the text buttons.
     for (const b of bar) assert.deepEqual(b, { h: 31, size: undefined, legacy: false }, JSON.stringify(bar))
     assert.equal(await page.locator('.editor-header > .btn').count(), 0)
     assert.equal(await page.locator('.editor-header > .editor-sep').count(), 2)
