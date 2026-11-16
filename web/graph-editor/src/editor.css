@@ -101,11 +101,16 @@ body {
 
   --xy-minimap-background-color: var(--aurora-surface);
   --xy-minimap-mask-background-color: var(--aurora-scrim);
-  --xy-minimap-mask-stroke-color: var(--aurora-accent);
-  --xy-minimap-node-background-color: var(--aurora-surface-hover);
-  --xy-minimap-node-stroke-color: var(--aurora-border);
+  --xy-minimap-mask-stroke-color: var(--aurora-text-secondary);
+  --xy-minimap-node-background-color: var(--aurora-text-secondary);
+  --xy-minimap-node-stroke-color: transparent;
 
   --xy-attribution-background-color: var(--aurora-surface);
+}
+
+/* Minimap nodes: muted fill via opacity, as in the Grille mock (Aurora-ge1i.1). */
+.react-flow__minimap-node {
+  fill-opacity: 0.6;
 }
 
 .react-flow__attribution a {
