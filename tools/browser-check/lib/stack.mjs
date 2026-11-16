@@ -40,25 +40,25 @@ async function waitFor(url, seconds = 30) {
 // config (same port), as a user quitting and reopening it. AURORA_EDITOR=embedded skips the dev server and
 // uses the editor built into the app binary (/graph-editor/ on `aurora`).
 function restart() {
-  const r = spawnSync(python, [devstack, 'restart'], { encoding: 'utf8', timeout: 170_000 })
+  const r = spawnSync(python, [devstack, 'restart'], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
   if (r.status !== 0) throw new Error(`devstack restart failed:\n${r.stdout}\n${r.stderr}`)
 }
 
 // The same fake-Hue stack with no editor dev server, for checks of the Dashboard the app serves
 // itself: runs `body({ aurora, restart })` and tears the stack down whatever happens.
 export async function withAuroraStack(body, { input = 'dummy' } = {}) {
-  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000 })
+  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
   const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
   try {
     if (!port) throw new Error(`devstack up failed:\n${up.stdout}\n${up.stderr}`)
     await body({ aurora: `http://127.0.0.1:${port}`, restart })
   } finally {
-    spawnSync(python, [devstack, 'down'], { encoding: 'utf8' })
+    spawnSync(python, [devstack, 'down'], { encoding: 'utf8', windowsHide: true })
   }
 }
 
 export async function withEditorStack(body, { input = 'dummy' } = {}) {
-  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000 })
+  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
   const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
   let vite = null
   let viteLog = null
@@ -78,6 +78,7 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
       cwd: editorDir,
       env: { ...process.env, AURORA_PORT: port },
       stdio: ['ignore', out, out],
+      windowsHide: true,
       // Node 24 refuses to spawn a .cmd without a shell.
       shell: process.platform === 'win32',
     })
@@ -90,9 +91,9 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
     throw e
   } finally {
     if (vite) {
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(vite.pid), '/T', '/F'])
+      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(vite.pid), '/T', '/F'], { windowsHide: true })
       else vite.kill()
     }
-    spawnSync(python, [devstack, 'down'], { encoding: 'utf8' })
+    spawnSync(python, [devstack, 'down'], { encoding: 'utf8', windowsHide: true })
   }
 }

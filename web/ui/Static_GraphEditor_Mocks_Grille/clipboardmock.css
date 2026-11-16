@@ -1,0 +1,9 @@
+/* Aurora-ge1i.2 clipboard board. Static menus drawn in place, not floating. */
+.cl-static { position: static; width: max-content; }
+.cl-row { display: flex; flex-wrap: wrap; gap: var(--ui-size-space-2xl); align-items: flex-start; margin-bottom: var(--ui-size-space-2xl); }
+.cl-row > .s6-panel { margin: 0; }
+.cl-stack { display: flex; flex-direction: column; gap: var(--ui-size-space-2xl); }
+.cl-stack > .s6-panel { margin: 0; }
+.cl-menuhold { padding: var(--ui-size-space-md); background: var(--ui-color-surface-page); }
+.cl-narrow { margin-bottom: var(--ui-size-space-2xl); }
+.ge-bar .ui-button.cl-edit { font-size: var(--ui-size-font-sm); }
