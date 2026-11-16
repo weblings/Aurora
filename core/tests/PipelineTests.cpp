@@ -820,7 +820,11 @@ TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
   auto version = plainClient.Get("/api/version");
   REQUIRE(version);
   CHECK(version->status == 200);
-  CHECK(nlohmann::json::parse(version->body) == nlohmann::json{{"version", "9.8.7"}, {"apiVersion", kApiVersion}});
+  auto versionJson = nlohmann::json::parse(version->body);
+  CHECK(versionJson["buildType"].is_string());
+  CHECK(!versionJson["buildType"].get<std::string>().empty());
+  versionJson.erase("buildType");
+  CHECK(versionJson == nlohmann::json{{"version", "9.8.7"}, {"apiVersion", kApiVersion}});
 
   CHECK(stops == 0);
   auto stop = plainClient.Post("/api/stop");

@@ -14,6 +14,13 @@ export type EditorActions = {
 
 export const EditorContext = createContext<EditorActions>({ setParam: () => {}, commit: () => {}, openNodeMenu: () => {} })
 
+// True in developer builds (Debug, RelWithDebInfo): node ids appear in tooltips and Details.
+export const ShowNodeIdsContext = createContext(false)
+
+export function useShowNodeIds(): boolean {
+  return useContext(ShowNodeIdsContext)
+}
+
 export function useEditorActions(): EditorActions {
   return useContext(EditorContext)
 }

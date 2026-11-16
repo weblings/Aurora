@@ -17,6 +17,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
 | `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |

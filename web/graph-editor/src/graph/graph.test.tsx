@@ -7,6 +7,7 @@ import { PORT_TYPES, portStyle } from './portStyle'
 import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
 import { DetailsDrawer } from '../DetailsDrawer'
+import { ShowNodeIdsContext } from '../EditorContext'
 import { ControlsDrawer } from '../ControlsDrawer'
 import { ParamWidget,addStop, clampStopPos, displayNumber, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
@@ -343,6 +344,14 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
       <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={null} focusChecks={0} edit={() => {}} />,
     )
     expect(none).toContain('Pick a node')
+    // Node ids are a developer-build aid: absent unless the editor says this is one.
+    expect(details).not.toContain('ui-drawer-subtitle')
+    const dev = renderToStaticMarkup(
+      <ShowNodeIdsContext.Provider value>
+        <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />
+      </ShowNodeIdsContext.Provider>,
+    )
+    expect(dev).toContain('ui-drawer-subtitle')
     const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} />)
     expect(list).toContain('Dashboard controls (1)')
     expect(list).toContain('Remove gain from the Dashboard')

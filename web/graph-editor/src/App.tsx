@@ -14,8 +14,8 @@ import {
   type NodeChange,
   type ReactFlowInstance,
 } from '@xyflow/react'
-import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, putDraft, saveGraph, type WriteResult } from './api'
-import { EditorContext, type EditorActions } from './EditorContext'
+import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, fetchShowNodeIds, putDraft, saveGraph, type WriteResult } from './api'
+import { EditorContext, ShowNodeIdsContext, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
 import { clearShift } from './graph/clear'
@@ -80,6 +80,7 @@ export function App() {
   const [effects, setEffects] = useState<EffectListEntry[]>([])
   // Whether an audio input exists; New offers Music pulse only then, as the dashboard's Start from does.
   const [hasAudio, setHasAudio] = useState(false)
+  const [showNodeIds, setShowNodeIds] = useState(false)
   const [effectId, setEffectId] = useState(initialEffectId)
   // The whole graph, replaced by every edit, with its undo history.
   const [{ doc, past, future }, dispatch] = useReducer(editorReducer, emptyEditor)
@@ -146,6 +147,7 @@ export function App() {
       setHasAudio(audio)
       setPlatform(p)
     })
+    fetchShowNodeIds().then(setShowNodeIds)
     Promise.all([fetchCatalog(), fetchEffects()])
       .then(([c, e]) => {
         setCatalog(c)
@@ -1063,6 +1065,7 @@ export function App() {
           onPick={preview.choose}
         />
         <ProblemsContext.Provider value={problems}>
+        <ShowNodeIdsContext.Provider value={showNodeIds}>
         <EditorContext.Provider value={actions}>
           <ReactFlow
             nodes={nodes}
@@ -1134,6 +1137,7 @@ export function App() {
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
           </ReactFlow>
         </EditorContext.Provider>
+        </ShowNodeIdsContext.Provider>
         </ProblemsContext.Provider>
       </div>
       </div>

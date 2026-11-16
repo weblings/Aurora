@@ -70,6 +70,9 @@ target_link_libraries(AuroraRuntime PUBLIC
 
 target_compile_features(AuroraRuntime PUBLIC cxx_std_20)
 
+# Reported by GET /api/version as buildType. $<CONFIG> works on multi-config generators too.
+set_source_files_properties(src/HostRoutes.cpp PROPERTIES COMPILE_DEFINITIONS "AURORA_BUILD_TYPE=\"$<CONFIG>\"")
+
 if(WIN32)
   # DevFrameDump's Winsock sender (static lib, so consumers -- including
   # core's own test exes -- must resolve the symbols).

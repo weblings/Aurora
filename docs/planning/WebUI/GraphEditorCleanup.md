@@ -751,7 +751,7 @@ No order is required, except `.2.1` after `.2`. `.2.1` is the largest, `.3` and 
 
 ## Stage 9 (filed 2026-11-16)
 
-Graph UX cleanup from the owner's hands-on use after stage 8, labelled 1.2.0. Four independent items, no required order.
+Graph UX cleanup from the owner's hands-on use after stage 8, labelled 1.2.0. Five independent items, no required order.
 
 | Bead | What | Notes |
 |---|---|---|
@@ -759,6 +759,7 @@ Graph UX cleanup from the owner's hands-on use after stage 8, labelled 1.2.0. Fo
 | `Aurora-z5y5` | Wide to narrow header switch is too sensitive | Bug: Dashboard and Test button text are cut too early |
 | `Aurora-23wu` | Problems chip, problems dropdown and node problem visuals differ from the mock | Bring them back to the mock |
 | `Aurora-1fwk` | Edit menu and Test caret clicks misbehave | Bug (P2): the native right-click menu shows on a left click |
+| `Aurora-3xqi` | Node ids only in developer builds | Done: `GET /api/version` gains `buildType` (the CMake config), not `/api/v1/version`. The editor hides ids when it is `Release` or `MinSizeRel`. Otherwise (Debug, RelWithDebInfo) the node label tooltip adds `Title (id)` and Details shows the id as its subtitle |
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
