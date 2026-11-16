@@ -884,6 +884,14 @@ body:has(.ui-drawer[data-side='bottom']) .react-flow__panel.bottom {
 
 body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__panel.bottom,
 body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution {
+/* Grille greys only [data-disabled] (React Aria's attribute); the editor's plain buttons (Test, Edit) set
+   `disabled`, so give them the same look. */
+.ui-button:disabled {
+  background: var(--ui-color-control-bg);
+  color: var(--ui-color-text-disabled);
+  cursor: not-allowed;
+}
+
   visibility: hidden;
 }
 

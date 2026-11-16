@@ -675,15 +675,23 @@ export function App() {
     announce(`Selected ${countOf(nodes.length)}`)
   }
 
-  // Look at the clipboard when a menu with Paste opens.
+  // Look at the clipboard when a menu with Paste opens, only where it is already allowed:
+  // Firefox answers readText with its own "Paste" popup, so there Paste stays on ('unknown').
   const menuKind = menu?.kind
   useEffect(() => {
     if (!editOpen && menuKind !== 'canvas') return
     let stale = false
-    navigator.clipboard
-      ?.readText()
-      .then((text) => !stale && setClipState(parseClip(text) ? 'clip' : 'none'))
-      .catch(() => !stale && setClipState('unknown'))
+    const look = async () => {
+      try {
+        const allowed = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName })
+        if (allowed.state !== 'granted') return
+        const text = await navigator.clipboard.readText()
+        if (!stale) setClipState(parseClip(text) ? 'clip' : 'none')
+      } catch {
+        if (!stale) setClipState('unknown')
+      }
+    }
+    void look()
     return () => {
       stale = true
     }

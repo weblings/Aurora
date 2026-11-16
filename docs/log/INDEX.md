@@ -459,3 +459,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-15 | Windows tests no longer open console windows or take focus. `devstack` spawns with `CREATE_NO_WINDOW` (a detached `py.exe` made each python child open a Windows Terminal window, 3 per `up`) and the browser-check spawns pass `windowsHide`. Other tool scripts still unchanged. [[ytlo-no-console-windows-in-tests]] | `bd show Aurora-ytlo`, `bd show Aurora-h67p` |
 | 2026-11-16 | Graph editor clipboard: copy, cut, paste, Select all, Edit menu. [[ge1i21-clipboard]] | `bd show Aurora-ge1i.2.1` |
 | 2026-11-16 | Graph editor: New lists Built-in as its first sub-menu after Empty (`Aurora-l8ua`). [[l8ua-start-from-built-in-submenu]] | `bd show Aurora-l8ua` |
+| 2026-11-16 | Graph editor: Edit no longer triggers Firefox's Paste popup, disabled Test and Edit are greyed (`Aurora-1fwk`). [[1fwk-edit-paste-popup-disabled-look]] | `bd show Aurora-1fwk` |
