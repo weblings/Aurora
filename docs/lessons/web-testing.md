@@ -379,3 +379,19 @@ Applies-when: a check or test expects an effect to fail because an audio or vide
 Aurora-bju0 (2026-11-13): `graph-editor:failed-save` expected an audio graph to fail on a stack whose audio input is unset. Since Aurora-kep2.3 Aurora picks a missing input itself from the registry (`_pickAudioBackend` in `Pipeline.cpp`), so on a Mac, where `mac-audio` is registered and opens, the graph simply ran: `/api/state` errors stayed empty and no row appeared. Whether the check passed depended on the machine's audio backend and permission, not on the code.
 
 **Fix:** name an input that does not exist (`PUT /api/config {activeAudioInputName: 'no-such-audio-input'}`). Aurora only auto-picks an unnamed input, so the open fails with `Unknown audio input` on every machine. Clear the name before the next step: while it is set every reload reports it.
+
+## A bead that renames visible text greps tools/browser-check for the old string
+Tags: browser-check, rename, menu, helpers, stale-check, baseline
+Applies-when: a change renames a menu item, button label or heading that browser checks may select by name
+
+Aurora-e4bi.16 and .17 (2026-11-17): e4bi.15 renamed the node menu item "Show on the Dashboard" to "Tuning controls…" and had no browser check of its own, so nothing ran the checks. The shared `tickFirst` in `lib/editorMenu.mjs` still clicked the old name, and six checks (`refused-save`, `kept-copy`, `drawers`, `undo-toast`, `delete`, `edit-loop`) timed out at that one step; `clipboard` listed the old name too. Separately, `title-menu` clicked "the second item of New" by position: after l8ua moved the built-ins under a Built-in sub-menu, that item was the sub-menu opener, so no copy was created and the check timed out 30 s later on the title.
+
+**Fix:** with any rename, `grep -rn "<old text>" tools/browser-check` and update the helpers and expected lists in the same commit. Select menu items by name, not by position.
+
+## A hover tooltip under the parked pointer takes the first Esc
+Tags: browser-check, playwright, tooltip, react-aria, escape, drawer
+Applies-when: a check presses Escape to close a drawer, dialog or menu after the mouse has hovered anything with a tooltip
+
+Aurora-e4bi.18 (2026-11-17): `graph-editor:narrow` failed at 700x900 with "Esc left the drawer open". The pointer was still over a tooltip trigger, so a Grille (React Aria) tooltip was open. `useTooltipTrigger` listens for keydown on `document` in the capture phase and calls `stopPropagation()` on Escape, so the Drawer's window listener never saw it. Closing the topmost layer first is intended. At 400x800 focus was in the drawer, so that size passed.
+
+**Fix:** move the mouse to an empty corner (`page.mouse.move(2, h - 2)`) and wait for the tooltip to close before pressing Escape. A count of `[role=tooltip]` is the quick tell.

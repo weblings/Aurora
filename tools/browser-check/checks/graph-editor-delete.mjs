@@ -1,5 +1,5 @@
 // Aurora-daaa.27.2: Delete and Backspace both delete the selection; deleting a
-// node that has Dashboard controls says so in a toast; undo brings back the
+// node that has Tuning controls says so in a toast; undo brings back the
 // node, its edges and its controls.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
@@ -24,13 +24,13 @@ await withEditorStack(async ({ editorUrl }) => {
     const count = await nodes()
     const edges = await edgeCount()
 
-    // A node with a Dashboard control: Delete removes it and the toast says so.
+    // A node with a Tuning control: Delete removes it and the toast says so.
     await tickFirst(page, gain())
     const total = await controlCount(page)
     await selectGain()
     await page.keyboard.press('Delete')
     await gone(count - 1)
-    await page.waitForFunction(() => /Removed \d+ Dashboard controls? with/.test(document.querySelector('.editor-toast')?.textContent ?? ''))
+    await page.waitForFunction(() => /Removed \d+ Tuning controls? with/.test(document.querySelector('.editor-toast')?.textContent ?? ''))
     step(`Delete removes the node and toasts: ${await toast.innerText()}`)
     assert.ok((await edgeCount()) < edges, 'its edges went too')
 
@@ -63,7 +63,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await selectGain()
     await page.keyboard.press('Backspace')
     await gone(count - 1)
-    await page.waitForFunction(() => /Removed \d+ Dashboard controls? with/.test(document.querySelector('.editor-toast')?.textContent ?? ''))
+    await page.waitForFunction(() => /Removed \d+ Tuning controls? with/.test(document.querySelector('.editor-toast')?.textContent ?? ''))
     step('Backspace deletes and toasts too')
 
     // A node with no controls: deleted without a toast.
@@ -102,7 +102,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press('Delete')
     await gone(before - 2)
     const text = await toast.innerText()
-    assert.match(text, /^Removed \d+ Dashboard controls with \S/, text)
+    assert.match(text, /^Removed \d+ Tuning controls with \S/, text)
     assert.match(text, /Rescale/, 'an unlabelled control is named with its node title')
     const n = Number(/Removed (\d+)/.exec(text)[1])
     assert.ok(n >= 2 && n <= owned, `toast total ${n} of ${owned}: ${text}`)

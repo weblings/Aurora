@@ -30,7 +30,7 @@ export async function fileAction(page, name) {
   const opened = await dialog.waitFor({ timeout: 1500 }).then(() => true, () => false)
   if (!opened) return
   const wanted = pendingName.get(page)
-  if (wanted !== undefined) await dialog.getByLabel('Name', { exact: true }).fill(wanted)
+  if (wanted !== undefined) await dialog.getByLabel('Effect name', { exact: true }).fill(wanted)
   pendingName.delete(page)
   await dialog.getByRole('button', { name: /^(Save|Save and apply)$/ }).click()
   await dialog.waitFor({ state: 'detached' })
@@ -53,7 +53,7 @@ export async function setName(page, name) {
   await openTitleMenu(page)
   await page.getByRole('menuitem', { name: 'Rename', exact: true }).click()
   const dialog = nameDialog(page)
-  await dialog.getByLabel('Name', { exact: true }).fill(name)
+  await dialog.getByLabel('Effect name', { exact: true }).fill(name)
   await dialog.getByRole('button', { name: 'Rename', exact: true }).click()
   await dialog.waitFor({ state: 'detached' })
 }
@@ -67,15 +67,15 @@ export async function readName(page) {
 export const waitToast = (page, text, timeout = 5000) =>
   page.waitForFunction((t) => document.querySelector('.editor-toast')?.textContent.includes(t), text, { timeout })
 
-// The Dashboard controls button on the canvas, and the count it shows.
-export const controlsButton = (page) => page.getByRole('button', { name: /^Dashboard controls \d+$/ })
+// The Tuning button on the canvas, and the count it shows.
+export const controlsButton = (page) => page.getByRole('button', { name: /^Tuning \d+$/ })
 export async function controlCount(page) {
   return Number(/(\d+)$/.exec(await controlsButton(page).innerText())[1])
 }
 export const waitControlCount = (page, n) =>
   controlsButton(page).filter({ hasText: new RegExp(`${n}$`) }).waitFor()
 
-// The Details drawer's "Show on the Dashboard" ticks, for the node it follows.
+// The Details drawer's "Tuning controls" ticks, for the node it follows.
 export const detailsChecks = (page) => page.locator('.drawer-details input[type="checkbox"]')
 
 // Opens Details for a node by its right-click menu. The drawer then follows the selection.
@@ -86,11 +86,11 @@ export async function openDetails(page, node) {
   await page.locator('.drawer-details').waitFor()
 }
 
-// Ticks the first param of `node` onto the Dashboard through "Show on the Dashboard".
+// Ticks the first param of `node` onto the Dashboard through "Tuning controls…".
 export async function tickFirst(page, node, want = true) {
   await node.locator('.aurora-node-header').click({ button: 'right' })
   await page.getByRole('menu', { name: 'Node actions' }).waitFor()
-  await page.getByRole('menuitem', { name: 'Show on the Dashboard', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Tuning controls…', exact: true }).click()
   const box = detailsChecks(page).first()
   await box.waitFor()
   if (want) await box.check()

@@ -131,12 +131,13 @@ export function removeControl(doc: GraphDoc, index: number): GraphDoc {
   return withControls(doc, controlsOf(doc).filter((_, i) => i !== index))
 }
 
-// An empty tooltip drops the key, so Tuning falls back to the param's own text.
+// An empty label or tooltip drops the key, so Tuning falls back to the param's own text.
 export function updateControl(doc: GraphDoc, index: number, patch: ControlText): GraphDoc {
   const controls = controlsOf(doc)
   if (!controls[index]) return doc
   const next: Control = { ...controls[index], ...patch }
   if (typeof next.tooltip === 'string' && next.tooltip.trim() === '') delete next.tooltip
+  if (typeof next.label === 'string' && next.label.trim() === '') delete next.label
   return withControls(doc, controls.map((c, i) => (i === index ? next : c)))
 }
 
@@ -144,6 +145,19 @@ export function moveControl(doc: GraphDoc, index: number, delta: -1 | 1): GraphD
   const controls = controlsOf(doc)
   const to = index + delta
   if (!controls[index] || to < 0 || to >= controls.length) return doc
+  const next = [...controls]
+  ;[next[index], next[to]] = [next[to], next[index]]
+  return withControls(doc, next)
+}
+
+// Swaps the control with its neighbour in the same section, so Move up and Down also work on an ungrouped array.
+export function moveControlInSection(doc: GraphDoc, index: number, delta: -1 | 1): GraphDoc {
+  const controls = controlsOf(doc)
+  const c = controls[index]
+  if (!c) return doc
+  let to = index + delta
+  while (controls[to] && sectionName(controls[to]) !== sectionName(c)) to += delta
+  if (!controls[to]) return doc
   const next = [...controls]
   ;[next[index], next[to]] = [next[to], next[index]]
   return withControls(doc, next)

@@ -187,6 +187,9 @@ await withEditorStack(async ({ editorUrl }) => {
         assert.ok(!g.expanded, `${w}x${h}: toggle did not return to half`)
       }
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${w}x${h}-dock.png` })
+      // A hover tooltip left under the pointer takes the first Esc, so park the pointer first.
+      await page.mouse.move(2, h - 2)
+      await page.waitForTimeout(300)
       await page.keyboard.press('Escape')
       await page.waitForTimeout(300)
       assert.equal(await page.locator('.ui-drawer').count(), 0, `${w}x${h}: Esc left the drawer open`)

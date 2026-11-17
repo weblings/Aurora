@@ -331,7 +331,14 @@ select {
   white-space: nowrap;
 }
 
-.editor-name-note {
+/* The naming form sits inside Grille's Dialog, so its direct-child gap does not reach the fields. */
+.editor-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-xl);
+}
+
+.editor-note {
   margin: 0;
   max-width: 32ch;
   font-size: 12px;
@@ -633,26 +640,6 @@ button.editor-problem-row:hover {
    .nav-footer-back-icon draws it. */
 .editor-back {
   text-decoration: none;
-}
-
-.editor-name-dialog {
-  display: flex;
-  flex-direction: column;
-  gap: var(--aurora-space-3);
-  width: 320px;
-  max-width: 100%;
-}
-
-.editor-name-dialog-title {
-  margin: 0;
-  font-size: 14px;
-  color: var(--aurora-text-primary);
-}
-
-.editor-name-dialog-actions {
-  display: flex;
-  justify-content: center;
-  gap: var(--aurora-space-2);
 }
 
 /* Add node menu (Aurora-daaa.24.3): cascade of groups, flat ranked list while searching. */
@@ -1027,4 +1014,133 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 
 .editor-header > .editor-edit-menu {
   flex: 0 0 auto;
+}
+
+/* Show on node pings the param's row: a 2 px ring inset 4 px from the node's sides (Aurora-e4bi.3). Timing as
+   shell.css's shell-ping, drawn inward so it never meets the selection outline. */
+.param[data-ping] {
+  position: relative;
+}
+.param[data-ping]::after {
+  content: '';
+  position: absolute;
+  inset: 2px 4px;
+  border-radius: var(--aurora-radius-control);
+  pointer-events: none;
+  animation: param-ping 1375ms ease-out 2;
+}
+@keyframes param-ping {
+  0% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .param[data-ping]::after {
+    animation: param-ping-hold 1375ms 1;
+  }
+}
+@keyframes param-ping-hold {
+  0%, 100% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+}
+
+/* Tuning card list (Aurora-e4bi.3), from the e4bi.1 mock. */
+.cp-tree {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.cp-item {
+  outline: none;
+}
+
+/* Section heading: the Dashboard accordion pill (dashboard.css .accordion-header), one fill step up
+   because the drawer is already --aurora-surface. Rows are flat siblings, so sticky headings stack
+   and the latest one covers the rest. */
+.cp-item-sec {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: var(--ui-size-space-lg);
+  background: var(--ui-color-popup-bg);
+}
+.cp-tree > .cp-item-sec:first-child {
+  padding-top: 0;
+}
+.cp-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-md);
+  border-radius: var(--aurora-radius-accordion);
+  background: var(--aurora-surface-hover);
+  font-size: 14px;
+  color: var(--aurora-text-primary);
+}
+.cp-sec-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-count {
+  flex: 1;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-muted);
+}
+
+/* Card: outline, one text tier. */
+.cp-item-card {
+  margin-top: var(--ui-size-space-xs);
+}
+.cp-item-card[data-level='2'] {
+  padding-left: var(--ui-size-space-lg);
+}
+.cp-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 3px var(--ui-size-space-xs) 3px var(--ui-size-space-md);
+  border: 1px solid var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-default);
+}
+.cp-card:hover {
+  background: var(--aurora-surface-selected);
+}
+.cp-item[data-selected] .cp-card {
+  border-color: var(--ui-color-text-muted);
+}
+.cp-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-tip-sub {
+  color: var(--ui-color-text-muted);
+}
+
+.cp-item[data-focus-visible] .cp-card,
+.cp-item[data-focus-visible] .cp-pill {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: var(--ui-size-focus-ring-offset);
+}
+
+.cp-tip-note {
+  margin-top: var(--ui-size-space-xs);
+  color: var(--ui-color-text-secondary);
+}
+
+/* An open drawer would hide the toast's Undo: centre it on the canvas left over, or lift it above the dock. */
+body:has(.ui-drawer[data-side='right']) .editor-toast {
+  left: calc((100% - var(--ui-size-drawer-width)) / 2);
+}
+body:has(.ui-drawer[data-side='bottom']) .editor-toast {
+  bottom: calc(max(var(--ui-size-drawer-height-min), 50dvh) + 15px);
 }

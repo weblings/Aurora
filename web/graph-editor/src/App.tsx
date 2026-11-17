@@ -20,6 +20,7 @@ import { GenericNode } from './GenericNode'
 import { DetailsDrawer } from './DetailsDrawer'
 import { clearShift } from './graph/clear'
 import { ControlsDrawer } from './ControlsDrawer'
+import { pingParam } from './pingParam'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
@@ -28,6 +29,7 @@ import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
+import { renameEffectSpec, saveAsSpec } from './graph/naming'
 import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, useMedia } from './useMedia'
 import { stageAttrs, useBarStage } from './barStage'
@@ -373,7 +375,7 @@ export function App() {
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
 
   // One path for key Delete, Backspace and the menu: deleting a node drops its
-  // Dashboard controls, so say so (global undo brings them back).
+  // Tuning controls, so say so (global undo brings them back).
   const deleteNodes = useCallback(
     (ids: ReadonlySet<string>) => {
       const current = docRef.current
@@ -393,7 +395,7 @@ export function App() {
         const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
         const list = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : shown[0]
         // The delete is one history entry, so Undo is the history's own.
-        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${list}`, {
+        showToast(`Removed ${n} Tuning control${n === 1 ? '' : 's'} with ${list}`, {
           doc: next,
           run: () => dispatch({ type: 'undo' }),
         })
@@ -767,6 +769,28 @@ export function App() {
     }
   }, [])
 
+  // Remove from Tuning with an Undo toast: the menu's and the card menu's one path.
+  const removeFromTuning = useCallback(
+    (node: string, param: string, fallback: string) => {
+      const current = docRef.current
+      const i = current ? controlIndex(current, node, param) : -1
+      if (!current || i < 0) return
+      const next = removeControl(current, i)
+      edit((d) => (d === current ? next : removeControl(d, controlIndex(d, node, param))))
+      showToast(`Removed ${controlsOf(current)[i].label || fallback} from Tuning.`, { doc: next, run: () => dispatch({ type: 'undo' }) })
+    },
+    [edit, showToast],
+  )
+
+  // Show on node: select it, fit the view, then ping the param's row.
+  const showParam = useCallback(
+    (node: string, param: string) => {
+      selectNode(node)
+      window.setTimeout(() => pingParam(canvas.current, node, param), 220)
+    },
+    [selectNode],
+  )
+
   const onMenuAction = (a: MenuAction) => {
     const at = menu
     if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
@@ -779,14 +803,8 @@ export function App() {
     else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
     else if ((a.type === 'tuning-add' || a.type === 'tuning-remove') && at?.kind === 'param') {
-      const current = docRef.current
-      const i = current ? controlIndex(current, at.id, at.param) : -1
       if (a.type === 'tuning-add') edit((d) => addControl(d, at.id, at.param))
-      else if (current && i >= 0) {
-        const next = removeControl(current, i)
-        edit((d) => (d === current ? next : removeControl(d, controlIndex(d, at.id, at.param))))
-        showToast(`Removed ${controlsOf(current)[i].label || at.label} from Tuning.`, { doc: next, run: () => dispatch({ type: 'undo' }) })
-      }
+      else removeFromTuning(at.id, at.param, at.label)
     } else if (a.type === 'details' || a.type === 'dashboard') {
       // The node menu already selected this node alone, which Details follows.
       setDrawer('details')
@@ -1024,9 +1042,11 @@ export function App() {
         />
         {naming ? (
           <NameDialog
-            title={naming.kind === 'rename' ? 'Rename effect' : 'Name the new effect'}
-            confirm={naming.kind === 'rename' ? 'Rename' : naming.kind === 'apply' ? 'Save and apply' : 'Save'}
-            initial={naming.initial}
+            spec={
+              naming.kind === 'rename'
+                ? renameEffectSpec(naming.initial, effects.map((e) => e.title || e.id))
+                : saveAsSpec(naming.initial, effects.map((e) => e.title || e.id), naming.kind === 'apply' ? 'Save and apply' : 'Save')
+            }
             onCancel={() => {
               setNaming(null)
               focusTitleButton()
@@ -1152,7 +1172,7 @@ export function App() {
                 disabled={!doc}
                 onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
               >
-                Dashboard controls <span className="editor-count">{doc ? controlsOf(doc).length : 0}</span>
+                Tuning <span className="editor-count">{doc ? controlsOf(doc).length : 0}</span>
               </button>
             </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
@@ -1183,6 +1203,8 @@ export function App() {
             doc={doc}
             catalog={catalog}
             edit={edit}
+            onShow={showParam}
+            onRemove={removeFromTuning}
           />
         </div>
       ) : null}

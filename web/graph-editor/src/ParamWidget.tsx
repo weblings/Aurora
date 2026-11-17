@@ -27,6 +27,7 @@ export function ParamWidget({ info, value, onChange, onCommit, onMenu }: Props) 
   return (
     <div
       className="param nodrag nowheel"
+      data-param={info.name}
       onPointerUp={onCommit}
       onPointerDown={(e) => (touch.current = e.pointerType === 'touch')}
       // A number or text field keeps the browser menu, and touch keeps the node's picker.

@@ -144,7 +144,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await start.waitFor()
     const flat = await start.getByRole('menuitem').allInnerTexts()
     assert.equal(flat[0], 'Empty')
-    assert.deepEqual(flat.slice(-2), ['Custom', 'Hidden'])
+    assert.deepEqual(flat.slice(1), ['Built-in', 'Custom', 'Hidden'])
     await start.getByRole('menuitem', { name: 'Custom', exact: true }).hover()
     const custom = page.getByRole('menu', { name: 'Custom', exact: true })
     await custom.waitFor()
@@ -155,10 +155,11 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await hidden.waitFor()
     assert.deepEqual(await hidden.getByRole('menuitem').allInnerTexts(), ['Fake hidden'])
     if (shots) await page.screenshot({ path: `${shots}/new-hidden.png` })
-    step('New lists Empty and the built-ins flat, then Custom and Hidden as sub-menus')
+    step('New lists Empty, then Built-in, Custom and Hidden as sub-menus')
 
     const before = (await (await page.request.get(`${aurora}/api/effects`)).json()).effects.length
-    await start.getByRole('menuitem').nth(1).click()
+    await start.getByRole('menuitem', { name: 'Built-in', exact: true }).hover()
+    await page.getByRole('menu', { name: 'Built-in', exact: true }).getByRole('menuitem').first().click()
     await page.waitForFunction(() => /\(Copy\)/.test(document.querySelector('[aria-label^="Effect menu"]')?.textContent ?? ''))
     const bar = await titleMenuButton(page).innerText()
     assert.match(bar, /\(Copy\)\s*\*$/, `the copy shows its title and the unsaved mark: ${bar}`)

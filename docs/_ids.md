@@ -142,9 +142,14 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
 | `e4bi10-sections-ui-key` | [log/2026-11-17-e4bi10-sections-ui-key.md](log/2026-11-17-e4bi10-sections-ui-key.md) | Graph ui key "#sections" reserved, node ids must not start with '#' |
 | `e4bi11-subgraph-readiness` | [log/2026-11-17-e4bi11-subgraph-readiness.md](log/2026-11-17-e4bi11-subgraph-readiness.md) | Sub-graph readiness: Tuning is one graph level's exposed params |
+| `e4bi13-naming-dialog` | [log/2026-11-17-e4bi13-naming-dialog.md](log/2026-11-17-e4bi13-naming-dialog.md) | Graph editor: one naming dialog on Grille |
 | `e4bi14-param-row-menu-mock` | [log/2026-11-17-e4bi14-param-row-menu-mock.md](log/2026-11-17-e4bi14-param-row-menu-mock.md) | Param-row menu on the node: mock decided, build split out |
 | `e4bi15-param-row-menu` | [log/2026-11-17-e4bi15-param-row-menu.md](log/2026-11-17-e4bi15-param-row-menu.md) | Param-row menu built on the graph editor node |
+| `e4bi16-tickfirst-label` | [log/2026-11-17-e4bi16-tickfirst-label.md](log/2026-11-17-e4bi16-tickfirst-label.md) | Browser checks: tickFirst follows the Tuning controls rename |
+| `e4bi17-title-menu-builtin` | [log/2026-11-17-e4bi17-title-menu-builtin.md](log/2026-11-17-e4bi17-title-menu-builtin.md) | Browser checks: title-menu picks a built-in from the Built-in sub-menu |
+| `e4bi18-narrow-tooltip-esc` | [log/2026-11-17-e4bi18-narrow-tooltip-esc.md](log/2026-11-17-e4bi18-narrow-tooltip-esc.md) | Browser checks: narrow parks the pointer before Esc |
 | `e4bi2-section-helpers` | [log/2026-11-17-e4bi2-section-helpers.md](log/2026-11-17-e4bi2-section-helpers.md) | Tuning sections: one shared derivation, editor section helpers, General heading |
+| `e4bi3-tuning-cards` | [log/2026-11-17-e4bi3-tuning-cards.md](log/2026-11-17-e4bi3-tuning-cards.md) | Graph editor: Tuning cards with the card menu and select-node |
 | `e4bi7-grille-dev17` | [log/2026-11-17-e4bi7-grille-dev17.md](log/2026-11-17-e4bi7-grille-dev17.md) | Grille dev.17 in the graph editor |
 | `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
 | `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |

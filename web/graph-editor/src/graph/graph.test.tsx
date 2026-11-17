@@ -352,16 +352,15 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
       </ShowNodeIdsContext.Provider>,
     )
     expect(dev).toContain('ui-drawer-subtitle')
-    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} />)
-    expect(list).toContain('Dashboard controls (1)')
-    expect(list).toContain('Remove gain from the Dashboard')
-    expect(list).toContain('Shown in this order.')
+    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />)
+    expect(list).toContain('Tuning (1)')
+    expect(list).not.toContain('Dashboard')
     expect(list).not.toContain('None yet.')
     const empty = renderToStaticMarkup(
-      <ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={{ ...doc, controls: [] }} catalog={catalog} edit={() => {}} />,
+      <ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={{ ...doc, controls: [] }} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />,
     )
-    expect(empty).toContain('Dashboard controls')
-    expect(empty).not.toContain('Dashboard controls (')
+    expect(empty).toContain('Tuning')
+    expect(empty).not.toContain('Tuning (')
     expect(empty).toContain('None yet.')
   })
 })

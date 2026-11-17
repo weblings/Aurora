@@ -1,5 +1,5 @@
 // Aurora-daaa.27.1: right-click and ⋯ menus. Canvas (Add node cascade placing at
-// the pointer, Undo, Redo, Fit view), node (Details, Show on the Dashboard,
+// the pointer, Undo, Redo, Fit view), node (Details, Tuning controls…,
 // Delete with the selection count) and wire (Delete connection); ⋯ and
 // Shift+F10 open the node menu; Delete/Backspace inside a menu do not delete.
 import assert from 'node:assert/strict'

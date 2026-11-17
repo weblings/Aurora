@@ -1,7 +1,7 @@
 // Aurora-s1t7.3: the canvas corners, as in the Grille mock. Add node top-left,
 // View menu bottom-left with the minimap stacked directly above it (the menu
-// opens above the map), Dashboard controls bottom-right, React Flow's credit
-// bottom-centre. A side drawer: Dashboard controls steps left of it. A bottom
+// opens above the map), Tuning bottom-right, React Flow's credit
+// bottom-centre. A side drawer: Tuning steps left of it. A bottom
 // dock at half height: the bottom corners and the minimap lift above it; at
 // full height they hide. Frames: 1280x800, 1000x600, 700x900, 400x800.
 import assert from 'node:assert/strict'
@@ -45,7 +45,7 @@ await withEditorStack(async ({ editorUrl }) => {
       const [a, d, v, k] = [await add(), await dash(), await view(), await credit()]
       assert.ok(a.left < mid && a.top - c.top < 40, `${tag}: Add node top-left (${a.left}, ${a.top})`)
       assert.match(await page.locator('.editor-add-node').innerText(), /Add node/)
-      assert.ok(d.right > mid && c.bottom - d.bottom < 40, `${tag}: Dashboard controls bottom-right`)
+      assert.ok(d.right > mid && c.bottom - d.bottom < 40, `${tag}: Tuning bottom-right`)
       assert.ok(v.left < mid && c.bottom - v.bottom < 40, `${tag}: View menu bottom-left`)
       assert.ok(Math.abs((k.left + k.right) / 2 - mid) < 4 && c.bottom - k.bottom < 20, `${tag}: credit bottom-centre ${JSON.stringify({ k, c })}`)
       await shot(`${tag}-rest`)
@@ -76,7 +76,7 @@ await withEditorStack(async ({ editorUrl }) => {
       const v3 = await view()
       const m3 = await rect('.react-flow__minimap')
       if (side === 'right') {
-        assert.ok(d3.right <= dr.left, `${tag}: Dashboard controls ${d3.right} left of the drawer ${dr.left}`)
+        assert.ok(d3.right <= dr.left, `${tag}: Tuning ${d3.right} left of the drawer ${dr.left}`)
         assert.ok(v3.left < mid, `${tag}: zoom stays bottom-left`)
         // Aurora-w6zq.1: where the button and the credit overlap, the button is what a click hits.
         const hit = await page.evaluate(() => {
@@ -89,16 +89,16 @@ await withEditorStack(async ({ editorUrl }) => {
           pts.push([(b.left + b.right) / 2, (b.top + b.bottom) / 2])
           return { overlaps, ok: pts.every(([x, y]) => document.elementFromPoint(x, y)?.closest('.react-flow__panel.bottom.right button')) }
         })
-        assert.ok(hit.ok, `${tag}: Dashboard controls is under another element (overlaps the credit: ${hit.overlaps})`)
-        step(`${tag}: side drawer, Dashboard controls steps left of it${hit.overlaps ? ' and draws over the credit' : ''}`)
+        assert.ok(hit.ok, `${tag}: Tuning is under another element (overlaps the credit: ${hit.overlaps})`)
+        step(`${tag}: side drawer, Tuning steps left of it${hit.overlaps ? ' and draws over the credit' : ''}`)
       } else {
-        for (const [name, r] of [['Dashboard controls', d3], ['View menu', v3], ['minimap', m3]]) assert.ok(r.bottom <= dr.top + 1, `${tag}: ${name} bottom ${r.bottom} above the dock ${dr.top}`)
+        for (const [name, r] of [['Tuning', d3], ['View menu', v3], ['minimap', m3]]) assert.ok(r.bottom <= dr.top + 1, `${tag}: ${name} bottom ${r.bottom} above the dock ${dr.top}`)
         const kc = await credit()
         assert.ok(kc.bottom <= dr.top + 1, `${tag}: credit above the dock`)
         await shot(`${tag}-dock`)
         await page.locator('.ui-drawer-toggle').click()
         await page.waitForTimeout(400)
-        for (const [name, r] of [['Dashboard controls', await dash()], ['View menu', await view()], ['minimap', await rect('.react-flow__minimap')], ['credit', await credit()]]) assert.equal(r.visible, false, `${tag}: ${name} hidden at full height`)
+        for (const [name, r] of [['Tuning', await dash()], ['View menu', await view()], ['minimap', await rect('.react-flow__minimap')], ['credit', await credit()]]) assert.equal(r.visible, false, `${tag}: ${name} hidden at full height`)
         await page.locator('.ui-drawer-toggle').click()
         await page.waitForTimeout(400)
         assert.equal((await dash()).visible, true, `${tag}: back at half height`)

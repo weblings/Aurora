@@ -106,7 +106,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await nodeMenu.waitFor()
     assert.deepEqual(
       await nodeMenu.getByRole('menuitem').evaluateAll((els) => els.map((e) => e.textContent.replace(/(Ctrl|Cmd|Shift)[+\w]+$|Del$/, '').trim())),
-      ['Details', 'Show on the Dashboard', 'Cut', 'Copy', 'Delete'],
+      ['Details', 'Tuning controls…', 'Cut', 'Copy', 'Delete'],
     )
     await nodeMenu.getByRole('menuitem', { name: 'Cut' }).click()
     await waitCount(nodes0 - 1)
