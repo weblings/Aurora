@@ -142,6 +142,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
 | `e4bi10-sections-ui-key` | [log/2026-11-17-e4bi10-sections-ui-key.md](log/2026-11-17-e4bi10-sections-ui-key.md) | Graph ui key "#sections" reserved, node ids must not start with '#' |
 | `e4bi11-subgraph-readiness` | [log/2026-11-17-e4bi11-subgraph-readiness.md](log/2026-11-17-e4bi11-subgraph-readiness.md) | Sub-graph readiness: Tuning is one graph level's exposed params |
+| `e4bi14-param-row-menu-mock` | [log/2026-11-17-e4bi14-param-row-menu-mock.md](log/2026-11-17-e4bi14-param-row-menu-mock.md) | Param-row menu on the node: mock decided, build split out |
 | `e4bi2-section-helpers` | [log/2026-11-17-e4bi2-section-helpers.md](log/2026-11-17-e4bi2-section-helpers.md) | Tuning sections: one shared derivation, editor section helpers, General heading |
 | `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
 | `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |

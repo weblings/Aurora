@@ -30,6 +30,7 @@ Id: e4bi8-tuning-only-design
 - Found: at 400 px a "right top" picker first rendered past the window edge, focusing its first switch scrolled the document, and React Aria closed the popover on that scroll.
 - Found: the docked drawer covered the lower stand-in nodes, so a tap on `...` landed on a Tuning card. The mock's node area now stops above the dock; the editor pans instead.
 - Measured: a port name's hit box is 43x16 px, under the 44 px touch guideline.
+- Critique follow-up (owner, 2026-11-17), decided after review: d, the muted dot, is the plan of record (plan Stage 10, built in `Aurora-e4bi.9`). A passive mark, no click shortcut (the glyph is far under the 24 px WCAG 2.5.8 target and sits against the label's tap hint) and no tooltip of its own (`Hint` would make it a tab stop). First mocked as: an In-Tuning mark switch puts Grille's `dotIcon` after the param label on the stand-in nodes, in the text colour (a), the secondary colour (b), Grille's `--ui-color-text-muted` (d, default since the owner asked to try it), or none (c, today). Hidden text ", in Tuning" in the label, not a tab stop, and the label's hint adds the Tuning label and section. The old diamond sat in the same place (`Aurora-daaa.27.3`, dropped in `Aurora-s1t7.5`). The audio preset exposes every param, so switch some off in the picker to see a mixed node.
 - Owner review: the picker sat on its node and was hard to tell apart (now beside it), Open Tuning had no hover (now the menu row hover), the ping was too wide and crossed the selection outline (now inset).
 
 ## Grille

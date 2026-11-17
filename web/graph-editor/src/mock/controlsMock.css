@@ -1174,3 +1174,50 @@ body {
 .cp-root[data-model='one'][data-drawer='bottom'] .cp-snodes {
   bottom: calc(var(--cp-dock, 0px) + 12px);
 }
+
+/* e4bi.8 critique 3: Grille's dot after the param label when the param is in Tuning. Neutral, never amber
+   (amber marks graph problems). */
+.cp-param-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.cp-tuning-mark {
+  flex: none;
+  display: inline-flex;
+  color: var(--aurora-text-primary);
+}
+.cp-tuning-mark[data-look='muted'] {
+  color: var(--aurora-text-secondary);
+}
+.cp-tuning-mark[data-look='dim'] {
+  color: var(--ui-color-text-muted);
+}
+.cp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* e4bi.14 Show hit areas, mock-only colours: blue opens the param menu, green keeps the browser's menu, the rest
+   of the node opens the node menu. */
+.cp-root[data-hits][data-hit='row'] .cp-snode .param,
+.cp-root[data-hits][data-hit='nofield'] .cp-snode .param,
+.cp-root[data-hits][data-hit='label'] .cp-snode .cp-param-line {
+  background: rgb(70 130 255 / 0.22);
+  box-shadow: inset 0 0 0 1px rgb(70 130 255 / 0.6);
+}
+.cp-root[data-hits][data-hit='nofield'] .cp-snode .param input[type='number'] {
+  outline: 2px solid rgb(60 200 90);
+  outline-offset: 1px;
+}
+
+/* e4bi.14 picker variant b: over the node (no room beside it), a gap under the header and a deeper shadow. */
+.ui-popover:has(.cp-pick-lift) {
+  margin-top: 8px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.65);
+}

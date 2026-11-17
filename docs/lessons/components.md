@@ -597,3 +597,13 @@ Applies-when: a tooltip or Hint carries text a touch user needs (port or param d
 React Aria's `useTooltipTrigger` (react-aria 3.53.1) opens on hover only when the input is a mouse or pen, opens on focus only when focus is keyboard-visible, and closes on any pointer down on the trigger. A tap therefore closes the tooltip and never opens it, and Grille's `TooltipTrigger` has no `isOpen` to open it from code (Grille-83g.7). React Aria's own touch answer is long-press (`PreviewTrigger`), which Aurora-kep2.24 cut from the Dashboard because iPhone selects text and shows nothing.
 
 **Fix:** keep the `Hint` for mouse and keyboard, and add a touch path: a touch tap (`pointerType === 'touch'` from the pointer down) toggles the same text in a non-modal popover, or put the text where touch already goes, as the Dashboard's effect menu does with its description line on a touch press.
+
+---
+
+## Shift+F10 and the Menu key raise a native contextmenu on key release, after a popup has taken focus
+Tags: webui, keyboard, context-menu, windows, focus
+Applies-when: a keydown handler opens a menu for Shift+F10 or the Menu key and moves focus into it (Aurora-e4bi.14, `App.tsx` onKey)
+
+In the Aurora-e4bi.14 mock, `preventDefault` on the keydown opened the menu and focused its first item, then the browser's own context menu opened on top. Windows fires `contextmenu` when the key is released, so the event lands on the focused menu item, outside any handler that opened the menu. Right-click does not have this: its `contextmenu` event is the trigger.
+
+**Fix:** after opening from the key, add a capture-phase `contextmenu` listener that calls `preventDefault`, and remove it 150 ms after `keyup` (hard cap 3 s). See `swallowKeyContextMenu` in `ControlsPanelMock.tsx`. Headless Chromium cannot raise the Windows event, so confirm on Windows.

@@ -767,22 +767,28 @@ Epic `Aurora-e4bi`, labelled 1.2.0: redesign the Dashboard controls drawer. Plan
 
 | Bead | What | Notes |
 |---|---|---|
-| `.1` | Grille mock of the drawer | Cards, section headings, accordions, the three menus, drag handles, the narrow popover, bottom dock and expanded widths, long names, a General-only list. Gates `.3` onward |
+| `.1` | Grille mock of the drawer | Cards, section headings, accordions, the three menus, drag handles, the narrow popover, bottom dock and expanded widths, long names, a General-only list. Done 2026-11-17 |
 | `.2` | Section helpers and the Tuning General heading | Pure code in `graph/controls.ts` with tests, plus one line in `TuningFields.js`. Starts with `.1` |
 | `.3` | Card list, card menu, select-node | Needs `.1` and `.2` |
 | `.4` | Sections: panel menu, section menu, accordions | Needs `.3` |
 | `.5` | Drag handles for controls and sections | Needs `.4`. Riskiest, may slip past 1.2.0 because the menus already do every move |
 | `.6` | Browser check, README, log, lessons | Starts with `.3`, finished after `.5` |
 | `.7` | Bump Grille to `v0.1.0-dev.17` | The `Grille-83g` asks from the mocks |
-| `.8` | Design: Details beside the controls panel | Decided 2026-11-17: Tuning is the only panel, controls are added from the node ([[e4bi8-tuning-only-design]]) |
+| `.8` | Design: Details beside the controls panel | Decided 2026-11-17: Tuning is the only panel, controls are added from the node ([[e4bi8-tuning-only-design]]). Closed 2026-11-17 |
 | `.9` | Node menu: Show in Tuning picker replaces Details, touch hints | Needs `.3`, `.7`, `.8` |
+| `.10` | Core test: a non-node key in `ui` round-trips | Empty sections live there. Before the 1.2.0 freeze. `.4` needs it |
+| `.11` | Sub-graph readiness: Tuning as a graph's exposed params | Before the 1.2.0 freeze. Settles where a sub-graph's interface is edited: Tuning follows the graph level being viewed |
+| `.12` | Drawer chrome: grab tab, Hide Tuning and its shortcut, corner button removed, toast above the dock | Needs `.3`, `.7`. The shortcut's key is open |
+| `.13` | Unified naming dialog on Grille, with the Edit control state | Needs `.7`. `.3` and `.4` need it |
+| `.14` | Param-row menu on the node: Show in Tuning or Remove from Tuning in one step | Mock first, then build. Not required for 1.2.0 |
 
 ### Decisions (owner, 2026-11-16)
 
 - Cards show the effective label (the label, else the param's own label). Node and param move to the tooltip and accessible name. No "No label" line.
-- Sections are derived from the `controls` array as runs of the same section string, not stored objects. Tuning needs no change except below.
+- Sections are derived from the `controls` array as runs of the same section string, not stored objects. ~~Tuning needs no change except below.~~
+- The Dashboard matches the order the user sees in the editor's Tuning (owner, 2026-11-17). One derivation in `web/ui/TuningControls.js`, used by both, groups by section name in first-appearance order with General last, so an array that is not grouped (a paste, an agent's `put_draft`, a hand edit) still draws the same on both. Every controls edit in the editor writes the regrouped array. Opening a graph does not rewrite it. Empty sections from the `ui` key only fill in around the array's sections, which always win (`.2`).
 - General is the default section: an empty string, always last in the drawer, so new controls append into it. Tuning headings a headless group that is not first as "General". Deleting a section moves its controls to General.
-- Panel menu: Add section, Collapse all, Expand all. Section menu: Rename, Delete, Move up and down (none on General). Sections are accordions with local, unsaved collapse state. Empty sections vanish on reload.
+- Panel menu: Add section, Collapse all, Expand all. Section menu: Rename, Delete, Move up and down (none on General). Sections are accordions with local, unsaved collapse state. ~~Empty sections vanish on reload.~~ Empty sections persist in a reserved key of the graph's `ui` object, which the API treats as opaque, so the format is unchanged (owner, 2026-11-17, `.8` critique 5a; core test `.10`).
 - Card menu: Edit…, Move up, Move down, Move to section (a submenu of existing sections), Show on node, Remove. Edit… opens the naming dialog's Edit control state: Label (placeholder the param's own label) and a 3-row Tooltip textarea. Show on node, double-click and Enter on a card select the node, fit the view and ping that param's row on the node (inset and rounded, so it stays inside the node's selection outline; changed 2026-11-17 from no ping).
 - Drag moves controls between sections and reorders sections, with the menus as the WCAG 2.5.7 alternative.
 - ~~The corner Dashboard controls button stays this version and may move later.~~ Dropped (owner, 2026-11-16, `.8` mock): its one job was opening the drawer, and the grab tab on the drawer's edge does that without claiming a corner.
@@ -792,6 +798,7 @@ Epic `Aurora-e4bi`, labelled 1.2.0: redesign the Dashboard controls drawer. Plan
   - Purpose: the node title keeps its hover hint (the catalog's short tip). A touch press on the node's `...` starts the menu with that tip, as the Dashboard's effect menu does.
   - Touch: a tap on a port or param name toggles its description in a popover. React Aria tooltips never open from a tap, and long-press was cut from the Dashboard (`Aurora-kep2.24`).
   - The word is Tuning everywhere, toasts included. Tuning's empty state points at the node's `...`.
+  - In-Tuning mark (owner, 2026-11-17, `.8` critique 3): Grille's `dotIcon` after the param label on the node, in `--ui-color-text-muted`, only on params in Tuning. A passive mark: no tab stop, no click action, no tooltip of its own. The label carries hidden text ", in Tuning", and its hint adds `In Tuning as "<label>", <section>.` Reverses the `◆` drop in `Aurora-s1t7.5`. Built in `.9`.
   - Tuning has a plain head (title, count, `...` menu); the tab strip below is superseded with the tabs.
   - ~~Tab strip (variant f): flush tabs filling the drawer's width, starting at its top and side edges, with no gap above. Rounded tops, and a flared foot on the selected tab, which takes the panel colour and opens into the panel. Unselected tabs are darker than the panel, in the strip colour, outlined on the top and sides. Tuning's `...` menu moves into the Tuning panel.~~
   - Close and resize (Grab tab on the edge): no x or full-height button in the head. A small tab with a grab pill sits on the drawer's inner edge in every state, joined to it by a 2 px border. Docked, click toggles half and full height, and a drag or Up and Down step closed, half and full. At full height the drawer stops 24 px short of the top bar to leave room for the tab. Beside the side drawer the pill stands upright: click, a drag or Left and Right hide and show it.
