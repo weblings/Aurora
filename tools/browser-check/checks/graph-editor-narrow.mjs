@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { settle } from '../lib/waits.mjs'
 import { controlsButton } from '../lib/editorMenu.mjs'
 
 const SHOTS = process.env.SHOTS
@@ -65,9 +66,9 @@ async function sweep(page, what, widths) {
   const seen = []
   for (const width of widths) {
     await page.setViewportSize({ width, height: 800 })
-    await page.waitForTimeout(250)
+    await settle(page)
     const a = await readForm(page)
-    await page.waitForTimeout(250)
+    await settle(page)
     const b = await readForm(page)
     assert.equal(a.stage, b.stage, `${width} px, ${what}: the stage changed at a fixed width: ${JSON.stringify([a, b])}`)
     await assertForm(page, width, what)
@@ -96,7 +97,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.mouse.up()
     for (const width of [1100, 900, 700, 520, 400]) {
       await page.setViewportSize({ width, height: 800 })
-      await page.waitForTimeout(400)
+      await settle(page)
       const probe = () => page.evaluate(() => {
         const vw = innerWidth
         const out = [...document.querySelectorAll('button, input, select, [role=menuitem]')]
@@ -113,7 +114,7 @@ await withEditorStack(async ({ editorUrl }) => {
       await keyboardReachesUndoRedo(page, width)
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-closed.png` })
       await controlsButton(page).click()
-      await page.waitForTimeout(500)
+      await settle(page)
       p = await probe()
       console.log(width, 'controls drawer:', JSON.stringify(p))
       check(width, 'controls drawer', p)
@@ -131,9 +132,9 @@ await withEditorStack(async ({ editorUrl }) => {
     // Aurora-daaa.29.4: bottom dock below 650 px wide or portrait (aspect < 0.75), else the side.
     for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1000, 600, 'right'], [1470, 700, 'right']]) {
       await page.setViewportSize({ width: w, height: h })
-      await page.waitForTimeout(400)
+      await settle(page)
       await controlsButton(page).click()
-      await page.waitForTimeout(500)
+      await settle(page)
       const dock = () => page.evaluate(() => {
         const d = document.querySelector('.ui-drawer')
         const r = d.getBoundingClientRect()
@@ -157,21 +158,21 @@ await withEditorStack(async ({ editorUrl }) => {
         const toggle = controlsButton(page)
         await toggle.focus()
         await page.keyboard.press('Enter')
-        await page.waitForTimeout(300)
+        await settle(page)
         g = await dock()
         assert.ok(g.expanded, `${w}x${h}: grab tab did not expand`)
         if (SHOTS) await page.screenshot({ path: `${SHOTS}/${w}x${h}-dock-full.png` })
         await page.keyboard.press('Enter')
-        await page.waitForTimeout(300)
+        await settle(page)
         g = await dock()
         assert.ok(!g.expanded, `${w}x${h}: grab tab did not return to half`)
       }
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${w}x${h}-dock.png` })
       // A hover tooltip left under the pointer takes the first Esc, so park the pointer first.
       await page.mouse.move(2, h - 2)
-      await page.waitForTimeout(300)
+      await page.waitForTimeout(300) // the tooltip's own hide delay
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(300)
+      await page.locator('.ui-drawer').waitFor({ state: 'detached', timeout: 2_000 }).catch(() => {})
       assert.equal(await page.locator('.ui-drawer').count(), 0, `${w}x${h}: Esc left the drawer open`)
     }
     // Aurora-s1t7.2: with a problem showing, the chip sits in the right group just before Test, and the bar still never wraps or overflows at every width.
@@ -181,11 +182,11 @@ await withEditorStack(async ({ editorUrl }) => {
     page.on('pageerror', (e) => assert.fail(`page error: ${e.message}`))
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
-    await page.waitForTimeout(1500)
+    await settle(page)
     const barHeight = await page.evaluate(() => document.querySelector('.editor-header').getBoundingClientRect().height)
     for (const width of [520, 450, 420, 400, 360]) {
       await page.setViewportSize({ width, height: 800 })
-      await page.waitForTimeout(400)
+      await settle(page)
       const f = await readForm(page)
       console.log(width, 'title/test (no problem):', JSON.stringify(f))
       await assertForm(page, width, 'no problem')
@@ -193,7 +194,7 @@ await withEditorStack(async ({ editorUrl }) => {
     }
     await sweep(page, 'no problem', SWEEP)
     await page.setViewportSize({ width: 1470, height: 900 })
-    await page.waitForTimeout(300)
+    await settle(page)
     const mid = await page.locator('.react-flow__edge[data-id*="ease_hue.frame"][data-id*="gain_hue.frame"] path.react-flow__edge-path').first().evaluate((p) => {
       const m = p.getPointAtLength(p.getTotalLength() / 2)
       const pt = new DOMPoint(m.x, m.y).matrixTransform(p.getScreenCTM())
@@ -204,7 +205,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.locator('.editor-problems-chip', { hasText: /\d+ problems?/ }).waitFor()
     for (const width of [1470, 1100, 900, 700, 520, 450, 420, 400, 360]) {
       await page.setViewportSize({ width, height: 800 })
-      await page.waitForTimeout(400)
+      await settle(page)
       const g = await page.evaluate(() => {
         const bar = document.querySelector('.editor-header').getBoundingClientRect()
         const chip = document.querySelector('.editor-problems-chip').getBoundingClientRect()
@@ -246,7 +247,7 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.setViewportSize({ width, height: 800 })
       await page.keyboard.press('Control+z')
       await page.locator('.editor-problems-chip').waitFor({ state: 'detached' })
-      await page.waitForTimeout(400)
+      await settle(page)
       assert.ok((await readForm(page)).stage >= 2, `${width} px: expected the icon form`)
       const main = page.locator('.editor-split-main')
       assert.equal(await main.getAttribute('aria-label'), 'Test (15s)', `${width} px: enabled icon Test's name`)

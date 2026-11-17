@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { settle as settlePage } from '../lib/waits.mjs'
 import { addNodeByName, editAction, fileAction, openTitleMenu, setName, waitAnnounced } from '../lib/editorMenu.mjs'
 
 const created = []
@@ -57,7 +58,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
   }
   // The header and canvas reflow as the status text changes, so let the page
   // settle before taking coordinates for a mouse drag.
-  const settle = () => page.waitForTimeout(500)
+  const settle = () => settlePage(page)
   const drag = async (from, to) => {
     await settle()
     const [a, b] = [await from.boundingBox(), await to.boundingBox()]
@@ -163,7 +164,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     // Reload the page and reopen: the layout is the saved one.
     await page.goto(`${editorUrl}?effect=gate-check`)
     await page.waitForSelector('.aurora-node')
-    await page.waitForTimeout(800)
+    await settle()
     await checkLayout('gate-check')
     step('reload and reopen keeps the saved layout')
 
@@ -172,7 +173,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.goto(`${editorUrl}?effect=gate-check`)
     await page.waitForSelector('.aurora-node')
     await waitStatus(/Live/, 20_000)
-    await page.waitForTimeout(800)
+    await settle()
     await checkLayout('gate-check')
     step('restarting Aurora and reopening the effect keeps the saved layout, preview Live')
 

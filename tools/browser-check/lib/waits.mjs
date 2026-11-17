@@ -68,3 +68,27 @@ export async function until(fn, label, timeout = 10_000) {
     await new Promise((r) => setTimeout(r, 50))
   }
 }
+
+// Waits for the page to come to rest after a resize, click or key (Aurora-1n1u), instead of a fixed sleep:
+// fonts loaded, every finite CSS animation and transition done, and the canvas transform (React Flow pans
+// on its own timer) unchanged for 3 frames. A wait that proves something does NOT happen still needs time.
+export async function settle(page, timeout = 5_000) {
+  await page.evaluate(async (timeout) => {
+    const frame = () => new Promise((r) => requestAnimationFrame(() => r()))
+    const stop = performance.now() + timeout
+    const view = () => document.querySelector('.react-flow__viewport')?.style.transform ?? ''
+    await document.fonts.ready
+    await frame()
+    let last = view()
+    let still = 0
+    while (still < 3) {
+      if (performance.now() > stop) throw new Error(`settle: still moving after ${timeout} ms`)
+      const running = document.getAnimations().filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)
+      await Promise.race([Promise.all(running.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, timeout))])
+      await frame()
+      const now = view()
+      still = running.length === 0 && now === last ? still + 1 : 0
+      last = now
+    }
+  }, timeout)
+}

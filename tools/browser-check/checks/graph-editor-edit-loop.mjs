@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { until } from '../lib/waits.mjs'
 import { announced, controlsButton, fileAction, waitAnnounced, pickAction, setName, tickFirst, waitControlCount, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
@@ -76,8 +77,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await button('Test on lights').waitFor({ timeout: 15_000 })
     assert.doesNotMatch(await announced(page), /Lost contact/)
     await page.unroute('**/api/graph/test/heartbeat')
-    await page.waitForTimeout(7000)
-    assert.equal((await api('GET', '/api/graph/test')).json.active, false)
+    // The server's own heartbeat timeout is 6 s.
+    await until(async () => (await api('GET', '/api/graph/test')).json.active === false, 'the server to end the test', 10_000)
     step('lost heartbeats return the button to rest, with no message of their own, and the server reverts by itself')
 
     // A test shows Stop only: Keep is gone, the title menu commits.
