@@ -1058,6 +1058,10 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 .cp-pill[data-open] .cp-chev .ui-icon {
   rotate: 180deg;
 }
+.cp-pill:hover .ui-tree-grip,
+.cp-card:hover .ui-tree-grip {
+  color: var(--ui-color-text-muted);
+}
 .cp-empty {
   margin: var(--ui-size-space-xs) 0 0 var(--ui-size-space-lg);
   padding: var(--ui-size-space-md);

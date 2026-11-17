@@ -73,6 +73,18 @@ export function moveControlToSection(state: SectionState, index: number, section
   return commit(state, [...state.controls.filter((_, i) => i !== index), next])
 }
 
+// Puts the control next to another one, in that one's section (a drag between cards).
+export function moveControlNear(state: SectionState, index: number, target: number, after: boolean): SectionState {
+  const c = state.controls[index]
+  const t = state.controls[target]
+  if (!c || !t || index === target) return state
+  const next: Control = { ...c, section: sectionName(t) }
+  if (next.section === '') delete next.section
+  const rest = state.controls.filter((_, i) => i !== index)
+  rest.splice(rest.indexOf(t) + (after ? 1 : 0), 0, next)
+  return commit(state, rest)
+}
+
 // An empty or taken name changes nothing. General cannot be renamed.
 export function renameSection(state: SectionState, from: string, to: string): SectionState {
   const name = to.trim()

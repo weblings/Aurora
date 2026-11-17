@@ -123,6 +123,7 @@ export function ControlsDrawer({ isOpen, onClose, top, side, full, doc, catalog,
         onCollapsedChange={setCollapsed}
         onSectionAction={onSectionAction}
         onMoveToNew={(c) => setNaming({ kind: 'move', control: c })}
+        onReorder={(change) => edit((d) => section(d, change))}
       />
       {spec ? <NameDialog spec={spec} onConfirm={confirm} onCancel={() => setNaming(null)} /> : null}
     </Drawer>

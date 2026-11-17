@@ -1,5 +1,5 @@
 import { deriveSections } from '../../../ui/TuningControls.js'
-import { addSection, moveControlToSection, reorderSections, sectionNames, type Control, type SectionState } from './controls'
+import { addSection, moveControlNear, moveControlToSection, reorderSections, sectionNames, type Control, type SectionState } from './controls'
 import type { GraphUi } from './types'
 
 // What a card shows and which of its menu items are live. Pure, so the rules are tested.
@@ -53,4 +53,34 @@ export function moveToNewSection(state: SectionState, node: string, param: strin
   const made = addSection(state, name)
   const i = made.controls.findIndex((c) => c.node === node && c.param === param)
   return made === state || i < 0 ? state : moveControlToSection(made, i, name.trim())
+}
+
+export type DropPos = 'before' | 'after' | 'on'
+
+// A section dragged next to another (General is ''): before or after it, never onto it or below General.
+// The result is checked against what shows, so an empty section cannot lead and the drop is refused.
+export function dropSection(state: SectionState, name: string, target: string, pos: DropPos): SectionState {
+  if (name === '' || name === target || pos === 'on' || (target === '' && pos === 'after')) return state
+  const named = sectionNames(state.controls, state.ui)
+  if (!named.includes(name)) return state
+  const rest = named.filter((n) => n !== name)
+  const at = target === '' ? rest.length : rest.indexOf(target) + (pos === 'after' ? 1 : 0)
+  if (at < 0 || (target !== '' && !rest.includes(target))) return state
+  const order = [...rest.slice(0, at), name, ...rest.slice(at)]
+  const next = reorderSections(state, order)
+  return sectionNames(next.controls, next.ui).join('|') === order.join('|') && order.join('|') !== named.join('|') ? next : state
+}
+
+// A control dragged onto a section heading (to its end) or between cards. Anything else changes nothing.
+export function dropControl(
+  state: SectionState,
+  from: { node: string; param: string },
+  target: { heading: string } | { card: { node: string; param: string } },
+  pos: DropPos,
+): SectionState {
+  const i = state.controls.findIndex((c) => c.node === from.node && c.param === from.param)
+  if (i < 0) return state
+  if ('heading' in target) return pos === 'on' ? moveControlToSection(state, i, target.heading) : state
+  const t = state.controls.findIndex((c) => c.node === target.card.node && c.param === target.card.param)
+  return pos === 'on' || t < 0 ? state : moveControlNear(state, i, t, pos === 'after')
 }

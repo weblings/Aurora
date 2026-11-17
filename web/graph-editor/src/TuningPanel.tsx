@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button as AriaButton, Collection, Tree, TreeItem, TreeItemContent } from 'react-aria-components'
-import { Dialog, Icon, Menu, MenuItem, MenuSeparator, SubmenuItem, Tooltip, chevronDownIcon, menuHorizontalIcon } from '@weblings/grille'
+import { Button as AriaButton, Collection, Tree, TreeItem, TreeItemContent, useDragAndDrop, type DropTarget } from 'react-aria-components'
+import { Dialog, Icon, Menu, MenuItem, MenuSeparator, SubmenuItem, Tooltip, TreeDragHandle, TreeDropIndicator, chevronDownIcon, menuHorizontalIcon } from '@weblings/grille'
 import { deriveSections } from '../../ui/TuningControls.js'
 import { EditorPopup } from './EditorPopup'
 import { Keyed } from './EditMenu'
 import { NameDialog } from './NameDialog'
-import type { Control } from './graph/controls'
-import { GENERAL, cardMenu, effectiveLabel, sectionMenu, sectionTitle, sourceLine } from './graph/tuningCards'
+import type { Control, SectionState } from './graph/controls'
+import { GENERAL, cardMenu, dropControl, dropSection, effectiveLabel, sectionMenu, sectionTitle, sourceLine } from './graph/tuningCards'
 import type { GraphUi } from './graph/types'
 
 // The Tuning card list (Aurora-e4bi.3), ported from the e4bi.1 mock. It takes one graph level's controls and the
@@ -28,6 +28,8 @@ export type TuningPanelProps = {
   onCollapsedChange: (next: Set<string>) => void
   onSectionAction: (name: string, action: 'rename' | 'up' | 'down' | 'delete') => void
   onMoveToNew: (c: Control) => void
+  // A drag and drop: the caller applies the change to the graph as one edit.
+  onReorder: (change: (s: SectionState) => SectionState) => void
 }
 
 type Row = { key: string; heading?: { name: string; count: number }; card?: Control; children?: Row[] }
@@ -107,6 +109,7 @@ function SectionRow({ name, count, panel }: { name: string; count: number; panel
   return (
     <div className="cp-sec">
       <div className="cp-pill" data-open={open || undefined}>
+        {general ? null : <TreeDragHandle aria-label={`Drag the ${name} section`} />}
         <span className="cp-sec-name">{title}</span>
         <span className="cp-count">{count}</span>
         {general ? null : (
@@ -192,6 +195,7 @@ function Card({
         setHover(false)
       }}
     >
+      <TreeDragHandle aria-label={`Drag ${name}`} />
       <span className="cp-label">{name}</span>
       <RowMenu label={`${name} (${nodeTitle}, ${paramLabel}) actions`} onOpen={setMenuOpen}>
         {(close) => {
@@ -250,6 +254,53 @@ export function TuningPanel(panel: TuningPanelProps) {
         children: g.controls.map((c) => ({ key: keyOf(c), card: c })),
       }))
   const expanded = new Set(groups.filter((g) => !panel.collapsed.has(g.section)).map((g) => sectionKey(g.section)))
+  const state: SectionState = { controls, ui }
+  const byKey = (k: string) => controls.find((c) => keyOf(c) === k)
+  const dragging = useRef<string | null>(null)
+  const saved = useRef<ReadonlySet<string> | null>(null)
+  // A section drag folds every section, so only the gaps between headings are targets.
+  const { dragAndDropHooks } = useDragAndDrop({
+    getItems: (keys) => [...keys].map((k) => ({ 'text/plain': String(k) })),
+    onDragStart: (e) => {
+      const k = String([...e.keys][0])
+      dragging.current = k
+      if (k.startsWith('s:')) {
+        saved.current = panel.collapsed
+        panel.onCollapsedChange(new Set(groups.map((g) => g.section)))
+      }
+    },
+    onDragEnd: () => {
+      dragging.current = null
+      if (saved.current) panel.onCollapsedChange(new Set(saved.current))
+      saved.current = null
+    },
+    getDropOperation: (target: DropTarget) => {
+      const k = dragging.current
+      if (target.type === 'root' || !k) return 'cancel'
+      const t = String(target.key)
+      if (k.startsWith('s:')) {
+        if (!t.startsWith('s:')) return 'cancel'
+        return dropSection(state, k.slice(2), t.slice(2), target.dropPosition) === state ? 'cancel' : 'move'
+      }
+      if (t.startsWith('s:')) return target.dropPosition === 'on' ? 'move' : 'cancel'
+      return target.dropPosition === 'on' || t === k ? 'cancel' : 'move'
+    },
+    onMove: (e) => {
+      const k = String([...e.keys][0])
+      const t = String(e.target.key)
+      const pos = e.target.dropPosition
+      if (k.startsWith('s:')) panel.onReorder((s) => dropSection(s, k.slice(2), t.slice(2), pos))
+      else {
+        const from = byKey(k)
+        const card = byKey(t)
+        const to = t.startsWith('s:') ? { heading: t.slice(2) } : card && { card }
+        if (from && to) panel.onReorder((s) => dropControl(s, from, to, pos))
+      }
+    },
+    renderDropIndicator: (target) => (
+      <TreeDropIndicator target={target} child={!flat && target.type === 'item' && String(target.key).startsWith('c:')} />
+    ),
+  })
   const nameOf = (c: Control) => effectiveLabel(c, describe(c).paramLabel)
 
   const act = (c: Control, id: string) => {
@@ -307,7 +358,7 @@ export function TuningPanel(panel: TuningPanelProps) {
         if (hit) onShow(hit)
       }}
     >
-      <Tree aria-label={`Tuning, ${panel.graphName}`} className="cp-tree" items={rows}
+      <Tree aria-label={`Tuning, ${panel.graphName}`} className="cp-tree" items={rows} dragAndDropHooks={dragAndDropHooks}
         expandedKeys={expanded}
         onExpandedChange={(keys) => panel.onCollapsedChange(new Set(groups.filter((g) => !keys.has(sectionKey(g.section))).map((g) => g.section)))}
       >

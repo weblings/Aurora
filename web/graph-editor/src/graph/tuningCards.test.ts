@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SECTIONS_KEY } from '../../../ui/TuningControls.js'
 import { moveControlInSection, type Control } from './controls'
-import { cardMenu, effectiveLabel, moveSection, moveToNewSection, sectionMenu, sourceLine } from './tuningCards'
+import { cardMenu, dropControl, dropSection, effectiveLabel, moveSection, moveToNewSection, sectionMenu, sourceLine } from './tuningCards'
 import type { GraphDoc } from './types'
 
 const c = (param: string, section?: string, label?: string): Control => ({ node: 'n', param, ...(section ? { section } : {}), ...(label ? { label } : {}) })
@@ -73,5 +73,45 @@ describe('section menu and moves', () => {
   it('refuses a taken name', () => {
     const st = { controls, ui: undefined }
     expect(moveToNewSection(st, 'n', 'd', 'One')).toBe(st)
+  })
+})
+
+describe('drops', () => {
+  const controls = [c('a', 'One'), c('b', 'One'), c('d', 'Two'), c('e')]
+  const st = { controls, ui: undefined }
+  const order = (s: { controls: Control[] }) => s.controls.map((k) => `${k.section ?? ''}/${k.param}`)
+  const at = (param: string) => ({ node: 'n', param })
+  const on = (param: string) => ({ card: at(param) })
+  it('puts a card between cards of another section, or on a heading at its end', () => {
+    expect(order(dropControl(st, at('a'), on('d'), 'before'))).toEqual(['One/b', 'Two/a', 'Two/d', '/e'])
+    expect(order(dropControl(st, at('e'), on('a'), 'after'))).toEqual(['One/a', 'One/e', 'One/b', 'Two/d'])
+    expect(order(dropControl(st, at('a'), { heading: 'Two' }, 'on'))).toEqual(['One/b', 'Two/d', 'Two/a', '/e'])
+    expect(order(dropControl(st, at('a'), { heading: '' }, 'on'))).toEqual(['One/b', 'Two/d', '/e', '/a'])
+  })
+  it('ignores a card dropped on itself, on a card, or beside a heading', () => {
+    expect(dropControl(st, at('a'), on('a'), 'after')).toBe(st)
+    expect(dropControl(st, at('a'), on('b'), 'on')).toBe(st)
+    expect(dropControl(st, at('a'), { heading: 'Two' }, 'before')).toBe(st)
+  })
+  it('drops a card into an empty section and keeps others empty', () => {
+    const e = { controls, ui: { [SECTIONS_KEY]: ['One', 'Two', 'Void', 'Void2'] } }
+    const next = dropControl(e, at('d'), { heading: 'Void' }, 'on')
+    expect(next.controls.find((k) => k.param === 'd')?.section).toBe('Void')
+    expect(next.ui?.[SECTIONS_KEY]).toEqual(['One', 'Two', 'Void', 'Void2'])
+  })
+  it('reorders sections among headings only, with General last', () => {
+    expect(order(dropSection(st, 'Two', 'One', 'before'))).toEqual(['Two/d', 'One/a', 'One/b', '/e'])
+    expect(order(dropSection(st, 'One', 'Two', 'after'))).toEqual(['Two/d', 'One/a', 'One/b', '/e'])
+    expect(dropSection(st, 'One', 'Two', 'before')).toBe(st)
+    expect(dropSection(st, 'One', 'One', 'after')).toBe(st)
+    expect(dropSection(st, 'One', 'Two', 'on')).toBe(st)
+    expect(dropSection(st, 'One', '', 'after')).toBe(st)
+    expect(dropSection(st, '', 'One', 'before')).toBe(st)
+    expect(order(dropSection(st, 'One', '', 'before'))).toEqual(['Two/d', 'One/a', 'One/b', '/e'])
+  })
+  it('refuses to put an empty section first', () => {
+    const e = { controls, ui: { [SECTIONS_KEY]: ['One', 'Void', 'Two'] } }
+    expect(dropSection(e, 'Void', 'One', 'before')).toBe(e)
+    expect(dropSection(e, 'Void', 'Two', 'after').ui?.[SECTIONS_KEY]).toEqual(['One', 'Two', 'Void'])
   })
 })
