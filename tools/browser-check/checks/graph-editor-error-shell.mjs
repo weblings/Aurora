@@ -540,7 +540,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     await ctlRow.waitFor()
     assert.equal(await loopRow.locator('button').count(), 0, 'a cycle has no action')
     await ctlRow.getByRole('button', { name: 'Open controls' }).click()
-    await page.getByRole('button', { name: /^Tuning/, expanded: true }).waitFor({ timeout: 5000 })
+    await page.getByRole('heading', { name: /^Tuning/ }).waitFor({ timeout: 5000 })
     await clear()
     await nudge()
     await page.locator('.editor-problems-chip').waitFor({ state: 'detached', timeout: 8000 })

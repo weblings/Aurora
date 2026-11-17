@@ -1,7 +1,7 @@
 // Aurora-s1t7.3: the canvas corners, as in the Grille mock. Add node top-left,
 // View menu bottom-left with the minimap stacked directly above it (the menu
-// opens above the map), Tuning bottom-right, React Flow's credit
-// bottom-centre. A side drawer: Tuning steps left of it. A bottom
+// opens above the map), React Flow's credit bottom-centre, and no corner button
+// for Tuning (Aurora-e4bi.12: its grab tab reopens it). A bottom
 // dock at half height: the bottom corners and the minimap lift above it; at
 // full height they hide. Frames: 1280x800, 1000x600, 700x900, 400x800.
 import assert from 'node:assert/strict'
@@ -21,10 +21,6 @@ await withEditorStack(async ({ editorUrl }) => {
   })
   const canvas = () => rect('.editor-canvas')
   const add = () => rect('.editor-add-node')
-  const dash = () => page.locator('.react-flow__panel.bottom.right button').evaluate((el) => {
-    const r = el.getBoundingClientRect()
-    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, visible: getComputedStyle(el.closest('.react-flow__panel')).visibility !== 'hidden' }
-  })
   const view = () => rect('.editor-view-menu')
   const credit = () => rect('.react-flow__attribution')
   const shot = async (name) => SHOTS && (await page.screenshot({ path: `${SHOTS}/corners-${name}.png` }))
@@ -42,10 +38,10 @@ await withEditorStack(async ({ editorUrl }) => {
       const mid = (c.left + c.right) / 2
 
       // At rest.
-      const [a, d, v, k] = [await add(), await dash(), await view(), await credit()]
+      const [a, v, k] = [await add(), await view(), await credit()]
       assert.ok(a.left < mid && a.top - c.top < 40, `${tag}: Add node top-left (${a.left}, ${a.top})`)
       assert.match(await page.locator('.editor-add-node').innerText(), /Add node/)
-      assert.ok(d.right > mid && c.bottom - d.bottom < 40, `${tag}: Tuning bottom-right`)
+      assert.equal(await page.locator('.react-flow__panel.bottom.right').count(), 0, `${tag}: no corner button for Tuning`)
       assert.ok(v.left < mid && c.bottom - v.bottom < 40, `${tag}: View menu bottom-left`)
       assert.ok(Math.abs((k.left + k.right) / 2 - mid) < 4 && c.bottom - k.bottom < 20, `${tag}: credit bottom-centre ${JSON.stringify({ k, c })}`)
       await shot(`${tag}-rest`)
@@ -72,36 +68,24 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.waitForTimeout(400)
       const dr = await rect('.ui-drawer')
       const side = await page.locator('.ui-drawer').getAttribute('data-side')
-      const d3 = await dash()
       const v3 = await view()
       const m3 = await rect('.react-flow__minimap')
       if (side === 'right') {
-        assert.ok(d3.right <= dr.left, `${tag}: Tuning ${d3.right} left of the drawer ${dr.left}`)
         assert.ok(v3.left < mid, `${tag}: zoom stays bottom-left`)
-        // Aurora-w6zq.1: where the button and the credit overlap, the button is what a click hits.
-        const hit = await page.evaluate(() => {
-          const b = document.querySelector('.react-flow__panel.bottom.right button').getBoundingClientRect()
-          const k = document.querySelector('.react-flow__attribution').getBoundingClientRect()
-          const ox = [Math.max(b.left, k.left), Math.min(b.right, k.right)]
-          const oy = [Math.max(b.top, k.top), Math.min(b.bottom, k.bottom)]
-          const overlaps = ox[0] < ox[1] && oy[0] < oy[1]
-          const pts = overlaps ? [[(ox[0] + ox[1]) / 2, (oy[0] + oy[1]) / 2]] : []
-          pts.push([(b.left + b.right) / 2, (b.top + b.bottom) / 2])
-          return { overlaps, ok: pts.every(([x, y]) => document.elementFromPoint(x, y)?.closest('.react-flow__panel.bottom.right button')) }
-        })
-        assert.ok(hit.ok, `${tag}: Tuning is under another element (overlaps the credit: ${hit.overlaps})`)
-        step(`${tag}: side drawer, Tuning steps left of it${hit.overlaps ? ' and draws over the credit' : ''}`)
+        const tab = await rect('.editor-grab')
+        assert.ok(Math.abs(tab.right - dr.left) <= 2, `${tag}: grab tab ${tab.right} on the drawer edge ${dr.left}`)
+        step(`${tag}: side drawer, the grab tab on its edge`)
       } else {
-        for (const [name, r] of [['Tuning', d3], ['View menu', v3], ['minimap', m3]]) assert.ok(r.bottom <= dr.top + 1, `${tag}: ${name} bottom ${r.bottom} above the dock ${dr.top}`)
+        for (const [name, r] of [['View menu', v3], ['minimap', m3]]) assert.ok(r.bottom <= dr.top + 1, `${tag}: ${name} bottom ${r.bottom} above the dock ${dr.top}`)
         const kc = await credit()
         assert.ok(kc.bottom <= dr.top + 1, `${tag}: credit above the dock`)
         await shot(`${tag}-dock`)
-        await page.locator('.ui-drawer-toggle').click()
+        await controlsButton(page).click()
         await page.waitForTimeout(400)
-        for (const [name, r] of [['Tuning', await dash()], ['View menu', await view()], ['minimap', await rect('.react-flow__minimap')], ['credit', await credit()]]) assert.equal(r.visible, false, `${tag}: ${name} hidden at full height`)
-        await page.locator('.ui-drawer-toggle').click()
+        for (const [name, r] of [['View menu', await view()], ['minimap', await rect('.react-flow__minimap')], ['credit', await credit()]]) assert.equal(r.visible, false, `${tag}: ${name} hidden at full height`)
+        await controlsButton(page).click()
         await page.waitForTimeout(400)
-        assert.equal((await dash()).visible, true, `${tag}: back at half height`)
+        assert.equal((await view()).visible, true, `${tag}: back at half height`)
         step(`${tag}: dock lifts the corners and hides them at full height`)
       }
       await page.keyboard.press('Escape')

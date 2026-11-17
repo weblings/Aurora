@@ -723,11 +723,8 @@ button.editor-problem-row:hover {
 }
 
 /* Canvas corners (Aurora-s1t7.3), as in the Grille mock: Add node top-left, the
-   View menu with the minimap stacked above it bottom-left, Dashboard controls
-   bottom-right, React Flow's credit bottom-centre. */
-.editor-count {
-  color: var(--ui-color-text-muted);
-}
+   View menu with the minimap stacked above it bottom-left, React Flow's credit
+   bottom-centre. Tuning has no corner button: its grab tab reopens it (Aurora-e4bi.12). */
 
 .react-flow__panel.editor-view-island {
   display: flex;
@@ -763,19 +760,6 @@ button.editor-problem-row:hover {
 
 .react-flow__attribution {
   font-size: 10px;
-}
-
-/* A side drawer covers the canvas's right edge: Dashboard controls steps left of
-   it so it can still close the drawer. */
-body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
-  margin-right: calc(var(--ui-size-drawer-width) + 15px);
-}
-
-/* At the narrowest width that step lands on the bottom-centre credit. Both are
-   z-index 5 panels and the credit is later in the DOM, so it would draw over the
-   button; the button's panel sits one above (Aurora-w6zq.1). */
-.react-flow__panel.bottom.right {
-  z-index: 6;
 }
 
 /* The Preview island (top-right of the canvas) steps left of a side drawer by the
@@ -1093,7 +1077,105 @@ body:has(.ui-drawer[data-side='right']) .editor-toast {
   left: calc((100% - var(--ui-size-drawer-width)) / 2);
 }
 body:has(.ui-drawer[data-side='bottom']) .editor-toast {
-  bottom: calc(max(var(--ui-size-drawer-height-min), 50dvh) + 15px);
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--editor-top, 0px)) / 2) + 15px);
+}
+/* At full height there is no canvas left to lift it over, so it floats above the dock. */
+body:has(.ui-drawer[data-side='bottom'][data-expanded]) .editor-toast {
+  bottom: var(--aurora-space-5);
+  z-index: 40;
+}
+
+/* The Tuning grab tab (Aurora-e4bi.12): on the drawer's inner edge in every state, 2 px borders. */
+/* border-box, so the 2 px edge stays inside the drawer width and the dock height. */
+.ui-drawer {
+  box-sizing: border-box;
+}
+.ui-drawer[data-side='bottom'] {
+  border-top-width: 2px;
+}
+.ui-drawer[data-side='right'] {
+  border-left-width: 2px;
+}
+.editor-grab {
+  position: fixed;
+  z-index: 31;
+  display: flex;
+  background: var(--ui-color-popup-bg);
+  border: 2px solid var(--ui-color-popup-border);
+  box-shadow: var(--ui-shadow-popup);
+}
+.editor-grab-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+.editor-grab-tab:focus-visible {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--ui-size-radius-sm);
+}
+.editor-grab-pill {
+  border-radius: 2px;
+  background: var(--ui-color-text-muted);
+}
+.editor-grab-tab:hover .editor-grab-pill {
+  background: var(--ui-color-text-default);
+}
+.editor-grab[data-place='bottom'] {
+  left: 50%;
+  /* 2 px lower than the dock's top, so the tab covers the drawer's top border. */
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--editor-top, 0px)) / 2) - 2px);
+  translate: -50% 0;
+  border-bottom: 0;
+  border-radius: var(--ui-size-radius-md) var(--ui-size-radius-md) 0 0;
+  clip-path: inset(-24px -24px 0 -24px);
+}
+.editor-grab[data-place='bottom'] .editor-grab-tab {
+  width: 64px;
+  height: 22px;
+  cursor: ns-resize;
+}
+.editor-grab[data-place='bottom'] .editor-grab-pill {
+  width: 32px;
+  height: 4px;
+}
+.editor-grab[data-place='bottom'][data-state='closed'] {
+  bottom: 0;
+}
+.editor-grab[data-place='bottom'][data-state='closed'] .editor-grab-tab {
+  cursor: pointer;
+}
+/* Full height: the drawer starts one tab lower (GRAB_TAB), so the tab sits in that gap. */
+.editor-grab[data-place='bottom'][data-state='full'] {
+  top: calc(var(--editor-top, 0px) + 2px);
+  bottom: auto;
+}
+.editor-grab[data-place='right'] {
+  top: calc(var(--editor-top, 0px) + (100dvh - var(--editor-top, 0px)) / 2);
+  right: calc(var(--ui-size-drawer-width) - 2px);
+  translate: 0 -50%;
+  border-right: 0;
+  border-radius: var(--ui-size-radius-md) 0 0 var(--ui-size-radius-md);
+  clip-path: inset(-24px 0 -24px -24px);
+}
+.editor-grab[data-place='right'] .editor-grab-tab {
+  /* 22 px plus the 2 px border: the 24 px WCAG 2.5.8 minimum target. */
+  width: 22px;
+  height: 64px;
+  cursor: pointer;
+}
+.editor-grab[data-place='right'] .editor-grab-pill {
+  width: 4px;
+  height: 32px;
+}
+.editor-grab[data-place='right'][data-state='closed'] {
+  right: -2px;
 }
 
 /* Aurora-e4bi.9: the Tuning controls picker, touch hints and the In-Tuning dot, from the e4bi.8 mock. */

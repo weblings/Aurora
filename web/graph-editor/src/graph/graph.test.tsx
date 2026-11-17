@@ -342,12 +342,12 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
 
   it('the controls drawer lists order', () => {
     const doc = builtinLike()
-    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />)
+    const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" full={false} doc={doc} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />)
     expect(list).toContain('Tuning (1)')
     expect(list).not.toContain('Dashboard')
     expect(list).not.toContain('None yet.')
     const empty = renderToStaticMarkup(
-      <ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={{ ...doc, controls: [] }} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />,
+      <ControlsDrawer isOpen onClose={() => {}} top={0} side="right" full={false} doc={{ ...doc, controls: [] }} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />,
     )
     expect(empty).toContain('Tuning')
     expect(empty).not.toContain('Tuning (')

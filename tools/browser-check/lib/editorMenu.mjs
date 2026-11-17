@@ -67,13 +67,21 @@ export async function readName(page) {
 export const waitToast = (page, text, timeout = 5000) =>
   page.waitForFunction((t) => document.querySelector('.editor-toast')?.textContent.includes(t), text, { timeout })
 
-// The Tuning button on the canvas, and the count it shows.
-export const controlsButton = (page) => page.getByRole('button', { name: /^Tuning \d+$/ })
+// Tuning's grab tab (Aurora-e4bi.12), and the count: the drawer title while it is open, else the tab's name.
+export const controlsButton = (page) => page.locator('.editor-grab-tab')
 export async function controlCount(page) {
-  return Number(/(\d+)$/.exec(await controlsButton(page).innerText())[1])
+  const title = page.locator('.ui-drawer-title')
+  const text = (await title.count()) ? await title.innerText() : await controlsButton(page).getAttribute('aria-label')
+  const m = /\((\d+)\)|, (\d+) controls?$/.exec(text)
+  return m ? Number(m[1] ?? m[2]) : 0
 }
-export const waitControlCount = (page, n) =>
-  controlsButton(page).filter({ hasText: new RegExp(`${n}$`) }).waitFor()
+export const waitControlCount = async (page, n) => {
+  for (let i = 0; i < 100; i++) {
+    if ((await controlCount(page)) === n) return
+    await page.waitForTimeout(50)
+  }
+  throw new Error(`Tuning count never reached ${n}, is ${await controlCount(page)}`)
+}
 
 // The "Tuning controls…" picker beside a node (Aurora-e4bi.9) and its switches.
 export const tuningPicker = (page) => page.locator('.tuning-pick')

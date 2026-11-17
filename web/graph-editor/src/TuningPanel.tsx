@@ -3,6 +3,7 @@ import { Button as AriaButton, Collection, Tree, TreeItem, TreeItemContent } fro
 import { Dialog, Icon, Menu, MenuItem, MenuSeparator, SubmenuItem, Tooltip, chevronDownIcon, menuHorizontalIcon } from '@weblings/grille'
 import { deriveSections } from '../../ui/TuningControls.js'
 import { EditorPopup } from './EditorPopup'
+import { Keyed } from './EditMenu'
 import { NameDialog } from './NameDialog'
 import type { Control } from './graph/controls'
 import { GENERAL, cardMenu, effectiveLabel, sectionMenu, sectionTitle, sourceLine } from './graph/tuningCards'
@@ -31,7 +32,7 @@ export type TuningPanelProps = {
 
 type Row = { key: string; heading?: { name: string; count: number }; card?: Control; children?: Row[] }
 
-export type PanelMenuItem = { id: string; label: string; disabled?: boolean; separatorBefore?: boolean; run: () => void }
+export type PanelMenuItem = { id: string; label: string; disabled?: boolean; separatorBefore?: boolean; hint?: string; run: () => void }
 
 // The panel's `...` menu in the drawer head. A list, so later items (Hide Tuning, Aurora-e4bi.12) just append.
 export function PanelMenu({ items }: { items: PanelMenuItem[] }) {
@@ -49,7 +50,7 @@ export function PanelMenu({ items }: { items: PanelMenuItem[] }) {
           {items.flatMap((i) => [
             ...(i.separatorBefore ? [<MenuSeparator key={`${i.id}-sep`} />] : []),
             <MenuItem key={i.id} id={i.id} isDisabled={i.disabled}>
-              {i.label}
+              {i.hint ? <Keyed hint={i.hint}>{i.label}</Keyed> : i.label}
             </MenuItem>,
           ])}
         </Menu>

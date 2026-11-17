@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Drawer } from '@weblings/grille'
+import { TUNING_KEY } from './GrabTab'
 import { NameDialog } from './NameDialog'
 import { PanelMenu, TuningPanel, type PanelMenuItem } from './TuningPanel'
 import {
@@ -25,6 +26,8 @@ type Props = {
   onClose: () => void
   top: number
   side: 'right' | 'bottom'
+  // Docked at full height: the grab tab sets it, the drawer only draws it.
+  full: boolean
   doc: GraphDoc
   catalog: Catalog
   edit: (change: (d: GraphDoc) => GraphDoc) => void
@@ -36,7 +39,7 @@ type Props = {
 type Naming = { kind: 'add' } | { kind: 'rename'; name: string } | { kind: 'move'; control: Control }
 
 // Tuning: the graph's controls as cards in sections, in the order the Dashboard shows them (Aurora-e4bi.3, .4).
-export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit, onShow, onRemove }: Props) {
+export function ControlsDrawer({ isOpen, onClose, top, side, full, doc, catalog, edit, onShow, onRemove }: Props) {
   const controls = controlsOf(doc)
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
   const [naming, setNaming] = useState<Naming | null>(null)
@@ -59,6 +62,8 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit,
     { id: 'add', label: 'Add section', run: () => setNaming({ kind: 'add' }) },
     { id: 'collapse', label: 'Collapse all', separatorBefore: true, disabled: shown.every((n) => collapsed.has(n)), run: () => setCollapsed(new Set(shown)) },
     { id: 'expand', label: 'Expand all', disabled: shown.every((n) => !collapsed.has(n)), run: () => setCollapsed(new Set()) },
+    // The one-click close for a docked drawer (WCAG 2.5.7): dragging the tab down is not the only way.
+    { id: 'hide', label: 'Hide Tuning', hint: TUNING_KEY, separatorBefore: true, run: onClose },
   ]
   const spec =
     naming?.kind === 'add'
@@ -94,6 +99,8 @@ export function ControlsDrawer({ isOpen, onClose, top, side, doc, catalog, edit,
       title={controls.length > 0 ? `Tuning (${controls.length})` : 'Tuning'}
       top={top}
       side={side}
+      hideControls
+      expanded={full}
       actions={<PanelMenu items={menu} />}
     >
       <TuningPanel

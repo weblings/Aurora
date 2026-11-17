@@ -100,7 +100,8 @@ await withEditorStack(async ({ editorUrl }) => {
       const probe = () => page.evaluate(() => {
         const vw = innerWidth
         const out = [...document.querySelectorAll('button, input, select, [role=menuitem]')]
-          .filter((el) => !el.closest('.react-flow__node') && !el.closest('.react-flow__minimap'))
+          // The closed grab tab's outer 2 px border sits past the window edge by design.
+          .filter((el) => !el.closest('.react-flow__node') && !el.closest('.react-flow__minimap') && !el.closest('.editor-grab'))
           .map((el) => ({ el, r: el.getBoundingClientRect() }))
           .filter(({ r }) => r.width > 0 && r.height > 0 && (r.right > vw + 1 || r.left < -1))
           .map(({ el, r }) => (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 30) + ' ' + Math.round(r.left) + '..' + Math.round(r.right))
@@ -153,17 +154,17 @@ await withEditorStack(async ({ editorUrl }) => {
       else assert.ok(thumb.bottom <= thumb.drawerTop + 1, `${w}x${h}: zone preview under the dock: ${JSON.stringify(thumb)}`)
       if (side === 'bottom') {
         assert.ok(!g.expanded && Math.abs(g.h - h / 2) < h * 0.15, `${w}x${h}: not half height: ${JSON.stringify(g)}`)
-        const toggle = page.locator('.ui-drawer-toggle')
+        const toggle = controlsButton(page)
         await toggle.focus()
         await page.keyboard.press('Enter')
         await page.waitForTimeout(300)
         g = await dock()
-        assert.ok(g.expanded, `${w}x${h}: toggle did not expand`)
+        assert.ok(g.expanded, `${w}x${h}: grab tab did not expand`)
         if (SHOTS) await page.screenshot({ path: `${SHOTS}/${w}x${h}-dock-full.png` })
         await page.keyboard.press('Enter')
         await page.waitForTimeout(300)
         g = await dock()
-        assert.ok(!g.expanded, `${w}x${h}: toggle did not return to half`)
+        assert.ok(!g.expanded, `${w}x${h}: grab tab did not return to half`)
       }
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${w}x${h}-dock.png` })
       // A hover tooltip left under the pointer takes the first Esc, so park the pointer first.

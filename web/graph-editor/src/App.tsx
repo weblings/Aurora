@@ -1,5 +1,6 @@
 import { Hint } from './Hint'
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -19,6 +20,7 @@ import { EditorContext, ShowNodeIdsContext, TuningMarksContext, tuningKey, type 
 import { GenericNode } from './GenericNode'
 import { TuningPicker } from './TuningPicker'
 import { ControlsDrawer } from './ControlsDrawer'
+import { GRAB_TAB, GrabTab, TUNING_KEY } from './GrabTab'
 import { pingParam } from './pingParam'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
@@ -133,6 +135,21 @@ export function App() {
   const [minimap, setMinimap] = useState(false)
   // Non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
   const [drawer, setDrawer] = useState<'controls' | null>(null)
+  // The docked drawer at full height (Aurora-e4bi.12); a side drawer or a closed one is never full.
+  const [dockFull, setDockFull] = useState(false)
+  const [canvasTop, setCanvasTop] = useState(0)
+  useLayoutEffect(() => {
+    const t = canvas.current?.getBoundingClientRect().top ?? 0
+    if (t !== canvasTop) setCanvasTop(t)
+  })
+  const toggleTuning = useCallback(() => {
+    setDrawer((d) => (d === 'controls' ? null : 'controls'))
+    setDockFull(false)
+  }, [])
+  const closeTuning = useCallback(() => {
+    setDrawer(null)
+    setDockFull(false)
+  }, [])
   // The node whose "Tuning controls…" picker is open (Aurora-e4bi.9).
   const [pickFor, setPickFor] = useState<string | null>(null)
   // Focus inside a drawer: Delete and Backspace there must not delete nodes.
@@ -703,6 +720,8 @@ export function App() {
   // With nodes selected, copy and cut take them even when a shift-click left page text selected.
   const clipKeys = useRef({ copyPicked, pasteText, selectAll, hasPicked: false })
   clipKeys.current = { copyPicked, pasteText, selectAll, hasPicked: picked.length > 0 }
+  const tuningReady = useRef(false)
+  tuningReady.current = !!doc && !!catalog
   useEffect(() => {
     const onCanvas = (target: HTMLElement | null) => {
       if (!target) return false
@@ -711,6 +730,14 @@ export function App() {
       return target === document.body || !!target.closest('.editor-canvas, .editor-header')
     }
     const onKey = (e: KeyboardEvent) => {
+      // A bare T shows or hides Tuning, like Blender's N for its sidebar: canvas only, never a field.
+      if (e.key.toLowerCase() === TUNING_KEY.toLowerCase() && !(e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing)) {
+        if (tuningReady.current && onCanvas(e.target as HTMLElement | null)) {
+          e.preventDefault()
+          toggleTuning()
+        }
+        return
+      }
       if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !onCanvas(e.target as HTMLElement | null)) return
       const key = e.key.toLowerCase()
       if (key === 'a') clipKeys.current.selectAll()
@@ -728,7 +755,7 @@ export function App() {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('paste', onPaste)
     }
-  }, [])
+  }, [toggleTuning])
   useEffect(() => {
     const pane = canvas.current
     if (!pane) return
@@ -926,7 +953,7 @@ export function App() {
   }
 
   return (
-    <div className="editor">
+    <div className="editor" style={{ '--editor-top': `${canvasTop}px` } as CSSProperties}>
       <ErrorShell
         unreachable={!host.reachable}
         hasReplied={host.hasReplied}
@@ -1137,18 +1164,6 @@ export function App() {
                 </button>
               </Hint>
             </Panel>
-            <Panel position="bottom-right">
-              <button
-                type="button"
-                className="ui-button"
-                aria-haspopup="dialog"
-                aria-expanded={drawer === 'controls'}
-                disabled={!doc}
-                onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
-              >
-                Tuning <span className="editor-count">{doc ? controlsOf(doc).length : 0}</span>
-              </button>
-            </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
           </ReactFlow>
         </TuningMarksContext.Provider>
@@ -1161,9 +1176,10 @@ export function App() {
         <div onFocus={() => setInDrawer(true)} onBlur={() => setInDrawer(false)}>
           <ControlsDrawer
             isOpen={drawer === 'controls'}
-            onClose={() => setDrawer(null)}
-            top={canvas.current?.getBoundingClientRect().top ?? 0}
+            onClose={closeTuning}
+            top={canvasTop + (drawerSide === 'bottom' && dockFull ? GRAB_TAB : 0)}
             side={drawerSide}
+            full={drawerSide === 'bottom' && dockFull}
             doc={doc}
             catalog={catalog}
             edit={edit}
@@ -1171,6 +1187,28 @@ export function App() {
             onRemove={removeFromTuning}
           />
         </div>
+      ) : null}
+      {doc && catalog ? (
+        <GrabTab
+          side={drawerSide}
+          open={drawer === 'controls'}
+          full={dockFull}
+          count={controlsOf(doc).length}
+          onStep={(dir) => {
+            if (drawerSide === 'right') {
+              if (dir === 0) toggleTuning()
+              else if (dir === 1) setDrawer('controls')
+              else closeTuning()
+            } else if (dir === 0) {
+              if (drawer !== 'controls') setDrawer('controls')
+              else setDockFull((f) => !f)
+            } else if (dir === 1) {
+              if (drawer !== 'controls') setDrawer('controls')
+              else setDockFull(true)
+            } else if (dockFull) setDockFull(false)
+            else closeTuning()
+          }}
+        />
       ) : null}
       {doc && catalog && pickFor && catalog.get(doc.nodes.find((n) => n.id === pickFor)?.type ?? '') ? (
         <TuningPicker

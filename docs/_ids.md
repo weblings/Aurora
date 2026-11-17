@@ -142,6 +142,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
 | `e4bi10-sections-ui-key` | [log/2026-11-17-e4bi10-sections-ui-key.md](log/2026-11-17-e4bi10-sections-ui-key.md) | Graph ui key "#sections" reserved, node ids must not start with '#' |
 | `e4bi11-subgraph-readiness` | [log/2026-11-17-e4bi11-subgraph-readiness.md](log/2026-11-17-e4bi11-subgraph-readiness.md) | Sub-graph readiness: Tuning is one graph level's exposed params |
+| `e4bi12-drawer-chrome` | [log/2026-11-17-e4bi12-drawer-chrome.md](log/2026-11-17-e4bi12-drawer-chrome.md) | Graph editor: Tuning drawer chrome |
 | `e4bi13-naming-dialog` | [log/2026-11-17-e4bi13-naming-dialog.md](log/2026-11-17-e4bi13-naming-dialog.md) | Graph editor: one naming dialog on Grille |
 | `e4bi14-param-row-menu-mock` | [log/2026-11-17-e4bi14-param-row-menu-mock.md](log/2026-11-17-e4bi14-param-row-menu-mock.md) | Param-row menu on the node: mock decided, build split out |
 | `e4bi15-param-row-menu` | [log/2026-11-17-e4bi15-param-row-menu.md](log/2026-11-17-e4bi15-param-row-menu.md) | Param-row menu built on the graph editor node |
