@@ -14,7 +14,7 @@ type Props = {
   catalog: Catalog
   // The node picked on the canvas, if exactly one. The drawer follows it.
   selected: string | null
-  // Changes each time "Show on the Dashboard" asks for the checkboxes.
+  // Changes each time "Tuning controls…" asks for the checkboxes.
   focusChecks: number
   edit: (change: (d: GraphDoc) => GraphDoc) => void
 }
@@ -58,7 +58,7 @@ export function DetailsDrawer({ isOpen, onClose, top, side, doc, catalog, select
           ) : null}
           {info.params.length > 0 ? (
             <div ref={checks}>
-              <h3>Show on the Dashboard</h3>
+              <h3>Tuning controls</h3>
               {info.params.map((param) => {
                 const at = controlIndex(doc, node.id, param.name)
                 const control = at >= 0 ? controls[at] : undefined

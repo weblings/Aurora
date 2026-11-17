@@ -17,7 +17,7 @@ function handleLook(type: string) {
 // One component draws every node type from its /api/nodes entry: ports become
 // handles, params become widgets.
 function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
-  const { setParam, commit, openNodeMenu } = useEditorActions()
+  const { setParam, commit, openNodeMenu, openParamMenu } = useEditorActions()
   const { info, params, connectedInputs } = data
   const problems = useNodeProblems(id)
   const showIds = useShowNodeIds()
@@ -82,6 +82,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           value={params[param.name]}
           onChange={(value) => setParam(id, param.name, value)}
           onCommit={commit}
+          onMenu={(at) => openParamMenu(id, param.name, param.label || param.name, at)}
         />
       ))}
     </div>

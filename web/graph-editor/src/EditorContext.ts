@@ -10,9 +10,11 @@ export type EditorActions = {
   commit: () => void
   // Opens the node menu at a point (the node menu button, Shift+F10).
   openNodeMenu: (nodeId: string, at: { x: number; y: number }) => void
+  // Opens the param menu (Add to or Remove from Tuning) for one param row.
+  openParamMenu: (nodeId: string, param: string, label: string, at: { x: number; y: number }) => void
 }
 
-export const EditorContext = createContext<EditorActions>({ setParam: () => {}, commit: () => {}, openNodeMenu: () => {} })
+export const EditorContext = createContext<EditorActions>({ setParam: () => {}, commit: () => {}, openNodeMenu: () => {}, openParamMenu: () => {} })
 
 // True in developer builds (Debug, RelWithDebInfo): node ids appear in tooltips and Details.
 export const ShowNodeIdsContext = createContext(false)

@@ -12,10 +12,12 @@ export type MenuTarget =
   | { kind: 'canvas'; x: number; y: number }
   | { kind: 'node'; x: number; y: number; id: string }
   | { kind: 'edge'; x: number; y: number; id: string }
+  | { kind: 'param'; x: number; y: number; id: string; param: string; label: string; on: boolean }
 
 export type MenuAction =
   | { type: 'add'; nodeType: string }
   | { type: 'undo' | 'redo' | 'fit' | 'details' | 'dashboard' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete-nodes' | 'delete-edge' }
+  | { type: 'tuning-add' | 'tuning-remove' }
 
 // Right-click and node-button menus (Aurora-daaa.27.1): canvas, node and wire. One popup
 // anchored at a point; keyed on it so a second right-click moves the menu.
@@ -42,7 +44,7 @@ export function ContextMenu({
     onClose()
     onAction(a)
   }
-  const label = target.kind === 'canvas' ? 'Canvas menu' : target.kind === 'node' ? 'Node menu' : 'Connection menu'
+  const label = target.kind === 'canvas' ? 'Canvas menu' : target.kind === 'node' ? 'Node menu' : target.kind === 'param' ? `${target.label} menu` : 'Connection menu'
   return (
     <EditorPopup key={`${target.kind}:${target.x},${target.y}`} isOpen onClose={onClose} label={label} point={{ x: target.x, y: target.y }}>
       <Dialog aria-label={label}>
@@ -82,12 +84,16 @@ export function ContextMenu({
             }}
           >
             <MenuItem id="details">Details</MenuItem>
-            <MenuItem id="dashboard">Show on the Dashboard</MenuItem>
+            <MenuItem id="dashboard">Tuning controls…</MenuItem>
             <MenuSeparator />
             <MenuItem id="cut"><Keyed hint={hints.cut}>Cut</Keyed></MenuItem>
             <MenuItem id="copy"><Keyed hint={hints.copy}>Copy</Keyed></MenuItem>
             <MenuSeparator />
             <MenuItem id="delete-nodes"><Keyed hint={hints.delete}>Delete</Keyed></MenuItem>
+          </Menu>
+        ) : target.kind === 'param' ? (
+          <Menu aria-label={`${target.label} actions`} onClose={onClose} onAction={() => run({ type: target.on ? 'tuning-remove' : 'tuning-add' })}>
+            <MenuItem id="tuning">{target.on ? 'Remove from Tuning' : 'Add to Tuning'}</MenuItem>
           </Menu>
         ) : (
           <Menu aria-label="Connection actions" onClose={onClose} onAction={() => run({ type: 'delete-edge' })}>

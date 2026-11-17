@@ -338,7 +338,7 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
     const details = renderToStaticMarkup(
       <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />,
     )
-    expect(details).toContain('Show on the Dashboard')
+    expect(details).toContain('Tuning controls')
     for (const f of ['Label', 'Section', 'Tooltip']) expect(details).toContain(f)
     const none = renderToStaticMarkup(
       <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={null} focusChecks={0} edit={() => {}} />,

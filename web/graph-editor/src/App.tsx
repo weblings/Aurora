@@ -44,7 +44,8 @@ import { useLightTest } from './useLightTest'
 import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './graph/autosave'
 import { NewerSavedPrompt } from './NewerSavedPrompt'
 import { converterFor, insertConverter, refuseConnection } from './graph/connection'
-import { controlsOf } from './graph/controls'
+import { addControl, controlIndex, controlsOf, removeControl } from './graph/controls'
+import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
 import { hints, mod } from './graph/keys'
@@ -519,7 +520,7 @@ export function App() {
   // count act on what the menu was opened on.
   const openMenu = useCallback(
     (target: MenuTarget) => {
-      if (target.kind === 'node') {
+      if (target.kind === 'node' || target.kind === 'param') {
         setNodeView((view) => {
           const base = view.length > 0 ? view : nodes
           if (base.find((n) => n.id === target.id)?.selected) return view
@@ -536,11 +537,15 @@ export function App() {
   // Shift+F10 (or the Menu key) on a focused node opens its menu.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu')) return
-      const node = (e.target as HTMLElement | null)?.closest<HTMLElement>('.react-flow__node')
+      if (!isMenuKey(e)) return
+      const t = e.target as HTMLElement | null
+      const node = t?.closest<HTMLElement>('.react-flow__node')
       const id = node?.dataset.id
       if (!node || !id) return
+      // A number or text field keeps the browser's own menu.
+      if (isNativeField(t!)) return
       e.preventDefault()
+      swallowKeyContextMenu()
       const box = node.getBoundingClientRect()
       openMenuRef.current({ kind: 'node', id, x: box.left, y: box.top + 24 })
     }
@@ -554,6 +559,10 @@ export function App() {
         dispatch({ type: 'edit', change: (d) => setParam(d, nodeId, name, value), live: true }),
       commit: () => dispatch({ type: 'commit' }),
       openNodeMenu: (nodeId: string, at: { x: number; y: number }) => openMenuRef.current({ kind: 'node', id: nodeId, ...at }),
+      openParamMenu: (nodeId: string, param: string, label: string, at: { x: number; y: number }) => {
+        const d = docRef.current
+        openMenuRef.current({ kind: 'param', id: nodeId, param, label, on: !!d && controlIndex(d, nodeId, param) >= 0, ...at })
+      },
     }),
     [],
   )
@@ -769,7 +778,16 @@ export function App() {
     else if (a.type === 'select-all') selectAll()
     else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
-    else if (a.type === 'details' || a.type === 'dashboard') {
+    else if ((a.type === 'tuning-add' || a.type === 'tuning-remove') && at?.kind === 'param') {
+      const current = docRef.current
+      const i = current ? controlIndex(current, at.id, at.param) : -1
+      if (a.type === 'tuning-add') edit((d) => addControl(d, at.id, at.param))
+      else if (current && i >= 0) {
+        const next = removeControl(current, i)
+        edit((d) => (d === current ? next : removeControl(d, controlIndex(d, at.id, at.param))))
+        showToast(`Removed ${controlsOf(current)[i].label || at.label} from Tuning.`, { doc: next, run: () => dispatch({ type: 'undo' }) })
+      }
+    } else if (a.type === 'details' || a.type === 'dashboard') {
       // The node menu already selected this node alone, which Details follows.
       setDrawer('details')
       if (a.type === 'dashboard') setFocusChecks((n) => n + 1)

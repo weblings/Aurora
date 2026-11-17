@@ -99,31 +99,6 @@ body {
   background: var(--ui-color-border-default);
 }
 
-/* Borderless icon button: Grille has none (mock README decision 1). */
-.cp-ghost {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background: transparent;
-  color: var(--ui-color-text-muted);
-}
-.cp-ghost[data-hovered],
-.cp-ghost[aria-expanded='true'] {
-  background: var(--ui-color-control-bg);
-  color: var(--ui-color-text-default);
-}
-.cp-ghost[data-pressed] {
-  background: var(--ui-color-control-bg-hover);
-}
-.cp-ghost-big {
-  width: var(--ui-size-button-icon-size);
-  height: var(--ui-size-button-icon-size);
-}
-
 /* Wide dock (portrait monitor): cap the list at the shell's 640 px column. */
 
 
@@ -302,19 +277,13 @@ body {
   bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--strip)) / 2) + 15px);
 }
 
-/* Section name dialog, Grille only. The title is local: Grille has no dialog title. */
+/* Section name dialog, Grille only. */
 .cp-gdialog {
   display: flex;
   flex-direction: column;
   gap: var(--ui-size-space-xl);
   /* StatusMessage inherits its size; Grille consumers set it on the page. */
   font-size: var(--ui-size-font-sm);
-}
-.cp-gdialog-title {
-  margin: 0;
-  font-size: var(--ui-size-font-sm);
-  font-weight: var(--ui-font-weight-bold);
-  color: var(--ui-color-text-default);
 }
 .cp-gdialog .ui-text-input {
   width: 100%;
@@ -388,18 +357,6 @@ body {
 .cp-board .ui-modal {
   max-width: 100%;
   box-sizing: border-box;
-}
-
-/* Grille paints every disabled button as a muted secondary. A disabled primary stays primary, dimmed. */
-.cp-gdialog .ui-button[data-variant='primary'][data-disabled] {
-  background: var(--ui-color-primary-bg);
-  color: var(--ui-color-text-on-primary);
-  opacity: 0.4;
-}
-.cp-gdialog-actions {
-  display: flex;
-  justify-content: center;
-  gap: var(--ui-size-space-lg);
 }
 
 /* Project rules (stage 7 words, shell.css marks): two tones only. Colour sits on the mark, text stays default.

@@ -7,8 +7,6 @@ import {
   TextArea,
   TextField as AriaTextField,
   DropIndicator,
-  Tooltip as AriaTooltip,
-  TooltipTriggerStateContext,
   Tree,
   TreeItem,
   TreeItemContent,
@@ -19,6 +17,7 @@ import {
 import {
   Button,
   Dialog,
+  DialogActions,
   StatusMessage,
   Icon,
   Menu,
@@ -27,6 +26,7 @@ import {
   MenuSeparator,
   Modal,
   SubmenuItem,
+  Tooltip,
   chevronDownIcon,
   chevronRightIcon,
   chevronUpIcon,
@@ -289,7 +289,10 @@ function RowMenu({
     <>
       <AriaButton
         ref={ref}
-        className={big ? 'ui-button cp-ghost cp-ghost-big' : 'ui-button cp-ghost'}
+        className="ui-button"
+        data-variant="ghost"
+        data-icon
+        data-size={big ? undefined : 'sm'}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -339,7 +342,7 @@ function SectionRow({ sec, rp }: { sec: Sec; rp: TreeItemContentRenderProps }) {
             )}
           </RowMenu>
         )}
-        <AriaButton slot="chevron" className="ui-button cp-ghost cp-chev" aria-label={rp.isExpanded ? 'Collapse' : 'Expand'}>
+        <AriaButton slot="chevron" className="ui-button cp-chev" data-variant="ghost" data-icon data-size="sm" aria-label={rp.isExpanded ? 'Collapse' : 'Expand'}>
           <Icon icon={chevronDownIcon} size="sm" />
         </AriaButton>
       </div>
@@ -363,7 +366,6 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
   const name = effective(c)
   const [menuOpen, setMenuOpen] = useState(false)
   const tipOpen = (hover || rp.isFocusVisible) && !rp.isDragging && !menuOpen
-  const tipState = { isOpen: tipOpen, open: () => {}, close: () => setHover(false) }
   // One handler for both menu levels, guarded, since a submenu pick may reach both onActions.
   const done = useRef(false)
   return (
@@ -416,14 +418,11 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
           )
         }}
       </RowMenu>
-      {/* RAC 1.22.1's standalone Tooltip reads only the trigger context, so it is supplied here. */}
-      <TooltipTriggerStateContext.Provider value={tipState as never}>
-        <AriaTooltip triggerRef={ref} isOpen={tipOpen} placement={a.dock ? 'top' : 'left'} offset={8} className="ui-tooltip">
-          <div>{name}</div>
-          <div className="cp-tip-sub">{source(c)}</div>
-          {c.tooltip ? <div className="cp-tip-note">Tooltip: {c.tooltip}</div> : null}
-        </AriaTooltip>
-      </TooltipTriggerStateContext.Provider>
+      <Tooltip triggerRef={ref} isOpen={tipOpen} placement={a.dock ? 'top' : 'left'}>
+        <div>{name}</div>
+        <div className="cp-tip-sub">{source(c)}</div>
+        {c.tooltip ? <div className="cp-tip-note">Tooltip: {c.tooltip}</div> : null}
+      </Tooltip>
     </div>
   )
 }
@@ -454,17 +453,15 @@ function useRowTip() {
 function RowTooltip({ anchor, open, close, children }: { anchor: React.RefObject<HTMLElement | null>; open: boolean; close: () => void; children: ReactNode }) {
   const a = useActs()
   return (
-    <TooltipTriggerStateContext.Provider value={{ isOpen: open, open: () => {}, close } as never}>
-      <AriaTooltip triggerRef={anchor} isOpen={open} placement={a.dock ? 'top' : 'left'} offset={8} className="ui-tooltip">
-        {children}
-      </AriaTooltip>
-    </TooltipTriggerStateContext.Provider>
+    <Tooltip triggerRef={anchor} isOpen={open} onOpenChange={(o) => !o && close()} placement={a.dock ? 'top' : 'left'}>
+      {children}
+    </Tooltip>
   )
 }
 
 function InfoToggle({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
   return (
-    <AriaButton className="ui-button cp-ghost" aria-label={`About ${label}`} aria-expanded={open} onPress={onToggle}>
+    <AriaButton className="ui-button" data-variant="ghost" data-icon data-size="sm" aria-label={`About ${label}`} aria-expanded={open} onPress={onToggle}>
       <Icon icon={circledInfoIcon} size="sm" />
     </AriaButton>
   )
@@ -1069,7 +1066,6 @@ function NameForm({
         if (!blocked) onConfirm(t)
       }}
     >
-      <h3 className="cp-gdialog-title">{spec.title}</h3>
       {/* One field, so no visible label: the title names it. */}
       <AriaTextField
         aria-label={spec.label}
@@ -1091,14 +1087,14 @@ function NameForm({
           msg?.text
         )}
       </StatusMessage>
-      <div className="cp-gdialog-actions">
+      <DialogActions>
         <Button size="action" onPress={onCancel}>
           Cancel
         </Button>
         <Button size="action" variant="primary" type="submit" isDisabled={blocked}>
           {spec.confirm}
         </Button>
-      </div>
+      </DialogActions>
     </form>
   )
 }
@@ -1138,7 +1134,6 @@ function EditControlForm({
         onConfirm(label.trim(), tooltip.trim())
       }}
     >
-      <h3 className="cp-gdialog-title">Edit control</h3>
       <AriaTextField className="cp-dfield" value={label} onChange={setLabel} autoFocus={autoFocus}>
         <Label className="cp-dfield-label">Label</Label>
         <Input className="ui-text-input" placeholder={c.paramLabel} />
@@ -1161,14 +1156,14 @@ function EditControlForm({
           <TextArea className={tip === 'grow' ? 'ui-text-input cp-textarea cp-grow' : 'ui-text-input cp-textarea'} rows={tip === 'grow' ? 1 : 3} placeholder="None" />
         )}
       </AriaTextField>
-      <div className="cp-gdialog-actions">
+      <DialogActions>
         <Button size="action" onPress={onCancel}>
           Cancel
         </Button>
         <Button size="action" variant="primary" type="submit">
           Save
         </Button>
-      </div>
+      </DialogActions>
     </form>
   )
 }
@@ -1188,7 +1183,7 @@ function NameDialogMock({
 }) {
   return (
     <Modal isOpen onOpenChange={(open) => !open && onCancel()}>
-      <Dialog aria-label={spec.title}>
+      <Dialog title={spec.title}>
         <NameForm spec={spec} err={err} icon={icon} autoFocus onConfirm={onConfirm} onCancel={onCancel} />
       </Dialog>
     </Modal>
@@ -1231,7 +1226,9 @@ function DialogBoard({ err, icon, tip }: { err: ErrLook; icon: IconAlign; tip: T
             <b>{b.group}</b> · {b.caption}
           </figcaption>
           <div className="ui-modal">
-            <NameForm spec={b.spec} err={err} icon={icon} value={b.value} onConfirm={() => {}} onCancel={() => {}} />
+            <Dialog title={b.spec.title}>
+              <NameForm spec={b.spec} err={err} icon={icon} value={b.value} onConfirm={() => {}} onCancel={() => {}} />
+            </Dialog>
           </div>
         </figure>
       ))}
@@ -1241,7 +1238,9 @@ function DialogBoard({ err, icon, tip }: { err: ErrLook; icon: IconAlign; tip: T
             <b>Edit control</b> · {b.caption}
           </figcaption>
           <div className="ui-modal">
-            <EditControlForm c={BOARD_CTL} others={['Fixed hue']} err={err} icon={icon} tip={tip} value={b} onConfirm={() => {}} onCancel={() => {}} />
+            <Dialog title="Edit control">
+              <EditControlForm c={BOARD_CTL} others={['Fixed hue']} err={err} icon={icon} tip={tip} value={b} onConfirm={() => {}} onCancel={() => {}} />
+            </Dialog>
           </div>
         </figure>
       ))}
@@ -1708,7 +1707,7 @@ export function ControlsPanelMock() {
         )}
       </RowMenu>
     ) : nodeMenu === 'disable' ? (
-      <AriaButton className="ui-button cp-ghost cp-ghost-big" aria-label="No actions for this tab" isDisabled>
+      <AriaButton className="ui-button" data-variant="ghost" data-icon aria-label="No actions for this tab" isDisabled>
         <Icon icon={menuHorizontalIcon} size="sm" />
       </AriaButton>
     ) : null
@@ -2256,7 +2255,7 @@ export function ControlsPanelMock() {
         {closeAt === 'grab' && !dock ? (
           <div className="cp-edge" data-place="right" data-state={drawerState}>
             <AriaButton
-              className="ui-button cp-ghost cp-edge-btn"
+              className="ui-button cp-edge-btn" data-variant="ghost" data-icon data-size="sm"
               aria-label={open ? 'Hide panels' : 'Show panels'}
               aria-pressed={open}
               onPress={() => (open ? setOpen(false) : openTab('tuning'))}
@@ -2285,7 +2284,7 @@ export function ControlsPanelMock() {
           <div className="cp-edge" data-place={dock ? 'bottom' : 'right'} data-state={drawerState}>
             {!dock ? (
               <AriaButton
-                className="ui-button cp-ghost cp-edge-btn"
+                className="ui-button cp-edge-btn" data-variant="ghost" data-icon data-size="sm"
                 aria-label={open ? 'Close panels' : 'Open panels'}
                 onPress={() => (open ? setOpen(false) : openTab('tuning'))}
               >
@@ -2294,18 +2293,18 @@ export function ControlsPanelMock() {
                 </span>
               </AriaButton>
             ) : !open ? (
-              <AriaButton className="ui-button cp-ghost cp-edge-btn" aria-label="Open panels" onPress={() => openTab('tuning')}>
+              <AriaButton className="ui-button cp-edge-btn" data-variant="ghost" data-icon data-size="sm" aria-label="Open panels" onPress={() => openTab('tuning')}>
                 <Icon icon={chevronUpIcon} size="sm" />
               </AriaButton>
             ) : (
               <>
                 {full ? null : (
-                  <AriaButton className="ui-button cp-ghost cp-edge-btn" aria-label="Full height" onPress={() => setFull(true)}>
+                  <AriaButton className="ui-button cp-edge-btn" data-variant="ghost" data-icon data-size="sm" aria-label="Full height" onPress={() => setFull(true)}>
                     <Icon icon={chevronUpIcon} size="sm" />
                   </AriaButton>
                 )}
                 <AriaButton
-                  className="ui-button cp-ghost cp-edge-btn"
+                  className="ui-button cp-edge-btn" data-variant="ghost" data-icon data-size="sm"
                   aria-label={full ? 'Half height' : 'Close panels'}
                   onPress={() => (full ? setFull(false) : setOpen(false))}
                 >
@@ -2338,7 +2337,7 @@ export function ControlsPanelMock() {
         ) : null}
         {ctlDialog ? (
           <Modal isOpen onOpenChange={(o) => !o && setCtlDialog(null)}>
-            <Dialog aria-label="Edit control">
+            <Dialog title="Edit control">
               <EditControlForm
                 c={st.ctls[ctlDialog]}
                 others={Object.values(st.ctls)

@@ -1,5 +1,6 @@
 import { Hint } from './Hint'
-import type { CSSProperties } from 'react'
+import { useRef, type CSSProperties } from 'react'
+import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
 import { Button, Icon, minusIcon } from '@weblings/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
 
@@ -13,17 +14,37 @@ type Props = {
   // Every change; `onCommit` marks the end of a gesture (one undo step).
   onChange: (value: ParamValue) => void
   onCommit: () => void
+  // Opens the param menu at a point (right-click, Shift+F10). Absent: the row has no menu of its own.
+  onMenu?: (at: { x: number; y: number }) => void
 }
 
 // One widget per param kind. `nodrag nowheel` keep a drag or scroll on a
 // widget from moving the node or zooming the canvas.
-export function ParamWidget({ info, value, onChange, onCommit }: Props) {
+export function ParamWidget({ info, value, onChange, onCommit, onMenu }: Props) {
+  const touch = useRef(false)
   const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
     <div
       className="param nodrag nowheel"
       onPointerUp={onCommit}
+      onPointerDown={(e) => (touch.current = e.pointerType === 'touch')}
+      // A number or text field keeps the browser menu, and touch keeps the node's picker.
+      onContextMenu={(e) => {
+        if (!onMenu || touch.current) return
+        e.stopPropagation()
+        if (isNativeField(e.target as Element)) return
+        e.preventDefault()
+        onMenu({ x: e.clientX, y: e.clientY })
+      }}
+      onKeyDown={(e) => {
+        if (!onMenu || !isMenuKey(e) || isNativeField(e.target as Element)) return
+        e.preventDefault()
+        e.stopPropagation()
+        swallowKeyContextMenu()
+        const line = e.currentTarget.querySelector('.param-label')?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect()
+        onMenu({ x: line.left, y: line.bottom })
+      }}
       // A typed value is one gesture until the box loses focus; a slider
       // moved by arrow keys has no pointer-up, so key-up ends its step.
       onKeyUp={(e) => {

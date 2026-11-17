@@ -8,6 +8,8 @@
   .ui-select-trigger[data-focus-visible],
   .ui-slider-thumb[data-focus-visible],
   .ui-disclosure-trigger[data-focus-visible],
+  .ui-tree-section-item[data-focus-visible] > .ui-tree-section,
+  .ui-tree-card-item[data-focus-visible] > .ui-tree-card,
   .ui-tab[data-focus-visible] {
     outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
     outline-offset: var(--ui-size-focus-ring-offset);
@@ -38,7 +40,16 @@
   /* Square, same height as a default text button (8 + 15 line + 8 = 31), so icon-only and text buttons share a row line. */
   .ui-button[data-icon] { width: var(--ui-size-button-icon-size); height: var(--ui-size-button-icon-size); padding: 0; line-height: 1; }
   .ui-button[data-icon][data-size="sm"] { width: auto; height: auto; padding: var(--ui-size-space-sm); }
-  .ui-button[data-disabled] { background: var(--ui-color-control-bg); color: var(--ui-color-text-disabled); cursor: not-allowed; }
+  /* Borderless icon button for row and head menus: fills on hover or while its menu is open. */
+  .ui-button[data-variant="ghost"] { background: transparent; color: var(--ui-color-text-muted); }
+  .ui-button[data-variant="ghost"][data-hovered],
+  .ui-button[data-variant="ghost"][aria-expanded="true"] { background: var(--ui-color-control-bg); color: var(--ui-color-text-default); }
+  .ui-button[data-variant="ghost"][data-pressed] { background: var(--ui-color-control-bg-hover); color: var(--ui-color-text-default); }
+  .ui-button[data-variant="ghost"][data-icon][data-size="sm"] {
+    width: var(--ui-size-button-icon-size-sm); height: var(--ui-size-button-icon-size-sm); padding: 0;
+  }
+  /* Disabled keeps the variant's own colours, dimmed. React Aria sets no hover or pressed state while disabled. */
+  .ui-button[data-disabled] { opacity: 0.4; cursor: not-allowed; }
 
   /* The glyph is drawn larger than its layout box: the margin pulls the overhang back in, so Vidstack's 32 grid
      and Zest's 24 grid (both padded) read at the same weight as text. Layout size is --ui-size-icon; glyph is that plus 2x overhang. */
@@ -84,6 +95,13 @@
     font-size: var(--ui-size-font-sm); font-family: inherit;
   }
   .ui-text-input[data-hovered] { background: var(--ui-color-control-bg-hover); }
+  .ui-text-input[data-invalid] { box-shadow: inset 0 0 0 1px var(--ui-color-text-error); }
+  /* A TextField fills its container. In a FieldList the input reverts to its own sized width in the control column. */
+  .ui-text-field > .ui-text-input { justify-self: stretch; width: 100%; min-width: 0; box-sizing: border-box; }
+  .ui-field-list .ui-text-field > input.ui-text-input { justify-self: start; width: revert-layer; min-width: revert-layer; box-sizing: revert-layer; }
+  .ui-textarea { display: block; resize: vertical; line-height: 1.4; }
+  .ui-text-field[data-multiline] { align-items: start; }
+  .ui-text-field[data-multiline] > .ui-field-label { padding-top: var(--ui-size-control-pad-y); }
 
   .ui-file-trigger-control { display: flex; align-items: center; gap: var(--ui-size-space-lg); }
   .ui-file-name { color: var(--ui-color-text-secondary); font-size: var(--ui-size-font-sm); }
@@ -145,11 +163,15 @@
     height: max(var(--ui-size-drawer-height-min), calc((100dvh - var(--ui-drawer-top, 0px)) / 2));
   }
   .ui-drawer[data-side="bottom"][data-expanded] { top: var(--ui-drawer-top, 0); height: auto; }
-  .ui-drawer-toggle { margin-left: auto; margin-right: var(--ui-size-space-md); }
+  .ui-drawer-toggle { margin-right: var(--ui-size-space-md); }
   .ui-drawer-head {
     flex: none; display: flex; align-items: center; justify-content: space-between;
     padding: var(--ui-size-space-xl) var(--ui-size-space-xl) var(--ui-size-space-md) var(--ui-size-space-2xl);
   }
+  .ui-drawer-heading { display: flex; align-items: baseline; gap: var(--ui-size-space-sm); min-width: 0; margin-right: auto; }
+  .ui-drawer-count { color: var(--ui-color-text-muted); font-size: var(--ui-size-font-lg); }
+  .ui-drawer-actions { display: flex; align-items: center; gap: var(--ui-size-space-xs); }
+  .ui-drawer-rule { flex: none; width: 1px; height: 20px; margin: 0 var(--ui-size-space-sm); background: var(--ui-color-border-default); }
   .ui-drawer-title { margin: 0; font-size: var(--ui-size-font-lg); font-weight: var(--ui-font-weight-semibold); }
   .ui-drawer-subtitle {
     flex: none; margin: 0; padding: 0 var(--ui-size-space-2xl) var(--ui-size-space-xl);
@@ -161,6 +183,10 @@
     padding: var(--ui-size-space-xs) var(--ui-size-space-2xl) var(--ui-size-space-xl);
   }
   .ui-menu, .ui-dialog { outline: none; display: flex; flex-direction: column; }
+  .ui-dialog-title {
+    margin: 0; font-size: var(--ui-size-font-sm); font-weight: var(--ui-font-weight-bold); color: var(--ui-color-text-default);
+  }
+  .ui-dialog-actions { display: flex; justify-content: center; gap: var(--ui-size-space-lg); }
   .ui-menu-item {
     padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x); border-radius: var(--ui-size-radius-sm); cursor: pointer; outline: none;
     color: var(--ui-color-text-default); font-size: var(--ui-size-font-sm);
@@ -239,6 +265,44 @@
   .ui-disclosure-trigger .ui-icon { transition: rotate 0.1s; }
   .ui-disclosure-trigger[aria-expanded="true"] .ui-icon { rotate: 90deg; }
 
+  .ui-tree { display: flex; flex-direction: column; outline: none; }
+  .ui-tree-section-item, .ui-tree-card-item { outline: none; }
+  .ui-tree-section-item { margin-top: var(--ui-size-space-lg); }
+  .ui-tree-section-item:first-child { margin-top: 0; }
+  .ui-tree-card-item { margin-top: var(--ui-size-space-xs); padding-left: var(--ui-size-space-lg); }
+  .ui-tree-section {
+    display: flex; align-items: center; gap: var(--ui-size-space-sm); min-height: 36px; box-sizing: border-box;
+    padding: var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-md);
+    border-radius: var(--ui-size-radius-md); background: var(--ui-color-popup-bg-hover);
+    font-size: var(--ui-size-font-md); color: var(--ui-color-text-default); cursor: pointer;
+  }
+  .ui-tree-section-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ui-tree-count { flex: 1; font-size: var(--ui-size-font-sm); color: var(--ui-color-text-muted); }
+  .ui-tree-section .ui-button[slot="chevron"] { margin-left: auto; }
+  .ui-tree-section .ui-button[slot="chevron"] .ui-icon { transition: rotate 0.1s; }
+  .ui-tree-section-item[data-expanded] .ui-button[slot="chevron"] .ui-icon { rotate: 180deg; }
+  .ui-tree-card {
+    display: flex; align-items: center; gap: var(--ui-size-space-sm); min-height: 32px; box-sizing: border-box;
+    padding: 3px var(--ui-size-space-xs) 3px var(--ui-size-space-md);
+    border: 1px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-sm);
+    font-size: var(--ui-size-font-sm); color: var(--ui-color-text-default);
+  }
+  .ui-tree-grip {
+    flex: none; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 24px; padding: 0;
+    border: 0; border-radius: var(--ui-size-radius-sm); background: none; color: var(--ui-color-text-disabled); cursor: grab;
+  }
+  .ui-tree-section:hover .ui-tree-grip, .ui-tree-card:hover .ui-tree-grip { color: var(--ui-color-text-muted); }
+  .ui-tree-grip[data-focus-visible] { outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring); }
+  .ui-tree-section-item[data-dragging], .ui-tree-card-item[data-dragging] { opacity: 0.5; }
+  .ui-tree-section-item[data-drop-target] > .ui-tree-section {
+    background: var(--ui-color-control-bg-hover); outline: 1px solid var(--ui-color-control-accent);
+  }
+  .ui-tree-drop, .ui-tree .react-aria-DropIndicator { height: 0; outline: none; }
+  .ui-tree-drop-child { margin-left: var(--ui-size-space-lg); }
+  .ui-tree-drop[data-drop-target], .ui-tree .react-aria-DropIndicator[data-drop-target] {
+    position: relative; z-index: 3; height: 2px; margin-block: -1px; border-radius: 1px; background: var(--ui-color-control-accent);
+  }
+
   .ui-callout {
     background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default);
     border-radius: var(--ui-size-radius-md); padding: var(--ui-size-callout-pad-y) var(--ui-size-callout-pad-x);
@@ -251,9 +315,24 @@
   .ui-callout-body li { margin-bottom: var(--ui-size-space-xs); }
   .ui-callout-body li strong { color: var(--ui-color-text-emphasis); }
 
-  .ui-status-message { margin-top: var(--ui-size-space-xs); display: flex; align-items: baseline; gap: var(--ui-size-space-md); }
+  .ui-status-message { margin-top: var(--ui-size-space-xs); font-size: var(--ui-size-font-sm); display: flex; align-items: baseline; gap: var(--ui-size-space-md); }
   .ui-status-message[data-tone="warning"] { color: var(--ui-color-text-warning); }
   .ui-status-message[data-tone="error"] { color: var(--ui-color-text-error); }
+
+  /* Mark, message and dismiss share grid row 1 and the mark centres on that row, which holds only the message lines.
+     The slot sits in row 2 under the text column, so it never moves the mark. */
+  .ui-message-row {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: var(--ui-size-space-lg); align-items: start;
+    border: 2px solid var(--ui-color-border-default); border-radius: var(--ui-size-radius-lg);
+    padding: var(--ui-size-space-lg) var(--ui-size-space-xl);
+    font-size: var(--ui-size-font-sm); line-height: 1.5; color: var(--ui-color-text-default);
+  }
+  .ui-message-row-mark { grid-column: 1; grid-row: 1; align-self: center; display: flex; }
+  .ui-message-row[data-tone="error"] .ui-message-row-mark { color: var(--ui-color-text-error); }
+  .ui-message-row-text { grid-column: 2; grid-row: 1; min-width: 0; text-wrap: pretty; }
+  .ui-message-row-slot { grid-column: 2; grid-row: 2; margin-top: var(--ui-size-space-lg); }
+  /* Centres the 24px ghost button on the first message line, so it never makes row 1 taller. */
+  .ui-message-row-dismiss { grid-column: 3; grid-row: 1; display: flex; margin-block: calc((1lh - var(--ui-size-button-icon-size-sm)) / 2); }
 
   .ui-tab-list { display: flex; justify-content: center; gap: var(--ui-size-space-md); margin-bottom: var(--ui-size-space-2xl); }
   .ui-tab {
