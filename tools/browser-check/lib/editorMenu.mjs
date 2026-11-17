@@ -75,30 +75,31 @@ export async function controlCount(page) {
 export const waitControlCount = (page, n) =>
   controlsButton(page).filter({ hasText: new RegExp(`${n}$`) }).waitFor()
 
-// The Details drawer's "Tuning controls" ticks, for the node it follows.
-export const detailsChecks = (page) => page.locator('.drawer-details input[type="checkbox"]')
+// The "Tuning controls…" picker beside a node (Aurora-e4bi.9) and its switches.
+export const tuningPicker = (page) => page.locator('.tuning-pick')
+export const pickerSwitches = (page) => tuningPicker(page).locator('input[type="checkbox"]')
+// The visible switch (the input itself is hidden by forms.css).
+export const pickerKnobs = (page) => tuningPicker(page).locator('.toggle-switch')
 
-// Opens Details for a node by its right-click menu. The drawer then follows the selection.
-export async function openDetails(page, node) {
-  await node.locator('.aurora-node-header').click({ button: 'right' })
-  await page.getByRole('menu', { name: 'Node actions' }).waitFor()
-  await page.getByRole('menuitem', { name: 'Details', exact: true }).click()
-  await page.locator('.drawer-details').waitFor()
-}
-
-// Ticks the first param of `node` onto the Dashboard through "Tuning controls…".
-export async function tickFirst(page, node, want = true) {
+// Opens the picker for a node by its right-click menu.
+export async function openPicker(page, node) {
   await node.locator('.aurora-node-header').click({ button: 'right' })
   await page.getByRole('menu', { name: 'Node actions' }).waitFor()
   await page.getByRole('menuitem', { name: 'Tuning controls…', exact: true }).click()
-  const box = detailsChecks(page).first()
-  await box.waitFor()
-  if (want) await box.check()
-  else await box.uncheck()
+  await tuningPicker(page).waitFor()
 }
 
-// An unsaved edit that works on a built-in (which cannot be renamed): tick a
-// Dashboard control on the first Gain node.
+// Switches the first param of `node` on or off in Tuning through "Tuning controls…", then closes the picker.
+export async function tickFirst(page, node, want = true) {
+  await openPicker(page, node)
+  if ((await pickerSwitches(page).first().isChecked()) !== want) await pickerKnobs(page).first().click()
+  await page.waitForFunction((w) => document.querySelector('.tuning-pick input')?.checked === w, want)
+  await page.keyboard.press('Escape')
+  await tuningPicker(page).waitFor({ state: 'detached' })
+}
+
+// An unsaved edit that works on a built-in (which cannot be renamed): switch a
+// Tuning control on for the first Gain node.
 export async function makeEdit(page) {
   await tickFirst(page, page.locator('.aurora-node', { hasText: 'Gain' }).first())
 }

@@ -1,5 +1,5 @@
 import { deriveSections } from '../../../ui/TuningControls.js'
-import { sectionNames, type Control } from './controls'
+import { addSection, moveControlToSection, reorderSections, sectionNames, type Control, type SectionState } from './controls'
 import type { GraphUi } from './types'
 
 // What a card shows and which of its menu items are live. Pure, so the rules are tested.
@@ -30,9 +30,27 @@ export function cardMenu(controls: Control[], ui: GraphUi | undefined, c: Contro
 
 export type SectionMenu = { canUp: boolean; canDown: boolean }
 
-// Move up and Down order the named sections: General stays last and has no menu.
-export function sectionMenu(controls: Control[], ui: GraphUi | undefined, name: string): SectionMenu {
-  const named = sectionNames(controls, ui)
+// Swaps with the neighbour. An empty section stored first cannot lead (deriveSections places it after
+// the one it followed), so a swap that would not show is refused and its menu item is off.
+export function moveSection(state: SectionState, name: string, delta: -1 | 1): SectionState {
+  const named = sectionNames(state.controls, state.ui)
   const i = named.indexOf(name)
-  return { canUp: i > 0, canDown: i >= 0 && i < named.length - 1 }
+  const to = i + delta
+  if (i < 0 || to < 0 || to >= named.length) return state
+  const order = [...named]
+  ;[order[i], order[to]] = [order[to], order[i]]
+  const next = reorderSections(state, order)
+  return sectionNames(next.controls, next.ui).join('|') === order.join('|') ? next : state
+}
+
+export function sectionMenu(controls: Control[], ui: GraphUi | undefined, name: string): SectionMenu {
+  const state = { controls, ui }
+  return { canUp: moveSection(state, name, -1) !== state, canDown: moveSection(state, name, 1) !== state }
+}
+
+// Move to section > New section...: creates the section and puts the control in it.
+export function moveToNewSection(state: SectionState, node: string, param: string, name: string): SectionState {
+  const made = addSection(state, name)
+  const i = made.controls.findIndex((c) => c.node === node && c.param === param)
+  return made === state || i < 0 ? state : moveControlToSection(made, i, name.trim())
 }

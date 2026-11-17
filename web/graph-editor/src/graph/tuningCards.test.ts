@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { SECTIONS_KEY } from '../../../ui/TuningControls.js'
 import { moveControlInSection, type Control } from './controls'
-import { cardMenu, effectiveLabel, sectionMenu, sourceLine } from './tuningCards'
+import { cardMenu, effectiveLabel, moveSection, moveToNewSection, sectionMenu, sourceLine } from './tuningCards'
 import type { GraphDoc } from './types'
 
 const c = (param: string, section?: string, label?: string): Control => ({ node: 'n', param, ...(section ? { section } : {}), ...(label ? { label } : {}) })
@@ -47,10 +47,31 @@ describe('moveControlInSection', () => {
   })
 })
 
-describe('section menu', () => {
+describe('section menu and moves', () => {
   const controls = [c('a', 'One'), c('b', 'Two'), c('d')]
+  const names = (st: { controls: Control[] }) => [...new Set(st.controls.map((k) => k.section ?? ''))]
   it('disables Move up on the first and Move down on the last named section', () => {
     expect(sectionMenu(controls, undefined, 'One')).toEqual({ canUp: false, canDown: true })
     expect(sectionMenu(controls, undefined, 'Two')).toEqual({ canUp: true, canDown: false })
+  })
+  it('swaps neighbours, keeping General last, and ignores the edges', () => {
+    const st = { controls, ui: undefined }
+    expect(names(moveSection(st, 'One', 1))).toEqual(['Two', 'One', ''])
+    expect(moveSection(st, 'One', -1)).toBe(st)
+  })
+  it('moves an empty section down but never to the top', () => {
+    const st = { controls, ui: { [SECTIONS_KEY]: ['One', 'Empty', 'Two'] } }
+    expect(moveSection(st, 'Empty', 1).ui?.[SECTIONS_KEY]).toEqual(['One', 'Two', 'Empty'])
+    expect(sectionMenu(st.controls, st.ui, 'Empty')).toEqual({ canUp: false, canDown: true })
+    expect(moveSection(st, 'Empty', -1)).toBe(st)
+  })
+  it('creates the section and moves the control into it', () => {
+    const next = moveToNewSection({ controls, ui: undefined }, 'n', 'd', 'Fresh')
+    expect(next.controls.find((k) => k.param === 'd')?.section).toBe('Fresh')
+    expect(next.ui?.[SECTIONS_KEY]).toBeUndefined()
+  })
+  it('refuses a taken name', () => {
+    const st = { controls, ui: undefined }
+    expect(moveToNewSection(st, 'n', 'd', 'One')).toBe(st)
   })
 })

@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { controlsButton, openDetails } from '../lib/editorMenu.mjs'
+import { controlsButton } from '../lib/editorMenu.mjs'
 
 const SHOTS = process.env.SHOTS
 const check = (width, what, p) => {
@@ -117,46 +117,26 @@ await withEditorStack(async ({ editorUrl }) => {
       console.log(width, 'controls drawer:', JSON.stringify(p))
       check(width, 'controls drawer', p)
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-controls.png` })
-      await page.keyboard.press('Escape')
-      await openDetails(page, page.locator('.aurora-node', { hasText: 'Rescale' }).first())
-      await page.waitForTimeout(500)
-      p = await probe()
-      console.log(width, 'details drawer:', JSON.stringify(p))
-      check(width, 'details drawer', p)
-      // Aurora-daaa.29.2: drawer is clamp(280, 40vw, 350) wide and Rescale's box is clear of it.
+      // Aurora-daaa.29.2: the drawer is clamp(280, 40vw, 350) wide.
       const geo = await page.evaluate(() => {
-        const d = document.querySelector('.ui-drawer').getBoundingClientRect()
-        const n = [...document.querySelectorAll('.aurora-node')].find((el) => el.textContent.includes('Rescale')).getBoundingClientRect()
-        return { side: document.querySelector('.ui-drawer').dataset.side, drawerW: Math.round(d.width), drawerLeft: d.left, nodeRight: n.right }
+        const d = document.querySelector('.ui-drawer')
+        return { side: d.dataset.side, drawerW: Math.round(d.getBoundingClientRect().width) }
       })
       const want = Math.min(350, Math.max(280, Math.round(width * 0.4)))
       // Below 650 px (or portrait) the drawer docks at the bottom instead; the dock block below checks that.
       if (geo.side === 'right') assert.ok(Math.abs(geo.drawerW - want) <= 1, `${width} px: drawer ${geo.drawerW} px, want ${want}`)
-      if (geo.side === 'right' && width >= 520) assert.ok(geo.nodeRight <= geo.drawerLeft + 1, `${width} px: Rescale right ${geo.nodeRight} under drawer at ${geo.drawerLeft}`)
-      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${width}-details.png` })
       await page.keyboard.press('Escape')
-      if (width === 1100) {
-        // Aurora-daaa.29.5: the node is now clear of the drawer, so opening Details again must not pan.
-        await page.waitForTimeout(300)
-        const transform = () => page.evaluate(() => document.querySelector('.react-flow__viewport').style.transform)
-        const before = await transform()
-        await openDetails(page, page.locator('.aurora-node', { hasText: 'Rescale' }).first())
-        await page.waitForTimeout(700)
-        assert.equal(await transform(), before, `${width} px: view moved although Rescale was already clear of the drawer`)
-        await page.keyboard.press('Escape')
-      }
     }
     // Aurora-daaa.29.4: bottom dock below 650 px wide or portrait (aspect < 0.75), else the side.
     for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1000, 600, 'right'], [1470, 700, 'right']]) {
       await page.setViewportSize({ width: w, height: h })
       await page.waitForTimeout(400)
-      await openDetails(page, page.locator('.aurora-node', { hasText: 'Rescale' }).first())
+      await controlsButton(page).click()
       await page.waitForTimeout(500)
       const dock = () => page.evaluate(() => {
         const d = document.querySelector('.ui-drawer')
-        const n = [...document.querySelectorAll('.aurora-node')].find((el) => el.textContent.includes('Rescale')).getBoundingClientRect()
         const r = d.getBoundingClientRect()
-        return { side: d.dataset.side, expanded: d.hasAttribute('data-expanded'), top: r.top, h: Math.round(r.height), nodeBottom: n.bottom, scroll: [document.documentElement.scrollWidth - innerWidth, document.documentElement.scrollHeight - innerHeight] }
+        return { side: d.dataset.side, expanded: d.hasAttribute('data-expanded'), top: r.top, h: Math.round(r.height), scroll: [document.documentElement.scrollWidth - innerWidth, document.documentElement.scrollHeight - innerHeight] }
       })
       let g = await dock()
       console.log(`${w}x${h} dock:`, JSON.stringify(g))
@@ -173,7 +153,6 @@ await withEditorStack(async ({ editorUrl }) => {
       else assert.ok(thumb.bottom <= thumb.drawerTop + 1, `${w}x${h}: zone preview under the dock: ${JSON.stringify(thumb)}`)
       if (side === 'bottom') {
         assert.ok(!g.expanded && Math.abs(g.h - h / 2) < h * 0.15, `${w}x${h}: not half height: ${JSON.stringify(g)}`)
-        assert.ok(g.nodeBottom <= g.top + 1, `${w}x${h}: Rescale bottom ${g.nodeBottom} under sheet at ${g.top}`)
         const toggle = page.locator('.ui-drawer-toggle')
         await toggle.focus()
         await page.keyboard.press('Enter')

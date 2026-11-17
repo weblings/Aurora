@@ -10,13 +10,14 @@ import type { Catalog } from './graph/types'
 // pointer for a right-click, the button or node corner for the keyboard routes.
 export type MenuTarget =
   | { kind: 'canvas'; x: number; y: number }
-  | { kind: 'node'; x: number; y: number; id: string }
+  // `touch`, `tip` and `params` are filled in by App: the touch press of ..., the node's short tip, whether it has params.
+  | { kind: 'node'; x: number; y: number; id: string; touch?: boolean; tip?: string; params?: boolean }
   | { kind: 'edge'; x: number; y: number; id: string }
   | { kind: 'param'; x: number; y: number; id: string; param: string; label: string; on: boolean }
 
 export type MenuAction =
   | { type: 'add'; nodeType: string }
-  | { type: 'undo' | 'redo' | 'fit' | 'details' | 'dashboard' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete-nodes' | 'delete-edge' }
+  | { type: 'undo' | 'redo' | 'fit' | 'dashboard' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete-nodes' | 'delete-edge' }
   | { type: 'tuning-add' | 'tuning-remove' }
 
 // Right-click and node-button menus (Aurora-daaa.27.1): canvas, node and wire. One popup
@@ -76,21 +77,23 @@ export function ContextMenu({
             <MenuItem id="select-all"><Keyed hint={hints['select-all']}>Select all</Keyed></MenuItem>
           </Menu>
         ) : target.kind === 'node' ? (
+          <>
+            {target.touch && target.tip ? <p className="menu-tip">{target.tip}</p> : null}
           <Menu
             aria-label="Node actions"
             onClose={onClose}
             onAction={(id) => {
-              if (id === 'details' || id === 'dashboard' || id === 'cut' || id === 'copy' || id === 'delete-nodes') run({ type: id })
+              if (id === 'dashboard' || id === 'cut' || id === 'copy' || id === 'delete-nodes') run({ type: id })
             }}
           >
-            <MenuItem id="details">Details</MenuItem>
-            <MenuItem id="dashboard">Tuning controls…</MenuItem>
-            <MenuSeparator />
+            {target.params ? <MenuItem id="dashboard">Tuning controls…</MenuItem> : null}
+            {target.params ? <MenuSeparator /> : null}
             <MenuItem id="cut"><Keyed hint={hints.cut}>Cut</Keyed></MenuItem>
             <MenuItem id="copy"><Keyed hint={hints.copy}>Copy</Keyed></MenuItem>
             <MenuSeparator />
             <MenuItem id="delete-nodes"><Keyed hint={hints.delete}>Delete</Keyed></MenuItem>
           </Menu>
+          </>
         ) : target.kind === 'param' ? (
           <Menu aria-label={`${target.label} actions`} onClose={onClose} onAction={() => run({ type: target.on ? 'tuning-remove' : 'tuning-add' })}>
             <MenuItem id="tuning">{target.on ? 'Remove from Tuning' : 'Add to Tuning'}</MenuItem>

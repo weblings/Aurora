@@ -6,8 +6,6 @@ import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { PORT_TYPES, portStyle } from './portStyle'
 import { editorReducer, emptyEditor } from './history'
 import { columnLayout, positionsFor } from './layout'
-import { DetailsDrawer } from '../DetailsDrawer'
-import { ShowNodeIdsContext } from '../EditorContext'
 import { ControlsDrawer } from '../ControlsDrawer'
 import { ParamWidget,addStop, clampStopPos, displayNumber, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
@@ -332,26 +330,18 @@ describe('Dashboard marks and drawers (Aurora-daaa.27.3)', () => {
     expect(html).not.toContain('On the Dashboard')
   })
 
-  it('Details shows the ticked control\'s text fields and the controls drawer lists order', () => {
+  it('a Tuning control gets a muted dot and hidden text after its label (Aurora-e4bi.9)', () => {
+    const info = catalog.get(builtinLike().nodes.find((n) => n.id === 'gain')!.type)!.params[0]
+    const draw = (tuning?: string) =>
+      renderToStaticMarkup(<ParamWidget info={info} value={undefined} onChange={() => {}} onCommit={() => {}} tuning={tuning} />)
+    expect(draw()).not.toContain('param-in-tuning')
+    const html = draw('In Tuning as "Gain", General.')
+    expect(html).toContain('param-in-tuning')
+    expect(html).toContain(', in Tuning')
+  })
+
+  it('the controls drawer lists order', () => {
     const doc = builtinLike()
-    const node = doc.nodes.find((n) => n.id === 'gain')!
-    const details = renderToStaticMarkup(
-      <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />,
-    )
-    expect(details).toContain('Tuning controls')
-    for (const f of ['Label', 'Section', 'Tooltip']) expect(details).toContain(f)
-    const none = renderToStaticMarkup(
-      <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={null} focusChecks={0} edit={() => {}} />,
-    )
-    expect(none).toContain('Pick a node')
-    // Node ids are a developer-build aid: absent unless the editor says this is one.
-    expect(details).not.toContain('ui-drawer-subtitle')
-    const dev = renderToStaticMarkup(
-      <ShowNodeIdsContext.Provider value>
-        <DetailsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} selected={node.id} focusChecks={0} edit={() => {}} />
-      </ShowNodeIdsContext.Provider>,
-    )
-    expect(dev).toContain('ui-drawer-subtitle')
     const list = renderToStaticMarkup(<ControlsDrawer isOpen onClose={() => {}} top={0} side="right" doc={doc} catalog={catalog} edit={() => {}} onShow={() => {}} onRemove={() => {}} />)
     expect(list).toContain('Tuning (1)')
     expect(list).not.toContain('Dashboard')

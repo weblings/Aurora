@@ -150,9 +150,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi18-narrow-tooltip-esc` | [log/2026-11-17-e4bi18-narrow-tooltip-esc.md](log/2026-11-17-e4bi18-narrow-tooltip-esc.md) | Browser checks: narrow parks the pointer before Esc |
 | `e4bi2-section-helpers` | [log/2026-11-17-e4bi2-section-helpers.md](log/2026-11-17-e4bi2-section-helpers.md) | Tuning sections: one shared derivation, editor section helpers, General heading |
 | `e4bi3-tuning-cards` | [log/2026-11-17-e4bi3-tuning-cards.md](log/2026-11-17-e4bi3-tuning-cards.md) | Graph editor: Tuning cards with the card menu and select-node |
+| `e4bi4-tuning-sections` | [log/2026-11-17-e4bi4-tuning-sections.md](log/2026-11-17-e4bi4-tuning-sections.md) | Graph editor: Tuning sections, panel and section menus |
 | `e4bi7-grille-dev17` | [log/2026-11-17-e4bi7-grille-dev17.md](log/2026-11-17-e4bi7-grille-dev17.md) | Grille dev.17 in the graph editor |
 | `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
 | `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |
+| `e4bi9-tuning-picker` | [log/2026-11-17-e4bi9-tuning-picker.md](log/2026-11-17-e4bi9-tuning-picker.md) | Graph editor: Tuning controls picker replaces Details |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |

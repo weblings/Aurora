@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { announced, detailsChecks, fileAction, waitAnnounced, pickAction, setName, tickFirst, waitControlCount, waitToast } from '../lib/editorMenu.mjs'
+import { announced, controlsButton, fileAction, waitAnnounced, pickAction, setName, tickFirst, waitControlCount, waitToast } from '../lib/editorMenu.mjs'
 
 const created = []
 
@@ -131,11 +131,17 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
     await tickFirst(page, page.locator('.aurora-node', { hasText: 'Gain' }).first())
-    const fields = detailsChecks(page).first().locator('xpath=ancestor::div[1]').locator('.drawer-field input')
-    await fields.nth(0).fill('Strength')
-    await fields.nth(0).press('Enter')
-    await fields.nth(2).fill('How bright the lights get')
-    await fields.nth(2).press('Enter')
+    // Label and tooltip are set from the card's Edit... (the picker has no text fields).
+    await controlsButton(page).click()
+    const card = page.locator('.cp-item-card').last()
+    await card.hover()
+    await card.getByRole('button', { name: /actions$/ }).click()
+    await page.getByRole('menuitem', { name: 'Edit…', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit control' })
+    await dialog.getByRole('textbox', { name: 'Label' }).fill('Strength')
+    await dialog.getByRole('textbox', { name: 'Tooltip' }).fill('How bright the lights get')
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    await dialog.waitFor({ state: 'detached' })
     await setName(page, 'Browser check apply')
     await fileAction(page, 'Save and apply')
     await page.waitForFunction(() => document.querySelector('[data-effect]')?.dataset.effect === 'browser-check-apply')

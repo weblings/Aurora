@@ -139,3 +139,13 @@ Applies-when: briefing agents while another session may be writing beads, or pla
 Aurora-e4bi.2, .10, .11 (2026-11-17): another session's `bd update` held the beads DB, and plain `bd show` calls sat past 60-120 s timeouts. Each write then ran an auto-export of all 768 issues (47 s once, 4 s when uncontended). Agents told to run no `bd` and to draft bead text in their report finished without waiting on it, and the coordinator applied the notes in one script.
 
 **Fix:** in each brief, forbid `bd` and ask for drafted bead text in the report. Read a bead from `.beads/issues.jsonl` while the DB is held. Batch the coordinator's edits in one guarded script. When staging the export, take only the lines for this bead's ids if another session has unexported changes.
+
+---
+
+## Parallel agents' checks can assert on each other's UI; re-run the whole set once both are in
+Tags: subagents, parallel, browser-check, waves, verification, hand-back
+Applies-when: two agents in one wave each own different files but their checks walk the same screen
+
+Aurora-e4bi.9 and .4 (2026-11-17): file ownership was split cleanly (`.9` the node and the drawers check, `.4` the Tuning panel and a new check). Each agent's own runs passed, but `.4` added New section… to the Move to section submenu, and the drawers check (owned by `.9`, with steps written in `.3`) listed that submenu exactly. Only the coordinator's combined run after both hand-backs caught it. Separately, the `.9` agent, waiting on a long background regression script, re-sent its hand-back after every check finished (a dozen near-identical reports) until told to stop.
+
+**Fix:** after a parallel wave, run the full check set once with both changes in the tree before closing either bead. In each brief, ask the agent to hand back once, after its own runs have finished, and never while a background run of its own is still pending.

@@ -29,6 +29,7 @@
     "graph-editor:back-link": "node checks/graph-editor-back-link.mjs",
     "graph-editor:control-count": "node checks/graph-editor-control-count.mjs",
     "graph-editor:undo-toast": "node checks/graph-editor-undo-toast.mjs",
+    "graph-editor:tuning-sections": "node checks/graph-editor-tuning-sections.mjs",
     "graph-editor:gate": "node checks/graph-editor-gate.mjs",
     "dashboard-shell": "node checks/dashboard-shell.mjs",
     "shell-cap": "node checks/shell-cap.mjs",

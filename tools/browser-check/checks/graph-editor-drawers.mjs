@@ -1,12 +1,11 @@
-// Aurora-daaa.27.4, Aurora-e4bi.3: the Details drawer and the Tuning card list, which replaced
-// the Inspector (Aurora-daaa.27.3). Covers what the other checks only use in
-// passing: opening each, one drawer at a time, Details following the
-// selection, the on-node Dashboard mark, the label fields, reorder/remove in
-// the controls drawer, Backspace inside a drawer keeping the node, and Esc.
+// Aurora-daaa.27.4, Aurora-e4bi.3, Aurora-e4bi.9: the Tuning card list, which replaced the Inspector
+// (Aurora-daaa.27.3), and the In-Tuning dot on the node. Covers what the other checks only use in
+// passing: selecting opens no drawer, the dot matches the controls and follows a switch on and off,
+// reorder/remove in the controls drawer, Backspace inside a drawer keeping the node, and Esc.
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
-import { openTitleMenu, titleMenu, controlCount,controlsButton, detailsChecks, openDetails, tickFirst, waitControlCount } from '../lib/editorMenu.mjs'
+import { openTitleMenu, titleMenu, controlCount, controlsButton, tickFirst, waitControlCount } from '../lib/editorMenu.mjs'
 
 
 // Opens a card's `...` menu: returns pick(name), which clicks a menu item by its name.
@@ -83,7 +82,7 @@ async function cardList(browser, editorUrl, width, step) {
     const sub = page.getByRole('menu', { name: 'Move to section' })
     await sub.waitFor()
     const choices = await sub.getByRole('menuitem').allInnerTexts()
-    assert.deepEqual(choices, [...heads.slice(1), 'General'].filter((n, i, a) => a.indexOf(n) === i), 'the other sections, in order, then General')
+    assert.deepEqual(choices, [...[...heads.slice(1), 'General'].filter((n, i, a) => a.indexOf(n) === i), 'New section…'], 'the other sections, in order, then General and New section…')
     await sub.getByRole('menuitem', { name: heads[1], exact: true }).click()
     await page.waitForFunction((n) => document.querySelector('.cp-item-sec .cp-count')?.textContent === String(n), firstCount - 1)
     step(`${tag}: Move to section lists the other sections and moves the card`)
@@ -125,51 +124,59 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.waitForSelector('.aurora-node')
     const count = await nodes()
     const total = await controlCount(page)
-    assert.equal(await page.locator('.react-flow__node .dashboard-mark').count(), 0, 'no on-node Dashboard mark (dropped, Aurora-s1t7.5)')
+    assert.equal(await page.locator('.react-flow__node .dashboard-mark').count(), 0, 'no diamond mark (dropped, Aurora-s1t7.5)')
     assert.equal(await page.locator('.inspector').count(), 0, 'no Inspector in the editor')
-    step(`${total} controls, no on-node marks, no Inspector`)
+    // The In-Tuning dot (Aurora-e4bi.9): one per control, muted, hidden from the tab order and the a11y tree.
+    const dots = () => page.locator('.react-flow__node .param-in-tuning').count()
+    assert.equal(await dots(), total, 'one dot per Tuning control')
+    assert.equal(await page.locator('.param-in-tuning[tabindex], .param-in-tuning button').count(), 0, 'the dot is not a tab stop')
+    assert.equal(await page.locator('.param-in-tuning').first().getAttribute('aria-hidden'), 'true')
+    step(`${total} controls, ${total} In-Tuning dots, no diamond marks, no Inspector`)
 
-    // Selecting does not open Details; the node menu does.
+    // Selecting opens no drawer (Details is gone).
     await gain().locator('.aurora-node-header').click()
-    assert.equal(await page.locator('.drawer-details').count(), 0, 'selecting does not open Details')
-    await openDetails(page, gain())
-    assert.ok(await detailsChecks(page).count() > 0, 'Details lists the params')
-    step('Details opens from the node menu, not from selecting')
+    assert.equal(await page.locator('.ui-drawer').count(), 0, 'selecting does not open a drawer')
+    step('selecting a node opens no drawer')
 
-    // It follows the selection.
-    const purpose = await page.locator('.drawer-details p').first().innerText()
-    await page.locator('.aurora-node').nth(1).locator('.aurora-node-header').click()
-    await page.waitForFunction((t) => document.querySelector('.drawer-details p')?.textContent !== t, purpose)
-    step('Details follows the selection')
-
-    // Ticking adds the count and the three fields.
+    // A switch on adds a control and its dot, with hidden text and a hint; a switch off removes both.
+    const row = () => gain().locator('.param').first()
+    assert.equal(await row().locator('.param-in-tuning').count(), 0, 'the first Gain param starts out of Tuning')
     await tickFirst(page, gain())
     await waitControlCount(page, total + 1)
-    const fields = detailsChecks(page).first().locator('xpath=ancestor::div[1]').locator('.drawer-field input')
-    assert.equal(await fields.count(), 3, 'Label, Section, Tooltip')
-    await fields.nth(0).fill('Check label')
-    await fields.nth(0).press('Enter')
-    step('ticking adds a count and Label/Section/Tooltip fields')
+    assert.equal(await dots(), total + 1)
+    assert.equal(await row().locator('.param-in-tuning').count(), 1, 'the dot is after the switched param')
+    assert.match(await row().locator('.param-label').innerText(), /, in Tuning$/, 'hidden text names it')
+    // tickFirst closed the picker with Esc (keyboard modality), and React Aria shows hover tooltips only after a pointer press.
+    await page.mouse.click(2, 300)
+    await row().locator('.param-label').hover()
+    await page.locator('.ui-tooltip', { hasText: 'In Tuning as' }).waitFor()
+    await page.mouse.move(2, 2)
+    await tickFirst(page, gain(), false)
+    await waitControlCount(page, total)
+    assert.equal(await dots(), total)
+    assert.equal(await row().locator('.param-in-tuning').count(), 0)
+    await tickFirst(page, gain())
+    await waitControlCount(page, total + 1)
+    assert.equal(await dots(), total + 1)
+    step('the dot follows a switch on and off, with the hint "In Tuning as ..."')
 
-    // Backspace with focus in the drawer does not delete the node.
-    await fields.nth(0).blur()
-    await detailsChecks(page).first().focus()
+    // Backspace with focus in a drawer does not delete the node.
+    await controlsButton(page).click()
+    await page.locator('.cp-item-card').first().waitFor()
+    await page.locator('.ui-drawer').getByRole('button').first().focus()
     await page.keyboard.press('Backspace')
     await page.keyboard.press('Delete')
     assert.equal(await nodes(), count)
     step('Delete and Backspace inside the drawer keep the node')
 
-    // One drawer at a time; the controls drawer lists, reorders and removes.
-    await controlsButton(page).click()
+    // The controls drawer lists and removes.
     const list = page.locator('.cp-item-card')
-    await list.first().waitFor()
-    assert.equal(await page.locator('.drawer-details').count(), 0, 'opening controls closes Details')
     assert.equal(await list.count(), total + 1)
     await page.locator('.react-flow__pane').click({ position: { x: 5, y: 300 } })
     assert.equal(await list.count(), total + 1, 'a canvas click leaves the drawer open')
     await (await cardMenuOf(page, list.first())).pick('Remove')
     await waitControlCount(page, total)
-    step('controls drawer: one drawer at a time, stays open on a canvas click, Remove from the card menu')
+    step('controls drawer: stays open on a canvas click, Remove from the card menu')
 
     // A menu opened over the drawer takes the first Esc; the drawer takes the second.
     await openTitleMenu(page)

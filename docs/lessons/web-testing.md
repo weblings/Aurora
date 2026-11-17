@@ -395,3 +395,11 @@ Applies-when: a check presses Escape to close a drawer, dialog or menu after the
 Aurora-e4bi.18 (2026-11-17): `graph-editor:narrow` failed at 700x900 with "Esc left the drawer open". The pointer was still over a tooltip trigger, so a Grille (React Aria) tooltip was open. `useTooltipTrigger` listens for keydown on `document` in the capture phase and calls `stopPropagation()` on Escape, so the Drawer's window listener never saw it. Closing the topmost layer first is intended. At 400x800 focus was in the drawer, so that size passed.
 
 **Fix:** move the mouse to an empty corner (`page.mouse.move(2, h - 2)`) and wait for the tooltip to close before pressing Escape. A count of `[role=tooltip]` is the quick tell.
+
+## After a keyboard step, React Aria shows a hover tooltip only after a pointer press
+Tags: browser-check, playwright, tooltip, react-aria, modality, hover
+Applies-when: a check hovers to open a Grille or React Aria tooltip after any keyboard input (Esc, Enter, typing)
+
+Aurora-e4bi.9 (2026-11-17): the drawers check closed the Tuning picker with Esc, then hovered a param label and waited 30 s for its tooltip. React Aria tracks the interaction modality, which keydown sets to keyboard and only a pointer press sets back. In keyboard modality `useTooltipTrigger` opens on focus, not hover, so `locator.hover()` alone showed nothing. The `graph-editor-tooltips` check never hit it because it presses no key before hovering.
+
+**Fix:** after a keyboard step, click an empty spot (`page.mouse.click(2, 300)` on the pane) before a hover that expects a tooltip. A real user sees the same thing: after typing, the first hover shows no tooltip until they click.
