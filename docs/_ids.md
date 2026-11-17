@@ -141,6 +141,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
 | `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
+| `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |

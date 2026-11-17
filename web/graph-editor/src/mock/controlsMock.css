@@ -1033,3 +1033,144 @@ body {
     bottom: 36px;
   }
 }
+
+/* Panel model b, Tuning only (e4bi.8, 2026-11-17): stand-ins on GenericNode's own classes. */
+.cp-snodes {
+  position: absolute;
+  top: 150px;
+  left: 24px;
+  right: 24px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 24px;
+  overflow: auto;
+  padding: 2px 8px;
+}
+.cp-root[data-model='one'][data-drawer='right'] .cp-snodes {
+  right: 380px;
+}
+.cp-snode {
+  position: relative;
+  cursor: default;
+}
+.cp-snode[data-selected] {
+  border-color: var(--aurora-text-secondary);
+}
+.cp-snode[data-selected] .aurora-node-more {
+  opacity: 1;
+}
+.cp-handle {
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ui-color-text-muted);
+  transform: translateY(-50%);
+}
+.aurora-port-out .cp-handle {
+  left: auto;
+  right: -5px;
+}
+.cp-taphint {
+  display: inline-flex;
+}
+.cp-taphint[data-open] .aurora-port-name,
+.cp-taphint[data-open] .param-label {
+  text-decoration: underline dotted;
+}
+.cp-taphint-pop {
+  max-width: 260px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cp-menu-desc {
+  max-width: 260px;
+  margin: 0;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--ui-color-popup-border);
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cp-pick {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px; /* Grille's ui-menu-item metrics: 13 px, 6 px by 8 px */
+  min-width: 220px;
+  max-width: 300px;
+}
+.cp-pick-title {
+  padding: 6px 8px;
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+}
+.cp-pick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: var(--ui-size-radius-sm);
+  cursor: pointer;
+}
+.cp-pick-row:hover {
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-pick-open:hover,
+.cp-pick-open:focus-visible {
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-pick-open {
+  border-radius: var(--ui-size-radius-sm);
+  margin: 4px 0 2px;
+  padding: 6px 8px;
+  border: 0;
+  border-top: 1px solid var(--ui-color-popup-border);
+  background: none;
+  color: var(--ui-color-control-accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cp-head-one {
+  align-items: center;
+}
+.cp-one-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+/* Card double-click pings the param on its node: a ring inset 4 px from the node's sides, so it never touches the
+   selection outline (owner, 2026-11-17). Timing from shell.css's shell-ping (not loaded here). */
+.param[data-ping] {
+  position: relative;
+}
+.param[data-ping]::after {
+  content: '';
+  position: absolute;
+  inset: 2px 4px;
+  border-radius: var(--aurora-radius-control);
+  pointer-events: none;
+  animation: cp-ping 1375ms ease-out 2;
+}
+@keyframes cp-ping {
+  0% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .param[data-ping]::after {
+    animation: cp-ping-hold 1375ms 1;
+  }
+  @keyframes cp-ping-hold {
+    0%, 100% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  }
+}
+.cp-root[data-model='one'][data-drawer='bottom'] .cp-snodes {
+  bottom: calc(var(--cp-dock, 0px) + 12px);
+}

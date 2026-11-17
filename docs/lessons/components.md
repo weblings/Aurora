@@ -567,3 +567,33 @@ Applies-when: a collection row should act on double-click or Enter (open, frame,
 `selectionMode="single"` with `selectionBehavior="replace"` gives double-click and Enter as `onAction`, but a single click and every arrow key also select the row and announce "selected". Without selection, `onAction` fires on a single click instead. In the Aurora-e4bi.1 mock, mirroring that selection to the canvas would have selected off-screen nodes while arrowing and on a drag press.
 
 **Fix:** no selection mode, `onDoubleClick` on the `TreeItem`, and Enter caught on an element above the Tree (neither `Tree` nor `TreeItem` takes `onKeyDown`), acting only when the event target is the row itself so an Enter that drops a keyboard drag is not caught.
+
+---
+
+## React Aria closes a popover on a scroll around it, so a popover that focuses inside itself must use preventScroll
+Tags: webui, react-aria, popover, focus, grille, narrow
+Applies-when: a Popover or Dialog moves focus to a field or switch inside itself when it opens
+
+In the Aurora-e4bi.8 mock, the Show in Tuning picker opened "right top" of a node and focused its first switch. At 400 px wide there was no room on either side, so the popover first rendered past the window's right edge. The focus scrolled the document to reach the switch, and React Aria closed the popover on that scroll before it painted. A console stack showed `onOpenChange(false)` from Grille's Popover. At 1100 px, where it fit, nothing happened, so the bug only showed in narrow windows.
+
+**Fix:** focus with `{ preventScroll: true }` in any popover that moves focus on open, and choose the placement by measured room so the popover never starts outside the window. React Aria does not flip `right` to `left` when neither side fits.
+
+---
+
+## A React Aria Tree renders a removed item for one more frame, so row components must not assume it still exists
+Tags: webui, react-aria, tree, state
+Applies-when: an item can leave a Tree's items because of an action outside the Tree (a popover, another panel, an undo)
+
+In the Aurora-e4bi.8 mock, switching a param off in the node's Show in Tuning picker removed its card from the section list. The Tree rendered the card's row once more, its section lookup returned `undefined`, and `sec.ids` threw. The page error unmounted the picker, which first looked like the picker closing by design. Removes from the card's own menu had never hit it.
+
+**Fix:** row components read their item defensively (a fallback section here) and never use a non-null assertion on a lookup into the Tree's data. Test removes that start outside the Tree.
+
+---
+
+## React Aria tooltips never open from a tap, so touch needs its own path to tooltip text
+Tags: webui, react-aria, tooltip, touch, grille
+Applies-when: a tooltip or Hint carries text a touch user needs (port or param descriptions, a node's purpose)
+
+React Aria's `useTooltipTrigger` (react-aria 3.53.1) opens on hover only when the input is a mouse or pen, opens on focus only when focus is keyboard-visible, and closes on any pointer down on the trigger. A tap therefore closes the tooltip and never opens it, and Grille's `TooltipTrigger` has no `isOpen` to open it from code (Grille-83g.7). React Aria's own touch answer is long-press (`PreviewTrigger`), which Aurora-kep2.24 cut from the Dashboard because iPhone selects text and shows nothing.
+
+**Fix:** keep the `Hint` for mouse and keyboard, and add a touch path: a touch tap (`pointerType === 'touch'` from the pointer down) toggles the same text in a non-modal popover, or put the text where touch already goes, as the Dashboard's effect menu does with its description line on a touch press.

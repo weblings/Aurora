@@ -647,7 +647,9 @@ Applies-when: a mock shows ordering, grouping or defaults of something that alre
 
 The shell mock stacked notices above errors and folded them into the collapse. The real `shell.js` renders pairings, then the light-test row, then conditions, then errors in daemon order, and keeps the first two outside the collapse and out of the "N problems" count. Host errors carry a monotonic `id`, so the daemon already knows which is newest. Answering "does a new error go above the old one?" needed the code, not the mock.
 
-**Fix:** before explaining behaviour from a mock, read the render path; list in the frame or the bead where the mock departs from today (here: notices inside the collapse), so a design change is not mistaken for current behaviour.
+Aurora-e4bi.8 repeated it the other way round: a session proposed a `...` button on nodes as new, from a grep of the context menu's right-click handler, and recorded "right-click is the only route" on the bead. `GenericNode.tsx` had shipped that button, faded until hover or selection, since Aurora-daaa.27.1. It surfaced only when the mock copied the node's markup.
+
+**Fix:** before explaining behaviour from a mock, read the render path; list in the frame or the bead where the mock departs from today (here: notices inside the collapse), so a design change is not mistaken for current behaviour. Before calling a control new, read the component that would hold it, not only the handler you found first.
 
 ---
 
@@ -677,7 +679,7 @@ Applies-when: starting a mock frame, or a new frame set, in a mock that has Deci
 
 Aurora-u8jx.6's Preview mock was started from the bead's frame text and from a mock whose Decisions switches default to the old state (the Test split button switch defaulted to off, which draws "Test on lights" and a "Live preview" pill). The editor had shipped the split button (`SplitTestButton.tsx`, `Test (15s)`, `Stop 0:12`). Everything drawn on that base needed owner steering: the old Test button, a "Testing on Hue" shell row Stage 6 reserves for tests the user did not cause, an invented "Can't reach the Hue bridge." when core already raises `kUnreachableMessage`, quadrant and ring shapes where the live island draws plain cells, a Grille select where the Test caret uses the tick menu, and an icon-only chevron beside a title. Each is a difference between the mock's base and the built editor, found one review round at a time.
 
-The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it, drop the switch, and retire the frames that argued it.
+The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it. Hide the losing options rather than deleting them, and delete only when keeping them slows the work (owner, 2026-11-17): a dropped direction can come back, as the Tuning and Node tabs might if a second panel earns its place.
 
 **Fix, in order, before styling anything:**
 1. Set every Decisions switch to the shipped editor's state and screenshot the mock's rest frame next to the real editor at the same width. Differences are mock bugs, not design choices.

@@ -59,6 +59,10 @@ Open:
 - Still open in the mock: Tooltip field, param switch and Tuning column, touch path, switch-on feedback, Panels menu, and the smaller items (target param, empty states, tab memory, double-click over Node, Edit control layout).
 - Grille gaps met: no tabs that sit in a header (its `Tabs` couples list and panel; React Aria's `Tabs` threw "reading 'isDisabled'" when it wrapped the drawer's Tree and menus, so the mock hand-builds the tablist), no left chevron, no panel icon, no strip colour token.
 
+## Superseded (2026-11-17)
+
+The owner dropped the Node tab the next day: Tuning is the only panel and controls are added from the node. See [[e4bi8-tuning-only-design]].
+
 ## Verification
 
 - Mock: `tsc --noEmit` clean; headless Chromium (`tools/browser-check` helpers) screenshots and measured rects at 1100x800 and 360x800 for every variant, no page errors.

@@ -36,6 +36,7 @@ import {
   xMarkIcon,
 } from '@weblings/grille'
 import { EditorPopup } from '../EditorPopup'
+import { Hint } from '../Hint'
 import { Toast, useToast } from '../Toast'
 import { useMedia } from '../useMedia'
 
@@ -328,7 +329,8 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
   const [hover, setHover] = useState(false)
   const timer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])
-  const sec = secOf(a.state, c.id)
+  // The Tree can render a card for a frame after a remove from outside it (the picker), so it may have no section.
+  const sec = secOf(a.state, c.id) ?? { name: GENERAL, ids: [] }
   const i = sec.ids.indexOf(c.id)
   const others = a.state.secs.filter((x) => x !== sec)
   const name = effective(c)
@@ -576,6 +578,230 @@ function NodeTab({
         <ParamRow key={p} node={node} param={p} paramLabel={label} sw={sw} touch={touch} inputRef={i === 0 ? first : undefined} onEdit={onEdit} />
       ))}
     </div>
+  )
+}
+
+// --- Panel model b, Tuning only (e4bi.8, 2026-11-17) ---------------------------------------------------------
+
+// Hover and keyboard focus keep the shipped Hint; a touch tap toggles the same text in a popover, since React
+// Aria's tooltip closes on pointer down and never opens from a tap. The tap still bubbles, so it selects the node.
+function TapHint({ text, label, children }: { text: string; label: string; children: ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const ptr = useRef('')
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <span
+        ref={ref}
+        className="cp-taphint"
+        data-open={open || undefined}
+        onPointerDown={(e) => (ptr.current = e.pointerType)}
+        onClick={() => ptr.current === 'touch' && setOpen((o) => !o)}
+      >
+        <Hint text={text}>{children}</Hint>
+      </span>
+      <EditorPopup isOpen={open} onClose={() => setOpen(false)} label={label} triggerRef={ref} placement="top">
+        <div className="cp-taphint-pop">{text}</div>
+      </EditorPopup>
+    </>
+  )
+}
+
+// Mock-only param descriptions; the real ones come from /api/nodes.
+const paramDesc = (label: string) => `${label}: the catalog's description of this param (mock text).`
+
+// A stand-in for GenericNode.tsx on its own classes: title Hint, the faded ... (aurora-node-more), ports, params.
+function StandInNode({
+  k,
+  n,
+  selected,
+  ping,
+  onSelect,
+  onMenu,
+}: {
+  k: string
+  n: NodeInfo
+  selected: boolean
+  ping: { id: string; n: number } | null
+  onSelect: () => void
+  onMenu: (point: { x: number; y: number }, touch: boolean) => void
+}) {
+  const ptr = useRef('')
+  const ins = n.ports.filter((p) => p.dir === 'in')
+  const outs = n.ports.filter((p) => p.dir === 'out')
+  return (
+    <div
+      className="aurora-node cp-snode"
+      data-node={k}
+      data-selected={selected || undefined}
+      onClick={onSelect}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        onSelect()
+        onMenu({ x: e.clientX, y: e.clientY }, false)
+      }}
+    >
+      <div className="aurora-node-header">
+        <Hint text={n.purpose}>
+          <strong>{n.title}</strong>
+        </Hint>
+        <button
+          type="button"
+          className="aurora-node-more"
+          aria-label={`Actions for ${n.title}`}
+          aria-haspopup="menu"
+          onPointerDown={(e) => (ptr.current = e.pointerType)}
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelect()
+            const box = e.currentTarget.getBoundingClientRect()
+            // A keyboard press has no pointer (detail 0), as EffectPanel.js checks.
+            onMenu({ x: box.left, y: box.bottom }, ptr.current === 'touch' && e.detail !== 0)
+            ptr.current = ''
+          }}
+        >
+          <Icon icon={menuHorizontalIcon} size="sm" />
+        </button>
+      </div>
+      <div className="aurora-ports">
+        <div className="aurora-ports-in">
+          {ins.map((p) => (
+            <div className="aurora-port" key={p.name}>
+              <span className="cp-handle" aria-hidden="true" />
+              <TapHint text={p.desc} label={`About ${p.name}`}>
+                <span className="aurora-port-name">{p.name}</span>
+              </TapHint>
+              <small>{p.type}</small>
+            </div>
+          ))}
+        </div>
+        <div className="aurora-ports-out">
+          {outs.map((p) => (
+            <div className="aurora-port aurora-port-out" key={p.name}>
+              <small>{p.type}</small>
+              <TapHint text={p.desc} label={`About ${p.name}`}>
+                <span className="aurora-port-name">{p.name}</span>
+              </TapHint>
+              <span className="cp-handle" aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+      </div>
+      {n.params.map(([p, label]) => {
+        const hit = ping?.id === `${k}.${p}`
+        return (
+          <div key={hit ? `${p}-${ping!.n}` : p} className="param" data-param={`${k}.${p}`} data-ping={hit || undefined}>
+            <TapHint text={paramDesc(label)} label={`About ${label}`}>
+              <span className="param-label">{label}</span>
+            </TapHint>
+            <input type="range" aria-label={label} defaultValue={50} onClick={(e) => e.stopPropagation()} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// The node's menu as ContextMenu.tsx draws it, less Details, with Show on the Dashboard renamed. A touch press
+// on ... starts the menu with the purpose, as the Dashboard's effect menu does (EffectPanel.js _openMenu).
+function NodeMenuMock({
+  n,
+  touch,
+  noParams,
+  onPick,
+  onClose,
+}: {
+  n: NodeInfo
+  touch: boolean
+  noParams: 'hide' | 'disable'
+  onPick: (id: string) => void
+  onClose: () => void
+}) {
+  const has = n.params.length > 0
+  const items: ReactNode[] = []
+  if (has || noParams === 'disable') {
+    items.push(
+      <MenuItem key="tuning" id="tuning" isDisabled={!has}>
+        Show in Tuning…
+      </MenuItem>,
+      <MenuSeparator key="s0" />,
+    )
+  }
+  items.push(
+    <MenuItem key="cut" id="cut">
+      Cut
+    </MenuItem>,
+    <MenuItem key="copy" id="copy">
+      Copy
+    </MenuItem>,
+    <MenuSeparator key="s1" />,
+    <MenuItem key="delete" id="delete">
+      Delete
+    </MenuItem>,
+  )
+  return (
+    <Dialog aria-label={`Actions for ${n.title}`}>
+      {touch ? (
+        <p className="cp-menu-desc" id="cp-menu-desc">
+          {n.purpose}
+        </p>
+      ) : null}
+      <Menu aria-label={`Actions for ${n.title}`} autoFocus="first" onClose={onClose} onAction={onPick}>
+        {items}
+      </Menu>
+    </Dialog>
+  )
+}
+
+const PICK_W = 236 // picker width plus the popover's gap
+function pickPlacement(k: string): 'right top' | 'left top' | 'bottom start' {
+  const r = document.querySelector(`[data-node="${k}"]`)?.getBoundingClientRect()
+  if (!r) return 'bottom start'
+  if (r.right + PICK_W <= innerWidth - 8) return 'right top'
+  if (r.left - PICK_W >= 8) return 'left top'
+  return 'bottom start'
+}
+
+// Show in Tuning…: the node's params with the Dashboard toggle. Stays open while several are switched.
+function TuningPicker({ k, n, drawerOpen, onOpenTuning }: { k: string; n: NodeInfo; drawerOpen: boolean; onOpenTuning: () => void }) {
+  const a = useActs()
+  const first = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    // preventScroll: before placement settles the popover can sit past the window edge, and a focus scroll there
+    // makes React Aria close it on scroll (seen at 400 px with "right top").
+    const t = window.setTimeout(() => first.current?.focus({ preventScroll: true }), 0)
+    return () => window.clearTimeout(t)
+  }, [])
+  return (
+    <Dialog aria-label={`Show ${n.title} params in Tuning`}>
+      <div className="cp-pick">
+        <div className="cp-pick-title">Show in Tuning</div>
+        {n.params.map(([p, label], i) => {
+          const id = `${k}.${p}`
+          const on = a.state.secs.some((x) => x.ids.includes(id))
+          return (
+            <label key={p} className="cp-pick-row">
+              <span>{label}</span>
+              <span className="toggle-switch">
+                <input
+                  ref={i === 0 ? first : undefined}
+                  type="checkbox"
+                  checked={on}
+                  aria-label={`Show ${label} in Tuning`}
+                  onChange={() => a.card(id, on ? 'remove' : 'tick')}
+                />
+                <span className="toggle-knob" />
+              </span>
+            </label>
+          )
+        })}
+        {drawerOpen ? null : (
+          <button type="button" className="cp-pick-open" onClick={onOpenTuning}>
+            Open Tuning
+          </button>
+        )}
+      </div>
+    </Dialog>
   )
 }
 
@@ -1020,6 +1246,13 @@ export function ControlsPanelMock() {
   const [added, setAdded] = useState<AddedCue>(pick(params.get('added'), ['none', 'toast', 'badge'] as const))
   const [win, setWin] = useState<WinMenu>(pick(params.get('win'), ['none', 'menu', 'view'] as const))
   const [closeAt, setCloseAt] = useState(pick(params.get('close'), ['tab', 'head', 'edge', 'grab'] as const))
+  // Panel model (2026-11-17): b, Tuning only, is the direction; a keeps the tabs mock reachable.
+  const [model, setModel] = useState(pick(params.get('model'), ['one', 'tabs'] as const))
+  const [noParams, setNoParams] = useState(pick(params.get('np'), ['hide', 'disable'] as const))
+  const [nodeMenuAt, setNodeMenuAt] = useState<{ k: string; x: number; y: number; touch: boolean } | null>(null)
+  const [pickFor, setPickFor] = useState<string | null>(null)
+  const [ping, setPing] = useState<{ id: string; n: number } | null>(null)
+  const one = model === 'one'
   const [tab, setTab] = useState<TabKey>('tuning')
   const [iface, setIface] = useState(false)
   const [sel, setSel] = useState<string | null>('beat')
@@ -1040,9 +1273,19 @@ export function ControlsPanelMock() {
   const toast = useToast()
 
   useEffect(() => {
-    const q = new URLSearchParams({ data: scn, head, view, err, icon, tabs: tabsLook, nmenu: nodeMenu, tip, sw, col, touch, added, win, close: closeAt })
+    const q = new URLSearchParams({ data: scn, head, view, err, icon, model, np: noParams, tabs: tabsLook, nmenu: nodeMenu, tip, sw, col, touch, added, win, close: closeAt })
     history.replaceState(null, '', `?${q}`)
-  }, [scn, head, view, err, icon, tabsLook, nodeMenu, tip, sw, col, touch, added, win, closeAt])
+  }, [scn, head, view, err, icon, model, noParams, tabsLook, nodeMenu, tip, sw, col, touch, added, win, closeAt])
+
+  useEffect(() => {
+    setNote(
+      one
+        ? 'Tuning only. Hover or select a node for its ... (right-click opens the same menu); Show in Tuning… switches its params. On touch the ... menu starts with the purpose, and a tap on a port or param name shows its hint. Double-click or Enter on a card selects its node and pings the param.'
+        : 'Click a node to select it; the Node tab follows. Double-click or Enter on a card selects its node and fits the view.',
+    )
+    setNodeMenuAt(null)
+    setPickFor(null)
+  }, [one])
 
   // Show from the added toast: the new card scrolls into view and flashes.
   useEffect(() => {
@@ -1074,7 +1317,7 @@ export function ControlsPanelMock() {
   flatRef.current = flat
   const count = st.secs.reduce((n, x) => n + x.ids.length, 0)
   const tabs: TabKey[] = win !== 'none' && iface ? ['tuning', 'node', 'iface'] : ['tuning', 'node']
-  const cur: TabKey = tabs.includes(tab) ? tab : 'tuning'
+  const cur: TabKey = one ? 'tuning' : tabs.includes(tab) ? tab : 'tuning'
 
   // Section drags collapse every section for the drag, so only the gaps between headings are targets.
   const dragging = useRef<string | null>(null)
@@ -1145,6 +1388,7 @@ export function ControlsPanelMock() {
       else if (action === 'down') setSt((s) => moveCard(s, id, 1))
       else if (action.startsWith('to:')) setSt((s) => moveTo(s, id, action.slice(3)))
       else if (action === 'to-new') setDialog({ mode: 'add', moveId: id })
+      else if (action === 'show' && one) frame(c)
       else if (action === 'show') {
         setSel(c.node)
         setNote(`Show on node: selects ${c.nodeTitle} and fits the view. The Node tab follows; the drawer stays on Tuning.`)
@@ -1161,7 +1405,7 @@ export function ControlsPanelMock() {
       } else if (action === 'remove') {
         const before = st
         setSt((s) => ({ ...s, secs: without(s, id) }))
-        toast.show(`Removed ${effective(c)} from the Dashboard.`, { run: () => setSt(before), doc: null })
+        toast.show(`Removed ${effective(c)} from Tuning.`, { run: () => setSt(before), doc: null })
       }
     },
     section: (name, action) => {
@@ -1193,6 +1437,8 @@ export function ControlsPanelMock() {
   useLayoutEffect(() => {
     const read = () => {
       const drawer = document.querySelector('.cp-drawer')?.getBoundingClientRect()
+      // Model b's stand-in nodes stop above the bottom dock, so they stay reachable without panning.
+      document.documentElement.style.setProperty('--cp-dock', `${drawer && dock ? Math.round(drawer.height) : 0}px`)
       const label = document.querySelector('.cp-item-card .cp-label')?.getBoundingClientRect()
       const list = document.querySelector<HTMLElement>('.cp-tablist')
       const acts = document.querySelector('.cp-head-actions')?.getBoundingClientRect()
@@ -1214,7 +1460,11 @@ export function ControlsPanelMock() {
 
   const frame = (c: Ctl) => {
     setSel(c.node)
-    setNote(`Double-click / Enter: selects ${c.nodeTitle} on the canvas and fits the view.`)
+    if (one) {
+      setPing((p) => ({ id: c.id, n: (p?.n ?? 0) + 1 }))
+      requestAnimationFrame(() => document.querySelector(`[data-param="${CSS.escape(c.id)}"]`)?.scrollIntoView({ block: 'nearest' }))
+      setNote(`Double-click / Enter: selects ${c.nodeTitle}, fits the view and pings ${c.paramLabel} on the node.`)
+    } else setNote(`Double-click / Enter: selects ${c.nodeTitle} on the canvas and fits the view.`)
   }
 
   // Grabber steps: closed, half, full. Up and down keys or a vertical drag step one way, a click toggles half and full.
@@ -1299,7 +1549,7 @@ export function ControlsPanelMock() {
     ) : null
 
   // Variants b and d put Tuning's menu inside its own panel, not in the head.
-  const menuInPanel = tabsLook === 'row' || tabsLook === 'trad' || tabsLook === 'flush' || tabsLook === 'fill'
+  const menuInPanel = !one && (tabsLook === 'row' || tabsLook === 'trad' || tabsLook === 'flush' || tabsLook === 'fill')
   const headActions = (
     <div className="cp-head-actions">
       {menuInPanel ? null : panelMenu}
@@ -1367,7 +1617,7 @@ export function ControlsPanelMock() {
 
   return (
     <ActsContext.Provider value={acts}>
-      <div className="cp-root" data-drawer={drawerState} data-edge={closeAt === 'edge' || closeAt === 'tab' || undefined} data-close={closeAt} data-tabs={tabsLook} style={{ '--strip': `${STRIP}px` } as CSSProperties}>
+      <div className="cp-root" data-model={model} data-drawer={drawerState} data-edge={closeAt === 'edge' || closeAt === 'tab' || undefined} data-close={closeAt} data-tabs={tabsLook} style={{ '--strip': `${STRIP}px` } as CSSProperties}>
         <div className="cp-strip">
           <div className="cp-strip-row">
             <b>Controls panel mock</b>
@@ -1426,7 +1676,26 @@ export function ControlsPanelMock() {
             ))}
           </div>
           <div className="cp-strip-row">
-            <b>Tabs (e4bi.8)</b>
+            <b>Panels (e4bi.8)</b>
+            <label>
+              Panel model{' '}
+              <select value={model} onChange={(e) => setModel(e.target.value as 'one' | 'tabs')}>
+                <option value="one">b. Tuning only, add from the node</option>
+                <option value="tabs">a. Tuning and Node tabs</option>
+              </select>
+            </label>
+            {one ? (
+              <label>
+                Node without params{' '}
+                <select value={noParams} onChange={(e) => setNoParams(e.target.value as 'hide' | 'disable')}>
+                  <option value="hide">Show in Tuning hidden</option>
+                  <option value="disable">Show in Tuning disabled</option>
+                </select>
+              </label>
+            ) : null}
+            {/* Tabs-only switches, hidden under b (lessons/planning.md: hide, delete only when it slows the work). */}
+            {one ? null : (
+              <>
             <label>
               1 Tab strip{' '}
               <select value={tabsLook} onChange={(e) => setTabsLook(e.target.value as TabsLook)}>
@@ -1446,17 +1715,9 @@ export function ControlsPanelMock() {
               </select>
             </label>
             <label>
-              2 Tooltip field{' '}
-              <select value={tip} onChange={(e) => setTip(e.target.value as TipField)}>
-                <option value="area">a. Textarea, 3 rows</option>
-                <option value="line">b. One line</option>
-                <option value="grow">c. Grows with text</option>
-              </select>
-            </label>
-            <label>
               3 Param switch{' '}
               <select value={sw} onChange={(e) => setSw(e.target.value as SwitchLook)}>
-                <option value="toggle">a. Dashboard toggle</option>
+                <option value="toggle">a. Dashboard toggle (decided)</option>
                 <option value="check">c. Checkbox</option>
               </select>
             </label>
@@ -1476,9 +1737,27 @@ export function ControlsPanelMock() {
               </select>
             </label>
             <label>
+              6 Panels menu{' '}
+              <select value={win} onChange={(e) => setWin(e.target.value as WinMenu)}>
+                <option value="none">a. None, two tabs</option>
+                <option value="menu">b. Top-bar Panels menu</option>
+                <option value="view">c. In the canvas View menu</option>
+              </select>
+            </label>
+              </>
+            )}
+            <label>
+              2 Tooltip field{' '}
+              <select value={tip} onChange={(e) => setTip(e.target.value as TipField)}>
+                <option value="area">a. Textarea, 3 rows (recommended)</option>
+                <option value="line">b. One line</option>
+                <option value="grow">c. Grows with text</option>
+              </select>
+            </label>
+            <label>
               5 On switch-on{' '}
               <select value={added} onChange={(e) => setAdded(e.target.value as AddedCue)}>
-                <option value="none">a. Nothing</option>
+                <option value="none">a. Nothing (decided)</option>
                 <option value="toast">b. Toast with Show</option>
                 <option value="badge">c. Badge on Tuning</option>
               </select>
@@ -1492,14 +1771,6 @@ export function ControlsPanelMock() {
                 <option value="tab">Grab tab on the edge (decided)</option>
               </select>
             </label>
-            <label>
-              6 Panels menu{' '}
-              <select value={win} onChange={(e) => setWin(e.target.value as WinMenu)}>
-                <option value="none">a. None, two tabs</option>
-                <option value="menu">b. Top-bar Panels menu</option>
-                <option value="view">c. In the canvas View menu</option>
-              </select>
-            </label>
           </div>
         </div>
         <div className="cp-canvas" onClick={(e) => e.target === e.currentTarget && setSel(null)}>
@@ -1507,6 +1778,25 @@ export function ControlsPanelMock() {
             <div>{note}</div>
             <div className="cp-measure">{measure}</div>
           </div>
+          {one ? (
+            <div className="cp-snodes" onClick={(e) => e.target === e.currentTarget && setSel(null)}>
+              {Object.entries(NODES).map(([k, n]) => (
+                <StandInNode
+                  key={k}
+                  k={k}
+                  n={n}
+                  selected={sel === k}
+                  ping={ping}
+                  onSelect={() => setSel(k)}
+                  onMenu={(pt, t) => {
+                    setPickFor(null)
+                    setNodeMenuAt({ k, ...pt, touch: t })
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+          <>
           {/* Stand-in nodes: click selects, the dashed buttons stand for the node's canvas menu. */}
           <div className="cp-fnodes">
             {Object.entries(NODES).map(([k, n]) => (
@@ -1551,6 +1841,46 @@ export function ControlsPanelMock() {
               />
             </div>
           ) : null}
+          </>
+          )}
+          {nodeMenuAt ? (
+            <EditorPopup isOpen onClose={() => setNodeMenuAt(null)} label="Node actions" point={{ x: nodeMenuAt.x, y: nodeMenuAt.y }} key={`${nodeMenuAt.x},${nodeMenuAt.y}`}>
+              <NodeMenuMock
+                n={NODES[nodeMenuAt.k]}
+                touch={nodeMenuAt.touch}
+                noParams={noParams}
+                onClose={() => setNodeMenuAt(null)}
+                onPick={(id) => {
+                  const k = nodeMenuAt.k
+                  setNodeMenuAt(null)
+                  if (id === 'tuning') setPickFor(k)
+                  else setNote(`${id[0].toUpperCase()}${id.slice(1)}: unchanged from today, not part of this mock.`)
+                }}
+              />
+            </EditorPopup>
+          ) : null}
+          {pickFor ? (
+            <EditorPopup
+              isOpen
+              onClose={() => setPickFor(null)}
+              label="Show in Tuning"
+              // Beside the node so it does not read as part of it, by measured room (React Aria does not flip
+              // "right" when neither side fits); below the header only when neither side has room.
+              triggerRef={{ current: document.querySelector(`[data-node="${pickFor}"] .aurora-node-header`) }}
+              placement={pickPlacement(pickFor)}
+              key={pickFor}
+            >
+              <TuningPicker
+                k={pickFor}
+                n={NODES[pickFor]}
+                drawerOpen={open}
+                onOpenTuning={() => {
+                  setPickFor(null)
+                  openTab('tuning')
+                }}
+              />
+            </EditorPopup>
+          ) : null}
           {/* Dropped with the grab tab (owner, 2026-11-16): the tab reopens the drawer without a corner. */}
           {closeAt === 'tab' ? null : (
           <button
@@ -1581,7 +1911,14 @@ export function ControlsPanelMock() {
               </div>
             ) : null}
             <>
-              {tabsLook === 'row' ? (
+              {one ? (
+                <div className="ui-drawer-head cp-head cp-head-one">
+                  <h2 className="cp-one-title">
+                    Tuning{count ? <span className="cp-tab-count">{count}</span> : null}
+                  </h2>
+                  {headActions}
+                </div>
+              ) : tabsLook === 'row' ? (
                 <>
                   <div className="ui-drawer-head cp-head cp-head-slim">{headActions}</div>
                   {tabList}
@@ -1599,7 +1936,13 @@ export function ControlsPanelMock() {
                   {headActions}
                 </div>
               )}
-              <div role="tabpanel" id={`cp-panel-${cur}`} aria-labelledby={`cp-tab-${cur}`} className="ui-drawer-body cp-body" data-tabs={tabsLook}>
+              <div
+                role={one ? undefined : 'tabpanel'}
+                id={`cp-panel-${cur}`}
+                aria-labelledby={one ? undefined : `cp-tab-${cur}`}
+                className="ui-drawer-body cp-body"
+                data-tabs={one ? 'one' : tabsLook}
+              >
                 {cur === 'tuning' ? (
                 <div
                   // React Aria's row keys run in the capture phase; Enter on a focused card row is caught here.
@@ -1616,7 +1959,9 @@ export function ControlsPanelMock() {
                     </p>
                   ) : null}
                   {count === 0 && flat ? (
-                    <p className="cp-hint">None yet. Switch a param on in the Node tab.</p>
+                    <p className="cp-hint">
+                      {one ? 'No controls yet. Select a node, open its …, and choose Show in Tuning.' : 'None yet. Switch a param on in the Node tab.'}
+                    </p>
                   ) : (
                     <Tree
                       aria-label="Tuning"
