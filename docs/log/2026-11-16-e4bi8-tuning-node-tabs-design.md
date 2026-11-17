@@ -43,6 +43,23 @@ Id: e4bi8-tuning-node-tabs-design
 - Whether switching a param on shows a toast pointing at the new card.
 - The Window or panels menu, its name and items.
 
+## Mock (2026-11-16, later the same day)
+
+`web/graph-editor/controls-mock.html` now has the drawer with Tuning and Node tabs, the Node tab, the Edit control dialog and a second strip row of switches for the six bigger open items (tab strip, Tooltip field, param switch, touch, switch-on feedback, Panels menu) plus a Close switch. The old Details drawer and the Card editing switch are gone.
+
+Decided (owner):
+- Tab strip f, flush tabs at full width. Reached in steps: Grille pills in the head read as buttons (a, c); b copied RockyRoadImport's SongConverter (Grille `Tabs` as shipped: centred pills, a 3 px rule bled past the panel, 117 px of chrome) and still did not read as tabs; d drew traditional tabs on a black band (43 px); e moved them flush like VS Code's editor tabs but first lost the rounded shape, then left a gap above; f stretches e's two tabs across the width. Selected tab in the panel colour with flares, unselected darker (strip colour, outlined). Grille has no token for the strip step, so the mock mixes `popup-bg` and `surface-page`.
+- Close: Grab tab on the edge. The edge chevrons (`>` `<`, up and down) read as dropdowns and, at full dock height, overlapped the tabs. Research: VS Code puts maximize and close at the panel bar's right end (a chevron too) and uses layout icons for show and hide; Blender leaves an arrow tab on a hidden region's edge; JetBrains hides from the header and reopens from an edge icon bar; Material 3 sheets use a drag handle that a tap toggles. A 16 px grabber band inside the drawer worked but looked odd; a VS Code panel glyph on the side tab felt IDE-specific. The pick keeps the closed state's small tab in every state with 2 px borders, and turns the pill upright beside the side drawer.
+
+- Drop the corner Dashboard controls button. Its one job was opening the drawer, and the grab tab does that without claiming a corner. This reverses the stage 10 line that kept it this version (plan updated, epic noted). Entry points are now the grab tab (Tuning) and the canvas Details and Show on the Dashboard (Node).
+
+Open:
+- Side pill: it shows and hides only, while a grab pill suggests resize. Dragging the drawer's width with it would make the gesture honest.
+- The canvas View menu (`ViewMenu.tsx`) is labelled View but holds zoom, fit and the minimap, and its button shows the zoom. A View or Panels menu (switch 6) may rework it.
+- Still open in the mock: Tooltip field, param switch and Tuning column, touch path, switch-on feedback, Panels menu, and the smaller items (target param, empty states, tab memory, double-click over Node, Edit control layout).
+- Grille gaps met: no tabs that sit in a header (its `Tabs` couples list and panel; React Aria's `Tabs` threw "reading 'isDisabled'" when it wrapped the drawer's Tree and menus, so the mock hand-builds the tablist), no left chevron, no panel icon, no strip colour token.
+
 ## Verification
 
+- Mock: `tsc --noEmit` clean; headless Chromium (`tools/browser-check` helpers) screenshots and measured rects at 1100x800 and 360x800 for every variant, no page errors.
 - Design only. Code read: `DetailsDrawer.tsx`, `DetailsMock` and `ControlFields` in the mock, `editor.css` drawer rules, `forms.css` toggle switch, `ViewMenu.tsx`, `EditMenu.tsx`, `graph/types.ts`. Grille dev.16 exports read from `node_modules`.

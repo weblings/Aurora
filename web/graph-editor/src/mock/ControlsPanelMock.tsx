@@ -4,6 +4,7 @@ import {
   Collection,
   Input,
   Label,
+  TextArea,
   TextField as AriaTextField,
   DropIndicator,
   Tooltip as AriaTooltip,
@@ -18,7 +19,6 @@ import {
 import {
   Button,
   Dialog,
-  Select,
   StatusMessage,
   Icon,
   Menu,
@@ -28,6 +28,7 @@ import {
   SubmenuItem,
   chevronDownIcon,
   chevronRightIcon,
+  chevronUpIcon,
   circledInfoIcon,
   fullscreenArrowExitIcon,
   fullscreenArrowIcon,
@@ -72,10 +73,54 @@ const MOCK_TIPS: Record<string, string> = {
   'beat.bounceSmoothTime': 'How quickly a beat flash fades back.',
   'drift.fixedAnchorHue': 'The hue the palette drifts around.',
 }
-const NODE_PURPOSE: Record<string, string> = {
-  beat: 'Pulses brightness and colour on each detected beat.',
-  drift: 'Drifts the palette hue over time, pulled by the music.',
+// Node tab data (Aurora-e4bi.8): titles, summaries, ports and params from core AudioNodes.cpp. Wiring as builtin.audio.
+type Port = { dir: 'in' | 'out'; name: string; type: string; desc: string; peer?: string }
+type NodeInfo = { title: string; purpose: string; ports: Port[]; params: [string, string][] }
+const NODES: Record<string, NodeInfo> = {
+  feat: {
+    title: 'Audio features',
+    purpose: 'Measures beats, loudness and brightness of the sound.',
+    ports: [
+      { dir: 'in', name: 'buffer', type: 'AudioBuffer', desc: 'The audio buffer to analyze.', peer: 'Audio capture · buffer' },
+      { dir: 'out', name: 'features', type: 'AudioFeatures', desc: 'All extracted features as one struct, for audio.drift and audio.bounce.', peer: 'Palette drift · features, Beat bounce · features' },
+      { dir: 'out', name: 'rms', type: 'Float', desc: 'Overall loudness (RMS) 0..1.' },
+      { dir: 'out', name: 'onset', type: 'Trigger', desc: 'True for one tick on each detected beat or onset.' },
+      { dir: 'out', name: 'onsetStrength', type: 'Float', desc: 'How strong the last onset was; only meaningful when onset fires.' },
+      { dir: 'out', name: 'centroid', type: 'Float', desc: 'Spectral centroid in Hz, the brightness of the sound.' },
+    ],
+    params: [],
+  },
+  drift: {
+    title: 'Palette drift',
+    purpose: 'A color that slowly wanders over time.',
+    ports: [
+      { dir: 'in', name: 'features', type: 'AudioFeatures', desc: 'Audio features that speed the drift up on beats.', peer: 'Audio features · features' },
+      { dir: 'out', name: 'anchor', type: 'Angle', desc: 'The live anchor hue.', peer: 'Beat bounce · anchor' },
+    ],
+    params: [],
+  },
+  beat: {
+    title: 'Beat bounce',
+    purpose: "Beat-driven color that jumps around a base color.",
+    ports: [
+      { dir: 'in', name: 'features', type: 'AudioFeatures', desc: 'Audio features whose onsets trigger the bounce.', peer: 'Audio features · features' },
+      { dir: 'in', name: 'anchor', type: 'Angle', desc: 'The anchor hue the bounce moves around.', peer: 'Palette drift · anchor' },
+      { dir: 'out', name: 'color', type: 'Color', desc: 'The bouncing color.', peer: 'Lights · color' },
+    ],
+    params: [],
+  },
 }
+// Params in catalog order, labels from AUDIO.
+NODES.drift.params = [['fixedAnchorHue', 'Fixed hue'], ['driftBaseRateDegPerSec', 'Drift base rate'], ['centroidStrength', 'Centroid strength'], ['centroidRangeHz', 'Centroid range']]
+NODES.beat.params = [
+  ['bounceSmoothTime', 'Bounce smooth time'],
+  ['dynamismFloor', 'Dynamism floor'],
+  ['vibrancySaturation', 'Vibrancy saturation'],
+  ['vibrancyValue', 'Vibrancy value'],
+  ['referenceRms', 'Reference RMS'],
+  ['brightnessFloor', 'Brightness floor'],
+  ['brightnessSmoothTime', 'Brightness smooth time'],
+]
 
 function build(scn: Scenario): State {
   const ctls: Record<string, Ctl> = {}
@@ -165,12 +210,19 @@ function dropSection(s: State, name: string, target: string, pos: 'before' | 'af
   return normalize({ ...s, secs: rest })
 }
 
-type EditMode = 'details' | 'expand'
+// The six e4bi.8 decision switches. Each is one URL param on the second strip row.
+type TabsLook = 'head' | 'row' | 'body' | 'trad' | 'flush' | 'fill'
+type TipField = 'area' | 'line' | 'grow'
+type SwitchLook = 'toggle' | 'check'
+type TouchPath = 'tips' | 'info' | 'line'
+type AddedCue = 'none' | 'toast' | 'badge'
+type WinMenu = 'none' | 'menu' | 'view'
+
 type Acts = {
   state: State
   flat: boolean
   dock: boolean
-  edit: EditMode
+  flash: string | null
   patch: (id: string, p: Partial<Ctl>) => void
   newSection: (moveId: string) => void
   card: (id: string, action: string) => void
@@ -270,61 +322,6 @@ function SectionRow({ sec, rp }: { sec: Sec; rp: TreeItemContentRenderProps }) {
   )
 }
 
-const NEW_SECTION = 'New section…'
-
-// Saves on blur or Enter, as the editor's CommitInput does. Saving per keystroke renames the card while typing,
-// re-renders the row and throws the caret to the end.
-function CommitField({
-  label,
-  value,
-  placeholder,
-  inputRef,
-  onCommit,
-}: {
-  label: string
-  value: string
-  placeholder: string
-  inputRef?: React.Ref<HTMLInputElement>
-  onCommit: (v: string) => void
-}) {
-  const [draft, setDraft] = useState(value)
-  useEffect(() => setDraft(value), [value])
-  const commit = () => {
-    if (draft.trim() !== value) onCommit(draft.trim())
-  }
-  return (
-    <AriaTextField className="ui-field" value={draft} onChange={setDraft} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()}>
-      <Label className="ui-field-label">{label}</Label>
-      <Input ref={inputRef} className="ui-text-input" placeholder={placeholder} />
-    </AriaTextField>
-  )
-}
-
-// Option C's fields, shared by Details and the expanding card: Label and Tooltip as text, Section as a picker.
-// Keys stay inside, so the Tree's typeahead and arrow keys never take them.
-function ControlFields({ c, inputRef }: { c: Ctl; inputRef?: React.Ref<HTMLInputElement> }) {
-  const a = useActs()
-  const sec = a.state.secs.find((x) => x.ids.includes(c.id))
-  const names = a.state.secs.map((x) => secName(x.name))
-  return (
-    <div className="cp-fields ui-field-list" onKeyDown={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
-      <CommitField label="Label" value={c.label ?? ''} placeholder={c.paramLabel} inputRef={inputRef} onCommit={(v) => a.patch(c.id, { label: v || undefined })} />
-      {sec ? (
-        <Select
-          label="Section"
-          options={[...names, NEW_SECTION]}
-          value={secName(sec.name)}
-          onChange={(v) => {
-            if (v === NEW_SECTION) a.newSection(c.id)
-            else a.card(c.id, `to:${v === 'General' ? GENERAL : v}`)
-          }}
-        />
-      ) : null}
-      <CommitField label="Tooltip" value={c.tooltip ?? ''} placeholder="None" onCommit={(v) => a.patch(c.id, { tooltip: v || undefined })} />
-    </div>
-  )
-}
-
 function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
   const a = useActs()
   const ref = useRef<HTMLDivElement>(null)
@@ -336,8 +333,7 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
   const others = a.state.secs.filter((x) => x !== sec)
   const name = effective(c)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [open, setOpen] = useState(false)
-  const tipOpen = (hover || rp.isFocusVisible) && !rp.isDragging && !menuOpen && !open
+  const tipOpen = (hover || rp.isFocusVisible) && !rp.isDragging && !menuOpen
   const tipState = { isOpen: tipOpen, open: () => {}, close: () => setHover(false) }
   // One handler for both menu levels, guarded, since a submenu pick may reach both onActions.
   const done = useRef(false)
@@ -345,7 +341,7 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
     <div
       ref={ref}
       className="cp-card"
-      data-open={open || undefined}
+      data-flash={a.flash === c.id || undefined}
       onPointerEnter={() => {
         timer.current = window.setTimeout(() => setHover(true), 500)
       }}
@@ -367,7 +363,7 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
           }
           return (
             <Menu aria-label={`${name} actions`} onClose={close} onAction={(id) => id !== 'to' && pick(id)}>
-              <MenuItem id="rename">Rename…</MenuItem>
+              <MenuItem id="edit">Edit…</MenuItem>
               <MenuItem id="up" isDisabled={i === 0}>
                 Move up
               </MenuItem>
@@ -385,24 +381,12 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
               </SubmenuItem>
               <MenuSeparator />
               <MenuItem id="show">Show on node</MenuItem>
-              {a.edit === 'details' ? <MenuItem id="details">Edit in Details…</MenuItem> : null}
               <MenuSeparator />
               <MenuItem id="remove">Remove</MenuItem>
             </Menu>
           )
         }}
       </RowMenu>
-      {a.edit === 'expand' ? (
-        <AriaButton
-          className="ui-button cp-ghost cp-card-chev"
-          aria-label={open ? `Hide ${name} settings` : `Show ${name} settings`}
-          aria-expanded={open}
-          onPress={() => setOpen((o) => !o)}
-        >
-          <Icon icon={chevronDownIcon} size="sm" />
-        </AriaButton>
-      ) : null}
-      {a.edit === 'expand' && open ? <ControlFields c={c} /> : null}
       {/* RAC 1.22.1's standalone Tooltip reads only the trigger context, so it is supplied here. */}
       <TooltipTriggerStateContext.Provider value={tipState as never}>
         <AriaTooltip triggerRef={ref} isOpen={tipOpen} placement={a.dock ? 'top' : 'left'} offset={8} className="ui-tooltip">
@@ -415,59 +399,183 @@ function CardRow({ c, rp }: { c: Ctl; rp: TreeItemContentRenderProps }) {
   )
 }
 
-// The editor's Details drawer, reduced to its "Show on the Dashboard" list with option C's fields under each tick.
-// Opened from a card, it scrolls to that param and focuses its Label.
-function DetailsMock({
+// Hover after 500 ms, or keyboard focus inside the row, as the card's tooltip does.
+function useRowTip() {
+  const [hover, setHover] = useState(false)
+  const [focus, setFocus] = useState(false)
+  const timer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+  return {
+    open: hover || focus,
+    close: () => (setHover(false), setFocus(false)),
+    bind: {
+      onPointerEnter: () => {
+        timer.current = window.setTimeout(() => setHover(true), 500)
+      },
+      onPointerLeave: () => {
+        window.clearTimeout(timer.current)
+        setHover(false)
+      },
+      onFocus: (e: React.FocusEvent) => setFocus((e.target as HTMLElement).matches(':focus-visible')),
+      onBlur: () => setFocus(false),
+    },
+  }
+}
+
+function RowTooltip({ anchor, open, close, children }: { anchor: React.RefObject<HTMLElement | null>; open: boolean; close: () => void; children: ReactNode }) {
+  const a = useActs()
+  return (
+    <TooltipTriggerStateContext.Provider value={{ isOpen: open, open: () => {}, close } as never}>
+      <AriaTooltip triggerRef={anchor} isOpen={open} placement={a.dock ? 'top' : 'left'} offset={8} className="ui-tooltip">
+        {children}
+      </AriaTooltip>
+    </TooltipTriggerStateContext.Provider>
+  )
+}
+
+function InfoToggle({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
+  return (
+    <AriaButton className="ui-button cp-ghost" aria-label={`About ${label}`} aria-expanded={open} onPress={onToggle}>
+      <Icon icon={circledInfoIcon} size="sm" />
+    </AriaButton>
+  )
+}
+
+function PortRow({ p, touch }: { p: Port; touch: TouchPath }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const tip = useRowTip()
+  const [info, setInfo] = useState(false)
+  const peer = p.peer ? `${p.dir === 'in' ? 'From' : 'To'} ${p.peer}` : 'Not wired'
+  const sub = touch === 'line' || (touch === 'info' && info)
+  return (
+    <div className="cp-port-wrap">
+      <div ref={ref} className="cp-port" tabIndex={touch === 'info' ? undefined : 0} {...(touch === 'line' ? {} : tip.bind)}>
+        <span className="cp-port-dir">{p.dir === 'in' ? 'In' : 'Out'}</span>
+        <span className="cp-port-name">{p.name}</span>
+        <span className="cp-port-type">{p.type}</span>
+        {touch === 'info' ? <InfoToggle label={p.name} open={info} onToggle={() => setInfo((o) => !o)} /> : null}
+      </div>
+      {sub ? (
+        <div className="cp-row-sub">
+          {p.desc} {peer}.
+        </div>
+      ) : null}
+      {touch === 'line' ? null : (
+        <RowTooltip anchor={ref} open={tip.open} close={tip.close}>
+          <div>{p.desc}</div>
+          <div className="cp-tip-sub">{peer}</div>
+        </RowTooltip>
+      )}
+    </div>
+  )
+}
+
+function ParamRow({
   node,
   param,
-  top,
-  side,
-  onClose,
+  paramLabel,
+  sw,
+  touch,
+  inputRef,
+  onEdit,
 }: {
   node: string
   param: string
-  top: number
-  side: 'right' | 'bottom'
-  onClose: () => void
+  paramLabel: string
+  sw: SwitchLook
+  touch: TouchPath
+  inputRef?: React.Ref<HTMLInputElement>
+  onEdit: (id: string) => void
 }) {
   const a = useActs()
-  const rows = AUDIO.filter((r) => r[0] === node)
-  const label = useRef<HTMLInputElement>(null)
-  const target = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    target.current?.scrollIntoView({ block: 'center' })
-    label.current?.focus()
-  }, [node, param])
-  const ticked = (id: string) => a.state.secs.some((x) => x.ids.includes(id))
+  const id = `${node}.${param}`
+  const sec = a.state.secs.find((x) => x.ids.includes(id))
+  const c = a.state.ctls[id]
+  const on = !!sec
+  const ref = useRef<HTMLDivElement>(null)
+  const tip = useRowTip()
+  const [info, setInfo] = useState(false)
+  const where = on ? `In Tuning as "${effective(c)}", ${secName(sec.name)}.` : ''
+  const sub = on && (touch === 'line' || (touch === 'info' && info))
+  const input = (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      className={sw === 'check' ? 'cp-check' : undefined}
+      checked={on}
+      aria-label={`Show ${paramLabel} in Tuning`}
+      onChange={() => a.card(id, on ? 'remove' : 'tick')}
+    />
+  )
   return (
-    <section className="ui-drawer cp-drawer" data-side={side} style={{ '--ui-drawer-top': `${top}px` } as CSSProperties} aria-labelledby="cp-details-title">
-      <div className="ui-drawer-head cp-head">
-        <h2 id="cp-details-title" className="ui-drawer-title">
-          {rows[0]?.[1] ?? node}
-        </h2>
-        <Button icon aria-label="Close" onPress={onClose}>
-          <Icon icon={xMarkIcon} />
-        </Button>
+    <div className="cp-prow-wrap">
+      <div ref={ref} className="cp-card cp-prow" onDoubleClick={on ? () => onEdit(id) : undefined} {...(on && touch !== 'line' ? tip.bind : {})}>
+        <span className="cp-label">{paramLabel}</span>
+        {touch === 'info' && on ? <InfoToggle label={paramLabel} open={info} onToggle={() => setInfo((o) => !o)} /> : null}
+        {sw === 'toggle' ? (
+          <label className="toggle-switch">
+            {input}
+            <span className="toggle-knob" />
+          </label>
+        ) : (
+          input
+        )}
       </div>
-      <div className="ui-drawer-body cp-body drawer-details">
-        <p>{NODE_PURPOSE[node]}</p>
-        <h3>Show on the Dashboard</h3>
-        {rows.map(([, nodeTitle, p, paramLabel]) => {
-          const id = `${node}.${p}`
-          const c = a.state.ctls[id] ?? { id, node, nodeTitle, param: p, paramLabel }
-          const on = ticked(id)
-          return (
-            <div key={id} ref={p === param ? target : undefined} className="cp-details-param" data-target={p === param || undefined}>
-              <label className="drawer-check">
-                <input type="checkbox" checked={on} onChange={() => a.card(id, on ? 'remove' : 'tick')} />
-                {paramLabel}
-              </label>
-              {on ? <ControlFields c={c} inputRef={p === param ? label : undefined} /> : null}
-            </div>
-          )
-        })}
-      </div>
-    </section>
+      {sub ? <div className="cp-row-sub">{where}</div> : null}
+      {on && touch !== 'line' ? (
+        <RowTooltip anchor={ref} open={tip.open} close={tip.close}>
+          <div>{where}</div>
+          <div className="cp-tip-sub">Double-click to edit.</div>
+        </RowTooltip>
+      ) : null}
+    </div>
+  )
+}
+
+// Node tab (replaces Details): follows the canvas selection. Plain port rows are reference, outlined param rows
+// carry one action, the Tuning switch.
+function NodeTab({
+  node,
+  sw,
+  col,
+  touch,
+  focusNonce,
+  onFocused,
+  onEdit,
+}: {
+  node: string | null
+  sw: SwitchLook
+  col: boolean
+  touch: TouchPath
+  focusNonce: number
+  onFocused: () => void
+  onEdit: (id: string) => void
+}) {
+  const first = useRef<HTMLInputElement>(null)
+  // Show on the Dashboard focuses the first switch once, after the tab panel mounts.
+  useEffect(() => {
+    if (!focusNonce) return
+    const t = window.setTimeout(() => (first.current?.focus(), onFocused()), 0)
+    return () => window.clearTimeout(t)
+  }, [focusNonce, onFocused])
+  if (!node) return <p className="cp-hint">Select a node on the canvas to see its ports and params.</p>
+  const n = NODES[node]
+  return (
+    <div className="cp-node">
+      <h3 className="cp-node-title">{n.title}</h3>
+      <p className="cp-node-purpose">{n.purpose}</p>
+      <h4 className="cp-node-h">Ports</h4>
+      {n.ports.map((p) => (
+        <PortRow key={`${p.dir}${p.name}`} p={p} touch={touch} />
+      ))}
+      <h4 className="cp-node-h">
+        Params{col && n.params.length ? <span className="cp-node-col">Tuning</span> : null}
+      </h4>
+      {n.params.length === 0 ? <p className="cp-hint">No params.</p> : null}
+      {n.params.map(([p, label], i) => (
+        <ParamRow key={p} node={node} param={p} paramLabel={label} sw={sw} touch={touch} inputRef={i === 0 ? first : undefined} onEdit={onEdit} />
+      ))}
+    </div>
   )
 }
 
@@ -554,12 +662,12 @@ function sectionSpec(mode: 'add' | 'rename', taken: string[], initial = '', movi
   }
 }
 
-// Proposed: Rename on the card menu edits the control's own label. Empty falls back to the param's name.
+// Edit... on the card menu: the control's Label (empty falls back to the param's name) and Tooltip.
 function controlSpec(paramLabel: string, label: string, others: string[]): NameSpec {
   return {
-    title: 'Rename control',
-    confirm: 'Rename',
-    label: 'Control name',
+    title: 'Edit control',
+    confirm: 'Save',
+    label: 'Label',
     initial: label,
     allowEmpty: true,
     placeholder: paramLabel,
@@ -637,6 +745,76 @@ function NameForm({
   )
 }
 
+// The naming dialog's Edit control state: two fields, so both carry visible labels. Switch "Tooltip field"
+// compares a textarea stand-in (Grille's TextField has no multi-line form), one line, and a growing textarea.
+function EditControlForm({
+  c,
+  others,
+  err,
+  icon = 'top',
+  tip,
+  value,
+  autoFocus,
+  onConfirm,
+  onCancel,
+}: {
+  c: Ctl
+  others: string[]
+  err: ErrLook
+  icon?: IconAlign
+  tip: TipField
+  value?: { label: string; tooltip: string }
+  autoFocus?: boolean
+  onConfirm: (label: string, tooltip: string) => void
+  onCancel: () => void
+}) {
+  const spec = controlSpec(c.paramLabel, c.label ?? '', others)
+  const [label, setLabel] = useState(value?.label ?? c.label ?? '')
+  const [tooltip, setTooltip] = useState(value?.tooltip ?? c.tooltip ?? '')
+  const msg = spec.check(label.trim(), err === 'house')
+  return (
+    <form
+      className={`cp-gdialog cp-err-${err} cp-icon-${icon}`}
+      onSubmit={(e) => {
+        e.preventDefault()
+        onConfirm(label.trim(), tooltip.trim())
+      }}
+    >
+      <h3 className="cp-gdialog-title">Edit control</h3>
+      <AriaTextField className="cp-dfield" value={label} onChange={setLabel} autoFocus={autoFocus}>
+        <Label className="cp-dfield-label">Label</Label>
+        <Input className="ui-text-input" placeholder={c.paramLabel} />
+      </AriaTextField>
+      <StatusMessage tone={msg?.tone === 'warning' ? 'warning' : 'neutral'}>
+        {msg?.tone === 'notice' ? (
+          <>
+            <Icon icon={circledInfoIcon} />
+            {msg.text}
+          </>
+        ) : (
+          msg?.text
+        )}
+      </StatusMessage>
+      <AriaTextField className="cp-dfield" value={tooltip} onChange={setTooltip}>
+        <Label className="cp-dfield-label">Tooltip</Label>
+        {tip === 'line' ? (
+          <Input className="ui-text-input" placeholder="None" />
+        ) : (
+          <TextArea className={tip === 'grow' ? 'ui-text-input cp-textarea cp-grow' : 'ui-text-input cp-textarea'} rows={tip === 'grow' ? 1 : 3} placeholder="None" />
+        )}
+      </AriaTextField>
+      <div className="cp-gdialog-actions">
+        <Button size="action" onPress={onCancel}>
+          Cancel
+        </Button>
+        <Button size="action" variant="primary" type="submit">
+          Save
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 function NameDialogMock({
   spec,
   err,
@@ -673,11 +851,20 @@ const BOARD: { group: string; caption: string; spec: NameSpec; value?: string }[
   { group: 'Section', caption: 'Taken name: error, Create off', spec: sectionSpec('add', SECTIONS), value: 'sensitivity' },
   { group: 'Section', caption: 'General: error, Create off', spec: sectionSpec('add', SECTIONS), value: 'General' },
   { group: 'Section', caption: 'From a card: creates and moves in one step', spec: sectionSpec('add', SECTIONS, '', 'Vibrancy value'), value: 'Vibrancy' },
-  { group: 'Control (proposed)', caption: 'Empty: notice, Rename stays on (back to the param name)', spec: controlSpec('Vibrancy value', '', ['Fixed hue']), value: '' },
-  { group: 'Control (proposed)', caption: 'Shared name: warning (notice under project rules), Rename stays on', spec: controlSpec('Vibrancy value', '', ['Fixed hue']), value: 'Fixed hue' },
 ]
 
-function DialogBoard({ err, icon }: { err: ErrLook; icon: IconAlign }) {
+const BOARD_CTL: Ctl = { id: 'beat.vibrancyValue', node: 'beat', nodeTitle: 'Beat bounce', param: 'vibrancyValue', paramLabel: 'Vibrancy value' }
+const BOARD_EDIT: { caption: string; label: string; tooltip: string }[] = [
+  { caption: 'Empty label: notice, Save stays on (back to the param name)', label: '', tooltip: '' },
+  { caption: 'Shared label: warning (notice under project rules), Save stays on', label: 'Fixed hue', tooltip: '' },
+  {
+    caption: 'Long tooltip',
+    label: 'Loud brightness',
+    tooltip: 'How bright the lights get on the loudest passages. Lower it if loud songs wash the room out, raise it if quiet rooms look dim.',
+  },
+]
+
+function DialogBoard({ err, icon, tip }: { err: ErrLook; icon: IconAlign; tip: TipField }) {
   return (
     <div className="cp-board">
       {BOARD.map((b, i) => (
@@ -690,14 +877,131 @@ function DialogBoard({ err, icon }: { err: ErrLook; icon: IconAlign }) {
           </div>
         </figure>
       ))}
+      {BOARD_EDIT.map((b, i) => (
+        <figure key={`e${err}${icon}${tip}${i}`} className="cp-board-item">
+          <figcaption>
+            <b>Edit control</b> · {b.caption}
+          </figcaption>
+          <div className="ui-modal">
+            <EditControlForm c={BOARD_CTL} others={['Fixed hue']} err={err} icon={icon} tip={tip} value={b} onConfirm={() => {}} onCancel={() => {}} />
+          </div>
+        </figure>
+      ))}
     </div>
   )
 }
 
 type Node = { key: string; sec?: Sec; ctl?: Ctl; children?: Node[] }
 type DialogState = { mode: 'add' | 'rename'; name?: string; moveId?: string }
+type TabKey = 'tuning' | 'node' | 'iface'
 
-const STRIP = 48
+// Two strip rows: e4bi.1's switches, then e4bi.8's.
+const STRIP = 80
+// Height of the grab tab that sits above the docked drawer (Close: Grab tab).
+const GRAB_TAB = 24
+const pick = <T extends string>(v: string | null, opts: readonly T[]): T => (opts.includes(v as T) ? (v as T) : opts[0])
+
+// Panel glyph for the side drawer's edge tab, after VS Code's layout toggles: a window with its right column
+// filled while the panel shows, outlined while hidden. Grille has no panel icon, so it is drawn here.
+function PanelGlyph({ on }: { on: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" />
+      <rect x="9.5" y="2.5" width="5" height="11" fill={on ? 'currentColor' : 'none'} stroke="currentColor" />
+    </svg>
+  )
+}
+
+// Docked drawer's grab handle, after Material 3's bottom sheet drag handle: a pill on the drawer's own top band, so
+// it never overlaps the tabs. Drag or Up/Down to step heights; click toggles half and full. The corner button is the
+// one-click close (WCAG 2.5.7 alternative to dragging down).
+// Side drawer (vertical): the pill turns upright; drag or Left/Right shows and hides, click toggles.
+function Grabber({
+  full,
+  closed,
+  vertical,
+  onStep,
+}: {
+  full: boolean
+  closed?: boolean
+  vertical?: boolean
+  onStep: (dir: 1 | -1 | 0) => void
+}) {
+  const start = useRef<number | null>(null)
+  const moved = useRef(false)
+  const label = vertical
+    ? closed
+      ? 'Show panels'
+      : 'Hide panels'
+    : closed
+      ? 'Show panels'
+      : full
+        ? 'Panel height: full. Press for half height'
+        : 'Panel height: half. Press for full height'
+  const pos = (e: React.PointerEvent) => (vertical ? e.clientX : e.clientY)
+  return (
+    <button
+      type="button"
+      className={vertical ? 'cp-grabber cp-grabber-v' : 'cp-grabber'}
+      aria-label={label}
+      title={vertical ? (closed ? 'Show panels' : 'Hide panels. Drag right to hide') : closed ? 'Show panels' : 'Drag to resize. Click to toggle full height'}
+      onPointerDown={(e) => {
+        start.current = pos(e)
+        moved.current = false
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerUp={(e) => {
+        const dy = start.current === null ? 0 : pos(e) - start.current
+        start.current = null
+        if (Math.abs(dy) > 40) {
+          moved.current = true
+          onStep(dy < 0 ? 1 : -1)
+        }
+      }}
+      onClick={() => {
+        if (!moved.current) onStep(0)
+      }}
+      onKeyDown={(e) => {
+        const grow = vertical ? 'ArrowLeft' : 'ArrowUp'
+        const shrink = vertical ? 'ArrowRight' : 'ArrowDown'
+        if (e.key === grow || e.key === shrink) {
+          e.preventDefault()
+          onStep(e.key === grow ? 1 : -1)
+        }
+      }}
+    >
+      <span className="cp-grabber-pill" />
+    </button>
+  )
+}
+
+// A text-labelled menu button for the canvas stand-ins (top bar Panels menu, corner View menu).
+function TextMenu({ label, items, onPick }: { label: string; items: [string, string][]; onPick: (id: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLButtonElement>(null)
+  const close = () => setOpen(false)
+  return (
+    <>
+      <AriaButton ref={ref} className="ui-button" aria-haspopup="menu" aria-expanded={open} onPress={() => setOpen((o) => !o)}>
+        {label} <Icon icon={chevronDownIcon} size="sm" />
+      </AriaButton>
+      <EditorPopup isOpen={open} onClose={close} label={label} triggerRef={ref} placement="bottom start">
+        <Dialog aria-label={label}>
+          <Menu
+            aria-label={label}
+            onClose={close}
+            onAction={(id) => {
+              close()
+              onPick(String(id))
+            }}
+          >
+            {items.map(([id, text]) => (id === '-' ? <MenuSeparator key={text} /> : <MenuItem key={id} id={id}>{text}</MenuItem>))}
+          </Menu>
+        </Dialog>
+      </EditorPopup>
+    </>
+  )
+}
 
 export function ControlsPanelMock() {
   const params = new URLSearchParams(location.search)
@@ -706,25 +1010,57 @@ export function ControlsPanelMock() {
   const [view, setView] = useState(params.get('view') === 'board' ? 'board' : 'panel')
   const [err, setErr] = useState<ErrLook>(params.get('err') === 'raised' ? 'raised' : params.get('err') === 'house' ? 'house' : 'tint')
   const [icon, setIcon] = useState<IconAlign>(params.get('icon') === 'centre' ? 'centre' : 'top')
-  const [edit, setEdit] = useState<EditMode>(params.get('edit') === 'expand' ? 'expand' : 'details')
-  const [details, setDetails] = useState<{ node: string; param: string } | null>(null)
+  // e4bi.8 decisions, first option is the default.
+  const [tabsLook, setTabsLook] = useState<TabsLook>(pick(params.get('tabs'), ['fill', 'head', 'row', 'body', 'trad', 'flush'] as const))
+  const [nodeMenu, setNodeMenu] = useState(pick(params.get('nmenu'), ['hide', 'disable'] as const))
+  const [tip, setTip] = useState<TipField>(pick(params.get('tip'), ['area', 'line', 'grow'] as const))
+  const [sw, setSw] = useState<SwitchLook>(pick(params.get('sw'), ['toggle', 'check'] as const))
+  const [col, setCol] = useState(pick(params.get('col'), ['show', 'hide'] as const))
+  const [touch, setTouch] = useState<TouchPath>(pick(params.get('touch'), ['tips', 'info', 'line'] as const))
+  const [added, setAdded] = useState<AddedCue>(pick(params.get('added'), ['none', 'toast', 'badge'] as const))
+  const [win, setWin] = useState<WinMenu>(pick(params.get('win'), ['none', 'menu', 'view'] as const))
+  const [closeAt, setCloseAt] = useState(pick(params.get('close'), ['tab', 'head', 'edge', 'grab'] as const))
+  const [tab, setTab] = useState<TabKey>('tuning')
+  const [iface, setIface] = useState(false)
+  const [sel, setSel] = useState<string | null>('beat')
+  const [focusNonce, setFocusNonce] = useState(0)
+  const [flash, setFlash] = useState<string | null>(null)
+  const [fresh, setFresh] = useState(0)
+  const [addToast, setAddToast] = useState<{ id: string; text: string } | null>(null)
   const [ctlDialog, setCtlDialog] = useState<string | null>(null)
   const [st, setSt] = useState(() => build(scn))
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(true)
   const [full, setFull] = useState(false)
   const [dialog, setDialog] = useState<DialogState | null>(null)
-  const [note, setNote] = useState('Double-click or Enter on a card stands for selecting its node on the canvas. A single click does nothing.')
+  const [note, setNote] = useState('Click a node to select it; the Node tab follows. Double-click or Enter on a card selects its node and fits the view.')
   const [measure, setMeasure] = useState('')
   // Aurora-daaa.37: docks only below 650 px (was also portrait windows).
   const dock = useMedia('(max-width: 649px)')
   const toast = useToast()
-  const body = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const q = new URLSearchParams({ data: scn, head, view, err, icon, edit })
+    const q = new URLSearchParams({ data: scn, head, view, err, icon, tabs: tabsLook, nmenu: nodeMenu, tip, sw, col, touch, added, win, close: closeAt })
     history.replaceState(null, '', `?${q}`)
-  }, [scn, head, view, err, icon, edit])
+  }, [scn, head, view, err, icon, tabsLook, nodeMenu, tip, sw, col, touch, added, win, closeAt])
+
+  // Show from the added toast: the new card scrolls into view and flashes.
+  useEffect(() => {
+    if (!flash) return
+    requestAnimationFrame(() => document.querySelector(`[data-key="c:${CSS.escape(flash)}"]`)?.scrollIntoView({ block: 'nearest' }))
+    const t = window.setTimeout(() => setFlash(null), 1600)
+    return () => window.clearTimeout(t)
+  }, [flash, tab])
+  useEffect(() => {
+    if (!addToast) return
+    const t = window.setTimeout(() => setAddToast(null), 4000)
+    return () => window.clearTimeout(t)
+  }, [addToast])
+  useEffect(() => {
+    if (!fresh) return
+    const t = window.setTimeout(() => setFresh(0), 2500)
+    return () => window.clearTimeout(t)
+  }, [fresh])
 
   const reset = (next: Scenario) => {
     setScn(next)
@@ -737,6 +1073,8 @@ export function ControlsPanelMock() {
   const flatRef = useRef(flat)
   flatRef.current = flat
   const count = st.secs.reduce((n, x) => n + x.ids.length, 0)
+  const tabs: TabKey[] = win !== 'none' && iface ? ['tuning', 'node', 'iface'] : ['tuning', 'node']
+  const cur: TabKey = tabs.includes(tab) ? tab : 'tuning'
 
   // Section drags collapse every section for the drag, so only the gaps between headings are targets.
   const dragging = useRef<string | null>(null)
@@ -787,11 +1125,18 @@ export function ControlsPanelMock() {
     ),
   })
 
+  const showCard = (id: string) => {
+    setAddToast(null)
+    setTab('tuning')
+    setCollapsed((c) => new Set([...c].filter((n) => n !== GENERAL)))
+    setFlash(id)
+  }
+
   const acts: Acts = {
     state: st,
     flat,
     dock,
-    edit,
+    flash,
     patch: (id, p) => setSt((s) => ({ ...s, ctls: { ...s.ctls, [id]: { ...s.ctls[id], ...p } } })),
     newSection: (moveId) => setDialog({ mode: 'add', moveId }),
     card: (id, action) => {
@@ -800,20 +1145,20 @@ export function ControlsPanelMock() {
       else if (action === 'down') setSt((s) => moveCard(s, id, 1))
       else if (action.startsWith('to:')) setSt((s) => moveTo(s, id, action.slice(3)))
       else if (action === 'to-new') setDialog({ mode: 'add', moveId: id })
-      else if (action === 'show') setNote(`Show on node: selects ${c.nodeTitle} and fits the view.`)
-      else if (action === 'rename') setCtlDialog(id)
-      else if (action === 'details') {
-        setOpen(false)
-        setDetails({ node: c.node, param: c.param })
-      } else if (action === 'tick') {
-        // A param never ticked before gets its control here, as addControl does: appended to General.
+      else if (action === 'show') {
+        setSel(c.node)
+        setNote(`Show on node: selects ${c.nodeTitle} and fits the view. The Node tab follows; the drawer stays on Tuning.`)
+      } else if (action === 'edit') setCtlDialog(id)
+      else if (action === 'tick') {
+        // A param never switched on before gets its control here, as addControl does: appended to General.
         const row = AUDIO.find((r) => `${r[0]}.${r[2]}` === id)!
         setSt((s) => ({
           ctls: s.ctls[id] ? s.ctls : { ...s.ctls, [id]: { id, node: row[0], nodeTitle: row[1], param: row[2], paramLabel: row[3] } },
           secs: s.secs.map((x) => (x.name === GENERAL ? { ...x, ids: [...x.ids, id] } : x)),
         }))
-      }
-      else if (action === 'remove') {
+        if (added === 'toast') setAddToast({ id, text: `Added ${row[3]} to Tuning, General.` })
+        else if (added === 'badge') setFresh((n) => n + 1)
+      } else if (action === 'remove') {
         const before = st
         setSt((s) => ({ ...s, secs: without(s, id) }))
         toast.show(`Removed ${effective(c)} from the Dashboard.`, { run: () => setSt(before), doc: null })
@@ -842,19 +1187,23 @@ export function ControlsPanelMock() {
   const expandedKeys = new Set(st.secs.filter((x) => !collapsed.has(x.name)).map((x) => `s:${x.name}`))
 
   const side = dock ? 'bottom' : 'right'
-  const drawerState = !open && !details ? 'closed' : dock ? (full ? 'full' : 'bottom') : 'right'
+  const drawerState = !open ? 'closed' : dock ? (full ? 'full' : 'bottom') : 'right'
 
   // Measured, not assumed (lessons/planning.md "Draw windows at true height").
   useLayoutEffect(() => {
     const read = () => {
       const drawer = document.querySelector('.cp-drawer')?.getBoundingClientRect()
-      const label = document.querySelector('.cp-label')?.getBoundingClientRect()
-      const name = document.querySelector('.cp-sec-name')?.parentElement?.getBoundingClientRect()
+      const label = document.querySelector('.cp-item-card .cp-label')?.getBoundingClientRect()
+      const list = document.querySelector<HTMLElement>('.cp-tablist')
+      const acts = document.querySelector('.cp-head-actions')?.getBoundingClientRect()
+      const tabsText = list
+        ? ` · tabs ${list.scrollWidth} px${list.scrollWidth > list.clientWidth ? ` in ${list.clientWidth} (overflows)` : ''}` + (acts ? `, head actions ${Math.round(acts.width)} px` : '')
+        : ''
       setMeasure(
         drawer
           ? `window ${innerWidth}x${innerHeight} · drawer ${Math.round(drawer.width)}x${Math.round(drawer.height)}` +
-              (label ? ` · card label room ${Math.round(label.width)} px` : '') +
-              (name ? ` · heading ${Math.round(name.width)} px` : '')
+              tabsText +
+              (label ? ` · card label room ${Math.round(label.width)} px` : '')
           : `window ${innerWidth}x${innerHeight} · drawer closed`,
       )
     }
@@ -863,7 +1212,28 @@ export function ControlsPanelMock() {
     return () => removeEventListener('resize', read)
   })
 
-  const frame = (c: Ctl) => setNote(`Double-click / Enter: selects ${c.nodeTitle} on the canvas and fits the view.`)
+  const frame = (c: Ctl) => {
+    setSel(c.node)
+    setNote(`Double-click / Enter: selects ${c.nodeTitle} on the canvas and fits the view.`)
+  }
+
+  // Grabber steps: closed, half, full. Up and down keys or a vertical drag step one way, a click toggles half and full.
+  const stepDock = (dir: 1 | -1 | 0) => {
+    if (dir === 0) {
+      if (!open) openTab('tuning')
+      else setFull((f) => !f)
+    } else if (dir === 1) {
+      if (!open) openTab('tuning')
+      else setFull(true)
+    } else if (full) setFull(false)
+    else setOpen(false)
+  }
+
+  const openTab = (t: TabKey) => {
+    if (t === 'iface') setIface(true)
+    setOpen(true)
+    setTab(t)
+  }
 
   const popup = (w: number, h: number) => {
     window.open(`${location.pathname}${location.search}`, `cp${w}x${h}`, `width=${w},height=${h}`)
@@ -891,174 +1261,460 @@ export function ControlsPanelMock() {
           : undefined
       }
       onDoubleClick={n.ctl ? () => frame(n.ctl!) : undefined}
-
     >
       <TreeItemContent>{(rp) => (n.sec ? <SectionRow sec={n.sec} rp={rp} /> : <CardRow c={n.ctl!} rp={rp} />)}</TreeItemContent>
       {n.children ? <Collection items={n.children}>{renderItem}</Collection> : null}
     </TreeItem>
   )
 
+  const panelMenu =
+    cur === 'tuning' ? (
+      <RowMenu label="Tuning actions" big>
+        {(close) => (
+          <Menu
+            aria-label="Tuning actions"
+            onClose={close}
+            onAction={(id) => {
+              close()
+              if (id === 'add') setDialog({ mode: 'add' })
+              else if (id === 'collapse') setCollapsed(new Set(st.secs.map((x) => x.name)))
+              else if (id === 'expand') setCollapsed(new Set())
+            }}
+          >
+            <MenuItem id="add">Add section…</MenuItem>
+            <MenuSeparator />
+            <MenuItem id="collapse" isDisabled={flat}>
+              Collapse all
+            </MenuItem>
+            <MenuItem id="expand" isDisabled={flat}>
+              Expand all
+            </MenuItem>
+          </Menu>
+        )}
+      </RowMenu>
+    ) : nodeMenu === 'disable' ? (
+      <AriaButton className="ui-button cp-ghost cp-ghost-big" aria-label="No actions for this tab" isDisabled>
+        <Icon icon={menuHorizontalIcon} size="sm" />
+      </AriaButton>
+    ) : null
+
+  // Variants b and d put Tuning's menu inside its own panel, not in the head.
+  const menuInPanel = tabsLook === 'row' || tabsLook === 'trad' || tabsLook === 'flush' || tabsLook === 'fill'
+  const headActions = (
+    <div className="cp-head-actions">
+      {menuInPanel ? null : panelMenu}
+      {head === 'x' && panelMenu && !menuInPanel && closeAt === 'head' ? <span className="cp-head-rule" aria-hidden="true" /> : null}
+      {closeAt !== 'head' ? null : dock ? (
+        <Button icon aria-label={full ? 'Half height' : 'Full height'} onPress={() => setFull((f) => !f)}>
+          <Icon icon={full ? fullscreenArrowExitIcon : fullscreenArrowIcon} />
+        </Button>
+      ) : null}
+      {closeAt !== 'head' ? null : (
+        <Button icon aria-label="Close" onPress={() => setOpen(false)}>
+          <Icon icon={head === 'x' ? xMarkIcon : dock ? chevronDownIcon : chevronRightIcon} />
+        </Button>
+      )}
+    </div>
+  )
+
+  // Hand-built tablist on Grille's .ui-tab look: Grille's Tabs couples list and panel, and React Aria's Tabs
+  // threw on load ("reading 'isDisabled'") when it wrapped the drawer's Tree and menus.
+  const TAB_NAMES: Record<TabKey, string> = { tuning: 'Tuning', node: 'Node', iface: 'Interface' }
+  const tabList = (
+    <div
+      role="tablist"
+      aria-label="Panels"
+      className={`cp-tablist ${tabsLook === 'row' ? 'ui-tab-list cp-tabs cp-tabs-b' : tabsLook === 'trad' ? 'cp-tabs-d' : tabsLook === 'flush' ? 'cp-tabs-d cp-tabs-e' : tabsLook === 'fill' ? 'cp-tabs-d cp-tabs-e cp-tabs-f' : 'cp-tabs'}`}
+      onKeyDown={(e) => {
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+        if (!step) return
+        const next = tabs[(tabs.indexOf(cur) + step + tabs.length) % tabs.length]
+        setTab(next)
+        document.getElementById(`cp-tab-${next}`)?.focus()
+      }}
+    >
+      {tabs.map((t) => (
+        <button
+          key={t}
+          type="button"
+          role="tab"
+          id={`cp-tab-${t}`}
+          aria-selected={cur === t}
+          aria-controls={`cp-panel-${t}`}
+          tabIndex={cur === t ? 0 : -1}
+          data-selected={cur === t || undefined}
+          className={tabsLook === 'row' ? 'ui-tab' : tabsLook === 'trad' ? 'cp-tab-d' : tabsLook === 'flush' || tabsLook === 'fill' ? 'cp-tab-d' : 'ui-tab cp-tab'}
+          onClick={() => setTab(t)}
+        >
+          {TAB_NAMES[t]}
+          {t === 'tuning' && tabsLook !== 'body' && count ? <span className="cp-tab-count">{count}</span> : null}
+          {t === 'tuning' && fresh ? (
+            <span key={fresh} className="cp-tab-fresh">
+              +{fresh}
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  )
+
+  const panelsItems: [string, string][] = [
+    ['tuning', 'Tuning'],
+    ['node', 'Node'],
+    ['-', 's1'],
+    ['iface', 'Interface (sub-graph)'],
+  ]
+
   return (
     <ActsContext.Provider value={acts}>
-      <div className="cp-root" data-drawer={drawerState}>
+      <div className="cp-root" data-drawer={drawerState} data-edge={closeAt === 'edge' || closeAt === 'tab' || undefined} data-close={closeAt} data-tabs={tabsLook} style={{ '--strip': `${STRIP}px` } as CSSProperties}>
         <div className="cp-strip">
-          <b>Controls panel mock</b>
-          <label>
-            Data{' '}
-            <select value={scn} onChange={(e) => reset(e.target.value as Scenario)}>
-              <option value="audio">Audio preset (11)</option>
-              <option value="long">Long names</option>
-              <option value="general">General only (4)</option>
-              <option value="empty">Empty</option>
-            </select>
-          </label>
-          <label>
-            Head{' '}
-            <select value={head} onChange={(e) => setHead(e.target.value)}>
-              <option value="x">x with divider</option>
-              <option value="chevron">Chevron close</option>
-            </select>
-          </label>
-          <label>
-            View{' '}
-            <select value={view} onChange={(e) => setView(e.target.value)}>
-              <option value="panel">Panel</option>
-              <option value="board">Dialog states</option>
-            </select>
-          </label>
-          <label>
-            Error{' '}
-            <select value={err} onChange={(e) => setErr(e.target.value as ErrLook)}>
-              <option value="tint">Tinted card</option>
-              <option value="raised">Raised card</option>
-              <option value="house">Project rules</option>
-            </select>
-          </label>
-          <label>
-            Icon{' '}
-            <select value={icon} onChange={(e) => setIcon(e.target.value as IconAlign)}>
-              <option value="top">First line (Grille)</option>
-              <option value="centre">Centred</option>
-            </select>
-          </label>
-          <label>
-            Card editing{' '}
-            <select value={edit} onChange={(e) => setEdit(e.target.value as EditMode)}>
-              <option value="details">Edit in Details (B)</option>
-              <option value="expand">Expanding card</option>
-            </select>
-          </label>
-          <button type="button" onClick={() => reset(scn)}>
-            Reset
-          </button>
-          <span>Popups:</span>
-          {[
-            [1100, 800],
-            [700, 800],
-            [400, 800],
-            [360, 800],
-            [900, 1400],
-          ].map(([w, h]) => (
-            <a key={w} href="#" onClick={(e) => (e.preventDefault(), popup(w, h))}>
-              {w}x{h}
-            </a>
-          ))}
+          <div className="cp-strip-row">
+            <b>Controls panel mock</b>
+            <label>
+              Data{' '}
+              <select value={scn} onChange={(e) => reset(e.target.value as Scenario)}>
+                <option value="audio">Audio preset (11)</option>
+                <option value="long">Long names</option>
+                <option value="general">General only (4)</option>
+                <option value="empty">Empty</option>
+              </select>
+            </label>
+            <label>
+              Head{' '}
+              <select value={head} onChange={(e) => setHead(e.target.value)}>
+                <option value="x">x with divider</option>
+                <option value="chevron">Chevron close</option>
+              </select>
+            </label>
+            <label>
+              View{' '}
+              <select value={view} onChange={(e) => setView(e.target.value)}>
+                <option value="panel">Panel</option>
+                <option value="board">Dialog states</option>
+              </select>
+            </label>
+            <label>
+              Error{' '}
+              <select value={err} onChange={(e) => setErr(e.target.value as ErrLook)}>
+                <option value="tint">Tinted card</option>
+                <option value="raised">Raised card</option>
+                <option value="house">Project rules</option>
+              </select>
+            </label>
+            <label>
+              Icon{' '}
+              <select value={icon} onChange={(e) => setIcon(e.target.value as IconAlign)}>
+                <option value="top">First line (Grille)</option>
+                <option value="centre">Centred</option>
+              </select>
+            </label>
+            <button type="button" onClick={() => reset(scn)}>
+              Reset
+            </button>
+            <span>Popups:</span>
+            {[
+              [1100, 800],
+              [700, 800],
+              [400, 800],
+              [360, 800],
+              [900, 1400],
+            ].map(([w, h]) => (
+              <a key={w} href="#" onClick={(e) => (e.preventDefault(), popup(w, h))}>
+                {w}x{h}
+              </a>
+            ))}
+          </div>
+          <div className="cp-strip-row">
+            <b>Tabs (e4bi.8)</b>
+            <label>
+              1 Tab strip{' '}
+              <select value={tabsLook} onChange={(e) => setTabsLook(e.target.value as TabsLook)}>
+                <option value="head">a. Tabs in the head, count on Tuning</option>
+                <option value="row">b. Tabs on their own row</option>
+                <option value="body">c. No count on the tab</option>
+                <option value="trad">d. Traditional tabs</option>
+                <option value="flush">e. Flush tabs (VS Code)</option>
+                <option value="fill">f. Flush tabs, full width (decided)</option>
+              </select>
+            </label>
+            <label>
+              … on Node{' '}
+              <select value={nodeMenu} onChange={(e) => setNodeMenu(e.target.value as 'hide' | 'disable')}>
+                <option value="hide">Hidden</option>
+                <option value="disable">Disabled</option>
+              </select>
+            </label>
+            <label>
+              2 Tooltip field{' '}
+              <select value={tip} onChange={(e) => setTip(e.target.value as TipField)}>
+                <option value="area">a. Textarea, 3 rows</option>
+                <option value="line">b. One line</option>
+                <option value="grow">c. Grows with text</option>
+              </select>
+            </label>
+            <label>
+              3 Param switch{' '}
+              <select value={sw} onChange={(e) => setSw(e.target.value as SwitchLook)}>
+                <option value="toggle">a. Dashboard toggle</option>
+                <option value="check">c. Checkbox</option>
+              </select>
+            </label>
+            <label>
+              Tuning column{' '}
+              <select value={col} onChange={(e) => setCol(e.target.value as 'show' | 'hide')}>
+                <option value="show">Shown</option>
+                <option value="hide">Hidden</option>
+              </select>
+            </label>
+            <label>
+              4 Touch{' '}
+              <select value={touch} onChange={(e) => setTouch(e.target.value as TouchPath)}>
+                <option value="tips">a. Tooltips only</option>
+                <option value="info">b. (i) per row</option>
+                <option value="line">c. Second line</option>
+              </select>
+            </label>
+            <label>
+              5 On switch-on{' '}
+              <select value={added} onChange={(e) => setAdded(e.target.value as AddedCue)}>
+                <option value="none">a. Nothing</option>
+                <option value="toast">b. Toast with Show</option>
+                <option value="badge">c. Badge on Tuning</option>
+              </select>
+            </label>
+            <label>
+              Close{' '}
+              <select value={closeAt} onChange={(e) => setCloseAt(e.target.value as 'head' | 'edge' | 'grab' | 'tab')}>
+                <option value="head">x and full height in the head</option>
+                <option value="edge">Edge control</option>
+                <option value="grab">Grabber and panel icon</option>
+                <option value="tab">Grab tab on the edge (decided)</option>
+              </select>
+            </label>
+            <label>
+              6 Panels menu{' '}
+              <select value={win} onChange={(e) => setWin(e.target.value as WinMenu)}>
+                <option value="none">a. None, two tabs</option>
+                <option value="menu">b. Top-bar Panels menu</option>
+                <option value="view">c. In the canvas View menu</option>
+              </select>
+            </label>
+          </div>
         </div>
-        <div className="cp-canvas">
+        <div className="cp-canvas" onClick={(e) => e.target === e.currentTarget && setSel(null)}>
           <div className="cp-note">
             <div>{note}</div>
             <div className="cp-measure">{measure}</div>
           </div>
-          <button type="button" className="ui-button cp-corner" onClick={() => {
-              setDetails(null)
-              setOpen((o) => !o)
+          {/* Stand-in nodes: click selects, the dashed buttons stand for the node's canvas menu. */}
+          <div className="cp-fnodes">
+            {Object.entries(NODES).map(([k, n]) => (
+              <div key={k} className="cp-fnode-wrap">
+                <button type="button" className="cp-fnode" data-selected={sel === k || undefined} onClick={() => setSel(k)}>
+                  {n.title}
+                </button>
+                {sel === k ? (
+                  <div className="cp-fnode-menu">
+                    <button type="button" onClick={() => openTab('node')}>
+                      Details
+                    </button>
+                    {n.params.length ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openTab('node')
+                          setFocusNonce((x) => x + 1)
+                        }}
+                      >
+                        Show on the Dashboard
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          {win === 'menu' ? (
+            <div className="cp-topbar">
+              <span className="cp-topbar-stub">Undo · Redo · Title</span>
+              <TextMenu label="Panels" items={panelsItems} onPick={(id) => openTab(id as TabKey)} />
+              <span className="cp-topbar-stub">Test</span>
+            </div>
+          ) : null}
+          {win === 'view' ? (
+            <div className="cp-viewmenu">
+              <TextMenu
+                label="View"
+                items={[['zin', 'Zoom in'], ['zout', 'Zoom out'], ['fit', 'Fit view'], ['mini', 'Minimap'], ['-', 's0'], ...panelsItems]}
+                onPick={(id) => (['tuning', 'node', 'iface'].includes(id) ? openTab(id as TabKey) : undefined)}
+              />
+            </div>
+          ) : null}
+          {/* Dropped with the grab tab (owner, 2026-11-16): the tab reopens the drawer without a corner. */}
+          {closeAt === 'tab' ? null : (
+          <button
+            type="button"
+            className="ui-button cp-corner"
+            onClick={() => {
+              if (!open) openTab('tuning')
+              else if (cur !== 'tuning') setTab('tuning')
+              else setOpen(false)
             }}
             aria-expanded={open}
           >
             Dashboard controls <span className="cp-corner-count">{count}</span>
           </button>
+          )}
         </div>
         {open ? (
           <section
             className="ui-drawer cp-drawer"
             data-side={side}
             data-expanded={dock && full ? '' : undefined}
-            style={{ '--ui-drawer-top': `${STRIP}px` } as CSSProperties}
-            aria-labelledby="cp-title"
+            style={{ '--ui-drawer-top': `${closeAt === 'tab' && dock && full ? STRIP + GRAB_TAB : STRIP}px` } as CSSProperties}
+            aria-label="Editor panels"
           >
-            <div className="ui-drawer-head cp-head">
-              <h2 id="cp-title" className="ui-drawer-title">
-                Dashboard controls{count ? <span className="cp-title-count">{count}</span> : null}
-              </h2>
-              <div className="cp-head-actions">
-                <RowMenu label="Dashboard controls actions" big>
-                  {(close) => (
-                    <Menu
-                      aria-label="Dashboard controls actions"
-                      onClose={close}
-                      onAction={(id) => {
-                        close()
-                        if (id === 'add') setDialog({ mode: 'add' })
-                        else if (id === 'collapse') setCollapsed(new Set(st.secs.map((x) => x.name)))
-                        else if (id === 'expand') setCollapsed(new Set())
-                      }}
-                    >
-                      <MenuItem id="add">Add section…</MenuItem>
-                      <MenuSeparator />
-                      <MenuItem id="collapse" isDisabled={flat}>
-                        Collapse all
-                      </MenuItem>
-                      <MenuItem id="expand" isDisabled={flat}>
-                        Expand all
-                      </MenuItem>
-                    </Menu>
-                  )}
-                </RowMenu>
-                {head === 'x' ? <span className="cp-head-rule" aria-hidden="true" /> : null}
-                {dock ? (
-                  <Button icon aria-label={full ? 'Half height' : 'Full height'} onPress={() => setFull((f) => !f)}>
-                    <Icon icon={full ? fullscreenArrowExitIcon : fullscreenArrowIcon} />
-                  </Button>
-                ) : null}
-                <Button icon aria-label="Close" onPress={() => setOpen(false)}>
-                  <Icon icon={head === 'x' ? xMarkIcon : dock ? chevronDownIcon : chevronRightIcon} />
-                </Button>
+            {closeAt === 'grab' && dock ? (
+              <div className="cp-grab-band">
+                <Grabber full={full} onStep={stepDock} />
               </div>
-            </div>
-            <div
-              ref={body}
-              className="ui-drawer-body cp-body"
-              // React Aria's row keys run in the capture phase, so a field inside an expanded card would lose its
-              // arrows, Home and Space to the Tree. Stopping them here, above the Tree, leaves them to the field.
-              onKeyDownCapture={(e) => {
-                if ((e.target as HTMLElement).closest('.cp-card .cp-fields') && !['Tab', 'Escape', 'Enter'].includes(e.key)) e.stopPropagation()
-              }}
-              // Tree and TreeItem take no onKeyDown, so Enter on a focused card row is caught here.
-              onKeyDown={(e) => {
-                const row = e.target as HTMLElement
-                const key = row.getAttribute('role') === 'row' ? row.dataset.key : undefined
-                if (e.key === 'Enter' && key?.startsWith('c:')) frame(st.ctls[key.slice(2)])
-              }}
-            >
-              {count === 0 && flat ? (
-                <p className="cp-hint">None yet. Tick Show on the Dashboard in a node's Details.</p>
+            ) : null}
+            <>
+              {tabsLook === 'row' ? (
+                <>
+                  <div className="ui-drawer-head cp-head cp-head-slim">{headActions}</div>
+                  {tabList}
+                  {/* RockyRoadImport SongConverter: Grille Tabs as shipped, a 3 px rule bled to the edges under the pills. */}
+                  <div className="cp-tab-rule" aria-hidden="true" />
+                </>
+              ) : tabsLook === 'trad' || tabsLook === 'flush' || tabsLook === 'fill' ? (
+                <div className={tabsLook === 'trad' ? 'cp-head-d' : 'cp-head-d cp-head-e'}>
+                  {tabList}
+                  {headActions}
+                </div>
               ) : (
-                <Tree
-                  aria-label="Dashboard controls"
-                  className="cp-tree"
-                  data-flat={flat ? '' : undefined}
-                  items={items}
-                  expandedKeys={expandedKeys}
-                  onExpandedChange={(keys) =>
-                    setCollapsed(new Set(st.secs.filter((x) => !keys.has(`s:${x.name}`)).map((x) => x.name)))
-                  }
-                  dragAndDropHooks={dragAndDropHooks}
-                >
-                  {renderItem}
-                </Tree>
+                <div className="ui-drawer-head cp-head">
+                  {tabList}
+                  {headActions}
+                </div>
               )}
-            </div>
+              <div role="tabpanel" id={`cp-panel-${cur}`} aria-labelledby={`cp-tab-${cur}`} className="ui-drawer-body cp-body" data-tabs={tabsLook}>
+                {cur === 'tuning' ? (
+                <div
+                  // React Aria's row keys run in the capture phase; Enter on a focused card row is caught here.
+                  onKeyDown={(e) => {
+                    const row = e.target as HTMLElement
+                    const key = row.getAttribute('role') === 'row' ? row.dataset.key : undefined
+                    if (e.key === 'Enter' && key?.startsWith('c:')) frame(st.ctls[key.slice(2)])
+                  }}
+                >
+                  {menuInPanel ? <div className="cp-panel-bar">{panelMenu}</div> : null}
+                  {tabsLook === 'body' && count ? (
+                    <p className="cp-count-line">
+                      {count} {count === 1 ? 'control' : 'controls'} on the Dashboard
+                    </p>
+                  ) : null}
+                  {count === 0 && flat ? (
+                    <p className="cp-hint">None yet. Switch a param on in the Node tab.</p>
+                  ) : (
+                    <Tree
+                      aria-label="Tuning"
+                      className="cp-tree"
+                      data-flat={flat ? '' : undefined}
+                      items={items}
+                      expandedKeys={expandedKeys}
+                      onExpandedChange={(keys) =>
+                        setCollapsed(new Set(st.secs.filter((x) => !keys.has(`s:${x.name}`)).map((x) => x.name)))
+                      }
+                      dragAndDropHooks={dragAndDropHooks}
+                    >
+                      {renderItem}
+                    </Tree>
+                  )}
+                </div>
+                ) : cur === 'node' ? (
+                  <NodeTab
+                    node={sel}
+                    sw={sw}
+                    col={col === 'show'}
+                    touch={touch}
+                    focusNonce={focusNonce}
+                    onFocused={() => setFocusNonce(0)}
+                    onEdit={setCtlDialog}
+                  />
+                ) : (
+                  <p className="cp-hint">
+                    Stub (Aurora-g5mz): a sub-graph's interface, the same exposed-param Tree as Tuning. Here only to test a third tab in the strip.
+                  </p>
+                )}
+              </div>
+            </>
           </section>
+        ) : null}
+        {/* Edge control: a tab on the drawer's inner edge. Side drawer: > closes, < reopens. Dock: up for full
+            height, down steps full to half to closed. Grille has no left chevron, so the right one is turned. */}
+        {closeAt === 'grab' && !dock ? (
+          <div className="cp-edge" data-place="right" data-state={drawerState}>
+            <AriaButton
+              className="ui-button cp-ghost cp-edge-btn"
+              aria-label={open ? 'Hide panels' : 'Show panels'}
+              aria-pressed={open}
+              onPress={() => (open ? setOpen(false) : openTab('tuning'))}
+            >
+              <PanelGlyph on={open} />
+            </AriaButton>
+          </div>
+        ) : null}
+        {closeAt === 'grab' && dock && !open ? (
+          <div className="cp-edge cp-grab-closed" data-place="bottom" data-state="closed">
+            <Grabber full={false} closed onStep={stepDock} />
+          </div>
+        ) : null}
+        {/* Grab tab: one small tab with the pill in every state. Docked it sits on the drawer's top edge (above the
+            full-height drawer, in the gap left for it); beside the side drawer the pill stands upright. */}
+        {closeAt === 'tab' ? (
+          <div className="cp-edge cp-grabtab" data-place={dock ? 'bottom' : 'right'} data-state={drawerState}>
+            {dock ? (
+              <Grabber full={full} closed={!open} onStep={stepDock} />
+            ) : (
+              <Grabber full={false} closed={!open} vertical onStep={(d) => (d === 0 ? (open ? setOpen(false) : openTab('tuning')) : d === 1 ? openTab(cur) : setOpen(false))} />
+            )}
+          </div>
+        ) : null}
+        {closeAt === 'edge' ? (
+          <div className="cp-edge" data-place={dock ? 'bottom' : 'right'} data-state={drawerState}>
+            {!dock ? (
+              <AriaButton
+                className="ui-button cp-ghost cp-edge-btn"
+                aria-label={open ? 'Close panels' : 'Open panels'}
+                onPress={() => (open ? setOpen(false) : openTab('tuning'))}
+              >
+                <span className={open ? 'cp-edge-icon' : 'cp-edge-icon cp-flip'}>
+                  <Icon icon={chevronRightIcon} size="sm" />
+                </span>
+              </AriaButton>
+            ) : !open ? (
+              <AriaButton className="ui-button cp-ghost cp-edge-btn" aria-label="Open panels" onPress={() => openTab('tuning')}>
+                <Icon icon={chevronUpIcon} size="sm" />
+              </AriaButton>
+            ) : (
+              <>
+                {full ? null : (
+                  <AriaButton className="ui-button cp-ghost cp-edge-btn" aria-label="Full height" onPress={() => setFull(true)}>
+                    <Icon icon={chevronUpIcon} size="sm" />
+                  </AriaButton>
+                )}
+                <AriaButton
+                  className="ui-button cp-ghost cp-edge-btn"
+                  aria-label={full ? 'Half height' : 'Close panels'}
+                  onPress={() => (full ? setFull(false) : setOpen(false))}
+                >
+                  <Icon icon={chevronDownIcon} size="sm" />
+                </AriaButton>
+              </>
+            )}
+          </div>
         ) : null}
         {dialog ? (
           <NameDialogMock
@@ -1081,35 +1737,48 @@ export function ControlsPanelMock() {
             }}
           />
         ) : null}
-        {details ? <DetailsMock node={details.node} param={details.param} top={STRIP} side={side} onClose={() => setDetails(null)} /> : null}
         {ctlDialog ? (
-          <NameDialogMock
-            err={err}
-            icon={icon}
-            spec={controlSpec(
-              st.ctls[ctlDialog].paramLabel,
-              st.ctls[ctlDialog].label ?? '',
-              Object.values(st.ctls)
-                .filter((x) => x.id !== ctlDialog)
-                .map(effective),
-            )}
-            onCancel={() => setCtlDialog(null)}
-            onConfirm={(name) => {
-              acts.patch(ctlDialog, { label: name || undefined })
-              setCtlDialog(null)
+          <Modal isOpen onOpenChange={(o) => !o && setCtlDialog(null)}>
+            <Dialog aria-label="Edit control">
+              <EditControlForm
+                c={st.ctls[ctlDialog]}
+                others={Object.values(st.ctls)
+                  .filter((x) => x.id !== ctlDialog)
+                  .map(effective)}
+                err={err}
+                icon={icon}
+                tip={tip}
+                autoFocus
+                onCancel={() => setCtlDialog(null)}
+                onConfirm={(label, tooltip) => {
+                  acts.patch(ctlDialog, { label: label || undefined, tooltip: tooltip || undefined })
+                  setCtlDialog(null)
+                }}
+              />
+            </Dialog>
+          </Modal>
+        ) : null}
+        {view === 'board' ? <DialogBoard err={err} icon={icon} tip={tip} /> : null}
+        {addToast ? (
+          <div className="editor-toast" data-shown="true" data-undo="true">
+            <span role="status" aria-live="polite">
+              {addToast.text}
+            </span>
+            <Button size="sm" onPress={() => showCard(addToast.id)}>
+              Show
+            </Button>
+          </div>
+        ) : (
+          <Toast
+            text={toast.text}
+            undo={toast.undo}
+            onHold={toast.hold}
+            onUndo={() => {
+              toast.undo?.run()
+              toast.dismiss()
             }}
           />
-        ) : null}
-        {view === 'board' ? <DialogBoard err={err} icon={icon} /> : null}
-        <Toast
-          text={toast.text}
-          undo={toast.undo}
-          onHold={toast.hold}
-          onUndo={() => {
-            toast.undo?.run()
-            toast.dismiss()
-          }}
-        />
+        )}
       </div>
     </ActsContext.Provider>
   )

@@ -782,8 +782,11 @@ Epic `Aurora-e4bi`, labelled 1.2.0: redesign the Dashboard controls drawer. Plan
 - Panel menu: Add section, Collapse all, Expand all. Section menu: Rename, Delete, Move up and down (none on General). Sections are accordions with local, unsaved collapse state. Empty sections vanish on reload.
 - Card menu: Move up, Move down, Move to section (a submenu of existing sections), Show on node, Remove. Double-click or Enter on a card selects the node and fits the view, no ping.
 - Drag moves controls between sections and reorders sections, with the menus as the WCAG 2.5.7 alternative.
-- The corner Dashboard controls button stays this version and may move later.
+- ~~The corner Dashboard controls button stays this version and may move later.~~ Dropped (owner, 2026-11-16, `.8` mock): its one job was opening the drawer, and the grab tab on the drawer's edge does that without claiming a corner.
 - A Details edit of a Section string goes through the regroup, so it cannot split a run.
+- `.8`: Details and the controls drawer become one drawer with two user-switched tabs, Tuning and Node ([[e4bi8-tuning-node-tabs-design]]). From the mock:
+  - Tab strip (variant f): flush tabs filling the drawer's width, starting at its top and side edges, with no gap above. Rounded tops, and a flared foot on the selected tab, which takes the panel colour and opens into the panel. Unselected tabs are darker than the panel, in the strip colour, outlined on the top and sides. Tuning's `...` menu moves into the Tuning panel.
+  - Close and resize (Grab tab on the edge): no x or full-height button in the head. A small tab with a grab pill sits on the drawer's inner edge in every state, joined to it by a 2 px border. Docked, click toggles half and full height, and a drag or Up and Down step closed, half and full. At full height the drawer stops 24 px short of the top bar to leave room for the tab. Beside the side drawer the pill stands upright: click, a drag or Left and Right hide and show it.
 
 ## Known follow-ups (filed under `Aurora-daaa`)
 
