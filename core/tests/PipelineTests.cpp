@@ -6255,6 +6255,15 @@ TEST_CASE("Graph ui '#sections' reserved key round-trips and the loader ignores 
   roundTripGraphOnBothRoutes("ui-sections", graph, "ui");
 }
 
+TEST_CASE("Control entries keep unknown extra keys through draft PUT, GET and save on core and v1 routes (Aurora-e4bi.11)", "[PublicApi][v1][Drafts]")
+{
+  nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+  graph["controls"] = nlohmann::json::array({
+    {{"node", "rescale"}, {"param", "width"}, {"label", "Width"}, {"section", "Size"}, {"futureKey", {{"min", 0}}}}});
+  roundTripGraphOnBothRoutes("ctl-extra-keys", graph, "controls");
+}
+
+
 TEST_CASE("v1 effect hide, move and rename answer like the core routes (Aurora-kep2.13)", "[PublicApi][v1]")
 {
   LightTestHarness h("v1-effect-manage");

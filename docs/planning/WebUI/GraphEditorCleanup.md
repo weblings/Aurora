@@ -796,6 +796,14 @@ Epic `Aurora-e4bi`, labelled 1.2.0: redesign the Dashboard controls drawer. Plan
   - ~~Tab strip (variant f): flush tabs filling the drawer's width, starting at its top and side edges, with no gap above. Rounded tops, and a flared foot on the selected tab, which takes the panel colour and opens into the panel. Unselected tabs are darker than the panel, in the strip colour, outlined on the top and sides. Tuning's `...` menu moves into the Tuning panel.~~
   - Close and resize (Grab tab on the edge): no x or full-height button in the head. A small tab with a grab pill sits on the drawer's inner edge in every state, joined to it by a 2 px border. Docked, click toggles half and full height, and a drag or Up and Down step closed, half and full. At full height the drawer stops 24 px short of the top bar to leave room for the tab. Beside the side drawer the pill stands upright: click, a drag or Left and Right hide and show it.
 
+### One level at a time (`.11`, 2026-11-17)
+
+- Tuning shows one graph level's exposed params. A control points at a node in its own graph, so `{node, param}` stays flat and needs no path.
+- A sub-graph definition carries its own `controls` array of the same entry shape (`node`, `param`, `label`, `section`, `tooltip`). No new type.
+- Readers ignore extra control keys, so later fields are a minor bump. A core test pins the round trip.
+- The reserved `#sections` ui key is level-neutral: every sub-graph definition's `ui` uses the same name. Node ids must not start with `#` (loader rule, `.10`).
+- Tuning's Tree takes a controls array and a graph name as input, not the top-level doc.
+
 ## Known follow-ups (filed under `Aurora-daaa`)
 
 Small items found during stage 2 that are not part of any stage's scope yet. None is assigned
