@@ -18,7 +18,8 @@ running agent, triaging a failure, and verifying and committing per bead.
 1. Before the first spawn: run the preflight and baseline from the matching
    entries, and write the owner's decisions into the beads.
 2. Put the relevant gotchas into every brief. Agents do not read this file
-   on their own. Name the shared `web/ui` modules to import (the components
+   on their own. Start from `brief-common.template.md` in this folder: one
+   common brief in the scratchpad, short per-bead briefs that point at it. Name the shared `web/ui` modules to import (the components
    lesson "share web/ui modules by import, never by copy").
 3. On a hand-back, re-run the gates yourself before closing and committing.
 4. File new coordination findings in `docs/lessons/agent-coordination.md`
