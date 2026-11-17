@@ -350,8 +350,9 @@ namespace Aurora::Runtime::Graph
         continue;
       }
       auto idIt = raw.find("id");
-      if(idIt == raw.end() || !idIt->is_string() || idIt->get<std::string>().empty()){
-        report("", "node_id_invalid", where.str() + " needs a non-empty string 'id' (stable: state survives edits by id)");
+      if(idIt == raw.end() || !idIt->is_string() || idIt->get<std::string>().empty() || idIt->get<std::string>().front() == '#'){
+        // '#' ids are reserved: ui keys starting with '#' hold editor data.
+        report("", "node_id_invalid", where.str() + " needs a non-empty string 'id' that does not start with '#' (stable: state survives edits by id, '#' is reserved for editor ui keys)");
         continue;
       }
       std::string id = idIt->get<std::string>();

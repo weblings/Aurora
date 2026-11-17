@@ -129,3 +129,13 @@ Applies-when: committing an agent's verified work for a bead, especially when tw
 Aurora-ge1i.1 and .3 (2026-11-15): both were committed before `bd close`, so the close gate (which checks the staged `.beads/issues.jsonl`) did not run and neither commit carried a log entry. The gate fired on the next, unrelated commit (`.4`), which then had to carry all three beads' log, lesson and export. Separately, `.1` and `.3` both edited `editor.css`. The coordinator committed them apart by filtering the file's `git diff` to `.1`'s hunks and running `git apply --cached`, then committing the rest. The first filter kept one hunk too many, and only `git diff --cached` showed it.
 
 **Fix:** per bead: verify, `bd close`, write the `docs/log/` entry and INDEX row, `bd export -o .beads/issues.jsonl`, stage them with the code, then commit. When beads share a file, stage one bead's hunks with a filtered patch and `git apply --cached`, and read `git diff --cached` before committing.
+
+---
+
+## bd writes queue behind other sessions and auto-export, so agents run no bd and the coordinator batches bead edits
+Tags: beads, bd, subagents, briefs, lock, auto-export, parallel
+Applies-when: briefing agents while another session may be writing beads, or planning bead edits during a fan-out
+
+Aurora-e4bi.2, .10, .11 (2026-11-17): another session's `bd update` held the beads DB, and plain `bd show` calls sat past 60-120 s timeouts. Each write then ran an auto-export of all 768 issues (47 s once, 4 s when uncontended). Agents told to run no `bd` and to draft bead text in their report finished without waiting on it, and the coordinator applied the notes in one script.
+
+**Fix:** in each brief, forbid `bd` and ask for drafted bead text in the report. Read a bead from `.beads/issues.jsonl` while the DB is held. Batch the coordinator's edits in one guarded script. When staging the export, take only the lines for this bead's ids if another session has unexported changes.
