@@ -1,5 +1,5 @@
 import { splitEndpoint } from './doc'
-import type { Catalog, GraphDoc, Position } from './types'
+import { positionIn, type Catalog, type GraphDoc, type Position } from './types'
 
 export const COLUMN_WIDTH = 300
 const ROW_GAP = 24
@@ -59,6 +59,6 @@ export function columnLayout(doc: GraphDoc, catalog: Catalog): Record<string, Po
 export function positionsFor(doc: GraphDoc, catalog: Catalog): Record<string, Position> {
   const auto = columnLayout(doc, catalog)
   const out: Record<string, Position> = {}
-  for (const node of doc.nodes) out[node.id] = doc.ui?.[node.id] ?? auto[node.id]
+  for (const node of doc.nodes) out[node.id] = positionIn(doc.ui, node.id) ?? auto[node.id]
   return out
 }

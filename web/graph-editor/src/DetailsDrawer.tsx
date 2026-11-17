@@ -71,7 +71,7 @@ export function DetailsDrawer({ isOpen, onClose, top, side, doc, catalog, select
                         onChange={() =>
                           edit((d) => {
                             const i = controlIndex(d, node.id, param.name)
-                            return i >= 0 ? removeControl(d, i) : addControl(d, node.id, param.name, info)
+                            return i >= 0 ? removeControl(d, i) : addControl(d, node.id, param.name)
                           })
                         }
                       />
