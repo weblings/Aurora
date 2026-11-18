@@ -866,6 +866,16 @@ header strings are fine: the allowlist and Origin check ignore the port.
 
 ---
 
+## Test temp dirs named by a fixed string collide across parallel ctest processes
+Tags: ctest, catch2, parallel, temp-dir, flaky, repro
+Applies-when: a test builds a temp dir or harness from a name, or a core test flakes only under `ctest -j8`
+
+Aurora-16i9 (2026-11-17): two PipelineTests cases both built `LightTestHarness h("lt-replace")`. `ScopedTempDir` maps a name to one fixed temp path and `remove_all`s it on construct and destruct, so each test process could wipe the other's `config.json` mid-run. The revert then reloaded an empty config and the next start answered 409 "no pipeline is running", which looked like a revert race. About 20 full-suite `-j8` repeats never hit it. A loop running only the two suspects at once failed 49 of 100. Aurora-ruig is the same class (two RuntimeTests `"config"` dirs).
+
+**Fix:** give each test a unique name, and before chasing a `-j8`-only flake, list duplicate names (`grep -ohE 'ScopedTempDir [a-z]+\("[^"]+"' core/tests/*.cpp | sort | uniq -d`, per file prefix). Reproduce by running the two suspects concurrently in a loop, not by repeating the whole suite.
+
+---
+
 ## The e2e gate runs the app from its own build tree, not the top-level build
 Tags: cmake, build-trees, e2e-gate, linux
 Applies-when: rebuilding the app before running tools/light-viz-relay/sequence_c_gate.py (or devstack.py)

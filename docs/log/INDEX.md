@@ -489,3 +489,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-17 | Browser checks: `graph-editor:gate` retries a missed "would not load" status in its draft_invalid loop, no longer flaking under `graph-editor:set` (`Aurora-e4bi.23`). [[e4bi23-gate-draft-invalid-retry]] | `bd show Aurora-e4bi.23` |
 | 2026-11-17 | Graph editor: drawers dock at the bottom only below 650 px wide, wide portrait keeps the side (`Aurora-daaa.37`). `Aurora-tj18` closed as no longer reproducing. [[daaa37-width-only-dock]] | `bd show Aurora-daaa.37` |
 | 2026-11-17 | Shell row names a node that cannot be set up by its title: core adds `detail.nodeTitle` (`Aurora-th7f`). [[th7f-node-title-in-shell]] | `bd show Aurora-th7f` |
+| 2026-11-17 | Flaky core test: the Aurora-0tqq takeover test shared a temp dir with another test under `ctest -j8`; renamed (`Aurora-16i9`). [[16i9-takeover-test-temp-dir]] | `bd show Aurora-16i9` |
