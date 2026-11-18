@@ -4,7 +4,9 @@
 
 #include <cmath>
 #include <limits>
+#include <cstdint>
 #include <memory>
+#include <random>
 #include <set>
 #include <string>
 #include <tuple>
@@ -12,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include <Aurora/Contracts/PickIndex.hpp>
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
@@ -429,6 +432,47 @@ TEST_CASE("palette.randomAnchor with a seed is deterministic and lands on a pair
     seen.insert(value);
   }
   CHECK(seen.size() > 1);
+}
+
+TEST_CASE("palette.randomAnchor pins exact anchors for fixed seeds", "[ColorNodes][randomAnchor]")
+{
+  // Portable by construction (raw mt19937 plus Lemire mapping), same on every platform.
+  const float expected[10] = {90.f, 60.f, 60.f, 90.f, 150.f, 30.f, 150.f, 0.f, 150.f, 0.f};
+  for(int seed = 0; seed < 10; ++seed){
+    INFO(seed);
+    Graph graph = load("palette.randomAnchor", "{\"seed\": " + std::to_string(seed) + "}", {});
+    graph.tick(1.f / 60.f);
+    CHECK(outAngle(graph, "anchor") == expected[seed]);
+  }
+}
+
+TEST_CASE("pickIndex pins exact outputs for fixed seeds", "[pickIndex]")
+{
+  using Aurora::Contracts::pickIndex;
+  const std::uint32_t seeds[5] = {0, 1, 2, 3, 42};
+  const std::uint32_t n6[5] = {3, 2, 2, 3, 2};
+  const std::uint32_t n1000[5] = {548, 417, 435, 550, 374};
+  for(int i = 0; i < 5; ++i){
+    std::mt19937 a{seeds[i]};
+    std::mt19937 b{seeds[i]};
+    CHECK(pickIndex(a, 6) == n6[i]);
+    CHECK(pickIndex(b, 1000) == n1000[i]);
+  }
+
+  std::mt19937 seq{7};
+  const std::uint32_t expectedSeq[8] = {0, 1, 4, 1, 2, 5, 4, 2};
+  for(std::uint32_t value : expectedSeq){
+    CHECK(pickIndex(seq, 6) == value);
+  }
+
+  std::mt19937 big{7};
+  const std::uint32_t expectedBig[4] = {245806211u, 2512294290u, 1027481464u, 1412214962u};
+  for(std::uint32_t value : expectedBig){
+    CHECK(pickIndex(big, 0xC0000000u) == value);
+  }
+
+  std::mt19937 one{7};
+  CHECK(pickIndex(one, 1) == 0);
 }
 
 TEST_CASE("palette.randomAnchor holds its pick across ticks", "[ColorNodes]")
