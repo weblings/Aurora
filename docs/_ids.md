@@ -439,6 +439,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `w6zq6-grille-dev10-popover-toggle` | [log/2026-11-11-w6zq6-grille-dev10-popover-toggle.md](log/2026-11-11-w6zq6-grille-dev10-popover-toggle.md) | Grille dev.10 bump and popover toggle check |
 | `w6zq7-test-menu-selected-mode` | [log/2026-11-11-w6zq7-test-menu-selected-mode.md](log/2026-11-11-w6zq7-test-menu-selected-mode.md) | Test mode menu marks the current mode |
 | `w6zq8-grille-tooltips` | [log/2026-11-11-w6zq8-grille-tooltips.md](log/2026-11-11-w6zq8-grille-tooltips.md) | Grille Tooltip in the graph editor |
+| `web-demo-editor` | [planning/WebDemoEditor.md](planning/WebDemoEditor.md) | Graph editor in the web demo |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
