@@ -193,3 +193,13 @@ Applies-when: an agent reports C++ tests green from a `ctest -R` pattern, or a b
 Aurora-51nv.10 (2026-11-18): the agent reported `ctest -R "BrowserEngine|loadLive|Graph|Preview"` 66/66, but its new test was named "validate reports which capture inputs a graph reads" (lowercase "graph"), so the filter skipped it, and it failed. Only the coordinator's full `ctest` found it. The test's premise was wrong (a lone capture node validates fine), not the code.
 
 **Fix:** briefs ask for each new test by its exact name plus the filter, or for a full `ctest -j8`. On review, run the full suite after rebuilding all test targets.
+
+---
+
+## Settle commit authority before the fan-out, or stacked beads entangle and lose their per-bead commits
+Tags: commits, subagents, sequencing, owner-approval, staging, waves
+Applies-when: starting a bead sequence where later beads build on earlier ones' files and the owner's commit rule needs explicit approval per turn
+
+Aurora-51nv (2026-11-18): the owner's global rule allows a commit only when asked in that turn. The coordinator asked after the first hand-back, got the answer three hand-backs later, and meanwhile started each next bead on the previous one's uncommitted work. .11, .9 and .10 all rewrote `main.js`, `engine-room.js` and `demo-shim.js`, so per-bead commits would have left a demo that does not load at every step. They landed as one commit with three log entries. .13 shared two C++ files with .10 and could still be split, but only by building index blobs by hand. Separately, the .11 agent ran `git rm` on its deletions, and those staged paths nearly rode into .8's commit until `git diff --cached --stat` showed them.
+
+**Fix:** before the first spawn, ask the owner whether to commit each bead as it verifies. If not, run beads that rewrite the same files in sequence with nothing stacked, or accept one combined commit up front. Tell agents not to stage anything (no `git add` or `git rm`), and read `git diff --cached --stat` before every commit.

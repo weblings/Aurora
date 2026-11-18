@@ -15,7 +15,7 @@ one common brief file").
 
 - Repo: <repo path>, branch <branch>. Share the tree, no worktree.
 - Read your bead first: `.beads/issues.jsonl` (grep the id). Description, NOTES and ACCEPTANCE are the spec; a later dated note SUPERSEDES earlier text. Do NOT run any `bd` command. Put drafted bead text (notes, follow-up bugs) in your report.
-- Do NOT commit, push, close beads, or edit CHANGELOG.txt. Leave changes in the tree. The coordinator verifies and commits.
+- Do NOT commit, push, close beads, or edit CHANGELOG.txt, and do not stage (no `git add` or `git rm`; delete files with plain `rm`). Leave changes in the tree. The coordinator verifies and commits.
 - Before writing code read: <slice README>, docs/lessons/components.md, <other topic lessons>. Import shared web/ui modules and Grille pieces, never copy them. <Reference mock, if any: port from it, leave it unchanged.>
 - Code comments: 2 lines max each.
 - Stack lock: wrap EVERY browser check and every `npm run build` in the lock, and release it also on failure.

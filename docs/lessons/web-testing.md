@@ -411,3 +411,13 @@ Applies-when: building or checking drag and drop on a React Aria Tree, GridList 
 Aurora-e4bi.5 (2026-11-17): React Aria gives the drag handle (`Button slot="drag"`) `pointer-events: none`, so a mouse drag starts anywhere on the row and the grip serves keyboard and touch only; Grille's `cursor: grab` on it never shows. Calling `.focus()` on the grip bounces focus back to the row: reach it as a user does, Right arrow from a card row (two from an expandable row), then Enter. React Aria also does not refuse a drop "on" a collapsed row by itself: when `getDropOperation` cancels "on", the drop lands before or after by pointer half, so a mouse step aiming at a heading's middle can reorder instead. A CDP long-press and move with `hasTouch` started no drag in headless Chromium, so touch drag needs a device. Separately, a target type tested with `'section' in target` matched a Control, which has a `section` key: tag targets (`{ heading }`, `{ card }`) instead.
 
 **Fix:** drive mouse drags from the row, keyboard drags through the grip by arrow keys, test "drop on" rules by keyboard (whose targets are explicit) and in unit tests, and list touch drag as a device check.
+
+---
+
+## AURORA_EDITOR=embedded tests the editor compiled into the app, so rebuild the app after an editor change
+Tags: browser-check, graph-editor, embedded, app-build, stale-build
+Applies-when: running a graph-editor browser check with AURORA_EDITOR=embedded, or judging an embedded-mode failure after an editor edit
+
+Aurora-51nv.1 (2026-11-18): the back link changed from `/` to `../`, and `AURORA_EDITOR=embedded npm run graph-editor:back-link` still saw `/`. Copying the fresh `dist` over `build/windows-app/app/windows/graph-editor-dist` changed nothing, because the app compiles the bundle into a generated header (`aurora_graph_editor_embed`, `GraphEditorWebRoot.hpp`) and serves it from the binary. An incremental `cmake --build build/windows-app --config Release --target aurora-app-windows` (184 s) and the check passed.
+
+**Fix:** after an editor source change, rebuild the app before any embedded-mode check. An embedded failure on a stale app says nothing about the change. The dev-server mode (the default) serves the source tree.
