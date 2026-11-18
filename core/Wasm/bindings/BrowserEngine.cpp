@@ -230,6 +230,13 @@ namespace Aurora::Wasm
     Json body;
     std::string error;
     if(!_parse(doc, body, error)){ return error; }
+    if(m_live){
+      // Reload adopts node state by id and keeps the old graph on failure.
+      if(!m_live->reload(body, m_registry, _outputSet(), error)){
+        return _error("cannot_load", error);
+      }
+      return _ok();
+    }
     auto live = std::make_unique<PreviewEvaluator>();
     if(!live->load(body, m_registry, _outputSet(), error)){
       return _error("cannot_load", error);

@@ -18,6 +18,8 @@ Outcome of the spike that proved the engine matches native: [[51nv4-wasm-spike]]
   sessions, a fed frame and audio block, zones from `init`), and `Exports.cpp`, the C exports.
   `BrowserEngine` also builds natively (`AuroraBrowserEngine`, with the tests) so
   `core/tools/GenServerSamples` can write the reference JSON the module is tested against.
+  `loadLive` reloads the live graph in place once one exists, so node state carries over
+  (`core/tests/BrowserEngineTests.cpp`).
 - `parity/`: `main.cpp` runs `builtin.video` or `builtin.audio` over fixed inputs and
   prints one JSON line per frame. `gen_fixtures.py` writes those inputs. `compare.py`
   diffs a native and a WASM output.

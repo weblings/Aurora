@@ -24,7 +24,7 @@ engine.init({ outputs: [{ name: 'hue', zones }] })
 | `setZones(output, zones)` | `{ok}`. Applies on the next step. |
 | `nodes()` | The `GET /api/nodes` body. |
 | `validate(doc)` | The draft validation body, `{valid, errors}`. |
-| `loadLive(doc)` | `{ok}` or `{error: "cannot_load", message}`. |
+| `loadLive(doc)` | `{ok}` or `{error: "cannot_load", message}`. A later call reloads in place and keeps node state by id (easing, drift), and on error the old graph keeps running. |
 | `openPreview(session, doc, layout)` | `{ok}` or `{error: "cannot_preview" or "invalid_layout"}`. Layout is `lights`, `room` or `basic`. |
 | `reloadPreview(session, doc)` | `{ok}` or `{error: "draft_invalid", message}`, leaving the old graph running. |
 | `closePreview(session)` | `{ok}`. |

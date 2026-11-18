@@ -498,3 +498,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Demo shim router returns promises, and `installDemoShim` exposes `route` for in-page callers (`Aurora-51nv.8`). [[51nv8-async-demo-router]] | `bd show Aurora-51nv.8` |
 | 2026-11-18 | Editor links are page-relative, the build base is `./`, and a framing host can open and close the editor (`Aurora-51nv.1`). [[51nv1-subpath-editor-links]] | `bd show Aurora-51nv.1` |
 | 2026-11-18 | Demo EventSource stand-in for `/api/` streams with a provider seam and a stub preview provider (`Aurora-51nv.2`). [[51nv2-demo-eventsource]] | `bd show Aurora-51nv.2` |
+| 2026-11-18 | WASM engine `loadLive` reloads in place and keeps node state, as the app retunes (`Aurora-51nv.13`). [[51nv13-loadlive-keeps-state]] | `bd show Aurora-51nv.13` |
