@@ -93,7 +93,8 @@ function verdictOf(doc, inputs) {
 
 test('validate matches the ok and error samples', () => {
   assert.deepEqual(verdictOf(videoGraph, { video: true, audio: false }), sample('validate-ok.json'))
-  assert.deepEqual(verdictOf(sample('inputs/validate-errors.draft.json'), { video: true, audio: false }), sample('validate-errors.json'))
+  // The error draft misspells its capture node ('video.captur'), so it reads no input.
+  assert.deepEqual(verdictOf(sample('inputs/validate-errors.draft.json'), { video: false, audio: false }), sample('validate-errors.json'))
 })
 
 test('validate accepts the built-in audio graph', () => {

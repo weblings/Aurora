@@ -194,6 +194,8 @@ Aurora-51nv.10 (2026-11-18): the agent reported `ctest -R "BrowserEngine|loadLiv
 
 **Fix:** briefs ask for each new test by its exact name plus the filter, or for a full `ctest -j8`. On review, run the full suite after rebuilding all test targets.
 
+Confirmed again in JS (Aurora-51nv.10, 2026-11-18): `engine.test.mjs` skipped its `inputs` assertions when the module lacked the field, and the only local module did. One expectation was wrong (the error sample misspells `video.captur`, so it reads no video) and failed only in CI's wasm job. A soft skip for an older build is a check that has not run: say so in the report and verify where it does run.
+
 ---
 
 ## Settle commit authority before the fan-out, or stacked beads entangle and lose their per-bead commits
