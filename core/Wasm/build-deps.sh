@@ -53,7 +53,14 @@ if [ "$WHAT" = wasm ] || [ "$WHAT" = all ]; then
 fi
 
 if [ "$WHAT" = native ] || [ "$WHAT" = all ]; then
-  build_opencv native "$PREFIX/opencv-native" cmake
+  # Codec and IO backends off: otherwise their unbuilt 3rdparty libs (libtiff etc.) stay in
+  # OpenCVModules.cmake and find_package fails. Core and imgproc never use them.
+  build_opencv native "$PREFIX/opencv-native" cmake \
+    -DWITH_TIFF=OFF -DWITH_PNG=OFF -DWITH_JPEG=OFF -DWITH_WEBP=OFF -DWITH_OPENJPEG=OFF \
+    -DWITH_JASPER=OFF -DWITH_OPENEXR=OFF -DWITH_AVIF=OFF -DWITH_SPNG=OFF -DWITH_IMGCODEC_GIF=OFF \
+    -DWITH_FFMPEG=OFF -DWITH_GSTREAMER=OFF -DWITH_V4L=OFF -DWITH_GTK=OFF -DWITH_QT=OFF \
+    -DWITH_VTK=OFF -DWITH_1394=OFF -DWITH_ADE=OFF -DWITH_LAPACK=OFF -DWITH_OPENVINO=OFF \
+    -DBUILD_WITH_STATIC_CRT=OFF
 fi
 
 if [ "$WHAT" = aubio ] || [ "$WHAT" = all ]; then
