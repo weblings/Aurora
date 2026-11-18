@@ -505,3 +505,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Test temp dirs carry the process id so parallel ctest runs stop colliding (`Aurora-ruig`). [[ruig-temp-dir-per-process]] | `bd show Aurora-ruig` |
 | 2026-11-18 | Pairing end-to-end test injects a frozen clock so its two polls cannot straddle a second (`Aurora-7nyu`). [[7nyu-pairing-e2e-frozen-clock]] | `bd show Aurora-7nyu` |
 | 2026-11-18 | `math.step` node: 0 or 1 at an edge with hysteresis, Float output kept (`Aurora-h87j`). [[h87j-math-step]] | `bd show Aurora-h87j` |
+| 2026-11-18 | Test edits reach the lights and the demo room, owner-confirmed. The "Edited since the test" label is removed (`Aurora-l9gc`, `Aurora-t8nd`). [[l9gc-t8nd-test-edit-resend]] | `bd show Aurora-l9gc`, `bd show Aurora-t8nd` |

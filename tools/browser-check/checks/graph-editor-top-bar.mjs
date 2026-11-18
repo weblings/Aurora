@@ -3,7 +3,7 @@
 //
 // Status cases (docs/planning/WebUI/GraphEditorCleanup.md, Status priority rule):
 //   checked here:       rank 1 shell rows (404, 422, 500; no Retry), kept copy restores silently (kept-copy check has the rest),
-//                       rank 7 default, Edited since the test, Stop-only bar
+//                       rank 7 default, Stop-only bar
 //   checked elsewhere:  draft refusals and the takeover (error-shell), rank 4 Reconnect (gate),
 //                       rank 5 Take over and test outcomes (test-outcome), failed Save row (failed-save), problems
 //                       chip and Preview paused (gate), draft would not load
@@ -191,22 +191,15 @@ await withEditorStack(async ({ editorUrl }) => {
     assert.equal(await page.locator('.editor-title-menu[data-unsaved="true"]').count(), 0, 'the reverted copy is gone')
     step('a kept copy restores silently and Revert to saved drops it')
 
-    // Edited since the test: the bar says so and the title menu warns.
+    // Editing during a test shows no label; Stop is the only way out.
     await live()
     await button('Test on lights').click()
     await button('Stop the test').waitFor()
-    assert.equal(await page.locator('.editor-edited').count(), 0)
     await makeEdit(page)
-    await page.locator('.editor-edited', { hasText: 'Edited since the test' }).waitFor()
-    await openTitleMenu(page)
-    await page.getByText('Save and apply puts the edited graph live and ends the test').waitFor()
-    await page.keyboard.press('Escape')
-    await closed()
     await button('Stop the test').click()
     await waitAnnounced(page, 'Reverted')
     assert.equal(await page.locator('.editor-toast').getAttribute('data-shown'), 'false', 'Stop draws no toast')
-    await page.locator('.editor-edited').waitFor({ state: 'detached' })
-    step('Edited since the test shows in the bar and the title menu; Stop is the only way out')
+    step('Stop is the only way out of a test, with no edited label')
 
     // The Test split button (Aurora-qjqy.3): Test at rest, the caret picks Once or Live
     // and starts it, Stop (no countdown) is the Live label, and the current mode is the checked item.

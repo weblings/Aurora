@@ -381,7 +381,6 @@ export function App() {
   useEffect(() => {
     void checkNow()
   }, [testPhase, checkNow])
-  const editedSinceTest = testing && testedDoc !== null && doc !== null && !sameDoc(testedDoc, doc)
   // The shell's light-test row is another session's test: this tab's own shows as Stop on the Test button.
   const otherHeld = otherTest(host.host.test, session)
   const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
@@ -1023,7 +1022,6 @@ export function App() {
           busy={writing}
           blocked={blocked}
           nothingOpen={!doc}
-          editedSinceTest={editedSinceTest}
           effects={effects}
           currentId={effectId}
           hasAudio={hasAudio}
@@ -1084,7 +1082,6 @@ export function App() {
             if (run === 'openControls') setDrawer('controls')
           }}
         />
-        {editedSinceTest ? <span className="editor-edited">Edited since the test</span> : null}
         <span className="editor-sep" aria-hidden="true" />
         <SplitTestButton
           mode={testMode}
