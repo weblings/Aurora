@@ -19,6 +19,16 @@ if(AURORA_CORE_GRAPH_ONLY)
   set(BUILD_TESTS FALSE)
 endif()
 
+# Compile aubio from AURORA_AUBIO_SRC with its built-in FFT instead of finding an install.
+# The WASM build and the parity reference need it, so Emscripten defaults it ON.
+if(EMSCRIPTEN)
+  set(AURORA_AUBIO_FROM_SOURCE_DEFAULT ON)
+else()
+  set(AURORA_AUBIO_FROM_SOURCE_DEFAULT OFF)
+endif()
+option(AURORA_AUBIO_FROM_SOURCE "Build aubio from AURORA_AUBIO_SRC (see Wasm/README.md)" ${AURORA_AUBIO_FROM_SOURCE_DEFAULT})
+set(AURORA_AUBIO_SRC "" CACHE PATH "aubio source root, used when AURORA_AUBIO_FROM_SOURCE is ON")
+
 include(FetchContent)
 
 if(EMSCRIPTEN)
@@ -26,6 +36,9 @@ if(EMSCRIPTEN)
   include(Wasm/WasmDeps.cmake)
 else()
   find_package(OpenCV REQUIRED COMPONENTS imgproc)
+endif()
+if(AURORA_AUBIO_FROM_SOURCE AND AURORA_CORE_ENABLE_AUDIO)
+  include(Wasm/AubioFromSource.cmake)
 endif()
 
 # glm -- same fetch-if-missing pattern as huenicorn's own CMakeLists.txt
@@ -122,9 +135,9 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
-# BrowserEngine (JSON engine behind the WASM exports): built natively with the tests so
-# the sample generator can drive it, and under Emscripten for the module.
-if(EMSCRIPTEN OR BUILD_TESTS)
+# BrowserEngine (JSON engine behind the WASM exports): built natively with the tests (or the
+# graph-only configure) so the sample generator can drive it, and under Emscripten for the module.
+if(EMSCRIPTEN OR BUILD_TESTS OR AURORA_CORE_GRAPH_ONLY)
   add_subdirectory(Wasm/bindings)
 endif()
 
@@ -134,4 +147,8 @@ endif()
 
 if(EMSCRIPTEN)
   add_subdirectory(Wasm)
+elseif(AURORA_CORE_GRAPH_ONLY)
+  # Native reference for the WASM parity check, and the sample generator for its --check.
+  add_subdirectory(Wasm/parity)
+  add_subdirectory(tools)
 endif()

@@ -1,15 +1,19 @@
 // Parity driver (from the Aurora-51nv.4 spike): runs a built-in graph over fixed inputs
 // and prints one JSON line per recorded frame. Built with Emscripten from core/Wasm
 // and natively against AuroraGraphEngine so the two outputs can be diffed.
-//   graph_parity video|audio <fixtureDir>
+//   graph_parity video|audio|audio-seeded <fixtureDir>
+// audio-seeded leaves the anchor hue unset and feeds beat from a seeded palette.randomAnchor.
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include <Aurora/Input/IAudioInput.hpp>
 #include <Aurora/Input/IVideoInput.hpp>
@@ -137,7 +141,8 @@ int main(int argc, char** argv)
   }
   const std::string mode = argv[1];
   const std::string dir = argv[2];
-  const bool isAudio = mode == "audio";
+  const bool seeded = mode == "audio-seeded";
+  const bool isAudio = mode == "audio" || seeded;
 
   ConfigData config;
   config.refreshRate = 60;
@@ -152,7 +157,8 @@ int main(int argc, char** argv)
   int ticks = 0;
 
   if(isAudio){
-    config.audioFixedAnchorHue = 30.f;
+    // Seeded mode leaves the hue unset (-1) so only the seeded node picks the anchor.
+    config.audioFixedAnchorHue = seeded ? -1.f : 30.f;
     audio = std::make_unique<PcmAudioInput>(readFile(dir + "/pcm.f32"));
     host.audio = audio.get();
     ZoneMap zones = {zone(1, 0, 0, 1, 1), zone(2, 0, 0, 1, 1, true, 0.5f), zone(3, 0, 0, 1, 1, false)};
@@ -173,9 +179,23 @@ int main(int argc, char** argv)
   host.outputs["hue"] = outputs.front().get();
 
   const std::vector<std::string> names{"hue"};
-  Graph::LoadResult loaded = isAudio
-    ? Graph::loadBuiltInAudioGraph(registry, names, config)
-    : Graph::loadBuiltInVideoGraph(registry, names, config);
+  Graph::LoadResult loaded;
+  if(seeded){
+    // Swap drift's anchor edge for a palette.randomAnchor with a fixed seed.
+    nlohmann::json doc = Graph::builtInAudioGraph(names, Graph::audioOverlayFromConfig(config, names));
+    auto& edges = doc["edges"];
+    for(auto it = edges.begin(); it != edges.end(); ++it){
+      if((*it)[1] == "beat.anchor"){ edges.erase(it); break; }
+    }
+    edges.push_back(nlohmann::json::array({"seeded.anchor", "beat.anchor"}));
+    doc["nodes"].push_back({{"id", "seeded"}, {"type", "palette.randomAnchor"}, {"params", {{"seed", 7}}}});
+    Graph::LoadOptions options;
+    options.knownOutputs = {names.begin(), names.end()};
+    loaded = Graph::loadGraph(doc, registry, options);
+  } else {
+    loaded = isAudio ? Graph::loadBuiltInAudioGraph(registry, names, config)
+                     : Graph::loadBuiltInVideoGraph(registry, names, config);
+  }
   if(!loaded.ok){
     std::fprintf(stderr, "load failed: %s\n", loaded.error.c_str());
     return 1;

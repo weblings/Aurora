@@ -2,6 +2,7 @@
 
 frames.rgba: 30 frames of 64x32 RGBA (shifting gradient, as VideoParityTests).
 pcm.f32:     240 ticks x 800 mono float32 samples at 48 kHz (click track).
+(The audio-seeded case reuses pcm.f32: main.cpp leaves the anchor hue unset and seeds a palette.randomAnchor.)
 Generated once in Python so native and WASM read identical bytes.
 """
 import math
