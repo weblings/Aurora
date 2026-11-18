@@ -386,6 +386,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
+| `th7f-node-title-in-shell` | [log/2026-11-17-th7f-node-title-in-shell.md](log/2026-11-17-th7f-node-title-in-shell.md) | Shell row names a node that can't be set up by its title |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `u68h-stage6-7-rescope` | [log/2026-11-12-u68h-stage6-7-rescope.md](log/2026-11-12-u68h-stage6-7-rescope.md) | Graph editor stage 6 rescoped, stage 7 filed |

@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -768,5 +769,31 @@ TEST_CASE("Graph loader issues carry a code, the field and valid options (Aurora
     for(std::size_t i = 0; i < expected.options.size(); i++){
       CHECK(match->options[i] == expected.options[i]);
     }
+  }
+}
+
+TEST_CASE("Graph loader names a node that cannot be constructed by its title (Aurora-th7f)", "[Graph]")
+{
+  NodeRegistry registry = makeCorpusRegistry();
+  auto addBroken = [&](const std::string& type, const std::string& title, NodeFactory factory){
+    NodeTypeInfo info;
+    info.meta = NodeTypeMeta{title, "test-only", "{}", "cheap"};
+    info.outputs = {{"out", PortType::Color, false}};
+    info.factory = std::move(factory);
+    CHECK(registry.registerType(type, std::move(info)));
+  };
+  addBroken("test.throws", "Gradient", []() -> std::unique_ptr<INode> { throw std::runtime_error("boom"); });
+  addBroken("test.null", "", []() -> std::unique_ptr<INode> { return nullptr; });
+
+  const std::vector<std::pair<std::string, std::string>> cases = {{"test.throws", "Gradient"}, {"test.null", "test.null"}};
+  for(const auto& [type, expectedTitle] : cases){
+    CAPTURE(type);
+    LoadResult result = loadGraphFromString(
+      R"({"version": 1, "nodes": [{"id": "grad", "type": ")" + type + R"("}]})", registry);
+    REQUIRE_FALSE(result.ok);
+    REQUIRE(result.issues.size() == 1);
+    CHECK(result.issues[0].code == "node_construct_failed");
+    CHECK(result.issues[0].node == "grad");
+    CHECK(result.issues[0].nodeTitle == expectedTitle);
   }
 }

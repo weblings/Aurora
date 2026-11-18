@@ -548,6 +548,7 @@ namespace Aurora::Runtime
         const Graph::LoadIssue& issue = primary.customIssue();
         std::map<std::string, std::string> detail;
         if(!issue.node.empty()){ detail["node"] = issue.node; }
+        if(!issue.nodeTitle.empty()){ detail["nodeTitle"] = issue.nodeTitle; }
         throw _effectError(configRoot, customId, primary.customError(), /*retryable*/ false, issue.code, std::move(detail));
       }
     }

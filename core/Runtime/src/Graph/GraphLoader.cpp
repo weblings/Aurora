@@ -638,17 +638,21 @@ namespace Aurora::Runtime::Graph
     // a node bug: fail the load rather than evaluating blind.
     for(auto& node : pending){
       std::unique_ptr<INode> instance;
+      // Shells word the failure by title (Aurora-th7f), so the issue carries it.
+      auto constructFailed = [&](const std::string& why){
+        report(node.id, "node_construct_failed", why);
+        const std::string& title = node.info->meta.title;
+        result.issues.back().nodeTitle = title.empty() ? node.type : title;
+      };
       try{
         instance = node.info->factory();
       } catch(const std::exception& e){
-        report(node.id, "node_construct_failed",
-          "node '" + node.id + "': constructing type '" + node.type +
+        constructFailed("node '" + node.id + "': constructing type '" + node.type +
           "' threw: " + e.what());
         continue;
       }
       if(instance == nullptr){
-        report(node.id, "node_construct_failed",
-          "node '" + node.id + "': constructing type '" + node.type + "' returned null");
+        constructFailed("node '" + node.id + "': constructing type '" + node.type + "' returned null");
         continue;
       }
       std::string mismatch;
