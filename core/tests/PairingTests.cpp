@@ -1,3 +1,4 @@
+#include "TempDirSuffix.hpp"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -35,7 +36,7 @@ namespace
 
   std::filesystem::path tempStore(const std::string& name)
   {
-    auto dir = std::filesystem::temp_directory_path() / ("aurora-pairing-tests-" + name);
+    auto dir = std::filesystem::temp_directory_path() / ("aurora-pairing-tests-" + name + tempDirSuffix());
     std::filesystem::remove_all(dir);
     return dir / "paired-devices.json";
   }
