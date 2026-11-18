@@ -50,9 +50,9 @@ export const COPY = {
   node_construct_failed: "This node couldn't be set up. Remove it and add it again.",
   param_invalid: ({ param }) =>
     `${param ? quoted(param) : 'A setting'} has a value this node can't use. Change it, or put it back to its default.`,
-  control_node_unknown: "A Dashboard control points at a node that isn't in the graph. Remove the control, or point it at another node.",
+  control_node_unknown: "A Tuning control points at a node that isn't in the graph. Remove the control, or point it at another node.",
   control_param_unknown: ({ param }) =>
-    `A Dashboard control points at ${param ? quoted(param) : 'a setting'} that this node doesn't have. Remove the control, or point it at another setting.`,
+    `A Tuning control points at ${param ? quoted(param) : 'a setting'} that this node doesn't have. Remove the control, or point it at another setting.`,
 
   // A node threw during a preview tick: the draft passed validation and Test stays on (code from core's
   // preview `errors`, Aurora-u8jx.3). The reason is the server's message, which stays for agents. A caller

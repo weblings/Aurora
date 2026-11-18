@@ -223,12 +223,12 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await field.blur()
     assert.equal(await gainValue(), '0.4')
     await until(async () => (await brightness()) < full * 0.8, 'thumbnail did not dim after gain 0.4')
-    await button('Undo').click()
+    await editAction(page, 'Undo')
     assert.equal(await gainValue(), was)
-    await button('Redo').click()
+    await editAction(page, 'Redo')
     assert.equal(await gainValue(), '0.4')
     step('undo and redo step a param edit, and the preview follows it')
-    await button('Undo').click()
+    await editAction(page, 'Undo')
 
     // A second view takes the preview stream; Reconnect gets it back.
     const mine = await session()
@@ -262,7 +262,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await wholeRow.waitFor()
     assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph'.length, 'Whole graph row has no server text')
     await page.keyboard.press('Escape')
-    await button('Redo').click()
+    await editAction(page, 'Redo')
     await waitStatus(/Live/)
     step('a draft needing an unopened input shows draft would not load, and the next edit recovers')
 

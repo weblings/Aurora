@@ -36,7 +36,7 @@ export function removeEdge(doc: GraphDoc, edge: GraphEdge): GraphDoc {
   return { ...doc, edges: doc.edges.filter((e) => e[0] !== edge[0] || e[1] !== edge[1]) }
 }
 
-// Removes nodes with their edges, layout entries and Dashboard controls.
+// Removes nodes with their edges, layout entries and Tuning controls.
 export function removeNodes(doc: GraphDoc, ids: ReadonlySet<string>): GraphDoc {
   const next: GraphDoc = {
     ...doc,
@@ -84,7 +84,7 @@ export function addNode(doc: GraphDoc, info: NodeTypeInfo, at: Position): GraphD
 }
 
 // Clipboard (Aurora-ge1i.2.1). A clip is the selected nodes, the wires between
-// them, their layout and their Dashboard controls, marked so a paste can tell it
+// them, their layout and their Tuning controls, marked so a paste can tell it
 // from other text on the system clipboard (and so it works across tabs).
 export const CLIP_MARK = 'aurora-graph-clip'
 
@@ -148,7 +148,7 @@ export const isSingleton = (info: NodeTypeInfo): boolean => !!info.sink
 export type Skipped = { id: string; type: string; reason: 'unknown' | 'single' }
 
 // Adds the clip with fresh ids, its top-left corner at `at`. Unknown types and a
-// singleton the graph already has are left out with their wires; Dashboard controls
+// singleton the graph already has are left out with their wires; Tuning controls
 // come along. `added` maps each clip id to its new id.
 export function pasteSelection(
   doc: GraphDoc,

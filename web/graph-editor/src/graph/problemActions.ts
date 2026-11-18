@@ -9,11 +9,11 @@ export type GraphRowAction = {
   run: 'openControls'
 }
 
-const OPEN_CONTROLS: GraphRowAction = { label: 'Open controls', run: 'openControls' }
+const OPEN_CONTROLS: GraphRowAction = { label: 'Open Tuning', run: 'openControls' }
 
 // Codes that can reach a Whole graph row (GraphLoader.cpp reports them with no node, or a node that is
 // not in the document), with the one that has an action:
-//   control_node_unknown: the Dashboard controls drawer lists the control, and its Remove button fixes it.
+//   control_node_unknown: the Tuning drawer lists the control, and its Remove button fixes it.
 // No action: graph_cycle (breaking a loop means choosing a wire to delete), control_param_unknown,
 // every structural code (STRUCTURAL_CODES in web/ui/problemCopy.js: the file is damaged), input_missing and
 // the rest of the node codes (their node was deleted, nothing to point at), Draft would not load and

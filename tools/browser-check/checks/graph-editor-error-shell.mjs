@@ -524,7 +524,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     await page.locator('.editor-problems-chip').waitFor({ state: 'detached', timeout: 8000 })
     step('429 and 400 are editor-only shell rows, 413 is a Whole graph problem on the chip, and a later send clears them')
 
-    // Whole graph rows by code (Aurora-u8jx.2): an unknown Dashboard control node opens the controls drawer; a cycle has no button.
+    // Whole graph rows by code (Aurora-u8jx.2): an unknown Tuning control node opens the Tuning drawer; a cycle has no button.
     await page.route('**/api/graph/drafts/*', (route) => (route.request().method() === 'PUT'
       ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: false, errors: [
         { node: null, code: 'control_node_unknown', message: 'server control', options: [] },
@@ -535,11 +535,11 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     const wholeChip = page.locator('.editor-problems-chip', { hasText: /2 problems/ })
     await wholeChip.waitFor({ timeout: 8000 })
     await wholeChip.click()
-    const ctlRow = page.locator('.editor-problem-list li', { hasText: 'Dashboard control' })
+    const ctlRow = page.locator('.editor-problem-list li', { hasText: 'Tuning control' })
     const loopRow = page.locator('.editor-problem-list li', { hasText: 'loop back' })
     await ctlRow.waitFor()
     assert.equal(await loopRow.locator('button').count(), 0, 'a cycle has no action')
-    await ctlRow.getByRole('button', { name: 'Open controls' }).click()
+    await ctlRow.getByRole('button', { name: 'Open Tuning' }).click()
     await page.getByRole('heading', { name: /^Tuning/ }).waitFor({ timeout: 5000 })
     await clear()
     await nudge()

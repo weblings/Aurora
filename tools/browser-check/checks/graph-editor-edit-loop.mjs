@@ -1,5 +1,5 @@
 // Aurora-pvxx.7 (E4) through the browser: test on lights, Revert, a
-// takeover, a lost heartbeat, Save, Save and apply, and Dashboard controls.
+// takeover, a lost heartbeat, Save, Save and apply, and Tuning controls.
 // Needs a built app (see tools/light-viz-relay/README.md); runs on the
 // dummy input, so it works without a screen or Hue hardware.
 import assert from 'node:assert/strict'
