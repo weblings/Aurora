@@ -87,6 +87,7 @@ namespace Aurora::Runtime
     // pipeline it built is the one this test must revert (Aurora-4xqt.1).
     const std::uint64_t generation = m_hooks.generation();
     const std::int64_t now = m_clock();
+    const bool sameHolder = m_active && m_session == session;
     if(m_active && m_session != session){
       m_lastEnd = "replaced";
     }
@@ -97,7 +98,10 @@ namespace Aurora::Runtime
     m_client = client;
     m_mode = mode;
     m_doc = doc;
-    m_startedAt = now;
+    // The holder re-sending an edited graph keeps its confirm clock.
+    if(!sameHolder){
+      m_startedAt = now;
+    }
     m_lastBeat = now;
     m_generation = generation;
     return {};

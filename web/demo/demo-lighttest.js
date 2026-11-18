@@ -51,7 +51,9 @@ export function createLightTest({
       const replaced = active && active.session !== session;
       const now = clock();
       if (watchdog === null) watchdog = setTimer(expire, 500);
-      active = { session, mode, doc, startedAt: now, lastBeat: now };
+      // The holder re-sending its edited graph keeps its confirm clock.
+      const same = active && active.session === session;
+      active = { session, mode, doc, startedAt: same ? active.startedAt : now, lastBeat: now };
       if (replaced) lastEnd = 'replaced';
       return '';
     },

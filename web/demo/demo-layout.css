@@ -25,11 +25,11 @@ html, body {
     flex-direction: row;
   }
   #scene-pane {
-    width: 66.666%;
+    width: 50%;
     height: 100%;
   }
   #dashboard-pane {
-    width: 33.333%;
+    width: 50%;
     height: 100%;
   }
 }

@@ -246,6 +246,17 @@ export function App() {
     window.history.replaceState(null, '', url)
   }, [effectId])
 
+  // Edits during a test (a Tuning slider included) go to the lights after a short pause.
+  const { push } = lights
+  useEffect(() => {
+    if (!testing || !doc || !testedDoc || sameDoc(testedDoc, doc)) return
+    const timer = window.setTimeout(() => {
+      const sent = docRef.current
+      void push().then((ok) => ok && sent && setTestedDoc(sent))
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [testing, doc, testedDoc, push])
+
   const startTest = (mode: TestMode) => {
     setTestMode(mode)
     setTestedDoc(docRef.current)
