@@ -59,7 +59,7 @@ saved graph stays explicit.
 | AudioFeatures to Angle or Color | `audio.drift`, `audio.bounce` |
 
 Same-type nodes: Float math (scale, divide, clamp, mapRange, lerp, add,
-multiply, max, invert), smoothing, Frame ops (smooth, gain, floor, brightness,
+multiply, max, invert, step), smoothing, Frame ops (smooth, gain, floor, brightness,
 saturation, hueShift, tint, and mix with normal, add, multiply, screen and
 difference modes), Image ops (rescale, dropAlpha, mix with the same modes) and
 Color ops (mix, hueShift, complement).
@@ -89,7 +89,7 @@ Color ops (mix, hueShift, complement).
 
 Already planned in [[node-graph-pipeline]] (Stretch section): zone reducers
 (median, dominant, brightest), `image.crop(uvs)` and `image.reduce`, blur and
-color correction, `trigger.flash` and gate or hold.
+color correction. `trigger.flash` and gate or hold became `trigger.envelope`.
 
 ## Effects users would try
 
@@ -107,9 +107,10 @@ Chains read left to right, with params in brackets.
   the ease smooths the colors the lights show. Greys and blacks have no hue and
   stay as they are.
 - **Loudness switch between two looks.** `audio.features.rms ->
-  math.mapRange [inMin 0.3, inMax 0.35, clamp true] -> frame.mix.t`, with look
-  A on `a` and look B on `b`. The narrow input range acts as a soft threshold
-  and the mix as a select. It flickers when the level sits near the threshold.
+  math.step [edge 0.32, hysteresis 0.03] -> frame.mix.t`, with look A on `a`
+  and look B on `b`. The step is the threshold and the mix is the select. The
+  hysteresis band keeps it from flickering when the level sits near the edge.
+  (Before `math.step` this used a narrow `math.mapRange`, which flickered.)
 - **Bass, mids and treble as red, green and blue.** Three
   `color.constant -> frame.broadcast -> frame.brightnessScale` chains, with
   `audio.bands` bass, mid and treble on each `factor`. Combine them with two
@@ -137,10 +138,11 @@ Chains read left to right, with params in brackets.
 
 1. **Shaping events over time** (Float to Trigger, Trigger to Float, hold).
    - Beat flash with a sharp hit and slow decay. `smooth.exp` eases both ways,
-     so it cannot give a fast attack.
-   - A switch that does not flicker near its threshold (hysteresis).
+     so it cannot give a fast attack. Now `trigger.envelope` (Aurora-q66y).
+   - A switch that does not flicker near its threshold (hysteresis), now
+     `math.step` (Aurora-h87j).
    - React to a drop or a scene cut (change detection).
-   - Stay on for N seconds after a hit (hold).
+   - Stay on for N seconds after a hit (hold), also `trigger.envelope`.
 2. **Reducers** (Frame or Image to Color or Float).
    - Dim the room in dark scenes, or the reverse.
    - One color for every light from the whole screen, whatever the layout. A

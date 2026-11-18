@@ -303,7 +303,6 @@ select {
   flex: 1;
 }
 
-.editor-edited,
 .editor-countdown {
   color: var(--aurora-text-primary);
   white-space: nowrap;
@@ -662,8 +661,7 @@ button.editor-problem-row:hover {
 .editor-header[data-chip-compact] .editor-chip-count { display: inline; }
 
 .editor-header > .ui-button,
-.editor-header > .editor-sep,
-.editor-header > .editor-edited {
+.editor-header > .editor-sep {
   flex: none;
 }
 

@@ -502,3 +502,8 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Demo room runs the built-in graphs on the WASM engine in a Worker, web/demo's web-processing copies retired (`Aurora-51nv.11`). [[51nv11-room-on-engine]] | `bd show Aurora-51nv.11` |
 | 2026-11-18 | Demo editor opens in an iframe beside the room, custom effects persist in localStorage (`Aurora-51nv.9`). [[51nv9-demo-editor-shell]] | `bd show Aurora-51nv.9` |
 | 2026-11-18 | Demo shim backs the editor's routes with the engine: drafts, preview, Test on lights, save, apply, duplicate (fixes `Aurora-kep2.23`), effect switch (`Aurora-51nv.10`). [[51nv10-demo-engine-routes]] | `bd show Aurora-51nv.10`, `bd show Aurora-kep2.23` |
+| 2026-11-18 | Test temp dirs carry the process id so parallel ctest runs stop colliding (`Aurora-ruig`). [[ruig-temp-dir-per-process]] | `bd show Aurora-ruig` |
+| 2026-11-18 | Pairing end-to-end test injects a frozen clock so its two polls cannot straddle a second (`Aurora-7nyu`). [[7nyu-pairing-e2e-frozen-clock]] | `bd show Aurora-7nyu` |
+| 2026-11-18 | `math.step` node: 0 or 1 at an edge with hysteresis, Float output kept (`Aurora-h87j`). [[h87j-math-step]] | `bd show Aurora-h87j` |
+| 2026-11-18 | Test edits reach the lights and the demo room, owner-confirmed. The "Edited since the test" label is removed (`Aurora-l9gc`, `Aurora-t8nd`). [[l9gc-t8nd-test-edit-resend]] | `bd show Aurora-l9gc`, `bd show Aurora-t8nd` |
+| 2026-11-18 | `trigger.envelope` node: attack, hold and decay on tick dt, retrigger from the current level (`Aurora-q66y`, previews pending). [[q66y-trigger-envelope]] | `bd show Aurora-q66y` |

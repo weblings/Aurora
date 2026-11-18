@@ -393,6 +393,137 @@ TEST_CASE("time nodes recover after a bad tick", "[TimeNodes]")
   CHECK(std::isfinite(outFloat(graph)));
 }
 
+namespace
+{
+  // Fires on tick 0, then ticks at `hz`. Returns the level at each elapsed tick.
+  std::vector<float> envelopeRun(const char* params, float hz, float seconds)
+  {
+    Graph graph = load("test.trigger", "trigger.envelope", params, "trigger");
+    std::vector<float> levels;
+    int ticks = static_cast<int>(std::lround(seconds * hz));
+    for(int i = 0; i <= ticks; ++i){
+      g_value = Trigger{i == 0};
+      graph.tick(1.f / hz);
+      levels.push_back(outFloat(graph));
+    }
+    return levels;
+  }
+
+  // Seconds after the firing tick of the first level for which `pred` holds.
+  template<class Pred>
+  float firstTime(const std::vector<float>& levels, float hz, Pred pred)
+  {
+    for(std::size_t i = 0; i < levels.size(); ++i){
+      if(pred(levels[i])){
+        return static_cast<float>(i) / hz;
+      }
+    }
+    return -1.f;
+  }
+}
+
+TEST_CASE("trigger.envelope attack 0 gives the peak on the firing tick", "[TimeNodes]")
+{
+  Graph graph = load("test.trigger", "trigger.envelope", R"({"attack": 0, "hold": 0.1, "decay": 0.2})", "trigger");
+  g_value = Trigger{false};
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph) == 0.f);
+  g_value = Trigger{true};
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph) == Approx(1.f));
+}
+
+TEST_CASE("trigger.envelope hold keeps the peak for hold seconds", "[TimeNodes]")
+{
+  const std::vector<float> levels = envelopeRun(R"({"attack": 0, "hold": 0.5, "decay": 0.5})", 60.f, 1.f);
+  for(int k = 0; k <= 29; ++k){
+    INFO("tick " << k);
+    CHECK(levels[static_cast<std::size_t>(k)] == Approx(1.f));
+  }
+  CHECK(levels[33] < 1.f);
+}
+
+TEST_CASE("trigger.envelope decay reaches 0 after decay seconds", "[TimeNodes]")
+{
+  const std::vector<float> levels = envelopeRun(R"({"attack": 0, "hold": 0, "decay": 0.5})", 60.f, 1.f);
+  CHECK(levels[15] == Approx(0.5f).margin(0.02f));
+  CHECK(levels[29] > 0.f);
+  CHECK(levels[31] == 0.f);
+  CHECK(levels.back() == 0.f);
+}
+
+TEST_CASE("trigger.envelope times the same at 60 and 144 Hz", "[TimeNodes]")
+{
+  const char* params = R"({"attack": 0.2, "hold": 0.3, "decay": 0.5})";
+  for(float hz : {60.f, 144.f}){
+    INFO("hz " << hz);
+    const std::vector<float> levels = envelopeRun(params, hz, 2.f);
+    const float tick = 1.f / hz;
+    CHECK(firstTime(levels, hz, [](float v) { return v >= 1.f - 1e-4f; }) == Approx(0.2f).margin(tick + 1e-4f));
+    const std::size_t peakTick = static_cast<std::size_t>(std::lround(0.2f * hz)) + 1;
+    const std::vector<float> afterPeak(levels.begin() + static_cast<long>(peakTick), levels.end());
+    float decayStart = firstTime(afterPeak, hz, [](float v) { return v < 1.f - 1e-4f; });
+    CHECK(decayStart + static_cast<float>(peakTick) / hz == Approx(0.5f).margin(tick + 1e-4f));
+    float zeroAt = firstTime(afterPeak, hz, [](float v) { return v == 0.f; });
+    CHECK(zeroAt + static_cast<float>(peakTick) / hz == Approx(1.f).margin(tick + 1e-4f));
+  }
+}
+
+TEST_CASE("trigger.envelope retrigger mid-decay rises from the current level", "[TimeNodes]")
+{
+  Graph graph = load("test.trigger", "trigger.envelope", R"({"attack": 0.1, "hold": 0, "decay": 1})", "trigger");
+  g_value = Trigger{true};
+  graph.tick(1.f / 60.f);
+  g_value = Trigger{false};
+  for(int i = 0; i < 6; ++i){
+    graph.tick(1.f / 60.f); // reaches the peak at 0.1 s
+  }
+  for(int i = 0; i < 30; ++i){
+    graph.tick(1.f / 60.f); // half a second of decay
+  }
+  float before = outFloat(graph);
+  CHECK(before == Approx(0.5f).margin(0.05f));
+  g_value = Trigger{true};
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph) == Approx(before)); // no jump down
+  g_value = Trigger{false};
+  float last = before;
+  for(int i = 0; i < 2; ++i){
+    graph.tick(1.f / 60.f);
+    CHECK(outFloat(graph) > last);
+    last = outFloat(graph);
+  }
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph) > 0.98f); // the other half of the rise takes 0.05 s
+}
+
+TEST_CASE("trigger.envelope amount input scales the peak", "[TimeNodes]")
+{
+  Graph graph = load("test.trigger", "trigger.envelope", R"({"attack": 0, "hold": 1, "decay": 1})", "trigger", true);
+  g_amount = 0.4f;
+  g_value = Trigger{true};
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph) == Approx(0.4f));
+  Graph viaParam = load("test.trigger", "trigger.envelope", R"({"attack": 0, "amount": 2.5})", "trigger");
+  g_value = Trigger{true};
+  viaParam.tick(1.f / 60.f);
+  CHECK(outFloat(viaParam) == Approx(2.5f));
+}
+
+TEST_CASE("trigger.envelope clamps negative times and rejects a negative amount", "[TimeNodes]")
+{
+  const std::vector<float> levels = envelopeRun(R"({"attack": -1, "hold": -1, "decay": 0.5})", 60.f, 0.1f);
+  CHECK(levels[0] == Approx(1.f));
+  CHECK(levels[1] < 1.f);
+  CHECK(levels[1] > 0.9f);
+  CHECK(envelopeRun(R"({"decay": -1})", 60.f, 0.1f)[0] == 0.f); // decay clamps to 0, instant
+  Graph graph = load("test.trigger", "trigger.envelope", "{}", "trigger", true);
+  g_amount = -0.5f;
+  g_value = Trigger{true};
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph)) != nullptr);
+}
+
 TEST_CASE("time node params clamp to the declared range at load", "[TimeNodes]")
 {
   Graph graph = load("test.float", "smooth.exp", R"({"tau": 1e9})", "value");
@@ -408,7 +539,7 @@ TEST_CASE("time node descriptors carry full agent metadata", "[TimeNodes]")
 {
   NodeRegistry registry;
   registerTimeNodes(registry);
-  REQUIRE(registry.types().size() == 7);
+  REQUIRE(registry.types().size() == 8);
   for(const auto& descriptor : registry.toDescriptors()){
     if(registry.find(descriptor.key.substr(5)) == nullptr){
       continue; // param entry

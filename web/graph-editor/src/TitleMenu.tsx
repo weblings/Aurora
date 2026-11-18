@@ -22,7 +22,6 @@ export function TitleMenu({
   busy,
   blocked,
   nothingOpen,
-  editedSinceTest,
   effects,
   currentId,
   hasAudio,
@@ -41,7 +40,6 @@ export function TitleMenu({
   blocked: boolean
   // The effect would not load: there is no document, so only Open and New apply.
   nothingOpen: boolean
-  editedSinceTest: boolean
   effects: EffectListEntry[]
   currentId: string
   // An audio input exists: only then does New offer Music pulse.
@@ -75,9 +73,6 @@ export function TitleMenu({
     <EditorPopup isOpen={isOpen} onClose={onClose} label="Effect menu" triggerRef={triggerRef} focusAfter={focusAfter}>
       <Dialog aria-label="Effect menu">
         <div className="editor-title-dialog">
-          {editedSinceTest ? (
-            <p className="editor-note">Edited since the test. Save and apply puts the edited graph live and ends the test.</p>
-          ) : null}
           <Menu
             aria-label="Effect actions"
             onClose={onClose}

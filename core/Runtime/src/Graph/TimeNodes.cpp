@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -170,6 +171,88 @@ namespace Aurora::Runtime::Graph
       float m_value = 0.f;
     };
 
+    // Trigger to Float: rise to peak over attack, hold, then fall to 0 over decay.
+    // The firing tick is time 0, so attack 0 shows peak on it. A retrigger rises from the level.
+    class EnvelopeNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float dt,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        float budget = dt;
+        if(ctx.input<Trigger>("trigger").fired){
+          const float* wired = ctx.optionalInput<float>("amount");
+          float amount = wired != nullptr ? *wired : ctx.param<float>("amount");
+          requireFinite(ctx, amount, "amount");
+          if(amount < 0.f){
+            ctx.fail("amount is below 0");
+          }
+          m_peak = std::max(amount, m_level);
+          m_phase = Phase::Attack;
+          m_holdLeft = ctx.param<float>("hold");
+          budget = 0.f;
+        }
+        advance(ctx.param<float>("attack"), ctx.param<float>("decay"), budget);
+        outputs.emplace("value", m_level);
+      }
+
+      bool checkStateInvariants() const override { return std::isfinite(m_level) && std::isfinite(m_peak); }
+      void resetState() override { *this = EnvelopeNode{}; }
+
+    private:
+      enum class Phase { Idle, Attack, Hold, Decay };
+
+      void advance(float attack, float decay, float budget)
+      {
+        if(m_peak <= 0.f){
+          m_level = 0.f;
+          m_phase = Phase::Idle;
+        }
+        while(m_phase != Phase::Idle){
+          if(m_phase == Phase::Attack){
+            float need = attack <= 0.f ? 0.f : (m_peak - m_level) / m_peak * attack;
+            if(budget < need){
+              m_level += m_peak / attack * budget;
+              return;
+            }
+            budget -= need;
+            m_level = m_peak;
+            m_phase = Phase::Hold;
+          }else if(m_phase == Phase::Hold){
+            if(budget < m_holdLeft){
+              m_holdLeft -= budget;
+              return;
+            }
+            budget -= m_holdLeft;
+            m_holdLeft = 0.f;
+            m_phase = Phase::Decay;
+          }else{
+            float need = decay <= 0.f ? 0.f : m_level / m_peak * decay;
+            if(budget < need){
+              m_level -= m_peak / decay * budget;
+              return;
+            }
+            m_level = 0.f;
+            m_phase = Phase::Idle;
+          }
+        }
+      }
+
+      std::vector<PortDecl> m_in{
+        {"trigger", PortType::Trigger, true, "Each pulse starts or restarts the envelope."},
+        {"amount", PortType::Float, false, "The peak level; param amount is used when unwired."}};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false, "The envelope level, 0 up to the peak."}};
+      Phase m_phase = Phase::Idle;
+      float m_level = 0.f;
+      float m_peak = 0.f;
+      float m_holdLeft = 0.f;
+    };
+
     // Free-running: phase advances by rateHz * dt from graph start and is
     // not reset by param edits.
     class LfoNode : public INode
@@ -326,6 +409,31 @@ namespace Aurora::Runtime::Graph
           "scale", "Scale", -1.0e6f, 1.0e6f, 1.f, "",
           "Degrees per pulse: multiplies 'amount', or is the whole step when 'amount' is unconnected.")},
         .factory = [] { return std::make_unique<StepOnTriggerNode>(); },
+      });
+
+    registry.registerType(
+      "trigger.envelope",
+      NodeTypeInfo{
+        .meta =
+          {.title = "Envelope",
+           .group = "Motion",
+           .summary = "Turns each trigger into a flash that fades out.",
+           .tip = "Use for a beat flash with a sharp hit and slow fade.",
+           .purpose = "On each Trigger rise to the peak over attack seconds, hold it for hold seconds, "
+                      "then fall to 0 over decay seconds. A new trigger rises from the current level.",
+           .useWhen = "Flash on a beat, e.g. audio.features onset into frame.brightnessScale factor. "
+                      "Attack 0 hits at once, hold keeps it on.",
+           .example = "{\"id\": \"flash\", \"type\": \"trigger.envelope\", \"params\": {\"attack\": 0, "
+                      "\"hold\": 0.05, \"decay\": 0.4}}"},
+        .inputs = {{"trigger", PortType::Trigger, true, "Each pulse starts or restarts the envelope."},
+                   {"amount", PortType::Float, false, "The peak level; param amount is used when unwired."}},
+        .outputs = {{"value", PortType::Float, false, "The envelope level, 0 up to the peak."}},
+        .params =
+          {floatParam("attack", "Attack", 0.f, 60.f, 0.f, "s", "Seconds to rise to the peak, 0 is instant."),
+           floatParam("hold", "Hold", 0.f, 60.f, 0.f, "s", "Seconds to stay at the peak."),
+           floatParam("decay", "Decay", 0.f, 60.f, 0.5f, "s", "Seconds to fall from the peak to 0, 0 is instant."),
+           floatParam("amount", "Amount", 0.f, 1.0e6f, 1.f, "", "The peak level when input amount is not wired.")},
+        .factory = [] { return std::make_unique<EnvelopeNode>(); },
       });
 
     ParamDecl shape;

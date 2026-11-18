@@ -1,3 +1,4 @@
+#include "TempDirSuffix.hpp"
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
@@ -48,7 +49,7 @@ namespace
     std::filesystem::path path;
 
     explicit ScopedTempDir(const std::string& name):
-    path(std::filesystem::temp_directory_path() / ("aurora-audio-parity-" + name))
+    path(std::filesystem::temp_directory_path() / ("aurora-audio-parity-" + name + tempDirSuffix()))
     {
       std::filesystem::remove_all(path);
     }

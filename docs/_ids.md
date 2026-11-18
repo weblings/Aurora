@@ -72,6 +72,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
+| `7nyu-pairing-e2e-frozen-clock` | [log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md](log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md) | Pairing end-to-end test uses a frozen clock |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
@@ -200,6 +201,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
 | `h457-audio-permission-banner-row` | [log/2026-10-06-h457-audio-permission-banner-row.md](log/2026-10-06-h457-audio-permission-banner-row.md) | Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed) |
 | `h55g-refused-callout-narrow` | [log/2026-11-13-h55g-refused-callout-narrow.md](log/2026-11-13-h55g-refused-callout-narrow.md) | Graph editor: the refused-save callout stays inside the window |
+| `h87j-math-step` | [log/2026-11-18-h87j-math-step.md](log/2026-11-18-h87j-math-step.md) | math.step node |
 | `ha-prep-4y9` | [log/2026-10-01-ha-prep-4y9.md](log/2026-10-01-ha-prep-4y9.md) | Aurora-4y9: output-neutral NUX probe table in web/ui/app.js |
 | `ha-prep-a0r` | [log/2026-10-01-ha-prep-a0r.md](log/2026-10-01-ha-prep-a0r.md) | Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping |
 | `ha-prep-d9v` | [log/2026-10-01-ha-prep-d9v.md](log/2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
@@ -272,6 +274,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `kuee-portable-anchor-pick` | [log/2026-11-17-kuee-portable-anchor-pick.md](log/2026-11-17-kuee-portable-anchor-pick.md) | Seeded palette anchor pick is portable across platforms |
 | `l8ua-start-from-built-in-submenu` | [log/2026-11-16-l8ua-start-from-built-in-submenu.md](log/2026-11-16-l8ua-start-from-built-in-submenu.md) | Graph editor: New menu lists Built-in as its first sub-menu |
+| `l9gc-t8nd-test-edit-resend` | [log/2026-11-18-l9gc-t8nd-test-edit-resend.md](log/2026-11-18-l9gc-t8nd-test-edit-resend.md) | Test edits reach the lights and the demo room |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
 | `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
@@ -353,6 +356,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
 | `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
 | `q5eb-windows-no-browser-tab` | [log/2026-11-15-q5eb-windows-no-browser-tab.md](log/2026-11-15-q5eb-windows-no-browser-tab.md) | devstack: the Windows app no longer opens a browser tab on `up` |
+| `q66y-trigger-envelope` | [log/2026-11-18-q66y-trigger-envelope.md](log/2026-11-18-q66y-trigger-envelope.md) | trigger.envelope node |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
 | `qjqy-light-test-modes-close-out` | [log/2026-11-11-qjqy-light-test-modes-close-out.md](log/2026-11-11-qjqy-light-test-modes-close-out.md) | Light test modes close-out |
 | `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |
@@ -375,6 +379,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
 | `ra4o8-g3-cutover` | [log/2026-10-15-ra4o8-g3-cutover.md](log/2026-10-15-ra4o8-g3-cutover.md) | G3 cutover: the app runs on the Graph (Aurora-ra4o.8) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
+| `ruig-temp-dir-per-process` | [log/2026-11-18-ruig-temp-dir-per-process.md](log/2026-11-18-ruig-temp-dir-per-process.md) | Test temp dirs unique per process |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
 | `s1t71-bar-grille-buttons` | [log/2026-11-11-s1t71-bar-grille-buttons.md](log/2026-11-11-s1t71-bar-grille-buttons.md) | Graph editor: top bar on Grille buttons |

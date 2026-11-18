@@ -203,7 +203,7 @@ TEST_CASE("math node descriptors carry full agent metadata", "[MathNodes]")
 {
   NodeRegistry registry;
   registerMathNodes(registry);
-  REQUIRE(registry.types().size() == 9);
+  REQUIRE(registry.types().size() == 10);
   for(const auto& descriptor : registry.toDescriptors()){
     if(registry.find(descriptor.key.substr(5)) == nullptr){
       continue; // param entry
@@ -225,4 +225,80 @@ TEST_CASE("math node examples parse as graph nodes of their own type", "[MathNod
     nlohmann::json example = nlohmann::json::parse(registry.find(type)->meta.example);
     CHECK(example.at("type") == type);
   }
+}
+
+namespace
+{
+  // Ticks one math.step graph over a sequence of values, returns each output.
+  std::vector<float> runStep(
+    const std::string& params, const std::vector<float>& values, const std::vector<float>& edges = {})
+  {
+    NodeRegistry registry = makeRegistry();
+    std::string nodes = R"({"id": "a", "type": "test.a", "params": {}},)";
+    std::string edgeList = R"(["a.value", "m.value"])";
+    if(!edges.empty()){
+      nodes += R"({"id": "b", "type": "test.b", "params": {}},)";
+      edgeList += R"(, ["b.value", "m.edge"])";
+    }
+    LoadResult loaded = loadGraphFromString(
+      R"({"version": 1, "nodes": [)" + nodes + R"({"id": "m", "type": "math.step", "params": )" + params +
+        R"(}], "edges": [)" + edgeList + "]}",
+      registry);
+    INFO(loaded.error);
+    REQUIRE(loaded.ok);
+    std::vector<float> out;
+    for(std::size_t i = 0; i < values.size(); ++i){
+      g_a = values[i];
+      g_b = edges.empty() ? 0.f : edges[i];
+      loaded.graph.tick(1.f / 60.f);
+      const GraphValue* value = loaded.graph.portValue("m", "value");
+      REQUIRE(value != nullptr);
+      const float* number = std::get_if<float>(value);
+      REQUIRE(number != nullptr);
+      out.push_back(*number);
+    }
+    return out;
+  }
+} // namespace
+
+TEST_CASE("math.step with hysteresis 0 is a plain step at the edge", "[MathNodes]")
+{
+  const std::vector<float> got = runStep(R"({"edge": 0.5})", {0.1f, 0.49f, 0.5f, 0.9f, 0.49f, 0.f});
+  CHECK(got == std::vector<float>{0.f, 0.f, 1.f, 1.f, 0.f, 0.f});
+}
+
+TEST_CASE("math.step holds its output while the value stays inside the band", "[MathNodes]")
+{
+  const char* params = R"({"edge": 0.5, "hysteresis": 0.1})";
+  // Low side: wobbling inside the band below the edge never reaches 1.
+  CHECK(runStep(params, {0.2f, 0.45f, 0.41f, 0.49f}) == std::vector<float>{0.f, 0.f, 0.f, 0.f});
+  // High side: after rising, dips down to just above edge minus band stay at 1.
+  CHECK(runStep(params, {0.6f, 0.45f, 0.41f, 0.55f, 0.401f}) == std::vector<float>{1.f, 1.f, 1.f, 1.f, 1.f});
+}
+
+TEST_CASE("math.step flips up at the edge and down below edge minus hysteresis", "[MathNodes]")
+{
+  const std::vector<float> got =
+    runStep(R"({"edge": 0.5, "hysteresis": 0.1})", {0.f, 0.5f, 0.45f, 0.4f, 0.39f, 0.45f, 0.5f});
+  CHECK(got == std::vector<float>{0.f, 1.f, 1.f, 1.f, 0.f, 0.f, 1.f});
+}
+
+TEST_CASE("math.step invert swaps the outputs", "[MathNodes]")
+{
+  const std::vector<float> got =
+    runStep(R"({"edge": 0.5, "hysteresis": 0.1, "invert": true})", {0.f, 0.5f, 0.45f, 0.39f});
+  CHECK(got == std::vector<float>{1.f, 0.f, 0.f, 1.f});
+}
+
+TEST_CASE("math.step wired edge overrides the param", "[MathNodes]")
+{
+  const std::vector<float> got = runStep(R"({"edge": 100})", {0.5f, 0.5f, 0.5f}, {0.4f, 0.6f, 0.4f});
+  CHECK(got == std::vector<float>{1.f, 0.f, 1.f});
+}
+
+TEST_CASE("math.step rejects a negative hysteresis", "[MathNodes]")
+{
+  Result bad = run("math.step", R"({"hysteresis": -0.1})", 0.5f);
+  CHECK(bad.errored);
+  CHECK(bad.message.find("hysteresis") != std::string::npos);
 }

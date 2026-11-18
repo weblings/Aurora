@@ -1,3 +1,4 @@
+#include "TempDirSuffix.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -70,7 +71,7 @@ namespace
     std::filesystem::path path;
 
     explicit ScopedTempDir(const std::string& name):
-    path(std::filesystem::temp_directory_path() / ("aurora-pipeline-tests-" + name))
+    path(std::filesystem::temp_directory_path() / ("aurora-pipeline-tests-" + name + tempDirSuffix()))
     {
       std::filesystem::remove_all(path);
       std::filesystem::create_directories(path);

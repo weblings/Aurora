@@ -7,7 +7,8 @@
 // result fails the node (a GraphError), never a NaN on a Float port.
 //
 //   math.scale, math.divide, math.clamp, math.mapRange, math.lerp,
-//   math.add, math.multiply, math.max, math.invert
+//   math.add, math.multiply, math.max, math.invert,
+//   math.step (stateful, hysteresis)
 namespace Aurora::Runtime::Graph
 {
   void registerMathNodes(NodeRegistry& registry);

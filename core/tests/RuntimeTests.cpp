@@ -1,3 +1,4 @@
+#include "TempDirSuffix.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
@@ -34,7 +35,7 @@ namespace
     std::filesystem::path path;
 
     explicit ScopedTempDir(const std::string& name):
-    path(std::filesystem::temp_directory_path() / ("aurora-runtime-tests-" + name))
+    path(std::filesystem::temp_directory_path() / ("aurora-runtime-tests-" + name + tempDirSuffix()))
     {
       std::filesystem::remove_all(path);
     }
