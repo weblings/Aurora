@@ -22,13 +22,13 @@
     /* Scene-pane overlay controls: absolute within #scene-pane (was fixed
        when the scene was fullscreen). Untouched until the Phase 4 source
        handover removes #source-mode in favor of the Dashboard toggle. */
-    #toggle-grid, #toggle-backdrop-bounds, #toggle-rect-debug, #light-rig, #audio-color-model {
+    #toggle-grid, #toggle-backdrop-bounds, #toggle-rect-debug, #light-rig {
       position: absolute; left: 16px; z-index: 1;
       font: 14px system-ui, sans-serif; padding: 8px 12px;
       background: rgba(20, 22, 28, 0.75); color: #e8eaf0;
       border: 1px solid #4a4f5c; border-radius: 6px; cursor: pointer;
     }
-    /* toggle-grid/backdrop-bounds/rect-debug, light-rig, and audio-color-model are hidden for
+    /* toggle-grid/backdrop-bounds/rect-debug, and light-rig are hidden for
        now -- see each select's own comment in the body below for why. */
   </style>
   <script type="importmap">
@@ -40,7 +40,7 @@
     }
   </script>
   <style>
-    #room-status { position: absolute; left: 16px; top: 56px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; }
+    #room-status { position: absolute; left: 16px; top: 56px; z-index: 1; font: 14px system-ui, sans-serif; color: #e8eaf0; white-space: pre-line; }
   </style>
 </head>
 <body>
@@ -59,15 +59,6 @@
            XR pass; only one option left, so the picker itself is hidden too. -->
       <select id="light-rig" hidden>
         <option value="room" selected>TV Room (3D model)</option>
-      </select>
-      <!-- placeholder/ported/attack A/B/D options removed (not deleted -- see main.js's
-           placeholderAudioColor/dampedAudioColor/attackAudioColor). Disabled, not just hidden --
-           this dropdown isn't wired for real use right now. 'midpoint' is the 5th pass this would
-           have selected: halfway between 'ported' and 'tuned', now also native's own Config.hpp
-           default. -->
-      <select id="audio-color-model" hidden disabled>
-        <option value="tuned">Audio color: tuned (punchier brightness)</option>
-        <option value="midpoint" selected>Audio color: midpoint (halfway to tuned)</option>
       </select>
       <div id="room-status" hidden></div>
       <!-- Repo badge (Aurora-9mq): the RockyRoad badge-to-repo pattern, a

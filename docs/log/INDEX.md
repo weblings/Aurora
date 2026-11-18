@@ -499,3 +499,6 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Editor links are page-relative, the build base is `./`, and a framing host can open and close the editor (`Aurora-51nv.1`). [[51nv1-subpath-editor-links]] | `bd show Aurora-51nv.1` |
 | 2026-11-18 | Demo EventSource stand-in for `/api/` streams with a provider seam and a stub preview provider (`Aurora-51nv.2`). [[51nv2-demo-eventsource]] | `bd show Aurora-51nv.2` |
 | 2026-11-18 | WASM engine `loadLive` reloads in place and keeps node state, as the app retunes (`Aurora-51nv.13`). [[51nv13-loadlive-keeps-state]] | `bd show Aurora-51nv.13` |
+| 2026-11-18 | Demo room runs the built-in graphs on the WASM engine in a Worker, web/demo's web-processing copies retired (`Aurora-51nv.11`). [[51nv11-room-on-engine]] | `bd show Aurora-51nv.11` |
+| 2026-11-18 | Demo editor opens in an iframe beside the room, custom effects persist in localStorage (`Aurora-51nv.9`). [[51nv9-demo-editor-shell]] | `bd show Aurora-51nv.9` |
+| 2026-11-18 | Demo shim backs the editor's routes with the engine: drafts, preview, Test on lights, save, apply, duplicate (fixes `Aurora-kep2.23`), effect switch (`Aurora-51nv.10`). [[51nv10-demo-engine-routes]] | `bd show Aurora-51nv.10`, `bd show Aurora-kep2.23` |

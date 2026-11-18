@@ -221,7 +221,11 @@ namespace Aurora::Wasm
     Json body;
     std::string error;
     if(!_parse(doc, body, error)){ return error; }
-    return validateGraphDoc(m_registry, _outputNames(), body).dump();
+    Json verdict = validateGraphDoc(m_registry, _outputNames(), body);
+    // Which capture sources the graph reads, so the page knows what to feed it.
+    const GraphSourceNeeds needs = graphSourceNeeds(body);
+    verdict["inputs"] = {{"video", needs.video}, {"audio", needs.audio}};
+    return verdict.dump();
   }
 
 

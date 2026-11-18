@@ -22,6 +22,8 @@ one common brief file").
   - Windows (Git Bash): `L=<scratchpad>/check.lock; until mkdir "$L" 2>/dev/null; do sleep 5; done; <cmd>; rc=$?; rmdir "$L"; (exit $rc)`
   - macOS: `/usr/bin/lockf -t 1200 <lockfile> <cmd>` (call lockf directly, never from a variable).
 - Windows: pass C:/... paths to Node, never /c/... .
+- Do NOT start any server (auto mode denies it). <The coordinator serves the page at http://127.0.0.1:<port>/>; if it does not answer, stop and report.
+- C++ tests: run each new test by its exact name as well as any `ctest -R` filter (filters are case-sensitive), or the full `ctest -j8`.
 - On "timed out waiting for a frame": check port 8215 (`netstat -ano | grep ':8215 ' | grep LISTEN`, or `lsof -nP -iTCP:8215 -sTCP:LISTEN`), then STOP and report; do not retry.
 - Iterate with typecheck, unit tests and ONLY the one browser check named in your brief, and only with a hypothesis. Run the regression set once at the end, each check by the exact command your brief gives. Report each run's name, result and time.
 - Known baseline failures: <none | list with bead ids>. Uncommitted files you did not touch belong to other beads: do not revert, stash or reformat them.

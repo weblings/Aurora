@@ -95,3 +95,27 @@ TEST_CASE("loadLive with a bad doc keeps the previous live graph running", "[Bro
   CHECK_FALSE(colors.contains("error"));
   CHECK_FALSE(colors.at("outputs").at(0).at("zones").empty());
 }
+
+TEST_CASE("validate reports which capture inputs a graph reads", "[BrowserEngine]")
+{
+  BrowserEngine engine;
+  start(engine);
+  const auto inputsOf = [&engine](const Json& doc){
+    return Json::parse(engine.validate(doc.dump())).at("inputs");
+  };
+  const auto withNode = [](const char* type){
+    return Json{{"version", 1}, {"nodes", {{{"id", "n"}, {"type", type}, {"params", Json::object()}}}}, {"edges", Json::array()}};
+  };
+
+  CHECK(inputsOf(withNode("video.capture")) == Json{{"video", true}, {"audio", false}});
+  CHECK(inputsOf(withNode("audio.capture")) == Json{{"video", false}, {"audio", true}});
+  CHECK(inputsOf(withNode("lfo")) == Json{{"video", false}, {"audio", false}});
+  // An invalid graph still answers, with the inputs it declares.
+  Json broken = withNode("video.capture");
+  broken["edges"] = Json::array({Json::array({"n.frame", "missing.in"})});
+  const Json verdict = Json::parse(engine.validate(broken.dump()));
+  CHECK_FALSE(verdict.at("valid").get<bool>());
+  CHECK(verdict.at("inputs") == Json{{"video", true}, {"audio", false}});
+  CHECK(Json::parse(engine.validate(driftDoc(1.0))).at("valid").get<bool>());
+  CHECK(Json::parse(engine.validate(driftDoc(1.0))).at("inputs") == Json{{"video", false}, {"audio", false}});
+}

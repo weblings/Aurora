@@ -23,7 +23,7 @@ engine.init({ outputs: [{ name: 'hue', zones }] })
 | `init(config)` | `{ok}`. `{outputs: [{name, zones}]}` with zones in the ZoneMapStore shape. Resets everything. |
 | `setZones(output, zones)` | `{ok}`. Applies on the next step. |
 | `nodes()` | The `GET /api/nodes` body. |
-| `validate(doc)` | The draft validation body, `{valid, errors}`. |
+| `validate(doc)` | The draft validation body, `{valid, errors}`, plus `inputs: {video, audio}` (the capture nodes the graph reads). A module built before Aurora-51nv.10 lacks `inputs`. |
 | `loadLive(doc)` | `{ok}` or `{error: "cannot_load", message}`. A later call reloads in place and keeps node state by id (easing, drift), and on error the old graph keeps running. |
 | `openPreview(session, doc, layout)` | `{ok}` or `{error: "cannot_preview" or "invalid_layout"}`. Layout is `lights`, `room` or `basic`. |
 | `reloadPreview(session, doc)` | `{ok}` or `{error: "draft_invalid", message}`, leaving the old graph running. |

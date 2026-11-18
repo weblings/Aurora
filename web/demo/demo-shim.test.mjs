@@ -55,7 +55,7 @@ function testRouter(seed) {
     effect: 'builtin.video',
     effectTitle: 'Screen colors',
     effectDescription: 'Follows the colors on your screen.',
-    test: { active: false, confirmRemainingMs: 0 },
+    test: { active: false, mode: null, confirmRemainingMs: 0, holder: null },
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,
@@ -381,6 +381,59 @@ function testRouter(seed) {
   assert.equal((await route('PUT', '/api/effects/builtin.video/title', JSON.stringify({ title: 'X' }))).json.error, 'builtin_effect');
   assert.equal((await route('PUT', '/api/effects/nope/title', JSON.stringify({ title: 'X' }))).status, 404);
   assert.equal((await route('PUT', '/api/effects/nope/title', JSON.stringify({ title: ' ' }))).json.error, 'invalid_title');
+}
+
+// Custom effects (Aurora-51nv.9): listed after the built-ins, routes act on them, a fresh store over the same storage keeps them.
+{
+  const storage = createMemoryStorage();
+  const open = () => { const store = createShimStore(storage, {}); return { store, route: createRouter(store) }; };
+  const json = (v) => JSON.stringify(v);
+  let { store, route } = open();
+  const list = async () => (await route('GET', '/api/effects')).json.effects;
+  assert.equal(store.effects.putCustom('Bad Id', { title: 'x' }), false);
+  assert.equal(store.effects.putCustom('builtin.video', { title: 'x' }), false);
+  store.effects.putCustom('aaa', { title: 'First', description: 'one' });
+  store.effects.putCustom('bbb', { title: 'Second' });
+  assert.deepEqual((await list()).map((e) => [e.id, e.builtin, e.title, e.description, e.order]), [
+    ['builtin.video', true, 'Screen colors', 'Follows the colors on your screen.', 0],
+    ['builtin.audio', true, 'Music pulse', 'Moves with the sound your computer is playing.', 1],
+    ['aaa', false, 'First', 'one', 2],
+    ['bbb', false, 'Second', null, 3],
+  ]);
+  // Move stays inside the group, hidden customs are skipped.
+  assert.equal((await route('POST', '/api/effects/aaa/move', json({ direction: 'up' }))).json.moved, false);
+  assert.equal((await route('POST', '/api/effects/bbb/move', json({ direction: 'up' }))).json.moved, true);
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'bbb', 'aaa']);
+  store.effects.putCustom('ccc', { title: 'Third' });
+  assert.equal((await route('PUT', '/api/effects/aaa/hidden', json({ hidden: true }))).json.hidden, true);
+  assert.equal((await route('POST', '/api/effects/ccc/move', json({ direction: 'up' }))).json.moved, true);
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'ccc', 'bbb', 'aaa']);
+  assert.equal((await route('POST', '/api/effects/builtin.audio/move', json({ direction: 'down' }))).json.moved, false);
+  const renamed = (await route('PUT', '/api/effects/bbb/title', json({ title: '  Renamed  ' }))).json;
+  assert.deepEqual(renamed, { succeeded: true, id: 'bbb', title: 'Renamed' });
+  assert.equal((await route('PUT', '/api/effects/bbb/title', json({ title: 'x'.repeat(81) }))).json.error, 'invalid_title');
+
+  // Reload round trip: a fresh store over the same storage.
+  ({ store, route } = open());
+  assert.deepEqual((await list()).map((e) => [e.id, e.title, e.hidden]), [
+    ['builtin.video', 'Screen colors', false], ['builtin.audio', 'Music pulse', false],
+    ['ccc', 'Third', false], ['bbb', 'Renamed', false], ['aaa', 'First', true],
+  ]);
+  assert.equal(store.effects.getCustom('aaa').description, 'one');
+
+  assert.equal((await route('DELETE', '/api/effects/builtin.video')).json.error, 'builtin_effect');
+  assert.equal((await route('DELETE', '/api/effects/nope')).status, 404);
+  assert.deepEqual((await route('DELETE', '/api/effects/aaa')).json, { succeeded: true, deleted: 'aaa', fellBack: false });
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'ccc', 'bbb']);
+  ({ route } = open());
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'ccc', 'bbb']);
+
+  // Built-in hidden and order persist too, paused does not.
+  await route('PUT', '/api/effects/builtin.video/hidden', json({ hidden: true }));
+  await route('PUT', '/api/state', json({ running: false }));
+  ({ route } = open());
+  assert.equal((await list())[0].hidden, true);
+  assert.equal((await route('GET', '/api/state')).json.paused, false);
 }
 
 console.log('demo-shim contract tests passed.');

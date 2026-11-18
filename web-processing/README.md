@@ -1,5 +1,8 @@
 # web-processing
 
+No longer used by the web demo: since Aurora-51nv.11 the demo runs the graph engine
+compiled to WASM (`web/engine/`). Kept with its parity tests. The text below is historical.
+
 Hand-ported JS mirror of `core/Processing`'s crop/mean logic and
 `core/Runtime/Smoother`'s easing formula, for the `Aurora-Demo-Web` browser
 demo — kept in this repo, next to the C++ it mirrors, rather than in
