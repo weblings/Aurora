@@ -590,12 +590,15 @@ Decided:
   token in the editor (no Grille change). When Details opens, follows a new selection or
   the drawer changes size, the canvas pans so the selected node sits clear of the drawer.
   The demo refits its camera the same way on pane resize (`web/demo/main.js`).
-- **Narrow or portrait windows get a bottom drawer.** Below about 650 px wide, or clearly
-  portrait (aspect under about 0.75), the drawer docks at the bottom at half height, with a
-  visible half/full toggle button. A short laptop window stays on the right side: there
-  height is the scarce dimension. Prior art: SwiftUI's inspector is a trailing column at
-  regular width and a sheet with detents at compact width; Material-aligned libraries
-  switch at 600dp. This needs `side: 'bottom'` and the half/full state in Grille's Drawer.
+- **Narrow windows get a bottom drawer.** Below 650 px wide, and only by width, the drawer
+  docks at the bottom at half height, with a visible half/full toggle button. Portrait
+  windows 650 px or wider keep the side drawer (`Aurora-daaa.37`): beside it they leave
+  more canvas than 700x900 does, the side keeps 20 to 51 percent more canvas area from
+  800x1280 to 1440x2560, and a one-column drawer body would sit mostly empty in a wide dock.
+  A short laptop window stays on the right side too. Prior art: SwiftUI's inspector is a
+  trailing column at regular width and a sheet with detents at compact width; Material-aligned
+  libraries switch at 600dp, also width based. This needs `side: 'bottom'` and the half/full
+  state in Grille's Drawer.
 - **No container queries in the drawer bodies (`Aurora-daaa.29.5`).** The Details and
   Dashboard controls bodies are a single column of full-width rows, and the screenshots at
   400x800 (half and full height) and 1100 px show them fitting with no overflow, so one

@@ -131,6 +131,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
 | `daaa35-zone-preview-drawer` | [log/2026-11-11-daaa35-zone-preview-drawer.md](log/2026-11-11-daaa35-zone-preview-drawer.md) | Graph editor zone preview clears a side drawer |
 | `daaa36-mock-minimap` | [log/2026-11-11-daaa36-mock-minimap.md](log/2026-11-11-daaa36-mock-minimap.md) | Grille mock: minimap above the zoom menu |
+| `daaa37-width-only-dock` | [log/2026-11-17-daaa37-width-only-dock.md](log/2026-11-17-daaa37-width-only-dock.md) | Graph editor: drawers dock at the bottom by width only |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |

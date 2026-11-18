@@ -16,4 +16,4 @@ export function useMedia(query: string): boolean {
 
 // Thresholds (web/ui breaks at 649 px; the others are the cleanup plan's "narrow windows").
 export const COMPACT_BAR = '(max-width: 649px)' // Unsaved as a mark on the title
-export const DOCK_BOTTOM = '(max-width: 649px), (max-aspect-ratio: 3/4)' // drawers dock at the bottom (Aurora-daaa.29.4)
+export const DOCK_BOTTOM = '(max-width: 649px)' // drawers dock at the bottom, by width only (Aurora-daaa.29.4, .37)
