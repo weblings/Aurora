@@ -1,5 +1,7 @@
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 
+#include <Aurora/Contracts/PickIndex.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -83,8 +85,8 @@ namespace Aurora::Runtime::Graph
           const auto& seed = ctx.param<std::optional<float>>("seed");
           std::mt19937 rng{
             seed ? static_cast<std::mt19937::result_type>(*seed) : std::random_device{}()};
-          std::uniform_int_distribution<size_t> dist(0, kPairAnchors.size() - 1);
-          m_value = kPairAnchors[dist(rng)];
+          m_value = kPairAnchors[Aurora::Contracts::pickIndex(
+            rng, static_cast<std::uint32_t>(kPairAnchors.size()))];
           m_picked = true;
         }
         outputs.emplace("anchor", Angle{m_value});

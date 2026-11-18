@@ -69,6 +69,7 @@ namespace Aurora::Runtime::Graph
     std::string port;    // port named by the problem, empty when none
     std::string param;   // param named by the problem, empty when none
     std::vector<std::string> options; // valid choices or nearest matches, empty when none
+    std::string nodeTitle; // node_construct_failed only: the node type's catalog title, else its type
   };
 
   struct LoadResult

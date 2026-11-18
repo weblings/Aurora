@@ -9,6 +9,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `112-linux-verification` | [log/2026-10-18-112-linux-verification.md](log/2026-10-18-112-linux-verification.md) | v1.1.2 Linux verification |
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
+| `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
 | `1n1u-browser-check-set` | [log/2026-11-17-1n1u-browser-check-set.md](log/2026-11-17-1n1u-browser-check-set.md) | Browser checks: the editor regression set on one stack |
@@ -131,6 +132,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
 | `daaa35-zone-preview-drawer` | [log/2026-11-11-daaa35-zone-preview-drawer.md](log/2026-11-11-daaa35-zone-preview-drawer.md) | Graph editor zone preview clears a side drawer |
 | `daaa36-mock-minimap` | [log/2026-11-11-daaa36-mock-minimap.md](log/2026-11-11-daaa36-mock-minimap.md) | Grille mock: minimap above the zoom menu |
+| `daaa37-width-only-dock` | [log/2026-11-17-daaa37-width-only-dock.md](log/2026-11-17-daaa37-width-only-dock.md) | Graph editor: drawers dock at the bottom by width only |
 | `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
 | `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
 | `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |
@@ -385,6 +387,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
+| `th7f-node-title-in-shell` | [log/2026-11-17-th7f-node-title-in-shell.md](log/2026-11-17-th7f-node-title-in-shell.md) | Shell row names a node that can't be set up by its title |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
 | `u68h-stage6-7-rescope` | [log/2026-11-12-u68h-stage6-7-rescope.md](log/2026-11-12-u68h-stage6-7-rescope.md) | Graph editor stage 6 rescoped, stage 7 filed |
@@ -436,6 +439,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `w6zq6-grille-dev10-popover-toggle` | [log/2026-11-11-w6zq6-grille-dev10-popover-toggle.md](log/2026-11-11-w6zq6-grille-dev10-popover-toggle.md) | Grille dev.10 bump and popover toggle check |
 | `w6zq7-test-menu-selected-mode` | [log/2026-11-11-w6zq7-test-menu-selected-mode.md](log/2026-11-11-w6zq7-test-menu-selected-mode.md) | Test mode menu marks the current mode |
 | `w6zq8-grille-tooltips` | [log/2026-11-11-w6zq8-grille-tooltips.md](log/2026-11-11-w6zq8-grille-tooltips.md) | Grille Tooltip in the graph editor |
+| `web-demo-editor` | [planning/WebDemoEditor.md](planning/WebDemoEditor.md) | Graph editor in the web demo |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |

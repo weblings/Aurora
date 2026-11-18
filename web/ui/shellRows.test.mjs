@@ -15,6 +15,7 @@ const effectError = (code, detail) => ({ source: 'effect', message: "Couldn't st
 assert.equal(errorSentence(effectError('input_not_configured', { effectTitle: 'Sunset', inputKind: 'audio' }), 'failed'), "Couldn't start Sunset: it needs an audio input. Choose one in Settings.");
 assert.equal(errorSentence(effectError('input_unavailable', { effectTitle: 'Sunset', inputKind: 'audio', inputName: 'USB Mic' }), 'failed'), `Couldn't start Sunset: the audio input "USB Mic" isn't available.`);
 assert.equal(errorSentence(effectError('node_construct_failed', { effectTitle: 'Sunset', node: 'grad' }), 'failed'), `Couldn't start Sunset: the "grad" node can't be set up. Open it in the editor to fix it.`);
+assert.equal(errorSentence(effectError('node_construct_failed', { effectTitle: 'Sunset', node: 'grad', nodeTitle: 'Gradient' }), 'failed'), "Couldn't start Sunset: the Gradient node can't be set up. Open it in the editor to fix it.");
 assert.equal(errorSentence(effectError('no_outputs', {}), 'failed'), "Couldn't start: no lights are set up. Choose them in Settings.");
 assert.equal(errorSentence({ source: 'startup', message: 'm', code: 'no_outputs' }, 'failed'), "Couldn't start: no lights are set up. Choose them in Settings.");
 assert.equal(errorSentence({ source: 'reload', message: 'm', code: 'no_outputs' }, 'paused'), "Couldn't apply settings: no lights are set up. Choose them in Settings.");

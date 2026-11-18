@@ -74,6 +74,7 @@ test('host codes read as a clause after the row prefix, filled from detail', () 
   assert.equal(hostCopy('input_unavailable', {}, null), "the input isn't available.")
   assert.equal(hostCopy('no_outputs', undefined, null), 'no lights are set up. Choose them in Settings.')
   assert.equal(hostCopy('node_construct_failed', { node: 'grad' }, null), "the \"grad\" node can't be set up. Open it in the editor to fix it.")
+  assert.equal(hostCopy('node_construct_failed', { node: 'grad', nodeTitle: 'Gradient' }, null), "the Gradient node can't be set up. Open it in the editor to fix it.")
   assert.equal(hostCopy('node_construct_failed', {}, null), "a node can't be set up. Open it in the editor to fix it.")
 })
 

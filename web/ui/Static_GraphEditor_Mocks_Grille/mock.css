@@ -59,12 +59,12 @@ button { font-family: inherit; }
 .ge-tr { right: var(--ui-size-space-xl); top: var(--ui-size-space-xl); }
 .ge-bl { left: var(--ui-size-space-xl); bottom: var(--ui-size-space-xl); }
 .ge-br { right: var(--ui-size-space-xl); bottom: var(--ui-size-space-xl); }
-/* Drawer sizing as in the editor (Aurora-daaa.29.2, .29.4): side width clamp(280px, 40vw, 350px); below 650px wide or aspect under 0.75 the drawer docks at the bottom, half height, with a half/full toggle. */
+/* Drawer sizing as in the editor (Aurora-daaa.29.2, .29.4): side width clamp(280px, 40vw, 350px); below 650px wide (width only, .37) the drawer docks at the bottom, half height, with a half/full toggle. */
 :root { --drawer-w: clamp(280px, 40vw, 350px); }
 /* Side drawer: the zone preview and the Dashboard controls button step left of it, so the preview stays visible while a control is dragged and the button can close the drawer. */
 .ge-tr, .ge-br, .ge-bl { transition: right 0.12s, bottom 0.12s; }
 .ge-canvas.drawer-open .ge-tr, .ge-canvas.drawer-open .ge-br { right: calc(var(--drawer-w) + var(--ui-size-space-xl)); }
-@media (max-width: 649px), (max-aspect-ratio: 3/4) {
+@media (max-width: 649px) {
   /* Bottom dock: the preview stays top-right above it; both bottom corner buttons lift above the half-height sheet. Full height covers the canvas, so the buttons hide (the toggle or Close brings them back). */
   .ge-canvas.drawer-open .ge-tr, .ge-canvas.drawer-open .ge-br { right: var(--ui-size-space-xl); }
   .ge-canvas.drawer-open .ge-br, .ge-canvas.drawer-open .ge-bl { bottom: calc(50% + var(--ui-size-space-xl)); }
@@ -250,7 +250,7 @@ button { font-family: inherit; }
 .ge-drawer-toggle { display: none; margin-left: auto; margin-right: var(--ui-size-space-md); }
 /* Both icons are rendered and CSS shows one, so a click never detaches its own target (the outside-click handler would close the drawer). */
 .ge-drawer-toggle[aria-pressed="false"] > span:last-child, .ge-drawer-toggle[aria-pressed="true"] > span:first-child { display: none !important; }
-@media (max-width: 649px), (max-aspect-ratio: 3/4) {
+@media (max-width: 649px) {
   .ge-drawer { top: auto; left: 0; width: auto; border-width: 1px 0 0 0; height: calc((100dvh - var(--drawer-top, 0px)) / 2); }
   .ge-drawer[data-expanded] { top: var(--drawer-top, 0); height: auto; }
   .ge-drawer-toggle { display: inline-flex; }

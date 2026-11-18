@@ -5133,7 +5133,7 @@ TEST_CASE("GET /api/state reports the test and /stop ends another session's test
 
 TEST_CASE("A second session's test names its holder and reports the takeover (Aurora-0tqq)", "[LightTest]")
 {
-  LightTestHarness h("lt-replace");
+  LightTestHarness h("lt-takeover");
   h.putDraft("editor", Graph::builtInVideoGraph({"out-a"}));
   h.putDraft("agent", Graph::builtInVideoGraph({"out-a"}));
   auto get = [&](const std::string& path){ return nlohmann::json::parse(h.client->Get(path)->body); };
@@ -5171,7 +5171,11 @@ TEST_CASE("A second session's test names its holder and reports the takeover (Au
   // The same session testing again is a restart, not a takeover.
   std::string revertError;
   CHECK(h.test->stop(revertError));
-  REQUIRE(h.start("agent") == 200);
+  // Names the refusing branch in a flake (Aurora-16i9): body error and message.
+  auto restart = h.client->Post("/api/graph/test", nlohmann::json{{"session", "agent"}}.dump(), "application/json");
+  REQUIRE(restart);
+  INFO("restart body: " << restart->body << " revertError: " << revertError);
+  REQUIRE(restart->status == 200);
   REQUIRE(h.start("agent") == 200);
   CHECK(h.test->info().lastEnd == "stopped");
 }

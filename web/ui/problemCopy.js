@@ -90,8 +90,8 @@ export const HOST_COPY = {
     `the ${inputKind === 'audio' || inputKind === 'video' ? `${inputKind} ` : ''}input${inputName ? ` ${quoted(inputName)}` : ''} isn't available.`,
   no_outputs: 'no lights are set up. Choose them in Settings.',
   effect_unreadable: 'its file is missing or damaged.',
-  node_construct_failed: ({ node }) =>
-    `${node ? `the ${quoted(node)} node` : 'a node'} can't be set up. Open it in the editor to fix it.`,
+  node_construct_failed: ({ node, nodeTitle }) =>
+    `${nodeTitle ? `the ${nodeTitle} node` : node ? `the ${quoted(node)} node` : 'a node'} can't be set up. Open it in the editor to fix it.`,
 }
 for (const code of Object.keys(COPY)) {
   if (!Object.hasOwn(HOST_COPY, code) && !NOT_GRAPH_LOAD.has(code)) HOST_COPY[code] = GRAPH_LOAD_REASON

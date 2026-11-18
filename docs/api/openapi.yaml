@@ -1483,8 +1483,9 @@ components:
           additionalProperties:
             type: string
           description: >-
-            Names that go with `code`, when there are any. Keys seen so far are `effectTitle`, `node`,
-            `inputKind` (`video` or `audio`) and `inputName`.
+            Names that go with `code`, when there are any. Keys seen so far are `effectTitle`, `node`, `nodeTitle` (with
+            `node_construct_failed`: the node type's catalog title, else its type), `inputKind` (`video` or
+            `audio`) and `inputName`.
     Condition:
       type: object
       required: [source, message]

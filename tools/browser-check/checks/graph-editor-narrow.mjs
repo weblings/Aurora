@@ -125,12 +125,12 @@ await withEditorStack(async ({ editorUrl }) => {
         return { side: d.dataset.side, drawerW: Math.round(d.getBoundingClientRect().width) }
       })
       const want = Math.min(350, Math.max(280, Math.round(width * 0.4)))
-      // Below 650 px (or portrait) the drawer docks at the bottom instead; the dock block below checks that.
+      // Below 650 px the drawer docks at the bottom instead; the dock block below checks that.
       if (geo.side === 'right') assert.ok(Math.abs(geo.drawerW - want) <= 1, `${width} px: drawer ${geo.drawerW} px, want ${want}`)
       await page.keyboard.press('Escape')
     }
-    // Aurora-daaa.29.4: bottom dock below 650 px wide or portrait (aspect < 0.75), else the side.
-    for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1000, 600, 'right'], [1470, 700, 'right']]) {
+    // Aurora-daaa.29.4: bottom dock below 650 px wide only (Aurora-daaa.37), else the side, even in wide portrait.
+    for (const [w, h, side] of [[400, 800, 'bottom'], [700, 900, 'right'], [1000, 600, 'right'], [1470, 700, 'right'], [900, 1400, 'right']]) {
       await page.setViewportSize({ width: w, height: h })
       await settle(page)
       await controlsButton(page).click()
