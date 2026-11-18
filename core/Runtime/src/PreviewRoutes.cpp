@@ -81,23 +81,6 @@ namespace Aurora::Runtime
       if(asked->second == "basic"){ return PreviewLayout::Basic; }
       return std::nullopt;
     }
-
-    nlohmann::json _snapshotJson(const std::string& session, const GraphPreview::Snapshot& snapshot)
-    {
-      nlohmann::json outputs = nlohmann::json::array();
-      for(const auto& colors : snapshot.outputs){
-        nlohmann::json zones = nlohmann::json::array();
-        for(const auto& zone : colors.zones){
-          zones.push_back({{"id", zone.id}, {"r", zone.r}, {"g", zone.g}, {"b", zone.b}, {"error", zone.error}});
-        }
-        outputs.push_back({{"output", colors.output}, {"zones", std::move(zones)}});
-      }
-      nlohmann::json errors = nlohmann::json::array();
-      for(const auto& error : snapshot.errors){
-        errors.push_back({{"output", error.output}, {"node", error.node}, {"message", error.message}, {"code", error.code}});
-      }
-      return {{"session", session}, {"tickMs", snapshot.tickMs}, {"outputs", std::move(outputs)}, {"errors", std::move(errors)}};
-    }
   }
 
 
@@ -284,7 +267,7 @@ namespace Aurora::Runtime
             }
           }
 
-          const nlohmann::json data = _snapshotJson(session, preview->snapshot());
+          const nlohmann::json data = previewSnapshotJson(session, preview->snapshot());
           // tickMs wobbles every tick, so only the colors decide a send.
           nlohmann::json key = data;
           key.erase("tickMs");

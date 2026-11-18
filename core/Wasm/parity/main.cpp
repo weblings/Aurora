@@ -1,7 +1,7 @@
-// WASM spike driver (Aurora-51nv.4): runs a built-in graph over fixed inputs
-// and prints one JSON line per recorded frame. Same source builds native and
-// wasm32-emscripten so the two outputs can be diffed.
-//   spike video|audio <fixtureDir>
+// Parity driver (from the Aurora-51nv.4 spike): runs a built-in graph over fixed inputs
+// and prints one JSON line per recorded frame. Built with Emscripten from core/Wasm
+// and natively against AuroraGraphEngine so the two outputs can be diffed.
+//   graph_parity video|audio <fixtureDir>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -132,7 +132,7 @@ namespace
 int main(int argc, char** argv)
 {
   if(argc < 3){
-    std::fprintf(stderr, "usage: spike video|audio <fixtureDir>\n");
+    std::fprintf(stderr, "usage: graph_parity video|audio <fixtureDir>\n");
     return 2;
   }
   const std::string mode = argv[1];

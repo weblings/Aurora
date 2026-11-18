@@ -932,4 +932,4 @@ Applies-when: building OpenCV for `wasm32-emscripten` or linking a WASM target a
 
 With `CPU_BASELINE` and `CPU_DISPATCH` empty, OpenCV 4.12 still compiles `intrin_wasm.hpp`, and Emscripten 7.0.0 fails with "always_inline function 'wasm_v128_load' requires target feature 'simd128'" (Aurora-51nv.4). Pass `-msimd128` in `CMAKE_C_FLAGS` and `CMAKE_CXX_FLAGS` for OpenCV and every consumer. With `BUILD_LIST=core,imgproc`, the installed `OpenCVModules.cmake` still imports 3rdparty libs (`liblibtiff.a`) that were never built, so `find_package(OpenCV)` fails.
 
-**Fix:** link `libopencv_imgproc.a`, `libopencv_core.a` and `opencv4/3rdparty/libzlib.a` from the install prefix directly, as `tools/wasm-spike/CMakeLists.txt` does.
+**Fix:** link `libopencv_imgproc.a`, `libopencv_core.a` and `opencv4/3rdparty/libzlib.a` from the install prefix directly, as `core/Wasm/WasmDeps.cmake` does.

@@ -9,9 +9,24 @@ set(BUILD_TESTS TRUE CACHE BOOL "Build tests")
 # find_package(CONFIG REQUIRED), which shouldn't block a video-only build.
 option(AURORA_CORE_ENABLE_AUDIO "Build the audio-reactive pipeline (AudioProcessing + Runtime's audio graph nodes); requires aubio" TRUE)
 
+# Only AuroraGraphEngine and what it links: no Network, Secrets, httplib, AuroraRuntime
+# or tests. The Emscripten build requires it (see Wasm/README.md).
+option(AURORA_CORE_GRAPH_ONLY "Build only the graph engine target, for the WASM build" FALSE)
+if(EMSCRIPTEN AND NOT AURORA_CORE_GRAPH_ONLY)
+  message(FATAL_ERROR "Emscripten builds need -DAURORA_CORE_GRAPH_ONLY=ON")
+endif()
+if(AURORA_CORE_GRAPH_ONLY)
+  set(BUILD_TESTS FALSE)
+endif()
+
 include(FetchContent)
 
-find_package(OpenCV REQUIRED COMPONENTS imgproc)
+if(EMSCRIPTEN)
+  # Prebuilt OpenCV archives and aubio from source, defined before the modules that need them.
+  include(Wasm/WasmDeps.cmake)
+else()
+  find_package(OpenCV REQUIRED COMPONENTS imgproc)
+endif()
 
 # glm -- same fetch-if-missing pattern as huenicorn's own CMakeLists.txt
 find_package(glm QUIET)
@@ -42,41 +57,43 @@ else()
   message(STATUS "nlohmann_json is installed")
 endif()
 
-# Fetched deps must not pollute consumers' install trees with their own
-# install rules (headers, cmake configs, licenses). The apps' portable
-# install tree (StandaloneApps P3) would otherwise ship httplib's files
-# alongside the binary -- observed live via cmake --install. Off here, at
-# the single point that owns the fetch, so slice, superbuild, and plugin
-# configures are all covered regardless of add_subdirectory order.
-set(HTTPLIB_INSTALL OFF CACHE BOOL "" FORCE)
+if(NOT AURORA_CORE_GRAPH_ONLY)
+  # Fetched deps must not pollute consumers' install trees with their own
+  # install rules (headers, cmake configs, licenses). The apps' portable
+  # install tree (StandaloneApps P3) would otherwise ship httplib's files
+  # alongside the binary -- observed live via cmake --install. Off here, at
+  # the single point that owns the fetch, so slice, superbuild, and plugin
+  # configures are all covered regardless of add_subdirectory order.
+  set(HTTPLIB_INSTALL OFF CACHE BOOL "" FORCE)
 
-# cpp-httplib -- same fetch-if-missing pattern as glm/nlohmann_json; also
-# huenicorn's own choice for the same job (see docs/HttpServerAnalysis.md).
-# No TLS feature enabled here -- plain HTTP only, for now (see that doc's
-# note on the vendored vcpkg port's httplib features not including mbedtls,
-# unlike the raw header itself; revisit when phase 4's HTTPS need is real).
-# Version floor: 0.46 is the first release with httplib::ws::WebSocketClient
-# (Home Assistant output). An older system copy is ignored and the fetched
-# one is used instead.
-find_package(httplib 0.46 QUIET)
-if(NOT httplib_FOUND)
-  message(STATUS "httplib is not installed. Now fetching online...")
-  FetchContent_Declare(
-    httplib
-    URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.46.0.tar.gz
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-  )
-  FetchContent_MakeAvailable(httplib)
-else()
-  message(STATUS "httplib is installed")
+  # cpp-httplib -- same fetch-if-missing pattern as glm/nlohmann_json; also
+  # huenicorn's own choice for the same job (see docs/HttpServerAnalysis.md).
+  # No TLS feature enabled here -- plain HTTP only, for now (see that doc's
+  # note on the vendored vcpkg port's httplib features not including mbedtls,
+  # unlike the raw header itself; revisit when phase 4's HTTPS need is real).
+  # Version floor: 0.46 is the first release with httplib::ws::WebSocketClient
+  # (Home Assistant output). An older system copy is ignored and the fetched
+  # one is used instead.
+  find_package(httplib 0.46 QUIET)
+  if(NOT httplib_FOUND)
+    message(STATUS "httplib is not installed. Now fetching online...")
+    FetchContent_Declare(
+      httplib
+      URL https://github.com/yhirose/cpp-httplib/archive/refs/tags/v0.46.0.tar.gz
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(httplib)
+  else()
+    message(STATUS "httplib is installed")
+  endif()
+
+  # Network has no internal-module dependency, so it can be added anywhere --
+  # kept first since nothing else here depends on it either.
+  add_subdirectory(Network)
+
+  # Secrets likewise has no internal-module dependency (Aurora-2dz).
+  add_subdirectory(Secrets)
 endif()
-
-# Network has no internal-module dependency, so it can be added anywhere --
-# kept first since nothing else here depends on it either.
-add_subdirectory(Network)
-
-# Secrets likewise has no internal-module dependency (Aurora-2dz).
-add_subdirectory(Secrets)
 
 # Contracts first (no internal deps), then Processing (depends on Contracts).
 add_subdirectory(Contracts)
@@ -103,4 +120,8 @@ if(BUILD_TESTS)
   # test binary fine but leaves it undiscoverable by `ctest --test-dir build`.
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+if(EMSCRIPTEN)
+  add_subdirectory(Wasm)
 endif()

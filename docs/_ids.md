@@ -40,6 +40,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
+| `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
 | `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
