@@ -1,8 +1,9 @@
-import { memo } from 'react'
+import { memo, useContext, useRef } from 'react'
 import { Icon, menuHorizontalIcon } from '@weblings/grille'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { Hint } from './Hint'
-import { useEditorActions, useShowNodeIds } from './EditorContext'
+import { TuningMarksContext, tuningKey, useEditorActions, useShowNodeIds } from './EditorContext'
+import { TapHint } from './TapHint'
 import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
 import { useNodeProblems } from './ProblemsContext'
@@ -17,10 +18,12 @@ function handleLook(type: string) {
 // One component draws every node type from its /api/nodes entry: ports become
 // handles, params become widgets.
 function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
-  const { setParam, commit, openNodeMenu } = useEditorActions()
+  const { setParam, commit, openNodeMenu, openParamMenu } = useEditorActions()
   const { info, params, connectedInputs } = data
   const problems = useNodeProblems(id)
   const showIds = useShowNodeIds()
+  const marks = useContext(TuningMarksContext)
+  const pointer = useRef('')
 
   if (!info) {
     return (
@@ -44,9 +47,12 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           className="aurora-node-more nodrag"
           aria-label={`Actions for ${title}`}
           aria-haspopup="menu"
+          onPointerDown={(e) => (pointer.current = e.pointerType)}
           onClick={(e) => {
             const box = e.currentTarget.getBoundingClientRect()
-            openNodeMenu(id, { x: box.left, y: box.bottom })
+            // A keyboard press has no pointer (detail 0).
+            openNodeMenu(id, { x: box.left, y: box.bottom }, pointer.current === 'touch' && e.detail !== 0)
+            pointer.current = ''
           }}
         >
           <Icon icon={menuHorizontalIcon} size="sm" />
@@ -60,7 +66,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
               key={port.name}
             >
               <Handle type="target" position={Position.Left} id={port.name} {...handleLook(port.type)} />
-              <Hint text={port.description}><span className="aurora-port-name">{port.name}</span></Hint>
+              <TapHint text={port.description} label={`About ${port.name}`}><span className="aurora-port-name">{port.name}</span></TapHint>
               <Hint text={portMeaning(port.type)}><small>{port.type}</small></Hint>
             </div>
           ))}
@@ -69,7 +75,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           {info.outputs.map((port) => (
             <div className="aurora-port aurora-port-out" key={port.name}>
               <Hint text={portMeaning(port.type)}><small>{port.type}</small></Hint>
-              <Hint text={port.description}><span className="aurora-port-name">{port.name}</span></Hint>
+              <TapHint text={port.description} label={`About ${port.name}`}><span className="aurora-port-name">{port.name}</span></TapHint>
               <Handle type="source" position={Position.Right} id={port.name} {...handleLook(port.type)} />
             </div>
           ))}
@@ -82,6 +88,8 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           value={params[param.name]}
           onChange={(value) => setParam(id, param.name, value)}
           onCommit={commit}
+          tuning={marks.get(tuningKey(id, param.name))}
+          onMenu={(at) => openParamMenu(id, param.name, param.label || param.name, at)}
         />
       ))}
     </div>

@@ -61,12 +61,21 @@ export type GraphNode = {
 // ["node.port", "node.port"], output first.
 export type GraphEdge = [string, string]
 
+// Node positions by node id, plus the reserved '#sections' key (section names, not a position).
+export type GraphUi = Record<string, Position | string[]>
+
+// The position saved for a node, or undefined (also for the '#sections' key).
+export function positionIn(ui: GraphUi | undefined, id: string): Position | undefined {
+  const at = ui?.[id]
+  return at && !Array.isArray(at) ? at : undefined
+}
+
 // The whole graph as the server stores it. Keys the editor does not edit
 // (version, title, tickHz, controls, ...) ride along untouched.
 export type GraphDoc = {
   nodes: GraphNode[]
   edges: GraphEdge[]
-  ui?: Record<string, Position>
+  ui?: GraphUi
   [extra: string]: unknown
 }
 

@@ -335,6 +335,8 @@ namespace
       {"node-not-object", R"({"version": 1, "nodes": [7]})", {"nodes[0]", "object"}},
       {"node-empty-id", R"({"version": 1, "nodes": [{"id": "", "type": "test.counter"}]})",
        {"nodes[0]", "'id'"}},
+      {"node-hash-id", R"({"version": 1, "nodes": [{"id": "#sections", "type": "test.counter"}]})",
+       {"nodes[0]", "'id'", "'#'"}},
       {"duplicate-id", R"({"version": 1, "nodes": [{"id": "a", "type": "test.counter"}, {"id": "a", "type": "test.counter"}]})",
        {"duplicate node id 'a'"}},
       {"node-missing-type",

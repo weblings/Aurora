@@ -1,7 +1,7 @@
 // Tuning renders the graph's `controls` (Aurora-id8j.10). Pure logic, no DOM:
 // run with `node TuningControls.test.mjs`.
 import assert from 'node:assert/strict';
-import { fetchTuningGraph, groupBySection, isCustomEffect, resolveControls } from './TuningControls.js';
+import { fetchTuningGraph, SECTIONS_KEY, deriveSections, isCustomEffect, resolveControls } from './TuningControls.js';
 import { buildEffectEdits, buildPatch, slidersFromControls } from './TuningFields.js';
 
 const nodeTypes = [
@@ -82,10 +82,36 @@ const graph = {
   assert.deepEqual(resolveControls(null, nodeTypes), []);
 }
 
-// Only consecutive controls of one section group together.
+// Sections group by name in first-appearance order, General last.
 {
-  const groups = groupBySection(resolveControls(graph, nodeTypes));
-  assert.deepEqual(groups.map((g) => [g.section, g.controls.length]), [['', 2], ['Color character', 1], ['Agent', 1]]);
+  const groups = deriveSections(resolveControls(graph, nodeTypes));
+  assert.deepEqual(groups.map((g) => [g.section, g.controls.length]), [['Color character', 1], ['Agent', 1], ['', 2]]);
+}
+
+const c = (section, id) => ({ node: id, param: 'p', ...(section === undefined ? {} : { section }) });
+const names = (groups) => groups.map((g) => `${g.section || 'General'}:${g.controls.map((x) => x.node).join('')}`);
+
+// Split runs join, and General in the middle moves last.
+{
+  const controls = [c('A', 'a1'), c('', 'g1'), c('B', 'b1'), c('A', 'a2'), c(undefined, 'g2'), c('B', 'b2')];
+  assert.deepEqual(names(deriveSections(controls)), ['A:a1a2', 'B:b1b2', 'General:g1g2']);
+  assert.deepEqual(deriveSections([]), []);
+}
+
+// Empty sections come from the ui key: after the section they followed, else before General.
+{
+  const controls = [c('A', 'a'), c('B', 'b'), c('', 'g')];
+  const place = (list) => names(deriveSections(controls, { [SECTIONS_KEY]: list }));
+  assert.equal(SECTIONS_KEY, '#sections');
+  assert.deepEqual(place(['A', 'E', 'B']), ['A:a', 'E:', 'B:b', 'General:g']);
+  assert.deepEqual(place(['A', 'B', 'E']), ['A:a', 'B:b', 'E:', 'General:g']);
+  assert.deepEqual(place(['A', 'E', 'F', 'B']), ['A:a', 'E:', 'F:', 'B:b', 'General:g']);
+  // Nothing before it is present: appended before General.
+  assert.deepEqual(place(['E']), ['A:a', 'B:b', 'E:', 'General:g']);
+  // Names that now have controls, junk and duplicates are ignored, and the controls order wins.
+  assert.deepEqual(place(['B', 'A', 'B', '', 7]), ['A:a', 'B:b', 'General:g']);
+  assert.deepEqual(names(deriveSections(controls, { [SECTIONS_KEY]: 'nope', n: { x: 1, y: 2 } })), ['A:a', 'B:b', 'General:g']);
+  assert.deepEqual(names(deriveSections([], { [SECTIONS_KEY]: ['E'] })), ['E:']);
 }
 
 // Slider tuples keep sliderGroupHtml's order and key by config key, else id.

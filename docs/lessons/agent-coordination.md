@@ -24,6 +24,8 @@ Aurora-9hqa (2026-11-13): each bead ran only the checks it named. `graph-editor:
 
 **Fix:** before the first agent, run every check the epic could touch on the base commit, note what already fails, file it, and tell each agent which failures are known and not theirs.
 
+Confirmed again (Aurora-e4bi, 2026-11-17): 7 of 12 editor checks failed on the base commit. Six shared one stale helper (`tickFirst` clicking a menu item an earlier bead had renamed with no browser check of its own), one picked a menu item by position, one lost its Esc to a hover tooltip. One fix agent cleared all three (Aurora-e4bi.16 to .18) before the first feature agent started; without the baseline every agent would have hit the helper on its first run.
+
 Confirmed by skipping it (ngoj, 7a-7c, 2026-11-13): no baseline was run, `graph-editor:gate` turned out to be failing before the session (Aurora-4ccg), and it surfaced only in 7a, where the agent and then the coordinator each spent a run and a file swap proving it pre-existing.
 
 Confirmed by running it (Aurora-4ccg, 2026-11-13): the bead carried a coordinator's hypothesis from a code read (the gate's missing agent heartbeat), and the owner had approved a check-only fix on it. The baseline showed a sibling check that does heartbeat failing at the same step, which disproved it before any agent was briefed. Treat a bead's written cause as a hypothesis until a run backs it, and look for sibling checks that exercise the same path.
@@ -47,6 +49,8 @@ Applies-when: briefing an agent whose work is verified by `tools/browser-check`
 Aurora-9hqa / Aurora-bju0 (2026-11-13): the shell checks are slow (error-shell ~146 s, dashboard-shell 150-226 s; stack up/down is ~1 s, the time is in poll waits). Agents that re-ran their 6-7 check set after each fix spent 10-15 min per bead on checks, and queued behind each other on the stack lock. Told to run only `failed-save` while iterating, and only with a hypothesis, the bju0 agent made two quick runs (28 s, 13 s) and one final 4-check set: 9 min for the whole bug. Making the checks themselves faster is Aurora-ngoj. Done 2026-11-13: the three shell checks now take 38-46 s, and with them each editor bead's final check set (7a, 7b, 7c) was about 2.5 min with no repeated runs. The rule still holds.
 
 **Fix:** in each brief, name the one check to iterate on and the regression set to run once at the end, and ask for the run count and timings in the report.
+
+Name each check by its exact command. The edit-loop check runs as `npm run graph-editor`, not `graph-editor:edit-loop`, and the Aurora-e4bi.13 agent, finding no such script, skipped it (2026-11-17).
 
 ---
 
@@ -129,3 +133,43 @@ Applies-when: committing an agent's verified work for a bead, especially when tw
 Aurora-ge1i.1 and .3 (2026-11-15): both were committed before `bd close`, so the close gate (which checks the staged `.beads/issues.jsonl`) did not run and neither commit carried a log entry. The gate fired on the next, unrelated commit (`.4`), which then had to carry all three beads' log, lesson and export. Separately, `.1` and `.3` both edited `editor.css`. The coordinator committed them apart by filtering the file's `git diff` to `.1`'s hunks and running `git apply --cached`, then committing the rest. The first filter kept one hunk too many, and only `git diff --cached` showed it.
 
 **Fix:** per bead: verify, `bd close`, write the `docs/log/` entry and INDEX row, `bd export -o .beads/issues.jsonl`, stage them with the code, then commit. When beads share a file, stage one bead's hunks with a filtered patch and `git apply --cached`, and read `git diff --cached` before committing.
+
+---
+
+## bd writes queue behind other sessions and auto-export, so agents run no bd and the coordinator batches bead edits
+Tags: beads, bd, subagents, briefs, lock, auto-export, parallel
+Applies-when: briefing agents while another session may be writing beads, or planning bead edits during a fan-out
+
+Aurora-e4bi.2, .10, .11 (2026-11-17): another session's `bd update` held the beads DB, and plain `bd show` calls sat past 60-120 s timeouts. Each write then ran an auto-export of all 768 issues (47 s once, 4 s when uncontended). Agents told to run no `bd` and to draft bead text in their report finished without waiting on it, and the coordinator applied the notes in one script.
+
+**Fix:** in each brief, forbid `bd` and ask for drafted bead text in the report. Read a bead from `.beads/issues.jsonl` while the DB is held. Batch the coordinator's edits in one guarded script. When staging the export, take only the lines for this bead's ids if another session has unexported changes.
+
+---
+
+## Parallel agents' checks can assert on each other's UI; re-run the whole set once both are in
+Tags: subagents, parallel, browser-check, waves, verification, hand-back
+Applies-when: two agents in one wave each own different files but their checks walk the same screen
+
+Aurora-e4bi.9 and .4 (2026-11-17): file ownership was split cleanly (`.9` the node and the drawers check, `.4` the Tuning panel and a new check). Each agent's own runs passed, but `.4` added New section… to the Move to section submenu, and the drawers check (owned by `.9`, with steps written in `.3`) listed that submenu exactly. Only the coordinator's combined run after both hand-backs caught it. Separately, the `.9` agent, waiting on a long background regression script, re-sent its hand-back after every check finished (a dozen near-identical reports) until told to stop.
+
+**Fix:** after a parallel wave, run the full check set once with both changes in the tree before closing either bead. In each brief, ask the agent to hand back once, after its own runs have finished, and never while a background run of its own is still pending.
+
+---
+
+## To commit verified beads while agents still edit the tree, freeze the index and test the staged snapshot
+Tags: commits, subagents, parallel, git-index, staging, verification, windows, junction
+Applies-when: the owner asks for a commit of closed beads while a later wave's agents are already editing the same files
+
+Aurora-e4bi.3 and .13 (2026-11-17): the commit request came after the next wave's two agents had started in the same tree. Modification times against the end of the coordinator's gate run showed one file (`graph/tuningCards.ts` and its test) already edited by the new wave. `git add` froze the tree into the index. The new wave's additions were then removed from the staged copy only: write the trimmed file elsewhere, then `git hash-object -w` and `git update-index --cacheinfo 100644,<sha>,<path>`. The working tree kept them for the later commit. The staged snapshot was checked out with `git ls-files -z <dirs> | xargs -0 git checkout-index --prefix=<scratch>/` and got a junction to the real `node_modules` (`New-Item -ItemType Junction` in PowerShell, since `cmd /c mklink /J` from Git Bash mangles its switch). `tsc` and `vitest` there passed, and the commit went in with nothing the new wave had half-written.
+
+**Fix:** compare each changed file's modification time with the end of the last gate run. Freeze with `git add`, trim late edits out of the index, and test the snapshot in a `checkout-index` copy before committing. Remove the junction with `cmd /c rmdir`, never a recursive delete (see windows-env.md "`git worktree remove --force` deletes through an NTFS junction in the worktree"). For a commit asked for mid-wave, a guard that refuses when any staged file is newer than the agent's start time also works (Aurora-e4bi.9 and .4).
+
+---
+
+## Keep the shared agent rules in one common brief file; per-bead briefs point at it
+Tags: briefs, subagents, template, consistency, waves
+Applies-when: briefing more than one agent on a sequence of beads
+
+Aurora-e4bi (2026-11-17): eight agents across five waves built from one common brief file in the scratchpad (lock, no `bd`, no commits, progress file, known failures, hand-back rule, report shape). Each per-bead brief opened with "read the common rules first" and held only what differed: where the code is, which files are whose in a parallel wave, the check to iterate on and the regression set. Each spawn prompt was two lines pointing at the per-bead brief. The common file was edited three times mid-run (baseline results, the tooltip-after-Esc rule, hand back once), and every agent spawned afterwards got the change without any brief being rewritten.
+
+**Fix:** start from `.claude/skills/agent-coordination-lessons/brief-common.template.md`, copy it to the scratchpad and fill it. Update its known-failures line after each baseline or wave. A new lesson that says "put X in every brief" also edits the template.

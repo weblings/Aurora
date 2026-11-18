@@ -50,7 +50,7 @@ await withEditorStack(async ({ editorUrl }) => {
 
     // Title menu: file actions, then New and Open submenus; no Name field, no second menu.
     await openTitleMenu(page)
-    assert.equal(await page.getByLabel('Name', { exact: true }).count(), 0)
+    assert.equal(await page.getByLabel('Effect name', { exact: true }).count(), 0)
     assert.equal(await page.getByRole('menu', { name: 'Open', exact: true }).count(), 0, 'the Open list is closed until asked for')
     const menuWidth = (await titleMenu(page).boundingBox()).width
     assert.ok(menuWidth < 280, `menu is narrower than the old 280 px (${menuWidth})`)
@@ -164,7 +164,6 @@ await withEditorStack(async ({ editorUrl }) => {
       await dialog.waitFor()
       const confirm = dialog.getByRole('button', { name: 'Save', exact: true })
       assert.equal(await confirm.isDisabled(), true, 'confirm is off while the name is empty')
-      await dialog.getByText('Name the new effect first').waitFor()
       if (how === 'Cancel') await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
       else if (how === 'Escape') await page.keyboard.press('Escape')
       else await page.mouse.click(5, 5)

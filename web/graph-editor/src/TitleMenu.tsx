@@ -76,7 +76,7 @@ export function TitleMenu({
       <Dialog aria-label="Effect menu">
         <div className="editor-title-dialog">
           {editedSinceTest ? (
-            <p className="editor-name-note">Edited since the test. Save and apply puts the edited graph live and ends the test.</p>
+            <p className="editor-note">Edited since the test. Save and apply puts the edited graph live and ends the test.</p>
           ) : null}
           <Menu
             aria-label="Effect actions"

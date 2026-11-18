@@ -80,9 +80,9 @@ await withEditorStack(async ({ editorUrl }) => {
     const focused = await page.evaluate(() => document.activeElement?.textContent)
     assert.equal(focused, 'Keep my edits', 'Keep my edits has the default focus')
     await shot('newer-saved-prompt')
-    const actions = prompt().locator('.editor-name-dialog-actions')
+    const actions = prompt().locator('.ui-dialog-actions')
     const [dBox, aBox, firstBox, lastBox] = await Promise.all([
-      prompt().locator('.editor-name-dialog').boundingBox(),
+      prompt().boundingBox(),
       actions.boundingBox(),
       actions.getByRole('button').first().boundingBox(),
       actions.getByRole('button').last().boundingBox(),
@@ -152,10 +152,10 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.getByRole('menuitem', { name: 'Save', exact: true }).click()
     const dialog = nameDialog(page)
     await dialog.waitFor()
-    await dialog.getByLabel('Name', { exact: true }).fill('Kept copy fresh')
+    await dialog.getByLabel('Effect name', { exact: true }).fill('Kept copy fresh')
     // Naming dialog: buttons centred too.
-    const [nd, na] = [await dialog.locator('.editor-name-dialog-actions').boundingBox(), null]
-    const nb = await dialog.locator('.editor-name-dialog-actions').getByRole('button').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()))
+    const [nd, na] = [await dialog.locator('.ui-dialog-actions').boundingBox(), null]
+    const nb = await dialog.locator('.ui-dialog-actions').getByRole('button').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()))
     const nl = nb[0].x - nd.x
     const nr = nd.x + nd.width - (nb[nb.length - 1].x + nb[nb.length - 1].width)
     assert.ok(Math.abs(nl - nr) <= 2, `name dialog buttons centred (${nl} vs ${nr})`)

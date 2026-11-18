@@ -379,3 +379,35 @@ Applies-when: a check or test expects an effect to fail because an audio or vide
 Aurora-bju0 (2026-11-13): `graph-editor:failed-save` expected an audio graph to fail on a stack whose audio input is unset. Since Aurora-kep2.3 Aurora picks a missing input itself from the registry (`_pickAudioBackend` in `Pipeline.cpp`), so on a Mac, where `mac-audio` is registered and opens, the graph simply ran: `/api/state` errors stayed empty and no row appeared. Whether the check passed depended on the machine's audio backend and permission, not on the code.
 
 **Fix:** name an input that does not exist (`PUT /api/config {activeAudioInputName: 'no-such-audio-input'}`). Aurora only auto-picks an unnamed input, so the open fails with `Unknown audio input` on every machine. Clear the name before the next step: while it is set every reload reports it.
+
+## A bead that renames visible text greps tools/browser-check for the old string
+Tags: browser-check, rename, menu, helpers, stale-check, baseline
+Applies-when: a change renames a menu item, button label or heading that browser checks may select by name
+
+Aurora-e4bi.16 and .17 (2026-11-17): e4bi.15 renamed the node menu item "Show on the Dashboard" to "Tuning controls…" and had no browser check of its own, so nothing ran the checks. The shared `tickFirst` in `lib/editorMenu.mjs` still clicked the old name, and six checks (`refused-save`, `kept-copy`, `drawers`, `undo-toast`, `delete`, `edit-loop`) timed out at that one step; `clipboard` listed the old name too. Separately, `title-menu` clicked "the second item of New" by position: after l8ua moved the built-ins under a Built-in sub-menu, that item was the sub-menu opener, so no copy was created and the check timed out 30 s later on the title.
+
+**Fix:** with any rename, `grep -rn "<old text>" tools/browser-check` and update the helpers and expected lists in the same commit. Select menu items by name, not by position.
+
+## A hover tooltip under the parked pointer takes the first Esc
+Tags: browser-check, playwright, tooltip, react-aria, escape, drawer
+Applies-when: a check presses Escape to close a drawer, dialog or menu after the mouse has hovered anything with a tooltip
+
+Aurora-e4bi.18 (2026-11-17): `graph-editor:narrow` failed at 700x900 with "Esc left the drawer open". The pointer was still over a tooltip trigger, so a Grille (React Aria) tooltip was open. `useTooltipTrigger` listens for keydown on `document` in the capture phase and calls `stopPropagation()` on Escape, so the Drawer's window listener never saw it. Closing the topmost layer first is intended. At 400x800 focus was in the drawer, so that size passed.
+
+**Fix:** move the mouse to an empty corner (`page.mouse.move(2, h - 2)`) and wait for the tooltip to close before pressing Escape. A count of `[role=tooltip]` is the quick tell.
+
+## After a keyboard step, React Aria shows a hover tooltip only after a pointer press
+Tags: browser-check, playwright, tooltip, react-aria, modality, hover
+Applies-when: a check hovers to open a Grille or React Aria tooltip after any keyboard input (Esc, Enter, typing)
+
+Aurora-e4bi.9 (2026-11-17): the drawers check closed the Tuning picker with Esc, then hovered a param label and waited 30 s for its tooltip. React Aria tracks the interaction modality, which keydown sets to keyboard and only a pointer press sets back. In keyboard modality `useTooltipTrigger` opens on focus, not hover, so `locator.hover()` alone showed nothing. The `graph-editor-tooltips` check never hit it because it presses no key before hovering.
+
+**Fix:** after a keyboard step, click an empty spot (`page.mouse.click(2, 300)` on the pane) before a hover that expects a tooltip. A real user sees the same thing: after typing, the first hover shows no tooltip until they click.
+
+## React Aria drag: the row starts a mouse drag, the grip is for keyboard, and synthetic touch starts none
+Tags: browser-check, playwright, react-aria, drag-and-drop, tree, touch, keyboard
+Applies-when: building or checking drag and drop on a React Aria Tree, GridList or Table (including Grille's TreeDragHandle)
+
+Aurora-e4bi.5 (2026-11-17): React Aria gives the drag handle (`Button slot="drag"`) `pointer-events: none`, so a mouse drag starts anywhere on the row and the grip serves keyboard and touch only; Grille's `cursor: grab` on it never shows. Calling `.focus()` on the grip bounces focus back to the row: reach it as a user does, Right arrow from a card row (two from an expandable row), then Enter. React Aria also does not refuse a drop "on" a collapsed row by itself: when `getDropOperation` cancels "on", the drop lands before or after by pointer half, so a mouse step aiming at a heading's middle can reorder instead. A CDP long-press and move with `hasTouch` started no drag in headless Chromium, so touch drag needs a device. Separately, a target type tested with `'section' in target` matched a Control, which has a `section` key: tag targets (`{ heading }`, `{ card }`) instead.
+
+**Fix:** drive mouse drags from the row, keyboard drags through the grip by arrow keys, test "drop on" rules by keyboard (whose targets are explicit) and in unit tests, and list touch drag as a device check.

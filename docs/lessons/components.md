@@ -537,3 +537,73 @@ Aurora-u8jx.2 (2026-11-13): `Problems` gained `graphActions` (the button a Whole
 
 **Fix:** when adding a field to a type, grep for its `same*`/equality helper and compare the new field there, with a test where only that field changes.
 
+
+---
+
+## React Aria's standalone Tooltip crashes without a TooltipTrigger
+Tags: webui, react-aria, tooltip, grille
+Applies-when: showing a tooltip on an element that is not its own focusable trigger (a Tree or GridList row, a card)
+
+In react-aria-components 1.22.1, `<Tooltip triggerRef isOpen>` outside a `TooltipTrigger` throws "Cannot read properties of null (reading 'isOpen')" on open. The outer `Tooltip` builds local state, but `TooltipInner` reads only `TooltipTriggerStateContext`. Found in the Aurora-e4bi.1 controls panel mock, where the card row is focused by the Tree, not by a trigger.
+
+**Fix:** wrap it in `TooltipTriggerStateContext.Provider` with `{ isOpen, open, close }` (see `web/graph-editor/src/mock/ControlsPanelMock.tsx`), or put the tooltip on a real focusable trigger.
+
+---
+
+## Text fields inside a React Aria Tree row lose their keys to the row
+Tags: webui, react-aria, tree, keyboard, input
+Applies-when: putting a text field, select or other editable control inside a Tree or GridList row (an expanding card, inline edit)
+
+In the Aurora-e4bi.1 mock's expanding card, ArrowLeft in the Label field moved focus to the row's chevron, Home went to the first section row, and ArrowDown and Space left the field. React Aria handles row keys in the capture phase, so a `stopPropagation` on the field's own `onKeyDown` runs too late. Saving the label on every keystroke also renamed the row while typing, which re-rendered it and threw the caret to the end ("Very " typed at the start came out as "VVividery ").
+
+**Fix:** stop the keys in `onKeyDownCapture` on an element above the collection when the target is inside the fields, letting Tab, Escape and Enter through; save on blur or Enter, as the editor's `CommitInput` does. Weigh both costs before choosing in-row editing over a dialog or a separate drawer.
+
+---
+
+## React Aria's replace selection is what makes double-click an action, and it selects on click and arrows
+Tags: webui, react-aria, tree, selection, keyboard
+Applies-when: a collection row should act on double-click or Enter (open, frame, select elsewhere) and do nothing on a single click
+
+`selectionMode="single"` with `selectionBehavior="replace"` gives double-click and Enter as `onAction`, but a single click and every arrow key also select the row and announce "selected". Without selection, `onAction` fires on a single click instead. In the Aurora-e4bi.1 mock, mirroring that selection to the canvas would have selected off-screen nodes while arrowing and on a drag press.
+
+**Fix:** no selection mode, `onDoubleClick` on the `TreeItem`, and Enter caught on an element above the Tree (neither `Tree` nor `TreeItem` takes `onKeyDown`), acting only when the event target is the row itself so an Enter that drops a keyboard drag is not caught.
+
+---
+
+## React Aria closes a popover on a scroll around it, so a popover that focuses inside itself must use preventScroll
+Tags: webui, react-aria, popover, focus, grille, narrow
+Applies-when: a Popover or Dialog moves focus to a field or switch inside itself when it opens
+
+In the Aurora-e4bi.8 mock, the Show in Tuning picker opened "right top" of a node and focused its first switch. At 400 px wide there was no room on either side, so the popover first rendered past the window's right edge. The focus scrolled the document to reach the switch, and React Aria closed the popover on that scroll before it painted. A console stack showed `onOpenChange(false)` from Grille's Popover. At 1100 px, where it fit, nothing happened, so the bug only showed in narrow windows.
+
+**Fix:** focus with `{ preventScroll: true }` in any popover that moves focus on open, and choose the placement by measured room so the popover never starts outside the window. React Aria does not flip `right` to `left` when neither side fits.
+
+---
+
+## A React Aria Tree renders a removed item for one more frame, so row components must not assume it still exists
+Tags: webui, react-aria, tree, state
+Applies-when: an item can leave a Tree's items because of an action outside the Tree (a popover, another panel, an undo)
+
+In the Aurora-e4bi.8 mock, switching a param off in the node's Show in Tuning picker removed its card from the section list. The Tree rendered the card's row once more, its section lookup returned `undefined`, and `sec.ids` threw. The page error unmounted the picker, which first looked like the picker closing by design. Removes from the card's own menu had never hit it.
+
+**Fix:** row components read their item defensively (a fallback section here) and never use a non-null assertion on a lookup into the Tree's data. Test removes that start outside the Tree.
+
+---
+
+## React Aria tooltips never open from a tap, so touch needs its own path to tooltip text
+Tags: webui, react-aria, tooltip, touch, grille
+Applies-when: a tooltip or Hint carries text a touch user needs (port or param descriptions, a node's purpose)
+
+React Aria's `useTooltipTrigger` (react-aria 3.53.1) opens on hover only when the input is a mouse or pen, opens on focus only when focus is keyboard-visible, and closes on any pointer down on the trigger. A tap therefore closes the tooltip and never opens it, and Grille's `TooltipTrigger` has no `isOpen` to open it from code (Grille-83g.7). React Aria's own touch answer is long-press (`PreviewTrigger`), which Aurora-kep2.24 cut from the Dashboard because iPhone selects text and shows nothing.
+
+**Fix:** keep the `Hint` for mouse and keyboard, and add a touch path: a touch tap (`pointerType === 'touch'` from the pointer down) toggles the same text in a non-modal popover, or put the text where touch already goes, as the Dashboard's effect menu does with its description line on a touch press.
+
+---
+
+## Shift+F10 and the Menu key raise a native contextmenu on key release, after a popup has taken focus
+Tags: webui, keyboard, context-menu, windows, focus
+Applies-when: a keydown handler opens a menu for Shift+F10 or the Menu key and moves focus into it (Aurora-e4bi.14, `App.tsx` onKey)
+
+In the Aurora-e4bi.14 mock, `preventDefault` on the keydown opened the menu and focused its first item, then the browser's own context menu opened on top. Windows fires `contextmenu` when the key is released, so the event lands on the focused menu item, outside any handler that opened the menu. Right-click does not have this: its `contextmenu` event is the trigger.
+
+**Fix:** after opening from the key, add a capture-phase `contextmenu` listener that calls `preventDefault`, and remove it 150 ms after `keyup` (hard cap 3 s). See `swallowKeyContextMenu` in `ControlsPanelMock.tsx`. Headless Chromium cannot raise the Windows event, so confirm on Windows.

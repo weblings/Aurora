@@ -34,47 +34,72 @@ async function waitFor(url, seconds = 30) {
   }
 }
 
-// Brings up the fake-Hue stack and the graph editor's dev server, runs
-// `body({ editorUrl, aurora })`, and tears both down whatever happens.
-// `aurora` is the WebUI origin; `restart()` relaunches the app on the same
-// config (same port), as a user quitting and reopening it. AURORA_EDITOR=embedded skips the dev server and
-// uses the editor built into the app binary (/graph-editor/ on `aurora`).
-function restart() {
+// Relaunches the app on the same config (same port), as a user quitting and reopening it.
+export function restart() {
   const r = spawnSync(python, [devstack, 'restart'], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
   if (r.status !== 0) throw new Error(`devstack restart failed:\n${r.stdout}\n${r.stderr}`)
+}
+
+// AURORA_SHARED_STACK (JSON from checks/run-set.mjs): a stack already up, which the check
+// uses as is and leaves up. It runs the dummy input at the poll cadence it was started with.
+function sharedStack(input) {
+  if (!process.env.AURORA_SHARED_STACK) return null
+  const shared = JSON.parse(process.env.AURORA_SHARED_STACK)
+  if (input !== 'dummy') throw new Error(`a shared stack runs the dummy input, this check needs ${input}`)
+  if ((process.env.AURORA_DEV_POLL_MS ?? '') !== shared.pollMs) throw new Error(`this check wants AURORA_DEV_POLL_MS=${process.env.AURORA_DEV_POLL_MS}, the shared stack runs '${shared.pollMs}'`)
+  return shared
+}
+
+function stackUp(input) {
+  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
+  const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
+  if (!port) {
+    stackDown()
+    throw new Error(`devstack up failed:\n${up.stdout}\n${up.stderr}`)
+  }
+  return port
+}
+
+function stackDown() {
+  spawnSync(python, [devstack, 'down'], { encoding: 'utf8', windowsHide: true })
 }
 
 // The same fake-Hue stack with no editor dev server, for checks of the Dashboard the app serves
 // itself: runs `body({ aurora, restart })` and tears the stack down whatever happens.
 export async function withAuroraStack(body, { input = 'dummy' } = {}) {
-  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
-  const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
+  const shared = sharedStack(input)
+  if (shared) return body({ aurora: shared.aurora, restart })
+  const port = stackUp(input)
   try {
-    if (!port) throw new Error(`devstack up failed:\n${up.stdout}\n${up.stderr}`)
     await body({ aurora: `http://127.0.0.1:${port}`, restart })
   } finally {
-    spawnSync(python, [devstack, 'down'], { encoding: 'utf8', windowsHide: true })
+    stackDown()
   }
 }
 
-export async function withEditorStack(body, { input = 'dummy' } = {}) {
-  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
-  const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
+// Starts the stack and (unless AURORA_EDITOR=embedded) the editor's dev server. Returns
+// `{ editorUrl, aurora, viteLog, stop }`; `stop()` tears both down.
+export async function startEditorStack({ input = 'dummy' } = {}) {
+  const port = stackUp(input)
+  const aurora = `http://127.0.0.1:${port}`
+  if (process.env.AURORA_EDITOR === 'embedded') return { editorUrl: `${aurora}/graph-editor/`, aurora, viteLog: null, stop: stackDown }
   let vite = null
-  let viteLog = null
-  try {
-    if (!port) throw new Error(`devstack up failed:\n${up.stdout}\n${up.stderr}`)
-    if (process.env.AURORA_EDITOR === 'embedded') {
-      const aurora = `http://127.0.0.1:${port}`
-      await body({ editorUrl: `${aurora}/graph-editor/`, aurora, restart })
-      return
+  const stop = () => {
+    if (vite) {
+      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(vite.pid), '/T', '/F'], { windowsHide: true })
+      else vite.kill()
     }
+    stackDown()
+  }
+  // Vite's output is kept so a failed check can show it (a dependency re-optimisation reloads the page).
+  const viteLog = join(tmpdir(), `aurora-vite-${process.pid}.log`)
+  try {
     const vitePort = await freePort()
     const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
-    // Vite's output is kept so a failed check can show it (a dependency re-optimisation reloads the page).
-    viteLog = join(tmpdir(), `aurora-vite-${process.pid}.log`)
     const out = openSync(viteLog, 'w')
-    vite = spawn(npx, ['vite', '--port', String(vitePort), '--strictPort'], {
+    // Windows needs a shell for the .cmd, and Node 24 warns (DEP0190) on separate args with one, so it gets a string.
+    const args = ['vite', '--port', String(vitePort), '--strictPort']
+    vite = spawn(process.platform === 'win32' ? [npx, ...args].join(' ') : npx, process.platform === 'win32' ? [] : args, {
       cwd: editorDir,
       env: { ...process.env, AURORA_PORT: port },
       stdio: ['ignore', out, out],
@@ -82,18 +107,36 @@ export async function withEditorStack(body, { input = 'dummy' } = {}) {
       // Node 24 refuses to spawn a .cmd without a shell.
       shell: process.platform === 'win32',
     })
-    const editorUrl = `http://localhost:${vitePort}/graph-editor/`
     closeSync(out)
+    const editorUrl = `http://localhost:${vitePort}/graph-editor/`
     await waitFor(editorUrl)
-    await body({ editorUrl, aurora: `http://127.0.0.1:${port}`, restart })
+    return { editorUrl, aurora, viteLog, stop }
   } catch (e) {
-    if (viteLog && e?.name !== 'StepReached') console.error(`--- vite log (${viteLog}) ---\n${readFileSync(viteLog, 'utf8').split('\n').slice(-40).join('\n')}`)
+    stop()
+    throw e
+  }
+}
+
+export function printViteLog(viteLog) {
+  if (viteLog) console.error(`--- vite log (${viteLog}) ---\n${readFileSync(viteLog, 'utf8').split('\n').slice(-40).join('\n')}`)
+}
+
+// Brings up the fake-Hue stack and the graph editor's dev server, runs
+// `body({ editorUrl, aurora, restart })`, and tears both down whatever happens.
+// `aurora` is the WebUI origin; `restart()` relaunches the app on the same
+// config (same port), as a user quitting and reopening it. AURORA_EDITOR=embedded skips the dev server and
+// uses the editor built into the app binary (/graph-editor/ on `aurora`).
+// Under AURORA_SHARED_STACK it uses that stack and leaves it up.
+export async function withEditorStack(body, { input = 'dummy' } = {}) {
+  const shared = sharedStack(input)
+  if (shared) return body({ editorUrl: shared.editorUrl, aurora: shared.aurora, restart })
+  const { editorUrl, aurora, viteLog, stop } = await startEditorStack({ input })
+  try {
+    await body({ editorUrl, aurora, restart })
+  } catch (e) {
+    if (e?.name !== 'StepReached') printViteLog(viteLog)
     throw e
   } finally {
-    if (vite) {
-      if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(vite.pid), '/T', '/F'], { windowsHide: true })
-      else vite.kill()
-    }
-    spawnSync(python, [devstack, 'down'], { encoding: 'utf8', windowsHide: true })
+    stop()
   }
 }

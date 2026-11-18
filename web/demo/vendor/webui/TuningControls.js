@@ -58,14 +58,39 @@ export function resolveControls(graph, nodeTypes, { effectId = null } = {}) {
   return resolved;
 }
 
-// Consecutive controls sharing a section name, in order: [{ section, controls }].
-export function groupBySection(controls) {
-  const groups = [];
-  for (const control of controls) {
-    const last = groups[groups.length - 1];
-    if (last && last.section === control.section) last.controls.push(control);
-    else groups.push({ section: control.section, controls: [control] });
+// Reserved graph `ui` key holding section names in stored order, so a section with no
+// controls survives a save. It is not a node position.
+export const SECTIONS_KEY = '#sections';
+
+const sectionOf = (control) => (typeof control.section === 'string' ? control.section : '');
+
+// The section order both screens show: named sections by first appearance, General ('') last.
+// `ui[SECTIONS_KEY]` only places empty sections, after the one each followed when stored.
+export function deriveSections(controls, ui) {
+  const bySection = new Map();
+  for (const control of controls ?? []) {
+    const name = sectionOf(control);
+    if (!bySection.has(name)) bySection.set(name, []);
+    bySection.get(name).push(control);
   }
+  const general = bySection.get('');
+  bySection.delete('');
+  const names = [...bySection.keys()];
+  const stored = Array.isArray(ui?.[SECTIONS_KEY])
+    ? ui[SECTIONS_KEY].filter((n, i, all) => typeof n === 'string' && n !== '' && all.indexOf(n) === i)
+    : [];
+  stored.forEach((name, i) => {
+    if (bySection.has(name)) return;
+    let at = names.length;
+    for (let j = i - 1; j >= 0; j--) {
+      const prior = names.indexOf(stored[j]);
+      if (prior >= 0) { at = prior + 1; break; }
+    }
+    names.splice(at, 0, name);
+    bySection.set(name, []);
+  });
+  const groups = names.map((section) => ({ section, controls: bySection.get(section) }));
+  if (general) groups.push({ section: '', controls: general });
   return groups;
 }
 

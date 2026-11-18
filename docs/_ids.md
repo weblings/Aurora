@@ -11,6 +11,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
+| `1n1u-browser-check-set` | [log/2026-11-17-1n1u-browser-check-set.md](log/2026-11-17-1n1u-browser-check-set.md) | Browser checks: the editor regression set on one stack |
 | `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |
 | `23wu-problems-chip-dropdown-node-border` | [log/2026-11-16-23wu-problems-chip-dropdown-node-border.md](log/2026-11-16-23wu-problems-chip-dropdown-node-border.md) | Graph editor: problems chip, dropdown and node border match the mock |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
@@ -138,6 +139,29 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
+| `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
+| `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
+| `e4bi10-sections-ui-key` | [log/2026-11-17-e4bi10-sections-ui-key.md](log/2026-11-17-e4bi10-sections-ui-key.md) | Graph ui key "#sections" reserved, node ids must not start with '#' |
+| `e4bi11-subgraph-readiness` | [log/2026-11-17-e4bi11-subgraph-readiness.md](log/2026-11-17-e4bi11-subgraph-readiness.md) | Sub-graph readiness: Tuning is one graph level's exposed params |
+| `e4bi12-drawer-chrome` | [log/2026-11-17-e4bi12-drawer-chrome.md](log/2026-11-17-e4bi12-drawer-chrome.md) | Graph editor: Tuning drawer chrome |
+| `e4bi13-naming-dialog` | [log/2026-11-17-e4bi13-naming-dialog.md](log/2026-11-17-e4bi13-naming-dialog.md) | Graph editor: one naming dialog on Grille |
+| `e4bi14-param-row-menu-mock` | [log/2026-11-17-e4bi14-param-row-menu-mock.md](log/2026-11-17-e4bi14-param-row-menu-mock.md) | Param-row menu on the node: mock decided, build split out |
+| `e4bi15-param-row-menu` | [log/2026-11-17-e4bi15-param-row-menu.md](log/2026-11-17-e4bi15-param-row-menu.md) | Param-row menu built on the graph editor node |
+| `e4bi16-tickfirst-label` | [log/2026-11-17-e4bi16-tickfirst-label.md](log/2026-11-17-e4bi16-tickfirst-label.md) | Browser checks: tickFirst follows the Tuning controls rename |
+| `e4bi17-title-menu-builtin` | [log/2026-11-17-e4bi17-title-menu-builtin.md](log/2026-11-17-e4bi17-title-menu-builtin.md) | Browser checks: title-menu picks a built-in from the Built-in sub-menu |
+| `e4bi18-narrow-tooltip-esc` | [log/2026-11-17-e4bi18-narrow-tooltip-esc.md](log/2026-11-17-e4bi18-narrow-tooltip-esc.md) | Browser checks: narrow parks the pointer before Esc |
+| `e4bi19-gate-undo-menu` | [log/2026-11-17-e4bi19-gate-undo-menu.md](log/2026-11-17-e4bi19-gate-undo-menu.md) | Browser checks: the gate undoes through the Edit menu |
+| `e4bi2-section-helpers` | [log/2026-11-17-e4bi2-section-helpers.md](log/2026-11-17-e4bi2-section-helpers.md) | Tuning sections: one shared derivation, editor section helpers, General heading |
+| `e4bi20-tuning-control-copy` | [log/2026-11-17-e4bi20-tuning-control-copy.md](log/2026-11-17-e4bi20-tuning-control-copy.md) | Problem copy says Tuning control |
+| `e4bi23-gate-draft-invalid-retry` | [log/2026-11-17-e4bi23-gate-draft-invalid-retry.md](log/2026-11-17-e4bi23-gate-draft-invalid-retry.md) | Browser checks: the gate retries a missed draft_invalid status |
+| `e4bi3-tuning-cards` | [log/2026-11-17-e4bi3-tuning-cards.md](log/2026-11-17-e4bi3-tuning-cards.md) | Graph editor: Tuning cards with the card menu and select-node |
+| `e4bi4-tuning-sections` | [log/2026-11-17-e4bi4-tuning-sections.md](log/2026-11-17-e4bi4-tuning-sections.md) | Graph editor: Tuning sections, panel and section menus |
+| `e4bi5-tuning-drag` | [log/2026-11-17-e4bi5-tuning-drag.md](log/2026-11-17-e4bi5-tuning-drag.md) | Graph editor: drag Tuning cards and sections |
+| `e4bi6-controls-panel-wrapup` | [log/2026-11-17-e4bi6-controls-panel-wrapup.md](log/2026-11-17-e4bi6-controls-panel-wrapup.md) | Graph editor: Tuning panel wrap-up (Stage 10) |
+| `e4bi7-grille-dev17` | [log/2026-11-17-e4bi7-grille-dev17.md](log/2026-11-17-e4bi7-grille-dev17.md) | Grille dev.17 in the graph editor |
+| `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
+| `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |
+| `e4bi9-tuning-picker` | [log/2026-11-17-e4bi9-tuning-picker.md](log/2026-11-17-e4bi9-tuning-picker.md) | Graph editor: Tuning controls picker replaces Details |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |

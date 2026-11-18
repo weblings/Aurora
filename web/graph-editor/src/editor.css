@@ -331,7 +331,14 @@ select {
   white-space: nowrap;
 }
 
-.editor-name-note {
+/* The naming form sits inside Grille's Dialog, so its direct-child gap does not reach the fields. */
+.editor-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-xl);
+}
+
+.editor-note {
   margin: 0;
   max-width: 32ch;
   font-size: 12px;
@@ -554,55 +561,6 @@ button.editor-problem-row:hover {
   width: max-content;
 }
 
-.drawer-ports,
-.drawer-controls {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.drawer-ports li {
-  margin-bottom: var(--aurora-space-2);
-}
-
-.drawer-check,
-.drawer-field {
-  display: flex;
-  gap: var(--aurora-space-2);
-  align-items: center;
-  margin: var(--aurora-space-1) 0;
-}
-
-.drawer-field span {
-  width: 52px;
-  flex: none;
-}
-
-.drawer-field input {
-  flex: 1;
-  min-width: 0;
-}
-
-.drawer-controls li {
-  padding: var(--aurora-space-3) 0;
-  border-top: 1px solid var(--aurora-divider);
-}
-
-.drawer-control-head {
-  display: flex;
-  gap: var(--aurora-space-2);
-  align-items: center;
-  color: var(--aurora-text-primary);
-}
-
-.drawer-control-head span {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* Port types (Aurora-ex8z): hue per domain, always a circle from graph/portStyle.ts.
    Fill vs outline stays free for connection state. */
 .react-flow .aurora-handle {
@@ -633,26 +591,6 @@ button.editor-problem-row:hover {
    .nav-footer-back-icon draws it. */
 .editor-back {
   text-decoration: none;
-}
-
-.editor-name-dialog {
-  display: flex;
-  flex-direction: column;
-  gap: var(--aurora-space-3);
-  width: 320px;
-  max-width: 100%;
-}
-
-.editor-name-dialog-title {
-  margin: 0;
-  font-size: 14px;
-  color: var(--aurora-text-primary);
-}
-
-.editor-name-dialog-actions {
-  display: flex;
-  justify-content: center;
-  gap: var(--aurora-space-2);
 }
 
 /* Add node menu (Aurora-daaa.24.3): cascade of groups, flat ranked list while searching. */
@@ -703,24 +641,6 @@ button.editor-problem-row:hover {
 .react-flow__node.selected .aurora-node-more,
 .aurora-node-more:focus-visible {
   opacity: 1;
-}
-
-/* Drawers (Aurora-daaa.27.3). */
-.drawer-details h3 {
-  margin: var(--ui-size-space-lg, 12px) 0 var(--ui-size-space-sm, 6px);
-}
-
-.drawer-details p {
-  margin: 0 0 var(--ui-size-space-lg, 12px);
-}
-
-.drawer-control-text {
-  margin: 0 0 var(--ui-size-space-md, 8px) var(--ui-size-space-2xl, 20px);
-}
-
-.drawer-control-summary {
-  margin-top: var(--aurora-space-1);
-  color: var(--aurora-text-secondary);
 }
 
 /* Narrow top bar (Aurora-daaa.29.1): shrinks by priority, never wraps. The title gives up
@@ -803,11 +723,8 @@ button.editor-problem-row:hover {
 }
 
 /* Canvas corners (Aurora-s1t7.3), as in the Grille mock: Add node top-left, the
-   View menu with the minimap stacked above it bottom-left, Dashboard controls
-   bottom-right, React Flow's credit bottom-centre. */
-.editor-count {
-  color: var(--ui-color-text-muted);
-}
+   View menu with the minimap stacked above it bottom-left, React Flow's credit
+   bottom-centre. Tuning has no corner button: its grab tab reopens it (Aurora-e4bi.12). */
 
 .react-flow__panel.editor-view-island {
   display: flex;
@@ -843,19 +760,6 @@ button.editor-problem-row:hover {
 
 .react-flow__attribution {
   font-size: 10px;
-}
-
-/* A side drawer covers the canvas's right edge: Dashboard controls steps left of
-   it so it can still close the drawer. */
-body:has(.ui-drawer[data-side='right']) .react-flow__panel.bottom.right {
-  margin-right: calc(var(--ui-size-drawer-width) + 15px);
-}
-
-/* At the narrowest width that step lands on the bottom-centre credit. Both are
-   z-index 5 panels and the credit is later in the DOM, so it would draw over the
-   button; the button's panel sits one above (Aurora-w6zq.1). */
-.react-flow__panel.bottom.right {
-  z-index: 6;
 }
 
 /* The Preview island (top-right of the canvas) steps left of a side drawer by the
@@ -1027,4 +931,348 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .react-flow__attribution
 
 .editor-header > .editor-edit-menu {
   flex: 0 0 auto;
+}
+
+/* Show on node pings the param's row: a 2 px ring inset 4 px from the node's sides (Aurora-e4bi.3). Timing as
+   shell.css's shell-ping, drawn inward so it never meets the selection outline. */
+.param[data-ping] {
+  position: relative;
+}
+.param[data-ping]::after {
+  content: '';
+  position: absolute;
+  inset: 2px 4px;
+  border-radius: var(--aurora-radius-control);
+  pointer-events: none;
+  animation: param-ping 1375ms ease-out 2;
+}
+@keyframes param-ping {
+  0% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .param[data-ping]::after {
+    animation: param-ping-hold 1375ms 1;
+  }
+}
+@keyframes param-ping-hold {
+  0%, 100% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+}
+
+/* Tuning card list (Aurora-e4bi.3), from the e4bi.1 mock. */
+.cp-tree {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.cp-item {
+  outline: none;
+}
+
+/* Section heading: the Dashboard accordion pill (dashboard.css .accordion-header), one fill step up
+   because the drawer is already --aurora-surface. Rows are flat siblings, so sticky headings stack
+   and the latest one covers the rest. */
+.cp-item-sec {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: var(--ui-size-space-lg);
+  background: var(--ui-color-popup-bg);
+}
+.cp-tree > .cp-item-sec:first-child {
+  padding-top: 0;
+}
+.cp-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-md);
+  border-radius: var(--aurora-radius-accordion);
+  background: var(--aurora-surface-hover);
+  font-size: 14px;
+  color: var(--aurora-text-primary);
+}
+.cp-sec-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-count {
+  flex: 1;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-muted);
+}
+
+/* Card: outline, one text tier. */
+.cp-item-card {
+  margin-top: var(--ui-size-space-xs);
+}
+.cp-item-card[data-level='2'] {
+  padding-left: var(--ui-size-space-lg);
+}
+.cp-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 3px var(--ui-size-space-xs) 3px var(--ui-size-space-md);
+  border: 1px solid var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-default);
+}
+.cp-card:hover {
+  background: var(--aurora-surface-selected);
+}
+.cp-item[data-selected] .cp-card {
+  border-color: var(--ui-color-text-muted);
+}
+.cp-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-tip-sub {
+  color: var(--ui-color-text-muted);
+}
+
+.cp-item[data-focus-visible] .cp-card,
+.cp-item[data-focus-visible] .cp-pill {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: var(--ui-size-focus-ring-offset);
+}
+
+.cp-chev {
+  color: var(--aurora-text-secondary);
+}
+.cp-chev .ui-icon {
+  transition: rotate 0.1s;
+}
+.cp-pill[data-open] .cp-chev .ui-icon {
+  rotate: 180deg;
+}
+.cp-pill:hover .ui-tree-grip,
+.cp-card:hover .ui-tree-grip {
+  color: var(--ui-color-text-muted);
+}
+.cp-empty {
+  margin: var(--ui-size-space-xs) 0 0 var(--ui-size-space-lg);
+  padding: var(--ui-size-space-md);
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+
+.cp-tip-note {
+  margin-top: var(--ui-size-space-xs);
+  color: var(--ui-color-text-secondary);
+}
+
+/* An open drawer would hide the toast's Undo: centre it on the canvas left over, or lift it above the dock. */
+body:has(.ui-drawer[data-side='right']) .editor-toast {
+  left: calc((100% - var(--ui-size-drawer-width)) / 2);
+}
+body:has(.ui-drawer[data-side='bottom']) .editor-toast {
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--editor-top, 0px)) / 2) + 15px);
+}
+/* At full height there is no canvas left to lift it over, so it floats above the dock. */
+body:has(.ui-drawer[data-side='bottom'][data-expanded]) .editor-toast {
+  bottom: var(--aurora-space-5);
+  z-index: 40;
+}
+
+/* The Tuning grab tab (Aurora-e4bi.12): on the drawer's inner edge in every state, 2 px borders. */
+/* border-box, so the 2 px edge stays inside the drawer width and the dock height. */
+.ui-drawer {
+  box-sizing: border-box;
+}
+.ui-drawer[data-side='bottom'] {
+  border-top-width: 2px;
+}
+.ui-drawer[data-side='right'] {
+  border-left-width: 2px;
+}
+.editor-grab {
+  position: fixed;
+  z-index: 31;
+  display: flex;
+  background: var(--ui-color-popup-bg);
+  border: 2px solid var(--ui-color-popup-border);
+  box-shadow: var(--ui-shadow-popup);
+}
+.editor-grab-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+.editor-grab-tab:focus-visible {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--ui-size-radius-sm);
+}
+.editor-grab-pill {
+  border-radius: 2px;
+  background: var(--ui-color-text-muted);
+}
+.editor-grab-tab:hover .editor-grab-pill {
+  background: var(--ui-color-text-default);
+}
+.editor-grab[data-place='bottom'] {
+  left: 50%;
+  /* 2 px lower than the dock's top, so the tab covers the drawer's top border. */
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--editor-top, 0px)) / 2) - 2px);
+  translate: -50% 0;
+  border-bottom: 0;
+  border-radius: var(--ui-size-radius-md) var(--ui-size-radius-md) 0 0;
+  clip-path: inset(-24px -24px 0 -24px);
+}
+.editor-grab[data-place='bottom'] .editor-grab-tab {
+  width: 64px;
+  height: 22px;
+  cursor: ns-resize;
+}
+.editor-grab[data-place='bottom'] .editor-grab-pill {
+  width: 32px;
+  height: 4px;
+}
+.editor-grab[data-place='bottom'][data-state='closed'] {
+  bottom: 0;
+}
+.editor-grab[data-place='bottom'][data-state='closed'] .editor-grab-tab {
+  cursor: pointer;
+}
+/* Full height: the drawer starts one tab lower (GRAB_TAB), so the tab sits in that gap. */
+.editor-grab[data-place='bottom'][data-state='full'] {
+  top: calc(var(--editor-top, 0px) + 2px);
+  bottom: auto;
+}
+.editor-grab[data-place='right'] {
+  top: calc(var(--editor-top, 0px) + (100dvh - var(--editor-top, 0px)) / 2);
+  right: calc(var(--ui-size-drawer-width) - 2px);
+  translate: 0 -50%;
+  border-right: 0;
+  border-radius: var(--ui-size-radius-md) 0 0 var(--ui-size-radius-md);
+  clip-path: inset(-24px 0 -24px -24px);
+}
+.editor-grab[data-place='right'] .editor-grab-tab {
+  /* 22 px plus the 2 px border: the 24 px WCAG 2.5.8 minimum target. */
+  width: 22px;
+  height: 64px;
+  cursor: pointer;
+}
+.editor-grab[data-place='right'] .editor-grab-pill {
+  width: 4px;
+  height: 32px;
+}
+.editor-grab[data-place='right'][data-state='closed'] {
+  right: -2px;
+}
+
+/* Aurora-e4bi.9: the Tuning controls picker, touch hints and the In-Tuning dot, from the e4bi.8 mock. */
+.tuning-pick {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  min-width: 220px;
+  max-width: 300px;
+}
+.tuning-pick-title {
+  padding: 6px 8px;
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+}
+.tuning-pick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: var(--ui-size-radius-sm);
+  cursor: pointer;
+}
+.tuning-pick-row:hover {
+  background: var(--ui-color-popup-bg-hover);
+}
+.tuning-pick-open {
+  margin: 4px 0 2px;
+  padding: 6px 8px;
+  border: 0;
+  border-top: 1px solid var(--ui-color-popup-border);
+  border-radius: var(--ui-size-radius-sm);
+  background: none;
+  color: var(--ui-color-control-accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tuning-pick-open:hover,
+.tuning-pick-open:focus-visible {
+  background: var(--ui-color-popup-bg-hover);
+}
+.menu-tip {
+  max-width: 260px;
+  margin: 0;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--ui-color-popup-border);
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.aurora-taphint {
+  position: relative;
+  display: inline-flex;
+}
+.aurora-taphint[data-open] .aurora-port-name,
+.aurora-taphint[data-open] .param-label {
+  text-decoration: underline dotted;
+}
+.aurora-taphint-pop {
+  max-width: 260px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.aurora-taphint-pop p {
+  margin: 0;
+}
+/* A touch tap target about 44 px tall, vertical only so it stays clear of the handle. */
+@media (pointer: coarse) {
+  .aurora-port .aurora-taphint::after {
+    content: '';
+    position: absolute;
+    inset: -13px 0;
+  }
+}
+.param-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.param-in-tuning {
+  flex: none;
+  display: inline-flex;
+  color: var(--ui-color-text-muted);
+}
+.param-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

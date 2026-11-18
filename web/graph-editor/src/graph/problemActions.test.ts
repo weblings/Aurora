@@ -4,9 +4,9 @@ import { GRAPH_ROW_ACTIONS, graphRowAction } from './problemActions'
 import { groupProblems } from './problems'
 
 describe('Whole graph row actions (Aurora-u8jx.2)', () => {
-  it('only an unknown Dashboard control node opens the controls drawer', () => {
+  it('only an unknown Tuning control node opens the Tuning drawer', () => {
     expect(Object.keys(GRAPH_ROW_ACTIONS)).toEqual(['control_node_unknown'])
-    expect(graphRowAction('control_node_unknown')).toEqual({ label: 'Open controls', run: 'openControls' })
+    expect(graphRowAction('control_node_unknown')).toEqual({ label: 'Open Tuning', run: 'openControls' })
   })
 
   it('cycles, structural codes, unknown codes and no code get no action', () => {

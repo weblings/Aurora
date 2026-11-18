@@ -1,5 +1,5 @@
 // Aurora-u68h.6: announce-only messages reach the live region and draw nothing; the three lossy
-// toasts (Removed N Dashboard controls, Reverted to the saved version, Loaded the saved version)
+// toasts (Removed N Tuning controls, Reverted to the saved version, Loaded the saved version)
 // carry a real Undo button that works by mouse and by keyboard, does not steal focus, holds its
 // timer while hovered and is spent by the next edit; a plain Saved toast keeps no Undo.
 // `SHOTS=<dir>` saves each Undo toast.
@@ -62,7 +62,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.keyboard.press(undoKey)
     await page.waitForFunction((n) => document.querySelectorAll('.react-flow__node').length === n, before)
 
-    // Removed N Dashboard controls: one history entry, Undo is the history's.
+    // Removed N Tuning controls: one history entry, Undo is the history's.
     await tickFirst(page, gain())
     const controls = await controlCount(page)
     const removeGain = async () => {
@@ -74,7 +74,7 @@ await withEditorStack(async ({ editorUrl }) => {
         await page.screenshot({ path: '/private/tmp/claude-501/-Users-andrewgwinner-Documents-Coding-Aurora-Aurora/b24e5d21-143c-4735-bce9-5ebb2d31c77d/scratchpad/6g/fail.png' })
         throw new Error(`delete did not land; nodes ${await nodes()} focus ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 150))}`)
       })
-      await page.waitForFunction(() => /Removed \d+ Dashboard controls? with/.test(document.querySelector('.editor-toast')?.textContent ?? ''))
+      await page.waitForFunction(() => /Removed \d+ Tuning controls? with/.test(document.querySelector('.editor-toast')?.textContent ?? ''))
     }
     await removeGain()
     await undoButton.waitFor()

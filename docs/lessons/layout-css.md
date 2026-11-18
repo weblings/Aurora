@@ -312,3 +312,13 @@ Applies-when: a Grille `Popover` or menu opens with `placement` ending in `end`,
 Grille's popover has no animation (`ui.css` has no keyframes or transitions on `.ui-popover`). The Test caret menu (`bottom end`) still appeared to slide in from the right over about 5 frames (found by sampling its bounding box every frame, `Aurora-u8jx.4.3`): the popover is absolutely positioned, so its shrink-to-fit width is capped by the room to its right. React Aria first places it at the trigger's left, the items wrap at that narrow width (129 px), and each re-position, which anchors the right edge, lets it widen a little until it settles at 179 px with its left edge moved 62 px. Left-anchored menus never meet the cap.
 
 **Fix:** give the popup box `width: max-content` (or `white-space: nowrap`) so its width does not depend on where its left edge is (`.editor-test-popup`). Sample the box per frame to find this; computed `animation` and `transition` are `none` throughout.
+
+---
+
+## Judge a responsive layout switch by the room it leaves the content
+Tags: webui, layout, responsive, drawer, graph-editor
+Applies-when: choosing or reviewing a breakpoint that moves a panel (side drawer to bottom sheet, sidebar to drawer)
+
+The editor docked drawers at the bottom below 650 px or in portrait windows (aspect under 0.75). Tabulating canvas left per layout showed the portrait clause docked windows (900x1400, 1080x1920) that keep more canvas width beside a side drawer than 700x900, which was checked and kept on the side, and that the side drawer kept 20 to 51 percent more canvas area in every portrait case. The drawer body is one column of rows, so a 900 to 1440 px dock was mostly empty. Filed as Aurora-daaa.37 (width only).
+
+**Fix:** for each candidate size, compute the content area and the panel's shape under both layouts and compare against a size already accepted; prefer the width-based switch the prior art uses unless the numbers show otherwise.

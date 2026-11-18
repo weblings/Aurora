@@ -9,20 +9,20 @@ const run = (events: TestEvent[], from: TestState = initialTest) => events.reduc
 const running = run([{ type: 'starting', mode: 'once' }, { type: 'started', remainingMs: 120000 }])
 
 describe('dashboard controls', () => {
-  it('adds a param with the catalog label and the node title as section', () => {
-    const next = addControl(builtinLike(), 'rescale', 'width', catalog.get('image.rescale'))
-    expect(controlsOf(next).at(-1)).toEqual({ node: 'rescale', param: 'width', label: 'Width', section: 'Rescale' })
+  it('adds a param with no label key, appended to General', () => {
+    const next = addControl(builtinLike(), 'rescale', 'width')
+    expect(controlsOf(next).at(-1)).toEqual({ node: 'rescale', param: 'width' })
     expect(controlIndex(next, 'rescale', 'width')).toBe(1)
   })
 
-  it('falls back to the param name when it has no label, and adds a control list when there is none', () => {
-    const next = addControl(customLike(), 'zones', 'output', catalog.get('zones.sample'))
-    expect(next.controls).toEqual([{ node: 'zones', param: 'output', label: 'output', section: 'Sample zones' }])
+  it('adds a control list when there is none', () => {
+    const next = addControl(customLike(), 'zones', 'output')
+    expect(next.controls).toEqual([{ node: 'zones', param: 'output' }])
   })
 
   it('does not add the same param twice', () => {
     const doc = builtinLike()
-    expect(addControl(doc, 'gain', 'gain', catalog.get('frame.gain'))).toBe(doc)
+    expect(addControl(doc, 'gain', 'gain')).toBe(doc)
   })
 
   it('edits text, drops an emptied tooltip, and keeps keys it does not know', () => {
@@ -34,7 +34,7 @@ describe('dashboard controls', () => {
 
   it('reorders within bounds and removes', () => {
     let doc = builtinLike()
-    doc = addControl(doc, 'rescale', 'width', catalog.get('image.rescale'))
+    doc = addControl(doc, 'rescale', 'width')
     const moved = moveControl(doc, 1, -1)
     expect(controlsOf(moved).map((c) => c.node)).toEqual(['rescale', 'gain'])
     expect(moveControl(doc, 1, 1)).toBe(doc)

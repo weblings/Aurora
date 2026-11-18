@@ -1,5 +1,7 @@
 import { controlsOf, dropControlsOf, type Control } from './controls'
 import type { Catalog, GraphDoc, GraphEdge, GraphNode, NodeTypeInfo, ParamInfo, ParamValue, Position } from './types'
+import { positionIn } from './types'
+import { SECTIONS_KEY } from '../../../ui/TuningControls.js'
 
 // Every edit returns a new document and leaves the old one untouched, so the
 // whole graph stays one JSON value that undo and autosave can snapshot.
@@ -34,7 +36,7 @@ export function removeEdge(doc: GraphDoc, edge: GraphEdge): GraphDoc {
   return { ...doc, edges: doc.edges.filter((e) => e[0] !== edge[0] || e[1] !== edge[1]) }
 }
 
-// Removes nodes with their edges, layout entries and Dashboard controls.
+// Removes nodes with their edges, layout entries and Tuning controls.
 export function removeNodes(doc: GraphDoc, ids: ReadonlySet<string>): GraphDoc {
   const next: GraphDoc = {
     ...doc,
@@ -44,7 +46,7 @@ export function removeNodes(doc: GraphDoc, ids: ReadonlySet<string>): GraphDoc {
     ),
   }
   if (doc.ui) {
-    next.ui = Object.fromEntries(Object.entries(doc.ui).filter(([id]) => !ids.has(id)))
+    next.ui = Object.fromEntries(Object.entries(doc.ui).filter(([id]) => id === SECTIONS_KEY || !ids.has(id)))
   }
   return dropControlsOf(next, ids)
 }
@@ -82,7 +84,7 @@ export function addNode(doc: GraphDoc, info: NodeTypeInfo, at: Position): GraphD
 }
 
 // Clipboard (Aurora-ge1i.2.1). A clip is the selected nodes, the wires between
-// them, their layout and their Dashboard controls, marked so a paste can tell it
+// them, their layout and their Tuning controls, marked so a paste can tell it
 // from other text on the system clipboard (and so it works across tabs).
 export const CLIP_MARK = 'aurora-graph-clip'
 
@@ -102,7 +104,7 @@ export function copySelection(doc: GraphDoc, ids: ReadonlySet<string>, positions
   const kept = new Set(nodes.map((n) => n.id))
   const ui: Record<string, Position> = {}
   for (const id of kept) {
-    const at = doc.ui?.[id] ?? positions[id]
+    const at = positionIn(doc.ui, id) ?? positions[id]
     if (at) ui[id] = { x: at.x, y: at.y }
   }
   return copyJson({
@@ -128,7 +130,12 @@ export function parseClip(text: string): Clip | null {
   const edges = (Array.isArray(clip.edges) ? clip.edges : []).filter(
     (e): e is GraphEdge => Array.isArray(e) && typeof e[0] === 'string' && typeof e[1] === 'string',
   )
-  const ui = clip.ui && typeof clip.ui === 'object' ? clip.ui : {}
+  // Only {x, y} entries are positions: '#sections' and junk never reach a paste.
+  const ui = Object.fromEntries(
+    Object.entries(clip.ui && typeof clip.ui === 'object' ? clip.ui : {}).filter(
+      ([, p]) => !!p && !Array.isArray(p) && typeof p.x === 'number' && typeof p.y === 'number',
+    ),
+  )
   const controls = (Array.isArray(clip.controls) ? clip.controls : []).filter(
     (c): c is Control => !!c && typeof c.node === 'string' && typeof c.param === 'string',
   )
@@ -141,7 +148,7 @@ export const isSingleton = (info: NodeTypeInfo): boolean => !!info.sink
 export type Skipped = { id: string; type: string; reason: 'unknown' | 'single' }
 
 // Adds the clip with fresh ids, its top-left corner at `at`. Unknown types and a
-// singleton the graph already has are left out with their wires; Dashboard controls
+// singleton the graph already has are left out with their wires; Tuning controls
 // come along. `added` maps each clip id to its new id.
 export function pasteSelection(
   doc: GraphDoc,

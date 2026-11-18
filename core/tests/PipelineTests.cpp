@@ -6214,6 +6214,56 @@ TEST_CASE("Graph ui entries keep extra keys through draft PUT, GET and save on c
 }
 
 
+// Shared by the two round-trip cases below: PUT, GET and save a graph on both route sets.
+static void roundTripGraphOnBothRoutes(const std::string& tag, const nlohmann::json& graph, const std::string& key)
+{
+  LightTestHarness h(tag);
+  const std::vector<std::pair<std::string, std::string>> routes = {
+    {"core", "/api/graph/"}, {"v1", "/api/v1/graph/"}};
+  for(const auto& [name, base] : routes){
+    const std::string session = tag + "-" + name;
+    auto put = h.client->Put(base + "drafts/" + session, nlohmann::json{{"graph", graph}}.dump(), "application/json");
+    REQUIRE(put);
+    CHECK(put->status == 200);
+    const nlohmann::json putBody = nlohmann::json::parse(put->body);
+    CHECK(putBody["valid"] == true);
+    CHECK(putBody["errors"].empty());
+
+    auto got = h.client->Get(base + "drafts/" + session);
+    REQUIRE(got);
+    const nlohmann::json gotBody = nlohmann::json::parse(got->body);
+    CHECK(gotBody["graph"][key] == graph[key]);
+    CHECK(gotBody["valid"] == true);
+    CHECK(gotBody["errors"].empty());
+
+    auto saved = h.client->Post(base + "save", nlohmann::json{{"session", session}, {"id", "kept-" + name}}.dump(),
+      "application/json");
+    REQUIRE(saved);
+    CHECK(saved->status == 200);
+    std::string error;
+    auto effect = EffectStore(h.dir.path).read("kept-" + name, error);
+    REQUIRE(effect.has_value());
+    CHECK((*effect)[key] == graph[key]);
+  }
+}
+
+TEST_CASE("Graph ui '#sections' reserved key round-trips and the loader ignores it (Aurora-e4bi.10)", "[PublicApi][v1][Drafts]")
+{
+  nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+  const std::string nodeId = graph["nodes"][0]["id"].get<std::string>();
+  graph["ui"] = {{nodeId, {{"x", 40}, {"y", 80}}}, {"#sections", {"Color", "Empty one"}}};
+  roundTripGraphOnBothRoutes("ui-sections", graph, "ui");
+}
+
+TEST_CASE("Control entries keep unknown extra keys through draft PUT, GET and save on core and v1 routes (Aurora-e4bi.11)", "[PublicApi][v1][Drafts]")
+{
+  nlohmann::json graph = Graph::builtInVideoGraph({"out-a"});
+  graph["controls"] = nlohmann::json::array({
+    {{"node", "rescale"}, {"param", "width"}, {"label", "Width"}, {"section", "Size"}, {"futureKey", {{"min", 0}}}}});
+  roundTripGraphOnBothRoutes("ctl-extra-keys", graph, "controls");
+}
+
+
 TEST_CASE("v1 effect hide, move and rename answer like the core routes (Aurora-kep2.13)", "[PublicApi][v1]")
 {
   LightTestHarness h("v1-effect-manage");

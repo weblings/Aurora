@@ -647,7 +647,9 @@ Applies-when: a mock shows ordering, grouping or defaults of something that alre
 
 The shell mock stacked notices above errors and folded them into the collapse. The real `shell.js` renders pairings, then the light-test row, then conditions, then errors in daemon order, and keeps the first two outside the collapse and out of the "N problems" count. Host errors carry a monotonic `id`, so the daemon already knows which is newest. Answering "does a new error go above the old one?" needed the code, not the mock.
 
-**Fix:** before explaining behaviour from a mock, read the render path; list in the frame or the bead where the mock departs from today (here: notices inside the collapse), so a design change is not mistaken for current behaviour.
+Aurora-e4bi.8 repeated it the other way round: a session proposed a `...` button on nodes as new, from a grep of the context menu's right-click handler, and recorded "right-click is the only route" on the bead. `GenericNode.tsx` had shipped that button, faded until hover or selection, since Aurora-daaa.27.1. It surfaced only when the mock copied the node's markup.
+
+**Fix:** before explaining behaviour from a mock, read the render path; list in the frame or the bead where the mock departs from today (here: notices inside the collapse), so a design change is not mistaken for current behaviour. Before calling a control new, read the component that would hold it, not only the handler you found first.
 
 ---
 
@@ -677,7 +679,7 @@ Applies-when: starting a mock frame, or a new frame set, in a mock that has Deci
 
 Aurora-u8jx.6's Preview mock was started from the bead's frame text and from a mock whose Decisions switches default to the old state (the Test split button switch defaulted to off, which draws "Test on lights" and a "Live preview" pill). The editor had shipped the split button (`SplitTestButton.tsx`, `Test (15s)`, `Stop 0:12`). Everything drawn on that base needed owner steering: the old Test button, a "Testing on Hue" shell row Stage 6 reserves for tests the user did not cause, an invented "Can't reach the Hue bridge." when core already raises `kUnreachableMessage`, quadrant and ring shapes where the live island draws plain cells, a Grille select where the Test caret uses the tick menu, and an icon-only chevron beside a title. Each is a difference between the mock's base and the built editor, found one review round at a time.
 
-The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it, drop the switch, and retire the frames that argued it.
+The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it. Hide the losing options rather than deleting them, and delete only when keeping them slows the work (owner, 2026-11-17): a dropped direction can come back, as the Tuning and Node tabs might if a second panel earns its place.
 
 **Fix, in order, before styling anything:**
 1. Set every Decisions switch to the shipped editor's state and screenshot the mock's rest frame next to the real editor at the same width. Differences are mock bugs, not design choices.
@@ -719,3 +721,33 @@ Applies-when: answering "how complex would X be" or filing a bead that states a 
 Asked how complex Start from would be, the first answer called it low to medium with one unknown and later said it needed "a new path". Neither came from tracing the code. The owner's follow-up questions then found the cheaper design, and a trade-off (save at once vs a new path) had been invented that did not exist. An estimate in a bead or doc reads as a finding and steers decisions, the same way a described component does (see "A described existing component is a claim to verify").
 
 **Fix:** before giving an estimate, trace the nearest existing operation end to end. Report it as "traced X, Y, Z" or "not checked", and record unknowns as questions with the file that would answer them, not as difficulty.
+
+---
+
+## A row that joins fields hides which field supplied the text: read the data before designing around it
+Tags: planning, dashboard-controls, verification, data
+Applies-when: describing or redesigning a UI string that is built from several fields or a fallback
+
+The Dashboard controls drawer prints `[label, section].filter(Boolean).join(' · ')`, so a control with only a `section` showed as a name. The audio preset sets `section` ("Response speed") and no label, and the first design pass called that text the human name and the node and param line the technical one. It was caught only when a card sketch needed the label, by opening `builtin.audio.json`. The same drawer printed "No label" for controls that do have one on the Dashboard, because Tuning falls back to `decl.label ?? decl.name`.
+
+**Fix:** before saying what a displayed string is, find the field that fed it in a real preset and read the consumer's own fallback (here `TuningControls.js`). Design from what the user sees on the surface that consumes it, not from the editor's summary of it.
+
+---
+
+## Read the project's settled message words before adding a tone
+Tags: planning, design-process, mocks, copy, severity
+Applies-when: a mock or component adds an error, warning, notice or info message, or picks a colour or icon for one
+
+The Aurora-e4bi.1 naming dialog grew an amber "warning" tier with Grille's warning icon and coloured text. The project had already settled three words ([[graph-editor-cleanup]], Stage 7 "Words": error, notice, problem), with the amber triangle reserved for graph problems, "no severity tiers" with tone meaning "does this block you", colour on the mark only (`shell.css`), and a copy pattern the Dashboard already used ("Another effect is named X."). Several review rounds styled a tier that should not exist.
+
+**Fix:** before choosing a tone, grep the plan for the words list and read how the shell and the Dashboard already draw and word the same kind of message; map the new message onto those.
+
+---
+
+## A mock switch that forces a state the product cannot reach misleads the review
+Tags: planning, design-process, mocks, layout
+Applies-when: adding a mock control that overrides a media query, breakpoint or other condition to show a layout
+
+To show a wide bottom dock, the Aurora-e4bi.1 mock got a Force dock switch, which docked a landscape window the editor never docks. The owner read it as a design proposal. The popup link meant to show the real case (900x1400) was clamped to the screen's height, came out landscape, and showed the side drawer instead. The question itself ("cap the wide dock?") went away once the layouts were measured: the rule should not produce that state at all.
+
+**Fix:** reach states through the real condition (a popup or window at the true size, with the measured size printed in the frame), and say when a state needs an unusual screen. If a state looks wrong, first ask whether the rule should produce it.

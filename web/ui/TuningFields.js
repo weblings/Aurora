@@ -11,7 +11,7 @@
 import { Dropdown } from './Dropdown.js';
 import { applyTooltip } from './Tooltips.js';
 import { sliderGroupHtml, sliderTooltipKey, wireSliderGroup } from './TuningSliderGroup.js';
-import { fetchTuningGraph, groupBySection, isCustomEffect, resolveControls } from './TuningControls.js';
+import { fetchTuningGraph, deriveSections, isCustomEffect, resolveControls } from './TuningControls.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
 import { subsampleCandidates } from './SubsampleCandidates.js';
 import { DAEMON_UNREACHABLE } from './messages.js';
@@ -145,15 +145,17 @@ export class TuningFields {
     if (!this.controls) return;
 
     const fields = this.container.querySelector('.tn-fields');
-    const groups = groupBySection(this.controls);
+    const groups = deriveSections(this.controls);
     if (groups.length === 0 && this.showsRefreshRate) groups.push({ section: '', controls: [] });
     groups.forEach((group, index) => this._renderGroup(fields, group, index));
   }
 
   _renderGroup(container, group, index) {
+    // General sits last, so a headless group after the first is headed.
+    const heading = group.section || (index > 0 ? 'General' : '');
     const section = document.createElement('div');
     section.innerHTML = `
-      ${group.section ? `<h2 class="section-heading">${escapeHtml(group.section)}</h2>` : ''}
+      ${heading ? `<h2 class="section-heading">${escapeHtml(heading)}</h2>` : ''}
       <div class="tuning-grid"></div>
     `;
     const grid = section.querySelector('.tuning-grid');

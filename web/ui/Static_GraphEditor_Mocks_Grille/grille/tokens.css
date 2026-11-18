@@ -37,6 +37,7 @@
   --ui-size-radius-xs: 5px;
   --ui-size-radius-sm: 6px;
   --ui-size-radius-md: 8px;
+  --ui-size-radius-lg: 12px;
   --ui-size-radius-pill: 20px;
   --ui-size-font-xs: 12px;
   --ui-size-font-sm: 13px;
@@ -58,6 +59,7 @@
   --ui-size-button-action-width: 150px;
   --ui-size-button-action-height: 36px;
   --ui-size-button-icon-size: 31px;
+  --ui-size-button-icon-size-sm: 24px;
   --ui-size-icon: 16px;
   --ui-size-icon-sm: 12px;
   --ui-size-icon-overhang: 4px;

@@ -8,6 +8,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { settle as settlePage } from '../lib/waits.mjs'
 import { addNodeByName, editAction, fileAction, openTitleMenu, setName, waitAnnounced } from '../lib/editorMenu.mjs'
 
 const created = []
@@ -57,7 +58,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
   }
   // The header and canvas reflow as the status text changes, so let the page
   // settle before taking coordinates for a mouse drag.
-  const settle = () => page.waitForTimeout(500)
+  const settle = () => settlePage(page)
   const drag = async (from, to) => {
     await settle()
     const [a, b] = [await from.boundingBox(), await to.boundingBox()]
@@ -163,7 +164,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     // Reload the page and reopen: the layout is the saved one.
     await page.goto(`${editorUrl}?effect=gate-check`)
     await page.waitForSelector('.aurora-node')
-    await page.waitForTimeout(800)
+    await settle()
     await checkLayout('gate-check')
     step('reload and reopen keeps the saved layout')
 
@@ -172,7 +173,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await page.goto(`${editorUrl}?effect=gate-check`)
     await page.waitForSelector('.aurora-node')
     await waitStatus(/Live/, 20_000)
-    await page.waitForTimeout(800)
+    await settle()
     await checkLayout('gate-check')
     step('restarting Aurora and reopening the effect keeps the saved layout, preview Live')
 
@@ -222,12 +223,12 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await field.blur()
     assert.equal(await gainValue(), '0.4')
     await until(async () => (await brightness()) < full * 0.8, 'thumbnail did not dim after gain 0.4')
-    await button('Undo').click()
+    await editAction(page, 'Undo')
     assert.equal(await gainValue(), was)
-    await button('Redo').click()
+    await editAction(page, 'Redo')
     assert.equal(await gainValue(), '0.4')
     step('undo and redo step a param edit, and the preview follows it')
-    await button('Undo').click()
+    await editAction(page, 'Undo')
 
     // A second view takes the preview stream; Reconnect gets it back.
     const mine = await session()
@@ -244,15 +245,15 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
     // Aurora-gujj: the editor's own debounced draft PUT (from the Undo above) can land after this one;
     // its verdict clears the problem and the chip unmounts. Let it settle, then put again until the
-    // chip has stayed for a moment.
+    // chip has stayed for a moment. A missed status (the editor's PUT won) also retries.
     await settle()
     const chip = page.locator('.editor-problems-chip', { hasText: /1 problem/ })
     for (let tries = 0; ; tries++) {
       assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
-      await waitStatus(/would not load/)
+      const seen = await waitStatus(/would not load/, 3_000).then(() => true, () => false)
       await chip.waitFor({ timeout: 5_000 }).catch(() => {})
       await page.waitForTimeout(700)
-      if (await chip.isVisible()) break
+      if (seen && (await chip.isVisible())) break
       assert.ok(tries < 4, 'the problems chip never stayed after the audio draft')
     }
     // Aurora-u68h.5: it is a Whole graph problem in the chip's popover, not a banner.
@@ -261,7 +262,7 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await wholeRow.waitFor()
     assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph'.length, 'Whole graph row has no server text')
     await page.keyboard.press('Escape')
-    await button('Redo').click()
+    await editAction(page, 'Redo')
     await waitStatus(/Live/)
     step('a draft needing an unopened input shows draft would not load, and the next edit recovers')
 

@@ -1,5 +1,6 @@
 import { Hint } from './Hint'
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   ReactFlow,
   Background,
@@ -15,11 +16,12 @@ import {
   type ReactFlowInstance,
 } from '@xyflow/react'
 import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, fetchShowNodeIds, putDraft, saveGraph, type WriteResult } from './api'
-import { EditorContext, ShowNodeIdsContext, type EditorActions } from './EditorContext'
+import { EditorContext, ShowNodeIdsContext, TuningMarksContext, tuningKey, type EditorActions } from './EditorContext'
 import { GenericNode } from './GenericNode'
-import { DetailsDrawer } from './DetailsDrawer'
-import { clearShift } from './graph/clear'
+import { TuningPicker } from './TuningPicker'
 import { ControlsDrawer } from './ControlsDrawer'
+import { GRAB_TAB, GrabTab, TUNING_KEY } from './GrabTab'
+import { pingParam } from './pingParam'
 import { AddNodeMenu } from './AddNodeMenu'
 import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
 import { ProblemsContext } from './ProblemsContext'
@@ -28,6 +30,7 @@ import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
 import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
+import { renameEffectSpec, saveAsSpec } from './graph/naming'
 import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, useMedia } from './useMedia'
 import { stageAttrs, useBarStage } from './barStage'
@@ -44,7 +47,8 @@ import { useLightTest } from './useLightTest'
 import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './graph/autosave'
 import { NewerSavedPrompt } from './NewerSavedPrompt'
 import { converterFor, insertConverter, refuseConnection } from './graph/connection'
-import { controlsOf } from './graph/controls'
+import { addControl, controlIndex, controlsOf, removeControl } from './graph/controls'
+import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
 import { hints, mod } from './graph/keys'
@@ -129,9 +133,25 @@ export function App() {
   const [refusal, setRefusal] = useState<Refusal | null>(null)
   const refusals = useRef(0)
   const [minimap, setMinimap] = useState(false)
-  // One drawer at a time, non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
-  const [drawer, setDrawer] = useState<'details' | 'controls' | null>(null)
-  const [focusChecks, setFocusChecks] = useState(0)
+  // Non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
+  const [drawer, setDrawer] = useState<'controls' | null>(null)
+  // The docked drawer at full height (Aurora-e4bi.12); a side drawer or a closed one is never full.
+  const [dockFull, setDockFull] = useState(false)
+  const [canvasTop, setCanvasTop] = useState(0)
+  useLayoutEffect(() => {
+    const t = canvas.current?.getBoundingClientRect().top ?? 0
+    if (t !== canvasTop) setCanvasTop(t)
+  })
+  const toggleTuning = useCallback(() => {
+    setDrawer((d) => (d === 'controls' ? null : 'controls'))
+    setDockFull(false)
+  }, [])
+  const closeTuning = useCallback(() => {
+    setDrawer(null)
+    setDockFull(false)
+  }, [])
+  // The node whose "Tuning controls…" picker is open (Aurora-e4bi.9).
+  const [pickFor, setPickFor] = useState<string | null>(null)
   // Focus inside a drawer: Delete and Backspace there must not delete nodes.
   const [inDrawer, setInDrawer] = useState(false)
   // The graph as the running test was started with it.
@@ -215,7 +235,6 @@ export function App() {
   const dirty = useMemo(() => isUnsaved(baseline?.doc ?? null, doc), [doc, baseline])
   const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (isDraftId(effectId) || effectId.startsWith('builtin.'))
   const picked = nodeView.filter((n) => n.selected)
-  const selectedId = picked.length === 1 ? picked[0].id : null
 
   useEffect(() => {
     const url = new URL(window.location.href)
@@ -372,7 +391,7 @@ export function App() {
   const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
 
   // One path for key Delete, Backspace and the menu: deleting a node drops its
-  // Dashboard controls, so say so (global undo brings them back).
+  // Tuning controls, so say so (global undo brings them back).
   const deleteNodes = useCallback(
     (ids: ReadonlySet<string>) => {
       const current = docRef.current
@@ -392,7 +411,7 @@ export function App() {
         const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
         const list = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : shown[0]
         // The delete is one history entry, so Undo is the history's own.
-        showToast(`Removed ${n} Dashboard control${n === 1 ? '' : 's'} with ${list}`, {
+        showToast(`Removed ${n} Tuning control${n === 1 ? '' : 's'} with ${list}`, {
           doc: next,
           run: () => dispatch({ type: 'undo' }),
         })
@@ -419,49 +438,6 @@ export function App() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-
-  // Keep the selected node clear of the Details drawer: pan, never zoom, and
-  // only when it sits under the drawer. Runs when Details opens, follows a new
-  // selection, or the canvas (so the drawer width) changes size.
-  const clearNode = useRef<() => void>(() => {})
-  clearNode.current = () => {
-    const inst = flow.current
-    const pane = canvas.current
-    if (drawer !== 'details' || !selectedId || !inst || !pane) return
-    const node = inst.getInternalNode(selectedId)
-    const drawerEl = document.querySelector<HTMLElement>('.ui-drawer')
-    if (!node || !drawerEl || !node.measured.width) return
-    const box = pane.getBoundingClientRect()
-    const vp = inst.getViewport()
-    const pos = node.internals.positionAbsolute
-    const bottom = drawerEl.dataset.side === 'bottom'
-    // A full-height sheet covers the whole canvas: nothing to clear, so leave the view alone.
-    if (bottom && drawerEl.hasAttribute('data-expanded')) return
-    const start = (bottom ? pos.y : pos.x) * vp.zoom + (bottom ? vp.y : vp.x)
-    const size = (bottom ? (node.measured.height ?? 0) : node.measured.width) * vp.zoom
-    const end = start + size
-    const limit = bottom ? drawerEl.getBoundingClientRect().top - box.top : window.innerWidth - drawerEl.offsetWidth - box.left
-    const dx = clearShift(start, end, limit)
-    if (dx !== 0) void inst.setViewport(bottom ? { ...vp, y: vp.y + dx } : { ...vp, x: vp.x + dx }, { duration: 150 })
-  }
-  useEffect(() => {
-    clearNode.current()
-  }, [drawer, selectedId])
-  useEffect(() => {
-    const pane = canvas.current
-    if (!pane || typeof ResizeObserver === 'undefined') return
-    const watch = new ResizeObserver(() => clearNode.current())
-    watch.observe(pane)
-    return () => watch.disconnect()
-  }, [])
-  // The dock's half/full toggle resizes the drawer, not the canvas.
-  useEffect(() => {
-    const el = drawer ? document.querySelector('.ui-drawer') : null
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const watch = new ResizeObserver(() => clearNode.current())
-    watch.observe(el)
-    return () => watch.disconnect()
-  }, [drawer, drawerSide])
 
   // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
   const saveKey = useRef<() => void>(() => {})
@@ -520,12 +496,18 @@ export function App() {
   const openMenu = useCallback(
     (target: MenuTarget) => {
       if (target.kind === 'node') {
+        const id = target.id
+        const info = nodes.find((n) => n.id === id)?.data.info
+        target = { ...target, tip: info?.tip, params: (info?.params.length ?? 0) > 0 }
+      }
+      if (target.kind === 'node' || target.kind === 'param') {
         setNodeView((view) => {
           const base = view.length > 0 ? view : nodes
           if (base.find((n) => n.id === target.id)?.selected) return view
           return base.map((n) => ({ ...n, selected: n.id === target.id }))
         })
       }
+      setPickFor(null)
       setMenu(target)
     },
     [nodes],
@@ -536,11 +518,15 @@ export function App() {
   // Shift+F10 (or the Menu key) on a focused node opens its menu.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!((e.key === 'F10' && e.shiftKey) || e.key === 'ContextMenu')) return
-      const node = (e.target as HTMLElement | null)?.closest<HTMLElement>('.react-flow__node')
+      if (!isMenuKey(e)) return
+      const t = e.target as HTMLElement | null
+      const node = t?.closest<HTMLElement>('.react-flow__node')
       const id = node?.dataset.id
       if (!node || !id) return
+      // A number or text field keeps the browser's own menu.
+      if (isNativeField(t!)) return
       e.preventDefault()
+      swallowKeyContextMenu()
       const box = node.getBoundingClientRect()
       openMenuRef.current({ kind: 'node', id, x: box.left, y: box.top + 24 })
     }
@@ -553,10 +539,29 @@ export function App() {
       setParam: (nodeId: string, name: string, value: ParamValue) =>
         dispatch({ type: 'edit', change: (d) => setParam(d, nodeId, name, value), live: true }),
       commit: () => dispatch({ type: 'commit' }),
-      openNodeMenu: (nodeId: string, at: { x: number; y: number }) => openMenuRef.current({ kind: 'node', id: nodeId, ...at }),
+      openNodeMenu: (nodeId: string, at: { x: number; y: number }, touch?: boolean) => openMenuRef.current({ kind: 'node', id: nodeId, touch, ...at }),
+      openParamMenu: (nodeId: string, param: string, label: string, at: { x: number; y: number }) => {
+        const d = docRef.current
+        openMenuRef.current({ kind: 'param', id: nodeId, param, label, on: !!d && controlIndex(d, nodeId, param) >= 0, ...at })
+      },
     }),
     [],
   )
+
+  // Each Tuning control's text for its param row: the muted dot and the label's hint (Aurora-e4bi.9).
+  const controls = doc?.controls
+  const tuningMarks = useMemo(() => {
+    const marks = new Map<string, string>()
+    if (!doc) return marks
+    for (const c of controlsOf(doc)) {
+      const type = doc.nodes.find((n) => n.id === c.node)?.type
+      const own = (type ? catalog?.get(type)?.params.find((p) => p.name === c.param) : undefined)
+      const label = c.label || own?.label || c.param
+      marks.set(tuningKey(c.node, c.param), `In Tuning as "${label}", ${c.section || 'General'}.`)
+    }
+    return marks
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a control edit changes the marks
+  }, [controls, catalog])
 
   const onNodesChange = useCallback(
     (changes: NodeChange<Node<AuroraNodeData>>[]) => {
@@ -715,6 +720,8 @@ export function App() {
   // With nodes selected, copy and cut take them even when a shift-click left page text selected.
   const clipKeys = useRef({ copyPicked, pasteText, selectAll, hasPicked: false })
   clipKeys.current = { copyPicked, pasteText, selectAll, hasPicked: picked.length > 0 }
+  const tuningReady = useRef(false)
+  tuningReady.current = !!doc && !!catalog
   useEffect(() => {
     const onCanvas = (target: HTMLElement | null) => {
       if (!target) return false
@@ -723,6 +730,14 @@ export function App() {
       return target === document.body || !!target.closest('.editor-canvas, .editor-header')
     }
     const onKey = (e: KeyboardEvent) => {
+      // A bare T shows or hides Tuning, like Blender's N for its sidebar: canvas only, never a field.
+      if (e.key.toLowerCase() === TUNING_KEY.toLowerCase() && !(e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing)) {
+        if (tuningReady.current && onCanvas(e.target as HTMLElement | null)) {
+          e.preventDefault()
+          toggleTuning()
+        }
+        return
+      }
       if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !onCanvas(e.target as HTMLElement | null)) return
       const key = e.key.toLowerCase()
       if (key === 'a') clipKeys.current.selectAll()
@@ -740,7 +755,7 @@ export function App() {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('paste', onPaste)
     }
-  }, [])
+  }, [toggleTuning])
   useEffect(() => {
     const pane = canvas.current
     if (!pane) return
@@ -758,6 +773,28 @@ export function App() {
     }
   }, [])
 
+  // Remove from Tuning with an Undo toast: the menu's and the card menu's one path.
+  const removeFromTuning = useCallback(
+    (node: string, param: string, fallback: string) => {
+      const current = docRef.current
+      const i = current ? controlIndex(current, node, param) : -1
+      if (!current || i < 0) return
+      const next = removeControl(current, i)
+      edit((d) => (d === current ? next : removeControl(d, controlIndex(d, node, param))))
+      showToast(`Removed ${controlsOf(current)[i].label || fallback} from Tuning.`, { doc: next, run: () => dispatch({ type: 'undo' }) })
+    },
+    [edit, showToast],
+  )
+
+  // Show on node: select it, fit the view, then ping the param's row.
+  const showParam = useCallback(
+    (node: string, param: string) => {
+      selectNode(node)
+      window.setTimeout(() => pingParam(canvas.current, node, param), 220)
+    },
+    [selectNode],
+  )
+
   const onMenuAction = (a: MenuAction) => {
     const at = menu
     if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
@@ -769,11 +806,10 @@ export function App() {
     else if (a.type === 'select-all') selectAll()
     else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
     else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
-    else if (a.type === 'details' || a.type === 'dashboard') {
-      // The node menu already selected this node alone, which Details follows.
-      setDrawer('details')
-      if (a.type === 'dashboard') setFocusChecks((n) => n + 1)
-    }
+    else if ((a.type === 'tuning-add' || a.type === 'tuning-remove') && at?.kind === 'param') {
+      if (a.type === 'tuning-add') edit((d) => addControl(d, at.id, at.param))
+      else removeFromTuning(at.id, at.param, at.label)
+    } else if (a.type === 'dashboard' && at?.kind === 'node') setPickFor(at.id)
   }
 
   const wiring = useCallback(
@@ -917,7 +953,7 @@ export function App() {
   }
 
   return (
-    <div className="editor">
+    <div className="editor" style={{ '--editor-top': `${canvasTop}px` } as CSSProperties}>
       <ErrorShell
         unreachable={!host.reachable}
         hasReplied={host.hasReplied}
@@ -1006,9 +1042,11 @@ export function App() {
         />
         {naming ? (
           <NameDialog
-            title={naming.kind === 'rename' ? 'Rename effect' : 'Name the new effect'}
-            confirm={naming.kind === 'rename' ? 'Rename' : naming.kind === 'apply' ? 'Save and apply' : 'Save'}
-            initial={naming.initial}
+            spec={
+              naming.kind === 'rename'
+                ? renameEffectSpec(naming.initial, effects.map((e) => e.title || e.id))
+                : saveAsSpec(naming.initial, effects.map((e) => e.title || e.id), naming.kind === 'apply' ? 'Save and apply' : 'Save')
+            }
             onCancel={() => {
               setNaming(null)
               focusTitleButton()
@@ -1070,6 +1108,7 @@ export function App() {
         <ProblemsContext.Provider value={problems}>
         <ShowNodeIdsContext.Provider value={showNodeIds}>
         <EditorContext.Provider value={actions}>
+        <TuningMarksContext.Provider value={tuningMarks}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1125,20 +1164,9 @@ export function App() {
                 </button>
               </Hint>
             </Panel>
-            <Panel position="bottom-right">
-              <button
-                type="button"
-                className="ui-button"
-                aria-haspopup="dialog"
-                aria-expanded={drawer === 'controls'}
-                disabled={!doc}
-                onClick={() => setDrawer((d) => (d === 'controls' ? null : 'controls'))}
-              >
-                Dashboard controls <span className="editor-count">{doc ? controlsOf(doc).length : 0}</span>
-              </button>
-            </Panel>
             <ViewMenu minimap={minimap} onMinimap={setMinimap} />
           </ReactFlow>
+        </TuningMarksContext.Provider>
         </EditorContext.Provider>
         </ShowNodeIdsContext.Provider>
         </ProblemsContext.Provider>
@@ -1146,27 +1174,55 @@ export function App() {
       </div>
       {doc && catalog ? (
         <div onFocus={() => setInDrawer(true)} onBlur={() => setInDrawer(false)}>
-          <DetailsDrawer
-            isOpen={drawer === 'details'}
-            onClose={() => setDrawer(null)}
-            top={canvas.current?.getBoundingClientRect().top ?? 0}
-            side={drawerSide}
-            doc={doc}
-            catalog={catalog}
-            selected={selectedId}
-            focusChecks={focusChecks}
-            edit={edit}
-          />
           <ControlsDrawer
             isOpen={drawer === 'controls'}
-            onClose={() => setDrawer(null)}
-            top={canvas.current?.getBoundingClientRect().top ?? 0}
+            onClose={closeTuning}
+            top={canvasTop + (drawerSide === 'bottom' && dockFull ? GRAB_TAB : 0)}
             side={drawerSide}
+            full={drawerSide === 'bottom' && dockFull}
             doc={doc}
             catalog={catalog}
             edit={edit}
+            onShow={showParam}
+            onRemove={removeFromTuning}
           />
         </div>
+      ) : null}
+      {doc && catalog ? (
+        <GrabTab
+          side={drawerSide}
+          open={drawer === 'controls'}
+          full={dockFull}
+          count={controlsOf(doc).length}
+          onStep={(dir) => {
+            if (drawerSide === 'right') {
+              if (dir === 0) toggleTuning()
+              else if (dir === 1) setDrawer('controls')
+              else closeTuning()
+            } else if (dir === 0) {
+              if (drawer !== 'controls') setDrawer('controls')
+              else setDockFull((f) => !f)
+            } else if (dir === 1) {
+              if (drawer !== 'controls') setDrawer('controls')
+              else setDockFull(true)
+            } else if (dockFull) setDockFull(false)
+            else closeTuning()
+          }}
+        />
+      ) : null}
+      {doc && catalog && pickFor && catalog.get(doc.nodes.find((n) => n.id === pickFor)?.type ?? '') ? (
+        <TuningPicker
+          node={pickFor}
+          info={catalog.get(doc.nodes.find((n) => n.id === pickFor)!.type)!}
+          doc={doc}
+          drawerOpen={drawer === 'controls'}
+          onToggle={(param, label, on) => (on ? removeFromTuning(pickFor, param, label) : edit((d) => addControl(d, pickFor, param)))}
+          onOpenTuning={() => {
+            setPickFor(null)
+            setDrawer('controls')
+          }}
+          onClose={() => setPickFor(null)}
+        />
       ) : null}
       {catalog ? (
         <ContextMenu
