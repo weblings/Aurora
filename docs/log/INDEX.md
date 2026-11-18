@@ -497,3 +497,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-17 | Seeded palette anchor pick is portable: `palette.randomAnchor` uses a shared `pickIndex`, so a seed gives the same anchor on every platform (`Aurora-kuee`). [[kuee-portable-anchor-pick]] | `bd show Aurora-kuee` |
 | 2026-11-18 | Demo shim router returns promises, and `installDemoShim` exposes `route` for in-page callers (`Aurora-51nv.8`). [[51nv8-async-demo-router]] | `bd show Aurora-51nv.8` |
 | 2026-11-18 | Editor links are page-relative, the build base is `./`, and a framing host can open and close the editor (`Aurora-51nv.1`). [[51nv1-subpath-editor-links]] | `bd show Aurora-51nv.1` |
+| 2026-11-18 | Demo EventSource stand-in for `/api/` streams with a provider seam and a stub preview provider (`Aurora-51nv.2`). [[51nv2-demo-eventsource]] | `bd show Aurora-51nv.2` |

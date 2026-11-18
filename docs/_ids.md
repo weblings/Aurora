@@ -40,6 +40,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
 | `51nv1-subpath-editor-links` | [log/2026-11-18-51nv1-subpath-editor-links.md](log/2026-11-18-51nv1-subpath-editor-links.md) | Editor links work under a sub-path host |
+| `51nv2-demo-eventsource` | [log/2026-11-18-51nv2-demo-eventsource.md](log/2026-11-18-51nv2-demo-eventsource.md) | EventSource stand-in for the demo editor |
 | `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
 | `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
 | `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
