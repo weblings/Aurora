@@ -12,7 +12,8 @@ same sources build natively and with Emscripten (`core/Wasm`, `AURORA_CORE_GRAPH
   `AudioFrameCompositor`, `BrightnessFloor`, `ZoneMap` (header only).
 - `GraphValidation` (`validateGraphDoc` for a node registry and output names),
   `NodeCatalog` (`nodesPayload`, the `/api/nodes` body), `PreviewEvaluator` (lock-free
-  preview core and `previewSnapshotJson`, the preview stream's event body).
+  preview core and `previewSnapshotJson`, the preview stream's event body),
+  `ZoneMapJson` (the one parser for the zone map JSON, used by `ZoneMapStore` and the browser engine).
 - Links Contracts, Processing, the Input and Output interfaces and, with audio,
   AudioProcessing. `AURORA_RUNTIME_AUDIO_AVAILABLE` is defined here.
 

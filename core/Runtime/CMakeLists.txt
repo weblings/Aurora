@@ -11,6 +11,7 @@ add_library(AuroraGraphEngine STATIC
   src/GraphValidation.cpp
   src/NodeCatalog.cpp
   src/PreviewEvaluator.cpp
+  src/ZoneMapJson.cpp
   src/Graph/GraphTypes.cpp
   src/Graph/NodeRegistry.cpp
   src/Graph/VideoNodes.cpp

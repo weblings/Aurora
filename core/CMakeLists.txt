@@ -122,6 +122,16 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
+# BrowserEngine (JSON engine behind the WASM exports): built natively with the tests so
+# the sample generator can drive it, and under Emscripten for the module.
+if(EMSCRIPTEN OR BUILD_TESTS)
+  add_subdirectory(Wasm/bindings)
+endif()
+
+if(BUILD_TESTS)
+  add_subdirectory(tools)
+endif()
+
 if(EMSCRIPTEN)
   add_subdirectory(Wasm)
 endif()
