@@ -12,7 +12,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await page.waitForSelector('.aurora-node')
     const link = page.locator('.editor-header a', { hasText: 'Dashboard' })
     assert.equal(await link.count(), 1)
-    assert.equal(await link.getAttribute('href'), '/')
+    assert.equal(await link.getAttribute('href'), '../')
     assert.ok(await link.locator('svg').count() === 1, 'back arrow present')
     assert.equal(await page.locator('.editor-header > img').count(), 0, 'placeholder dot is gone')
     console.log('ok  Dashboard link with the back arrow; no placeholder dot')

@@ -802,7 +802,7 @@ function ownerScreen(extra = {}) {
   const updates = [];
   inst.effectPanel = { update: (a) => updates.push(a) };
   const html = { ok: true, headers: { get: () => 'text/html' } };
-  globalThis.fetch = async (url) => { assert.equal(url, '/graph-editor/'); return html; };
+  globalThis.fetch = async (url) => { assert.equal(url, 'graph-editor/'); return html; };
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, true);
   assert.deepEqual(updates, [{ canEdit: true }]);
@@ -814,6 +814,22 @@ function ownerScreen(extra = {}) {
   assert.equal(inst.graphEditorAvailable, false);
   assert.equal(updates.length, 1);
   globalThis.fetch = realFetch;
+}
+
+// Edit graph and New effect go through app.openEditor when the host has one, else location.assign.
+{
+  const { inst } = fakeScreen();
+  const opened = [];
+  inst.app.openEditor = (href) => opened.push(href);
+  await inst._onPanelAction('Edit graph', { id: 'rainbow' });
+  assert.deepEqual(opened, ['graph-editor/?effect=rainbow']);
+  const realWindow = globalThis.window;
+  const assigned = [];
+  globalThis.window = { location: { assign: (href) => assigned.push(href) } };
+  delete inst.app.openEditor;
+  await inst._onPanelAction('Edit graph', { id: 'rainbow' });
+  assert.deepEqual(assigned, ['graph-editor/?effect=rainbow']);
+  globalThis.window = realWindow;
 }
 
 // ---- Effect picker switches (Aurora-kep2.1) ----
