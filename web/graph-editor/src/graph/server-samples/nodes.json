@@ -792,6 +792,70 @@
   },
   {
    "cost": "cheap",
+   "example": "{\"id\": \"gate\", \"type\": \"math.step\", \"params\": {\"edge\": 0.4, \"hysteresis\": 0.05}}",
+   "group": "Numbers",
+   "inputs": [
+    {
+     "description": "The Float to compare against the edge.",
+     "name": "value",
+     "required": true,
+     "type": "Float"
+    },
+    {
+     "description": "The threshold; param edge is used when unwired.",
+     "name": "edge",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "1 at or above the edge, else 0.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.5,
+     "description": "Threshold used when input edge is not wired.",
+     "kind": "float",
+     "label": "Edge",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "edge",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Width of the band below the edge that holds a 1, must be at least 0.",
+     "kind": "float",
+     "label": "Hysteresis",
+     "max": 1000000.0,
+     "min": -1000000.0,
+     "name": "hysteresis",
+     "step": 0.01,
+     "unit": ""
+    },
+    {
+     "default": false,
+     "description": "Output 1 below the edge and 0 at or above it.",
+     "kind": "bool",
+     "name": "invert"
+    }
+   ],
+   "purpose": "Output the Float 0 below the edge and 1 at or above it. Once flipped, it flips back only after the input crosses edge minus hysteresis. Holds state between ticks.",
+   "summary": "Switches between 0 and 1 at a threshold without flickering.",
+   "tip": "Use hysteresis so a level near the threshold does not chatter.",
+   "title": "Step",
+   "type": "math.step",
+   "useWhen": "Switch on a level without flicker, e.g. loudness into frame.mix t. Set invert for 1 below the edge."
+  },
+  {
+   "cost": "cheap",
    "example": "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}",
    "group": "Motion",
    "inputs": [

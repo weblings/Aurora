@@ -103,6 +103,45 @@ namespace Aurora::Runtime::Graph
       const float* value = ctx.optionalInput<float>(name);
       return value != nullptr ? *value : ctx.param<float>(name);
     }
+    // math.step: 0 below the edge, 1 at or above it. Holds the last side so
+    // a value inside the hysteresis band does not flip it.
+    class StepNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        float hysteresis = ctx.param<float>("hysteresis");
+        if(hysteresis < 0.f){
+          ctx.fail("param 'hysteresis' is below 0");
+        }
+        float value = ctx.input<float>("value");
+        float edge = inputOrParam(ctx, "edge");
+        if(!std::isfinite(value) || !std::isfinite(edge)){
+          ctx.fail("got a non-finite value or edge");
+        }
+        if(value >= edge){
+          m_high = true;
+        }else if(value < edge - hysteresis){
+          m_high = false;
+        }
+        outputs.emplace("value", m_high != ctx.param<bool>("invert") ? 1.f : 0.f);
+      }
+
+      void resetState() override { m_high = false; }
+
+    private:
+      std::vector<PortDecl> m_in{
+        {"value", PortType::Float, true, "The Float to compare against the edge."},
+        {"edge", PortType::Float, false, "The threshold; param edge is used when unwired."}};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false, "1 at or above the edge, else 0."}};
+      bool m_high = false;
+    };
   } // namespace
 
   void registerMathNodes(NodeRegistry& registry)
@@ -254,5 +293,29 @@ namespace Aurora::Runtime::Graph
       {{"value", PortType::Float, true, "A 0..1 Float to flip."}},
       {},
       [](const EvalContext& c) { return 1.f - in(c, "value"); });
+    registry.registerType(
+      "math.step",
+      NodeTypeInfo{
+        .meta =
+          {.title = "Step",
+           .group = "Numbers",
+           .summary = "Switches between 0 and 1 at a threshold without flickering.",
+           .tip = "Use hysteresis so a level near the threshold does not chatter.",
+           .purpose =
+             "Output the Float 0 below the edge and 1 at or above it. Once flipped, it flips back "
+             "only after the input crosses edge minus hysteresis. Holds state between ticks.",
+           .useWhen =
+             "Switch on a level without flicker, e.g. loudness into frame.mix t. Set invert for 1 below the edge.",
+           .example =
+             "{\"id\": \"gate\", \"type\": \"math.step\", \"params\": {\"edge\": 0.4, \"hysteresis\": 0.05}}"},
+        .inputs = {{"value", PortType::Float, true, "The Float to compare against the edge."},
+                   {"edge", PortType::Float, false, "The threshold; param edge is used when unwired."}},
+        .outputs = {{"value", PortType::Float, false, "1 at or above the edge, else 0."}},
+        .params = {floatParam("edge", "Edge", 0.5f, "Threshold used when input edge is not wired."),
+                   floatParam("hysteresis", "Hysteresis", 0.f,
+                     "Width of the band below the edge that holds a 1, must be at least 0."),
+                   boolParam("invert", "Invert", false, "Output 1 below the edge and 0 at or above it.")},
+        .factory = [] { return std::make_unique<StepNode>(); },
+      });
   }
 } // namespace Aurora::Runtime::Graph

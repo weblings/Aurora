@@ -504,3 +504,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Demo shim backs the editor's routes with the engine: drafts, preview, Test on lights, save, apply, duplicate (fixes `Aurora-kep2.23`), effect switch (`Aurora-51nv.10`). [[51nv10-demo-engine-routes]] | `bd show Aurora-51nv.10`, `bd show Aurora-kep2.23` |
 | 2026-11-18 | Test temp dirs carry the process id so parallel ctest runs stop colliding (`Aurora-ruig`). [[ruig-temp-dir-per-process]] | `bd show Aurora-ruig` |
 | 2026-11-18 | Pairing end-to-end test injects a frozen clock so its two polls cannot straddle a second (`Aurora-7nyu`). [[7nyu-pairing-e2e-frozen-clock]] | `bd show Aurora-7nyu` |
+| 2026-11-18 | `math.step` node: 0 or 1 at an edge with hysteresis, Float output kept (`Aurora-h87j`). [[h87j-math-step]] | `bd show Aurora-h87j` |
