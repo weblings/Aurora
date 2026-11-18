@@ -326,7 +326,8 @@ TEST_CASE("PairingService caps pending requests", "[Pairing]")
 
 TEST_CASE("HttpServer with an AccessGuard enforces pairing end to end for a remote caller", "[Pairing][HttpServer]")
 {
-  auto service = std::make_shared<PairingService>();
+  // Frozen clock so the slow_down poll never straddles a real second boundary.
+  auto service = std::make_shared<PairingService>(std::filesystem::path{}, []{ return std::int64_t{1000}; });
   auto guard = std::make_shared<AccessGuard>(service, kRemote);
 
   HttpServer server;
