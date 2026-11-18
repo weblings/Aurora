@@ -245,15 +245,15 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
     // Aurora-gujj: the editor's own debounced draft PUT (from the Undo above) can land after this one;
     // its verdict clears the problem and the chip unmounts. Let it settle, then put again until the
-    // chip has stayed for a moment.
+    // chip has stayed for a moment. A missed status (the editor's PUT won) also retries.
     await settle()
     const chip = page.locator('.editor-problems-chip', { hasText: /1 problem/ })
     for (let tries = 0; ; tries++) {
       assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
-      await waitStatus(/would not load/)
+      const seen = await waitStatus(/would not load/, 3_000).then(() => true, () => false)
       await chip.waitFor({ timeout: 5_000 }).catch(() => {})
       await page.waitForTimeout(700)
-      if (await chip.isVisible()) break
+      if (seen && (await chip.isVisible())) break
       assert.ok(tries < 4, 'the problems chip never stayed after the audio draft')
     }
     // Aurora-u68h.5: it is a Whole graph problem in the chip's popover, not a banner.

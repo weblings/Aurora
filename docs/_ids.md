@@ -153,9 +153,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi19-gate-undo-menu` | [log/2026-11-17-e4bi19-gate-undo-menu.md](log/2026-11-17-e4bi19-gate-undo-menu.md) | Browser checks: the gate undoes through the Edit menu |
 | `e4bi2-section-helpers` | [log/2026-11-17-e4bi2-section-helpers.md](log/2026-11-17-e4bi2-section-helpers.md) | Tuning sections: one shared derivation, editor section helpers, General heading |
 | `e4bi20-tuning-control-copy` | [log/2026-11-17-e4bi20-tuning-control-copy.md](log/2026-11-17-e4bi20-tuning-control-copy.md) | Problem copy says Tuning control |
+| `e4bi23-gate-draft-invalid-retry` | [log/2026-11-17-e4bi23-gate-draft-invalid-retry.md](log/2026-11-17-e4bi23-gate-draft-invalid-retry.md) | Browser checks: the gate retries a missed draft_invalid status |
 | `e4bi3-tuning-cards` | [log/2026-11-17-e4bi3-tuning-cards.md](log/2026-11-17-e4bi3-tuning-cards.md) | Graph editor: Tuning cards with the card menu and select-node |
 | `e4bi4-tuning-sections` | [log/2026-11-17-e4bi4-tuning-sections.md](log/2026-11-17-e4bi4-tuning-sections.md) | Graph editor: Tuning sections, panel and section menus |
 | `e4bi5-tuning-drag` | [log/2026-11-17-e4bi5-tuning-drag.md](log/2026-11-17-e4bi5-tuning-drag.md) | Graph editor: drag Tuning cards and sections |
+| `e4bi6-controls-panel-wrapup` | [log/2026-11-17-e4bi6-controls-panel-wrapup.md](log/2026-11-17-e4bi6-controls-panel-wrapup.md) | Graph editor: Tuning panel wrap-up (Stage 10) |
 | `e4bi7-grille-dev17` | [log/2026-11-17-e4bi7-grille-dev17.md](log/2026-11-17-e4bi7-grille-dev17.md) | Grille dev.17 in the graph editor |
 | `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
 | `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |

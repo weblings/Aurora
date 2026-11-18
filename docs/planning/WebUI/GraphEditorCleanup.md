@@ -772,7 +772,7 @@ Epic `Aurora-e4bi`, labelled 1.2.0: redesign the Dashboard controls drawer. Plan
 | `.3` | Card list, card menu, select-node | Needs `.1` and `.2` |
 | `.4` | Sections: panel menu, section menu, accordions | Needs `.3` |
 | `.5` | Drag handles for controls and sections | Needs `.4`. Riskiest, may slip past 1.2.0 because the menus already do every move |
-| `.6` | Browser check, README, log, lessons | Starts with `.3`, finished after `.5` |
+| `.6` | Browser check, README, log, lessons | Starts with `.3`, finished after `.5`. Done 2026-11-17: audit and the last param-menu steps in [[e4bi6-controls-panel-wrapup]] |
 | `.7` | Bump Grille to `v0.1.0-dev.17` | The `Grille-83g` asks from the mocks |
 | `.8` | Design: Details beside the controls panel | Decided 2026-11-17: Tuning is the only panel, controls are added from the node ([[e4bi8-tuning-only-design]]). Closed 2026-11-17 |
 | `.9` | Node menu: Show in Tuning picker replaces Details, touch hints | Needs `.3`, `.7`, `.8` |
