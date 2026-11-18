@@ -1062,6 +1062,88 @@
   },
   {
    "cost": "cheap",
+   "example": "{\"id\": \"flash\", \"type\": \"trigger.envelope\", \"params\": {\"attack\": 0, \"hold\": 0.05, \"decay\": 0.4}}",
+   "group": "Motion",
+   "inputs": [
+    {
+     "description": "Each pulse starts or restarts the envelope.",
+     "name": "trigger",
+     "required": true,
+     "type": "Trigger"
+    },
+    {
+     "description": "The peak level; param amount is used when unwired.",
+     "name": "amount",
+     "required": false,
+     "type": "Float"
+    }
+   ],
+   "outputs": [
+    {
+     "description": "The envelope level, 0 up to the peak.",
+     "name": "value",
+     "type": "Float"
+    }
+   ],
+   "params": [
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Seconds to rise to the peak, 0 is instant.",
+     "kind": "float",
+     "label": "Attack",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "attack",
+     "step": 0.01,
+     "unit": "s"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.0,
+     "description": "Seconds to stay at the peak.",
+     "kind": "float",
+     "label": "Hold",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "hold",
+     "step": 0.01,
+     "unit": "s"
+    },
+    {
+     "allowsUnset": false,
+     "default": 0.5,
+     "description": "Seconds to fall from the peak to 0, 0 is instant.",
+     "kind": "float",
+     "label": "Decay",
+     "max": 60.0,
+     "min": 0.0,
+     "name": "decay",
+     "step": 0.01,
+     "unit": "s"
+    },
+    {
+     "allowsUnset": false,
+     "default": 1.0,
+     "description": "The peak level when input amount is not wired.",
+     "kind": "float",
+     "label": "Amount",
+     "max": 1000000.0,
+     "min": 0.0,
+     "name": "amount",
+     "step": 0.01,
+     "unit": ""
+    }
+   ],
+   "purpose": "On each Trigger rise to the peak over attack seconds, hold it for hold seconds, then fall to 0 over decay seconds. A new trigger rises from the current level.",
+   "summary": "Turns each trigger into a flash that fades out.",
+   "tip": "Use for a beat flash with a sharp hit and slow fade.",
+   "title": "Envelope",
+   "type": "trigger.envelope",
+   "useWhen": "Flash on a beat, e.g. audio.features onset into frame.brightnessScale factor. Attack 0 hits at once, hold keeps it on."
+  },
+  {
+   "cost": "cheap",
    "example": "{\"id\": \"breathe\", \"type\": \"lfo\", \"params\": {\"shape\": \"sine\", \"rateHz\": 0.2}}",
    "group": "Sources",
    "inputs": [],

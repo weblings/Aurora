@@ -216,7 +216,8 @@ subgraphs instead.
   stereo L/R features (left zones vs. right zones), envelope follower
   with separate attack/release.
 - **Generators:** BPM-synced LFO (free-running LFO is Tier 2), noise,
-  clock; `trigger.flash` (hit-and-decay), gate/hold.
+  clock; `trigger.flash` (hit-and-decay) and gate/hold are now one node,
+  `trigger.envelope` (Aurora-q66y, attack, hold and decay).
 - **Spatial across zones:** chase, gradient along an axis, rotate
   colors between zones, per-zone hue spread. See "Spatial effects
   (decided)" below: these are Image generators, not Frame ops.
