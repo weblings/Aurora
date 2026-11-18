@@ -11,6 +11,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
+#include <Aurora/Runtime/GraphValidation.hpp>
 #include <Aurora/Runtime/Registry.hpp>
 
 namespace Aurora::Runtime
@@ -67,26 +68,7 @@ namespace Aurora::Runtime
     const std::filesystem::path& configRoot,
     const nlohmann::json& doc)
   {
-    const std::vector<std::string> names = graphOutputNames(registry, configRoot);
-    Graph::LoadOptions options;
-    options.knownOutputs = std::unordered_set<std::string>(names.begin(), names.end());
-
-    const Graph::LoadResult result = Graph::loadGraph(doc, nodes, options);
-    nlohmann::json errors = nlohmann::json::array();
-    for(const Graph::LoadIssue& issue : result.issues){
-      auto orNull = [](const std::string& text){
-        return text.empty() ? nlohmann::json(nullptr) : nlohmann::json(text);
-      };
-      errors.push_back({
-        {"node", orNull(issue.node)},
-        {"message", issue.message},
-        {"code", issue.code},
-        {"port", orNull(issue.port)},
-        {"param", orNull(issue.param)},
-        {"options", issue.options}
-      });
-    }
-    return {{"valid", result.ok}, {"errors", errors}};
+    return validateGraphDoc(nodes, graphOutputNames(registry, configRoot), doc);
   }
 
 

@@ -1,0 +1,15 @@
+{
+ "version": 1,
+ "nodes": [
+  {"id": "cap", "type": "video.captur", "params": {}},
+  {"id": "gain", "type": "math.scale", "params": {"factr": 2}},
+  {"id": "wave", "type": "lfo", "params": {}},
+  {"id": "scaled", "type": "math.scale", "params": {}},
+  {"id": "zones", "type": "zones.sample", "params": {"output": "huee"}},
+  {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+ ],
+ "edges": [
+  ["wave.value", "scaled.valu"],
+  ["zones.frame", "send.frame"]
+ ]
+}

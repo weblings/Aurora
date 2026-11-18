@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "nodes": [
+  {"id": "wave", "type": "lfo", "params": {}},
+  {"id": "broken", "type": "math.divide", "params": {"divisor": 0}},
+  {"id": "tone", "type": "color.fromHSV", "params": {"saturation": 1, "value": 1}},
+  {"id": "hue0", "type": "angle.constant", "params": {"degrees": 0}},
+  {"id": "all", "type": "frame.broadcast", "params": {"output": "hue"}},
+  {"id": "send", "type": "output.send", "params": {"output": "hue"}}
+ ],
+ "edges": [
+  ["wave.value", "broken.value"],
+  ["broken.value", "tone.saturation"],
+  ["hue0.angle", "tone.hue"],
+  ["tone.color", "all.color"],
+  ["all.frame", "send.frame"]
+ ]
+}

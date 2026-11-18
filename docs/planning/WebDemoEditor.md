@@ -96,7 +96,7 @@ gzipped WASM payload size.
   and the sub-path and deploy work still ship.
 - The call is made and recorded on `Aurora-51nv` the day the spike finishes.
 
-Spike results: not yet run.
+Spike results: go, recorded on `Aurora-51nv` ([[51nv4-wasm-spike]]). `wasm.yml` now repeats the parity check in CI.
 
 ## Open questions
 

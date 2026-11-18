@@ -6,7 +6,10 @@
 # Two different platform conventions, not one cross-platform answer --
 # matches how X11/Pipewire already resolve on Linux (Aurora-Input-Linux)
 # vs. how the rest of Windows' deps resolve via vcpkg.
-if(WIN32)
+if(TARGET Aubio::aubio)
+  # Already defined by the caller (the Emscripten build compiles aubio from source).
+  set(AURORA_AUBIO_TARGET Aubio::aubio)
+elseif(WIN32)
   # aubio installed with its default "tools" feature explicitly disabled
   # (`aubio[core]`) -- that feature pulls in ffmpeg/libflac/libogg/libsndfile/
   # libvorbis, which would silently widen Core's dependency-isolation

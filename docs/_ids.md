@@ -39,6 +39,10 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt8-node-preset-read-tools` | [log/2026-10-22-4xqt8-node-preset-read-tools.md](log/2026-10-22-4xqt8-node-preset-read-tools.md) | Aurora-4xqt.8: node and preset read tools (D2) |
 | `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
+| `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
+| `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
+| `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
+| `51nv7-wasm-ci` | [log/2026-11-17-51nv7-wasm-ci.md](log/2026-11-17-51nv7-wasm-ci.md) | WASM build and parity job in CI |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
 | `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
@@ -259,6 +263,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep28-effect-panel` | [log/2026-11-05-kep28-effect-panel.md](log/2026-11-05-kep28-effect-panel.md) | Effect panel: rows, layers and switch states |
 | `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
+| `kuee-portable-anchor-pick` | [log/2026-11-17-kuee-portable-anchor-pick.md](log/2026-11-17-kuee-portable-anchor-pick.md) | Seeded palette anchor pick is portable across platforms |
 | `l8ua-start-from-built-in-submenu` | [log/2026-11-16-l8ua-start-from-built-in-submenu.md](log/2026-11-16-l8ua-start-from-built-in-submenu.md) | Graph editor: New menu lists Built-in as its first sub-menu |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
