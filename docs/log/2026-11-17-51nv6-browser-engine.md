@@ -17,3 +17,7 @@ Id: 51nv6-browser-engine
 - The `--check` tolerance was checked by hand: a 0.001 color change passes and a 0.01 change fails.
 - Payload: `aurora-engine.wasm` is 2,026,634 bytes raw and 536,359 gzip -9. The glue is 5.5 KB gzip.
 - Open: CI wiring and the Mac and Linux builds are `Aurora-51nv.7`.
+- 2026-11-18: `wasm.yml` runs the engine test and sample check green on PR 69. Closed.
+
+## Lessons
+- none
