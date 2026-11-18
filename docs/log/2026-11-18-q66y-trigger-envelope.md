@@ -7,7 +7,8 @@ Id: q66y-trigger-envelope
 ## Verification
 - Seven `trigger.envelope` Catch2 cases plus a beat flash graph case (real audio.capture and audio.features onset into trigger.envelope into frame.brightnessScale.factor) by exact name, full `ctest -j8 -C Release`.
 - Found by the agent: the real onset also fires on the first hops at startup and about two ticks after a click.
-- PENDING: fake-lights preview (coordinator) and the WASM demo preview, which can only be checked on the next CI WASM build.
+- Fake lights (dummy video, loopback audio, click track): all four zones pulsed 0 to 1 and `reacting` was true over a 3 s preview (coordinator, rebuilt `windows-app`). A 6 s preview dropped the MCP connection twice while the app stayed up, 3 s worked.
+- PENDING: the WASM demo preview, which can only be checked on the next CI WASM build.
 
 ## Lessons
 - none
