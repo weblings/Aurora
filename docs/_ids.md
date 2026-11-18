@@ -43,6 +43,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
 | `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
 | `51nv7-wasm-ci` | [log/2026-11-17-51nv7-wasm-ci.md](log/2026-11-17-51nv7-wasm-ci.md) | WASM build and parity job in CI |
+| `51nv8-async-demo-router` | [log/2026-11-18-51nv8-async-demo-router.md](log/2026-11-18-51nv8-async-demo-router.md) | Demo shim router is async |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
 | `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |

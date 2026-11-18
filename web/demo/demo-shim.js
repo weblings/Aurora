@@ -3,7 +3,7 @@
 // No backend, no build step -- runs anywhere the static page runs.
 //
 // Layered for testability: createShimStore (state + localStorage guard) and
-// createRouter (method+path -> {status, json}) are pure and covered by
+// createRouter (method+path -> Promise<{status, json}>) are pure and covered by
 // demo-shim.test.mjs. installDemoShim is thin browser glue (window.fetch
 // override) verified by booting the page, not by unit test.
 //
@@ -208,7 +208,8 @@ export function createRouter(store, hooks = {}) {
     }
   };
 
-  return function route(method, path, rawBody) {
+  // Async so engine-backed routes (Worker round trips) can await later.
+  return async function route(method, path, rawBody) {
     // GET /api/capabilities -- "compiled with" contract: the demo compiles
     // to video (x11/pipewire capture names) + linux-audio + hue output.
     if (method === 'GET' && path === '/api/capabilities') {
@@ -422,7 +423,7 @@ export function installDemoShim(options = {}) {
     const url = typeof input === 'string' ? input : input.url;
     const method = (init.method ?? 'GET').toUpperCase();
     if (!url.startsWith('/api/')) return nativeFetch(input, init);
-    const result = route(method, url.split('?')[0], init.body ?? '');
+    const result = await route(method, url.split('?')[0], init.body ?? '');
     return new Response(JSON.stringify(result.json), {
       status: result.status,
       headers: { 'Content-Type': 'application/json' },
@@ -431,6 +432,8 @@ export function installDemoShim(options = {}) {
 
   return {
     store,
+    // Direct entry for in-page callers (no fetch): same promise as the router.
+    route,
     uninstall: () => { window.fetch = nativeFetch; },
   };
 }
