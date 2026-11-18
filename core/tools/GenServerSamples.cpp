@@ -159,8 +159,14 @@ int main(int argc, char** argv)
   files["nodes.json"] = reply(engine.nodes());
   files["builtin.video.json"] = builtin("builtin.video", videoGraph);
   files["builtin.audio.json"] = builtin("builtin.audio", audioGraph);
-  files["validate-ok.json"] = reply(engine.validate(videoGraph.dump()));
-  files["validate-errors.json"] = reply(engine.validate(readJson(samples / "inputs" / "validate-errors.draft.json").dump()));
+  // The server's validate answer has no inputs field, only the browser engine adds one.
+  auto verdictOf = [&](const Json& doc){
+    Json verdict = reply(engine.validate(doc.dump()));
+    verdict.erase("inputs");
+    return verdict;
+  };
+  files["validate-ok.json"] = verdictOf(videoGraph);
+  files["validate-errors.json"] = verdictOf(readJson(samples / "inputs" / "validate-errors.draft.json"));
   files["preview-snapshot.json"] = previewOf("sample", videoGraph);
   files["preview-error.json"] = previewOf("sample", readJson(samples / "inputs" / "preview-error.draft.json"));
 

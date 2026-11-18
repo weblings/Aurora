@@ -31,4 +31,20 @@ namespace Aurora::Runtime
     }
     return {{"valid", result.ok}, {"errors", errors}};
   }
+
+
+  GraphSourceNeeds graphSourceNeeds(const nlohmann::json& doc)
+  {
+    GraphSourceNeeds needs;
+    const auto nodes = doc.is_object() ? doc.find("nodes") : doc.end();
+    if(!doc.is_object() || nodes == doc.end() || !nodes->is_array()){
+      return needs;
+    }
+    for(const auto& node : *nodes){
+      const std::string type = node.is_object() ? node.value("type", std::string{}) : std::string{};
+      needs.video = needs.video || type == "video.capture";
+      needs.audio = needs.audio || type == "audio.capture";
+    }
+    return needs;
+  }
 }

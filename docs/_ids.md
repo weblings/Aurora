@@ -39,10 +39,17 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt8-node-preset-read-tools` | [log/2026-10-22-4xqt8-node-preset-read-tools.md](log/2026-10-22-4xqt8-node-preset-read-tools.md) | Aurora-4xqt.8: node and preset read tools (D2) |
 | `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
+| `51nv1-subpath-editor-links` | [log/2026-11-18-51nv1-subpath-editor-links.md](log/2026-11-18-51nv1-subpath-editor-links.md) | Editor links work under a sub-path host |
+| `51nv10-demo-engine-routes` | [log/2026-11-18-51nv10-demo-engine-routes.md](log/2026-11-18-51nv10-demo-engine-routes.md) | Engine-backed editor routes in the demo |
+| `51nv11-room-on-engine` | [log/2026-11-18-51nv11-room-on-engine.md](log/2026-11-18-51nv11-room-on-engine.md) | Demo room colors come from the WASM engine |
+| `51nv13-loadlive-keeps-state` | [log/2026-11-18-51nv13-loadlive-keeps-state.md](log/2026-11-18-51nv13-loadlive-keeps-state.md) | WASM engine loadLive keeps node state |
+| `51nv2-demo-eventsource` | [log/2026-11-18-51nv2-demo-eventsource.md](log/2026-11-18-51nv2-demo-eventsource.md) | EventSource stand-in for the demo editor |
 | `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
 | `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
 | `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
 | `51nv7-wasm-ci` | [log/2026-11-17-51nv7-wasm-ci.md](log/2026-11-17-51nv7-wasm-ci.md) | WASM build and parity job in CI |
+| `51nv8-async-demo-router` | [log/2026-11-18-51nv8-async-demo-router.md](log/2026-11-18-51nv8-async-demo-router.md) | Demo shim router is async |
+| `51nv9-demo-editor-shell` | [log/2026-11-18-51nv9-demo-editor-shell.md](log/2026-11-18-51nv9-demo-editor-shell.md) | Demo editor iframe shell and custom effects |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
 | `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
@@ -318,6 +325,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `my6z-devstack-no-browser-tab` | [log/2026-11-12-my6z-devstack-no-browser-tab.md](log/2026-11-12-my6z-devstack-no-browser-tab.md) | devstack stops opening a browser tab on Mac |
 | `ngoj-faster-shell-checks` | [log/2026-11-13-ngoj-faster-shell-checks.md](log/2026-11-13-ngoj-faster-shell-checks.md) | Browser checks: shell checks run in under a minute (dev poll cadence, poll-count waits, STEP) |
+| `node-conversion-gaps` | [planning/NodeConversionGaps.md](planning/NodeConversionGaps.md) | Node data conversion: audit and gaps |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
 | `nodes-agent-ux` | [planning/NodesAndAgentUX.md](planning/NodesAndAgentUX.md) | Nodes and agent UX: sequences |

@@ -12,6 +12,7 @@
 #include <Aurora/Runtime/ConfigStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
 #include <Aurora/Runtime/Graph/BuiltInGraphs.hpp>
+#include <Aurora/Runtime/GraphValidation.hpp>
 #include <Aurora/Runtime/MonitorSelector.hpp>
 #include <Aurora/Runtime/ZoneMapStore.hpp>
 
@@ -65,34 +66,11 @@ namespace Aurora::Runtime
     };
 
 
-    struct SourceNeeds
-    {
-      bool video{false};
-      bool audio{false};
-    };
-
     // A built-in effect uses the inputs its pipeline mode captures (Aurora-5ipy.26).
     PipelineSummary::GraphInputs _builtInInputs(const PipelineCapabilities& capabilities)
     {
       return {capabilities.usesVideoInput, capabilities.usesAudioInput};
     }
-
-    // Which capture sources a graph doc declares, by node type.
-    SourceNeeds _sourceNeeds(const nlohmann::json& doc)
-    {
-      SourceNeeds needs;
-      const auto nodes = doc.find("nodes");
-      if(nodes == doc.end() || !nodes->is_array()){
-        return needs;
-      }
-      for(const auto& node : *nodes){
-        const std::string type = node.is_object() ? node.value("type", std::string{}) : std::string{};
-        needs.video = needs.video || type == "video.capture";
-        needs.audio = needs.audio || type == "audio.capture";
-      }
-      return needs;
-    }
-
 
     // A registered backend name for an input the config leaves unnamed.
     // dummy is never picked: it is a test double, not a capture source.
@@ -145,7 +123,7 @@ namespace Aurora::Runtime
         return plan;
       }
 
-      const SourceNeeds needs = _sourceNeeds(*doc);
+      const GraphSourceNeeds needs = graphSourceNeeds(*doc);
       const bool haveVideo = !config.activeInputName().empty();
       const bool haveAudio = !config.activeAudioInputName().empty();
       if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
@@ -213,7 +191,7 @@ namespace Aurora::Runtime
     std::string ignored;
     const auto doc = EffectStore(configRoot).read(id, ignored);
     if(!doc){ return std::nullopt; }
-    const SourceNeeds needs = _sourceNeeds(*doc);
+    const GraphSourceNeeds needs = graphSourceNeeds(*doc);
     return PipelineSummary::GraphInputs{needs.video, needs.audio};
   }
 
@@ -274,7 +252,7 @@ namespace Aurora::Runtime
 
     // A graph with no source nodes needs no capture input, so a denied or
     // missing one cannot fail it (Aurora-que2).
-    const bool inputFree = customDoc && !_sourceNeeds(*customDoc).video && !_sourceNeeds(*customDoc).audio;
+    const bool inputFree = customDoc && !graphSourceNeeds(*customDoc).video && !graphSourceNeeds(*customDoc).audio;
     if(noInputs && !inputFree){
       return nullptr; // still unconfigured: reads as Idle
     }
@@ -311,7 +289,7 @@ namespace Aurora::Runtime
     // A missing input of a kind the effect needs is picked here, so every
     // caller gets it (MCP set_effect too). The pick is saved, not a device.
     {
-      const SourceNeeds sources = customDoc ? _sourceNeeds(*customDoc) : SourceNeeds{};
+      const GraphSourceNeeds sources = customDoc ? graphSourceNeeds(*customDoc) : GraphSourceNeeds{};
       const bool anySource = sources.video || sources.audio;
       const bool needVideo = anySource ? sources.video : (!inputFree && !runsAudioMode(config));
       const bool needAudio = anySource ? sources.audio : (!inputFree && runsAudioMode(config));
@@ -529,7 +507,7 @@ namespace Aurora::Runtime
       const std::string liveBuiltIn = _planMode(config, nullptr).audioMode ? kBuiltInAudioEffectId : kBuiltInVideoEffectId;
       pipeline->m_summary.effect = customId.empty() ? liveBuiltIn : customId;
       pipeline->m_summary.requestedEffect = pipeline->m_summary.effect;
-      const SourceNeeds needs = _sourceNeeds(*customDoc);
+      const GraphSourceNeeds needs = graphSourceNeeds(*customDoc);
       pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
     }
     else{
@@ -540,7 +518,7 @@ namespace Aurora::Runtime
       const GraphRunner& primary = useAudioMode ? *pipeline->m_audioRunner : *pipeline->m_videoRunner;
       if(primary.runningCustom()){
         pipeline->m_summary.effect = customId;
-        const SourceNeeds needs = _sourceNeeds(*customDoc);
+        const GraphSourceNeeds needs = graphSourceNeeds(*customDoc);
         pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
       }
       else{
@@ -673,7 +651,7 @@ namespace Aurora::Runtime
     const std::string id = next.customEffectId();
     m_summary.effect = id;
     m_summary.requestedEffect = id;
-    const SourceNeeds needs = _sourceNeeds(doc);
+    const GraphSourceNeeds needs = graphSourceNeeds(doc);
     m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
     m_appliedConfig.setActiveEffectId(next.activeEffectId());
     return true;
@@ -693,7 +671,7 @@ namespace Aurora::Runtime
     if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(doc, error)){
       return false;
     }
-    const SourceNeeds needs = _sourceNeeds(doc);
+    const GraphSourceNeeds needs = graphSourceNeeds(doc);
     m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
     return true;
   }
@@ -740,7 +718,7 @@ namespace Aurora::Runtime
       return std::nullopt;
     }
     // What the live runner serves: video unless audio-only, audio when audio-only or both.
-    const SourceNeeds needs = _sourceNeeds(doc);
+    const GraphSourceNeeds needs = graphSourceNeeds(doc);
     PreviewInputPlan plan;
     plan.config = m_appliedConfig;
     if(needs.video && m_isAudioMode){
@@ -788,7 +766,7 @@ namespace Aurora::Runtime
   bool Pipeline::reloadPreview(GraphPreview& preview, const nlohmann::json& doc, std::string& errorOut)
   {
     // An edit can add a source nobody opened; the stream has to restart to open it.
-    const SourceNeeds needs = _sourceNeeds(doc);
+    const GraphSourceNeeds needs = graphSourceNeeds(doc);
     const bool haveVideo = !m_isAudioMode || preview.hasVideo();
     const bool haveAudio = m_isAudioMode || m_bothInputs || preview.hasAudio();
     if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){

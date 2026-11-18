@@ -132,6 +132,17 @@ target_link_libraries(AuroraGraphPreviewTests PRIVATE
 
 target_compile_features(AuroraGraphPreviewTests PUBLIC cxx_std_20)
 
+add_executable(AuroraBrowserEngineTests
+  BrowserEngineTests.cpp
+)
+
+target_link_libraries(AuroraBrowserEngineTests PRIVATE
+  AuroraBrowserEngine
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraBrowserEngineTests PUBLIC cxx_std_20)
+
 add_executable(AuroraDevFrameDumpTests
   DevFrameDumpTests.cpp
 )
@@ -252,6 +263,7 @@ catch_discover_tests(AuroraSecretsTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraGraphRunnerVideoTests)
 catch_discover_tests(AuroraGraphPreviewTests)
+catch_discover_tests(AuroraBrowserEngineTests)
 catch_discover_tests(AuroraPipelineTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
 catch_discover_tests(AuroraVideoParityTests)

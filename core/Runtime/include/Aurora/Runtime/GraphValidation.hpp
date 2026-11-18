@@ -16,4 +16,14 @@ namespace Aurora::Runtime
     const std::vector<std::string>& knownOutputs,
     const nlohmann::json& doc
   );
+
+
+  // The capture sources a graph doc declares, by node type.
+  struct GraphSourceNeeds
+  {
+    bool video{false};
+    bool audio{false};
+  };
+
+  GraphSourceNeeds graphSourceNeeds(const nlohmann::json& doc);
 }

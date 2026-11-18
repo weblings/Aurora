@@ -352,11 +352,17 @@ export class DashboardScreen {
     this._renderAccordions();
   }
 
+  // A host (the demo) may open the editor itself, else the page navigates.
+  _openEditor(href) {
+    if (typeof this.app.openEditor === 'function') this.app.openEditor(href);
+    else window.location.assign(href);
+  }
+
   // The editor is an opt-in build (AURORA_ENABLE_GRAPH_EDITOR), so the row menus offer
   // Edit graph only once a probe of that path has answered.
   async _probeGraphEditor() {
     try {
-      const response = await fetch('/graph-editor/', { method: 'GET' });
+      const response = await fetch('graph-editor/', { method: 'GET' });
       this.graphEditorAvailable = response.ok
         && (response.headers.get('content-type') ?? '').includes('text/html');
     } catch {
@@ -378,7 +384,7 @@ export class DashboardScreen {
       this.effectPanel = new EffectPanel(this.container.querySelector('.db-effect-slot'), {
         onSelect: (id) => this._onEffectPicked(id),
         onAction: (action, effect, extra) => this._onPanelAction(action, effect, extra),
-        onNewEffect: (id) => { window.location.assign(editorHref(id ?? 'builtin.video')); },
+        onNewEffect: (id) => this._openEditor(editorHref(id ?? 'builtin.video')),
       });
     }
     const rejected = this.pendingMode ? null : this.toggleError;
@@ -414,7 +420,7 @@ export class DashboardScreen {
   // The panel's row menu items. Resolves { ok, id?, title?, message? } after the list refreshed.
   async _onPanelAction(action, effect, extra = {}) {
     if (action === 'Edit graph') {
-      window.location.assign(editorHref(effect.id));
+      this._openEditor(editorHref(effect.id));
       return { ok: true };
     }
     if (action === 'Delete' && extra.running) return this._deleteRunning(effect);

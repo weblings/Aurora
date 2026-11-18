@@ -12,6 +12,8 @@ export type LightTest = {
   state: TestState
   // Sends the draft, then starts a test of it.
   start: (mode: TestMode) => Promise<void>
+  // Re-sends the draft to the running test, so edits reach the lights (the time limit keeps running).
+  push: () => Promise<boolean>
   // Ends the test after the graph was applied (apply leaves it running): the
   // server rebuilds the live effect, which is now the tested graph, from disk.
   finishAfterApply: () => Promise<void>
@@ -92,6 +94,36 @@ export function useLightTest(session: string, sendDraft: () => Promise<DraftVerd
     }
   }, [session])
 
+  // Puts the edited draft on the lights while the test runs. Resolves true when sent.
+  // Edits during a send fold into one more send.
+  const busy = useRef(false)
+  const again = useRef(false)
+  const mode = useRef(state.mode)
+  mode.current = state.mode
+  const push = useCallback(async (): Promise<boolean> => {
+    if (phase.current !== 'running') return false
+    if (busy.current) {
+      again.current = true
+      return false
+    }
+    busy.current = true
+    let sent = false
+    try {
+      do {
+        again.current = false
+        const verdict = await send.current()
+        if (!verdict.valid || phase.current !== 'running') continue
+        const started = await startTest(session, mode.current)
+        if (started.ok) sent = true
+      } while (again.current)
+    } catch {
+      // The running test keeps its last graph, and the heartbeat reports a lost server.
+    } finally {
+      busy.current = false
+    }
+    return sent
+  }, [session])
+
   const finishAfterApply = useCallback(async () => {
     dispatch({ type: 'closing' })
     try {
@@ -116,5 +148,5 @@ export function useLightTest(session: string, sendDraft: () => Promise<DraftVerd
     }
   }, [session])
 
-  return { state, start, finishAfterApply, revert }
+  return { state, start, push, finishAfterApply, revert }
 }

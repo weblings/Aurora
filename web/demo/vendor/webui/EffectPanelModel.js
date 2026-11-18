@@ -190,8 +190,8 @@ export function startPoints(effects, { hasAudio = true } = {}) {
 
 // The editor address for an effect id, or for a new empty graph.
 export function editorHref(id) {
-  if (id === EMPTY_START) return '/graph-editor/?new=empty';
-  return `/graph-editor/?effect=${encodeURIComponent(id)}`;
+  if (id === EMPTY_START) return 'graph-editor/?new=empty';
+  return `graph-editor/?effect=${encodeURIComponent(id)}`;
 }
 
 // Live region text for a settled row action. `position` is { index, size } for Move.

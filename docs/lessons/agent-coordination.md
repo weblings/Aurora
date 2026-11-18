@@ -173,3 +173,35 @@ Applies-when: briefing more than one agent on a sequence of beads
 Aurora-e4bi (2026-11-17): eight agents across five waves built from one common brief file in the scratchpad (lock, no `bd`, no commits, progress file, known failures, hand-back rule, report shape). Each per-bead brief opened with "read the common rules first" and held only what differed: where the code is, which files are whose in a parallel wave, the check to iterate on and the regression set. Each spawn prompt was two lines pointing at the per-bead brief. The common file was edited three times mid-run (baseline results, the tooltip-after-Esc rule, hand back once), and every agent spawned afterwards got the change without any brief being rewritten.
 
 **Fix:** start from `.claude/skills/agent-coordination-lessons/brief-common.template.md`, copy it to the scratchpad and fill it. Update its known-failures line after each baseline or wave. A new lesson that says "put X in every brief" also edits the template.
+
+---
+
+## Subagents cannot start a local server, so the coordinator runs it and briefs the URL
+Tags: subagents, auto-mode, permissions, local-server, browser, demo, briefs
+Applies-when: an agent must see a static page (the web demo) in a browser and no browser check serves it
+
+Aurora-51nv.11 (2026-11-18): the auto-mode classifier denied the agent's `python -m http.server` twice ("Undermining Oversight"), the second time after the owner had approved localhost in chat, since that approval reaches only the coordinator. The coordinator started the server itself and every later agent (.9, .10) drove the demo from that URL with no denials. Python's server also sent `.mjs` as `text/plain` on Windows, so the engine's module import failed until the server mapped `.mjs` to `text/javascript`.
+
+**Fix:** before briefing a demo bead, start the server yourself (with `.mjs` mapped to JavaScript) and put its URL in the common brief with "do not start a server, stop and report if it does not answer".
+
+---
+
+## A `ctest -R` filter is case-sensitive, so an agent's own new test can sit outside it
+Tags: ctest, filters, verification, subagents, hand-back, regression
+Applies-when: an agent reports C++ tests green from a `ctest -R` pattern, or a brief names a ctest filter
+
+Aurora-51nv.10 (2026-11-18): the agent reported `ctest -R "BrowserEngine|loadLive|Graph|Preview"` 66/66, but its new test was named "validate reports which capture inputs a graph reads" (lowercase "graph"), so the filter skipped it, and it failed. Only the coordinator's full `ctest` found it. The test's premise was wrong (a lone capture node validates fine), not the code.
+
+**Fix:** briefs ask for each new test by its exact name plus the filter, or for a full `ctest -j8`. On review, run the full suite after rebuilding all test targets.
+
+Confirmed again in JS (Aurora-51nv.10, 2026-11-18): `engine.test.mjs` skipped its `inputs` assertions when the module lacked the field, and the only local module did. One expectation was wrong (the error sample misspells `video.captur`, so it reads no video) and failed only in CI's wasm job. A soft skip for an older build is a check that has not run: say so in the report and verify where it does run.
+
+---
+
+## Settle commit authority before the fan-out, or stacked beads entangle and lose their per-bead commits
+Tags: commits, subagents, sequencing, owner-approval, staging, waves
+Applies-when: starting a bead sequence where later beads build on earlier ones' files and the owner's commit rule needs explicit approval per turn
+
+Aurora-51nv (2026-11-18): the owner's global rule allows a commit only when asked in that turn. The coordinator asked after the first hand-back, got the answer three hand-backs later, and meanwhile started each next bead on the previous one's uncommitted work. .11, .9 and .10 all rewrote `main.js`, `engine-room.js` and `demo-shim.js`, so per-bead commits would have left a demo that does not load at every step. They landed as one commit with three log entries. .13 shared two C++ files with .10 and could still be split, but only by building index blobs by hand. Separately, the .11 agent ran `git rm` on its deletions, and those staged paths nearly rode into .8's commit until `git diff --cached --stat` showed them.
+
+**Fix:** before the first spawn, ask the owner whether to commit each bead as it verifies. If not, run beads that rewrite the same files in sequence with nothing stacked, or accept one combined commit up front. Tell agents not to stage anything (no `git add` or `git rm`), and read `git diff --cached --stat` before every commit.

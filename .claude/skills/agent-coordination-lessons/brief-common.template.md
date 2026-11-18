@@ -15,13 +15,15 @@ one common brief file").
 
 - Repo: <repo path>, branch <branch>. Share the tree, no worktree.
 - Read your bead first: `.beads/issues.jsonl` (grep the id). Description, NOTES and ACCEPTANCE are the spec; a later dated note SUPERSEDES earlier text. Do NOT run any `bd` command. Put drafted bead text (notes, follow-up bugs) in your report.
-- Do NOT commit, push, close beads, or edit CHANGELOG.txt. Leave changes in the tree. The coordinator verifies and commits.
+- Do NOT commit, push, close beads, or edit CHANGELOG.txt, and do not stage (no `git add` or `git rm`; delete files with plain `rm`). Leave changes in the tree. The coordinator verifies and commits.
 - Before writing code read: <slice README>, docs/lessons/components.md, <other topic lessons>. Import shared web/ui modules and Grille pieces, never copy them. <Reference mock, if any: port from it, leave it unchanged.>
 - Code comments: 2 lines max each.
 - Stack lock: wrap EVERY browser check and every `npm run build` in the lock, and release it also on failure.
   - Windows (Git Bash): `L=<scratchpad>/check.lock; until mkdir "$L" 2>/dev/null; do sleep 5; done; <cmd>; rc=$?; rmdir "$L"; (exit $rc)`
   - macOS: `/usr/bin/lockf -t 1200 <lockfile> <cmd>` (call lockf directly, never from a variable).
 - Windows: pass C:/... paths to Node, never /c/... .
+- Do NOT start any server (auto mode denies it). <The coordinator serves the page at http://127.0.0.1:<port>/>; if it does not answer, stop and report.
+- C++ tests: run each new test by its exact name as well as any `ctest -R` filter (filters are case-sensitive), or the full `ctest -j8`.
 - On "timed out waiting for a frame": check port 8215 (`netstat -ano | grep ':8215 ' | grep LISTEN`, or `lsof -nP -iTCP:8215 -sTCP:LISTEN`), then STOP and report; do not retry.
 - Iterate with typecheck, unit tests and ONLY the one browser check named in your brief, and only with a hypothesis. Run the regression set once at the end, each check by the exact command your brief gives. Report each run's name, result and time.
 - Known baseline failures: <none | list with bead ids>. Uncommitted files you did not touch belong to other beads: do not revert, stash or reformat them.

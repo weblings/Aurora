@@ -4,6 +4,7 @@
 // main.js drives it through this handle and never touches the model itself.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { setStatusLine } from './room-status.js';
 
 // The room's own 4 point lights each drive one video quadrant instead of the flat rigs' 8 zones.
 export const ROOM_ZONE_MAP = [
@@ -27,7 +28,6 @@ const LAMP_SHADE_EMISSIVE_INTENSITY = 3; // <1 so the directly-lit panel still s
 
 export function createRoomRig({ scene, camera, controls, fitMargin, getScreenTexture }) {
   const gltfLoader = new GLTFLoader();
-  const roomStatus = document.getElementById('room-status');
 
   let roomModel = null; // THREE.Group, loaded once via GLTFLoader and reused across mode switches
   let roomModelLoading = null;
@@ -36,9 +36,7 @@ export function createRoomRig({ scene, camera, controls, fitMargin, getScreenTex
   let roomLampShades = []; // [{mesh, light}], shades + bulbs, each tinted from its own nearest light
 
   function setRoomStatus(text) {
-    if (!roomStatus) return; // viz.html has no status node; model errors go to the console there
-    roomStatus.textContent = text;
-    roomStatus.hidden = !text;
+    setStatusLine('model', text); // no-op on viz.html, which has no status node
   }
 
   // Matches each of the room's 4 point lights to a video quadrant by real geometry: distance to

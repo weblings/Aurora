@@ -84,13 +84,21 @@ test('nodes matches nodes.json', () => {
   assert.deepEqual(engine.nodes(), sample('nodes.json'))
 })
 
+// `inputs` is the browser's own addition to the server's answer. An older module lacks it.
+function verdictOf(doc, inputs) {
+  const { inputs: found, ...verdict } = engine.validate(doc)
+  if (found !== undefined) assert.deepEqual(found, inputs)
+  return verdict
+}
+
 test('validate matches the ok and error samples', () => {
-  assert.deepEqual(engine.validate(videoGraph), sample('validate-ok.json'))
-  assert.deepEqual(engine.validate(sample('inputs/validate-errors.draft.json')), sample('validate-errors.json'))
+  assert.deepEqual(verdictOf(videoGraph, { video: true, audio: false }), sample('validate-ok.json'))
+  // The error draft misspells its capture node ('video.captur'), so it reads no input.
+  assert.deepEqual(verdictOf(sample('inputs/validate-errors.draft.json'), { video: false, audio: false }), sample('validate-errors.json'))
 })
 
 test('validate accepts the built-in audio graph', () => {
-  assert.deepEqual(engine.validate(audioGraph), { valid: true, errors: [] })
+  assert.deepEqual(verdictOf(audioGraph, { video: false, audio: true }), { valid: true, errors: [] })
 })
 
 test('preview snapshot matches the sample', () => {

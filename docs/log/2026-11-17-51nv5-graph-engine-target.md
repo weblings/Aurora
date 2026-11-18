@@ -23,3 +23,7 @@ Id: 51nv5-graph-engine-target
 - Fresh emcmake build of `core/Wasm` from an empty directory takes about 18 s. `graph_parity` matches the spike's native output bit for bit (video 360/360, audio 1440/1440). Payload: 1,897,873 bytes raw, about 502 KB gzip -9.
 - Engine sources grepped for HTTP, filesystem and thread use. The only hit is the `HttpServer` forward declaration for `registerDescriptorRoutes` in `ControlDescriptors.hpp`, a declaration only.
 - Open: Mac and Linux CI (the bead stays open until it passes). No native build target for the parity driver yet. `Aurora-51nv.7` needs one.
+- 2026-11-18: Mac and Linux CI pass on PR 69. Closed.
+
+## Lessons
+- none

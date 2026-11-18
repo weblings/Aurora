@@ -1,5 +1,5 @@
 v1.2.0:
-- Graph editor - Build and edit your own effects as node graphs (or have MCP assist you)
+- Graph editor - (Beta, the UX will likely shift around in 1.2.x versions) Build and edit your own effects as node graphs (or have MCP assist you)
 - Effect dropdown - Pick the effect beside Video/Audio on the Dashboard. Effects can be renamed, hidden, and reordered
 - API v1 - Stable /api/v1 for other apps and assistants (apiVersion 1.0.0). Standard error format, a pairing flow with polling, and an events stream that reconnects on its own. Existing routes keep working
 - Error Shell - Messages now have a distinction between: Errors and Notices 

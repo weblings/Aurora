@@ -151,8 +151,8 @@ assert.equal(resumeLine('Fire'), 'Fire starts when you resume');
   assert.deepEqual(startPoints(hiddenVideo).map((e) => e.id), [EMPTY_START, 'builtin.video', 'builtin.audio'], 'Empty first, hidden ones included');
   assert.deepEqual(startPoints(EFFECTS, { hasAudio: false }).map((e) => e.id), [EMPTY_START, 'builtin.video']);
   assert.equal(startPoints([])[0].title, 'Empty', 'offered even with no effects loaded');
-  assert.equal(editorHref(EMPTY_START), '/graph-editor/?new=empty');
-  assert.equal(editorHref('a b'), '/graph-editor/?effect=a%20b');
+  assert.equal(editorHref(EMPTY_START), 'graph-editor/?new=empty');
+  assert.equal(editorHref('a b'), 'graph-editor/?effect=a%20b');
 }
 
 // Live region sentences and the Move position.

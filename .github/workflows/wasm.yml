@@ -102,6 +102,8 @@ jobs:
           gz=$(gzip -9 -c dist/aurora-engine.wasm | wc -c)
           raw=$(wc -c < dist/aurora-engine.wasm)
           glue=$(gzip -9 -c dist/aurora-engine.mjs | wc -c)
+          # Tripwire, not a feature limit (Aurora-51nv.11): 1 MB gzip.
+          if [ "$gz" -gt 1048576 ]; then echo "wasm gzip $gz bytes exceeds 1048576"; exit 1; fi
           cat > dist/build-info.json <<JSON
           {
             "commit": "${GITHUB_SHA}",

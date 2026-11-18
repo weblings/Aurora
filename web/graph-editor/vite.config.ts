@@ -1,15 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// The editor is served by Aurora's embedded HTTP server under /graph-editor/,
-// so every URL Vite rewrites must carry that prefix. Vite only rewrites paths
-// it processes itself (HTML tags, imports); runtime strings must be built from
-// import.meta.env.BASE_URL. Aurora's own REST calls (/api/...) stay
-// root-absolute on purpose.
+// The build uses a relative base so it works at /graph-editor/ and under a
+// sub-path host (/Aurora/graph-editor/). Dev keeps the absolute prefix.
+// Aurora's own REST calls (/api/...) stay root-absolute on purpose.
 const AURORA_PORT = process.env.AURORA_PORT ?? '8080'
 
-export default defineConfig({
-  base: '/graph-editor/',
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? './' : '/graph-editor/',
   plugins: [react()],
   build: {
     // Not a budget: a tripwire for an accidental large import. The editor
@@ -37,4 +35,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

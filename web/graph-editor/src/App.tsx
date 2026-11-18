@@ -1,4 +1,5 @@
 import { Hint } from './Hint'
+import { closeFramedEditor } from './backLink'
 import type { CSSProperties } from 'react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
@@ -116,6 +117,7 @@ export function App() {
     void host.checkNow().then((answered) => answered && setOpenError({ cause, id }))
   }
   const [writing, setWriting] = useState(false)
+  const onBackClick = (e: React.MouseEvent) => { if (closeFramedEditor()) e.preventDefault() }
   const [titleMenuOpen, setTitleMenuOpen] = useState(false)
   const compactBar = useMedia(COMPACT_BAR)
   const [barEl, setBarEl] = useState<HTMLElement | null>(null)
@@ -243,6 +245,17 @@ export function App() {
     url.searchParams.set('effect', effectId)
     window.history.replaceState(null, '', url)
   }, [effectId])
+
+  // Edits during a test (a Tuning slider included) go to the lights after a short pause.
+  const { push } = lights
+  useEffect(() => {
+    if (!testing || !doc || !testedDoc || sameDoc(testedDoc, doc)) return
+    const timer = window.setTimeout(() => {
+      const sent = docRef.current
+      void push().then((ok) => ok && sent && setTestedDoc(sent))
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [testing, doc, testedDoc, push])
 
   const startTest = (mode: TestMode) => {
     setTestMode(mode)
@@ -971,7 +984,7 @@ export function App() {
         onStopTest={() => void host.stopTest()}
       />
       <header ref={setBarEl} className="editor-header" data-preview={status.label} data-status-rank={status.rank} {...stageAttrs(barStage)}>
-        <a className="ui-button editor-back" href="/" aria-label="Dashboard">
+        <a className="ui-button editor-back" href="../" aria-label="Dashboard" onClick={onBackClick}>
           <Icon icon={arrowLeftIcon} size="sm" />
           <span className="editor-back-label">Dashboard</span>
         </a>

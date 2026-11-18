@@ -25,11 +25,11 @@ html, body {
     flex-direction: row;
   }
   #scene-pane {
-    width: 66.666%;
+    width: 50%;
     height: 100%;
   }
   #dashboard-pane {
-    width: 33.333%;
+    width: 50%;
     height: 100%;
   }
 }
@@ -174,4 +174,18 @@ html, body {
 #repo-pill:focus-visible {
   outline: 2px solid #e8eaf0;
   outline-offset: 2px;
+}
+
+/* Graph editor iframe (Aurora-51nv.9): fills the Dashboard pane while open. */
+#dashboard-pane.editing {
+  display: flex;
+  padding: 0;
+  overflow: hidden;
+}
+
+.editor-frame {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: var(--aurora-bg, #0a0a0a);
 }

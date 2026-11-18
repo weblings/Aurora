@@ -52,8 +52,9 @@ and shim and stay stretch goals after the editor works.
   the shim answers.
 - JSON shapes come from the same C++ as the native routes (`validateGraphDoc`,
   `GraphPreview`), so the shim forwards them unchanged.
-- Custom effects and session flags live in `localStorage` so they survive moving between the
-  two pages.
+- The editor page loads in an iframe in the Dashboard pane, so the room, shim and Worker live
+  on one page. Custom effects, hidden and order live in `localStorage` so they survive a
+  reload.
 
 ## Publishing
 
@@ -82,6 +83,16 @@ which is retired in the same change (`Aurora-51nv.3`).
   `Aurora-51nv.10`). Leaving it out of the demo's menus is the fallback only on a failed gate.
 - **Portable seeded picks** in core (`Aurora-kuee`), needed for a parity check and wrong across
   platforms today.
+- **Editor in an iframe in the Dashboard pane** (owner, 2026-11-18). The room stays beside it,
+  and the parent page owns the shim, the room and the Worker. The iframe's entry script
+  forwards fetch and `EventSource` to the parent's shim. Dashboard and editor navigation use
+  host options (`Aurora-51nv.1`).
+- **Preview transport: shim-side `EventSource` stand-in** (owner, 2026-11-18), not an
+  injectable transport in the editor (`Aurora-51nv.2`).
+- **Room on the engine for built-ins too** (2026-11-18). The 536 KB gzip WASM is under 5% of
+  what the demo already loads. `web-processing/`, its sync rule and `Aurora-niv7` retire.
+  Budget: 1 MB gzip as a CI tripwire. `Aurora-51nv.11` lands before `.10` and writes the
+  Worker.
 - **Stable Grille** pinned for the release (`Aurora-1na1`). The deploy downloads it on every build.
 
 ## Gate
@@ -100,12 +111,6 @@ Spike results: go, recorded on `Aurora-51nv` ([[51nv4-wasm-spike]]). `wasm.yml` 
 
 ## Open questions
 
-- **Room on the engine for built-ins too** (`Aurora-51nv.11`). Recommended if the payload is
-  acceptable on first load: one path, and `web-processing/` copies, their sync rule and
-  `Aurora-niv7` go away. Otherwise only custom effects use the engine.
-- **Payload budget.** No number set. Decide once the spike measures it.
-- **Preview transport.** Shim-side `EventSource` replacement or an injectable transport in
-  the editor (`Aurora-51nv.2`).
 - **Browsers.** Safari's support for the Worker, WASM exceptions and the editor bundle is
   unverified. Checked in `Aurora-51nv.12`.
 - **`vendor/webui` under the Actions deploy.** Keep committed with the byte-equality check,

@@ -16,7 +16,8 @@ running agent, triaging a failure, and verifying and committing per bead.
 ## How to use this skill
 
 1. Before the first spawn: run the preflight and baseline from the matching
-   entries, and write the owner's decisions into the beads.
+   entries, write the owner's decisions into the beads, and ask the owner
+   whether to commit each bead as it verifies.
 2. Put the relevant gotchas into every brief. Agents do not read this file
    on their own. Start from `brief-common.template.md` in this folder: one
    common brief in the scratchpad, short per-bead briefs that point at it. Name the shared `web/ui` modules to import (the components

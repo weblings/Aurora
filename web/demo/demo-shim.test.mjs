@@ -24,7 +24,7 @@ function testRouter(seed) {
 
 // Capabilities answer the "compiled with" contract the boot probe reads.
 {
-  const r = testRouter({})( 'GET', '/api/capabilities');
+  const r = (await testRouter({})( 'GET', '/api/capabilities'));
   assert.equal(r.status, 200);
   assert.ok(r.json.outputs.includes('hue'), 'hue output advertised');
   assert.ok(r.json.inputs.length > 0 && r.json.audioInputs.length > 0);
@@ -32,7 +32,7 @@ function testRouter(seed) {
 
 // Version answers the footer probe with the CHANGELOG release.
 {
-  const r = testRouter({})('GET', '/api/version');
+  const r = (await testRouter({})('GET', '/api/version'));
   assert.equal(r.status, 200);
   const changelog = readFileSync(new URL('../../CHANGELOG.txt', import.meta.url), 'utf8');
   const top = changelog.match(/^v(\d+\.\d+\.\d+)/m);
@@ -45,7 +45,7 @@ function testRouter(seed) {
 {
   const store = createShimStore(createMemoryStorage(), {});
   const route = createRouter(store);
-  assert.deepEqual(route('GET', '/api/state').json, {
+  assert.deepEqual((await route('GET', '/api/state')).json, {
     paused: false,
     // No Stop button on the static page (Aurora-ifkn.3).
     canStop: false,
@@ -55,25 +55,25 @@ function testRouter(seed) {
     effect: 'builtin.video',
     effectTitle: 'Screen colors',
     effectDescription: 'Follows the colors on your screen.',
-    test: { active: false, confirmRemainingMs: 0 },
+    test: { active: false, mode: null, confirmRemainingMs: 0, holder: null },
     usesVideoInput: true,
     usesAudioInput: false,
     samplesZones: true,
     audioDevicesUrl: '/api/linux/audio-sinks',
   });
 
-  route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' }));
-  const audio = route('GET', '/api/state').json;
+  (await route('PUT', '/api/config', JSON.stringify({ activeInputName: '', activeAudioInputName: 'linux-audio' })));
+  const audio = (await route('GET', '/api/state')).json;
   assert.equal(audio.effect, 'builtin.audio');
   assert.equal(audio.effectTitle, 'Music pulse');
-  assert.deepEqual(route('GET', '/api/effects').json.effects.map((e) => e.id), ['builtin.video', 'builtin.audio']);
+  assert.deepEqual((await route('GET', '/api/effects')).json.effects.map((e) => e.id), ['builtin.video', 'builtin.audio']);
   assert.equal(audio.usesVideoInput, false);
   assert.equal(audio.usesAudioInput, true);
   assert.equal(audio.samplesZones, false);
   assert.deepEqual(audio.graphInputs, { video: false, audio: true });
 
   // The advertised device route is one the shim answers.
-  assert.equal(route('GET', audio.audioDevicesUrl).status, 200);
+  assert.equal((await route('GET', audio.audioDevicesUrl)).status, 200);
 }
 
 // PUT /api/state (Aurora-5ipy.13): {running: bool} flips the in-memory flag,
@@ -81,31 +81,31 @@ function testRouter(seed) {
 {
   const store = createShimStore(createMemoryStorage(), {});
   const route = createRouter(store);
-  assert.equal(route('GET', '/api/state').json.paused, false);
+  assert.equal((await route('GET', '/api/state')).json.paused, false);
 
-  const paused = route('PUT', '/api/state', JSON.stringify({ running: false }));
+  const paused = (await route('PUT', '/api/state', JSON.stringify({ running: false })));
   assert.equal(paused.status, 200);
   assert.deepEqual(paused.json, { succeeded: true, running: false });
-  assert.equal(route('GET', '/api/state').json.paused, true);
+  assert.equal((await route('GET', '/api/state')).json.paused, true);
 
   // Idempotent repeat, then resume.
-  assert.deepEqual(route('PUT', '/api/state', JSON.stringify({ running: false })).json, { succeeded: true, running: false });
-  assert.deepEqual(route('PUT', '/api/state', JSON.stringify({ running: true })).json, { succeeded: true, running: true });
-  assert.equal(route('GET', '/api/state').json.paused, false);
+  assert.deepEqual((await route('PUT', '/api/state', JSON.stringify({ running: false }))).json, { succeeded: true, running: false });
+  assert.deepEqual((await route('PUT', '/api/state', JSON.stringify({ running: true }))).json, { succeeded: true, running: true });
+  assert.equal((await route('GET', '/api/state')).json.paused, false);
 
-  assert.equal(route('PUT', '/api/state', 'not-json').status, 400);
-  assert.equal(route('PUT', '/api/state', JSON.stringify({})).json.error, 'running_bool_required');
-  assert.equal(route('PUT', '/api/state', JSON.stringify({ running: 'yes' })).status, 400);
+  assert.equal((await route('PUT', '/api/state', 'not-json')).status, 400);
+  assert.equal((await route('PUT', '/api/state', JSON.stringify({}))).json.error, 'running_bool_required');
+  assert.equal((await route('PUT', '/api/state', JSON.stringify({ running: 'yes' }))).status, 400);
 
   // Seed-only: a fresh store always resumes, pause never persists.
   const resumed = createShimStore(createMemoryStorage(), {});
   assert.equal(resumed.isPaused(), false);
-  assert.equal(createRouter(createShimStore(createMemoryStorage(), { paused: true }))('GET', '/api/state').json.paused, true);
+  assert.equal((await createRouter(createShimStore(createMemoryStorage(), { paused: true }))('GET', '/api/state')).json.paused, true);
 }
 
 // Config GET returns the full live-defaulted set incl. interpolation NAME.
 {
-  const r = testRouter({})('GET', '/api/config');
+  const r = (await testRouter({})('GET', '/api/config'));
   assert.equal(r.status, 200);
   assert.equal(r.json.interpolation, 'Area');
   assert.equal(r.json.audioBounceSmoothTime, DEMO_DEFAULT_CONFIG.audioBounceSmoothTime);
@@ -119,7 +119,7 @@ function testRouter(seed) {
   const route = createRouter(store);
   const seen = [];
   const route2 = createRouter(store, { onConfigPatch: (applied) => seen.push(...applied) });
-  const r = route2('PUT', '/api/config', JSON.stringify({ audioBounceSmoothTime: 0.1, bogusKey: 1 }));
+  const r = (await route2('PUT', '/api/config', JSON.stringify({ audioBounceSmoothTime: 0.1, bogusKey: 1 })));
   assert.deepEqual(r.json, { succeeded: true });
   assert.deepEqual(seen, ['audioBounceSmoothTime']);
   assert.equal(store.getConfig().audioBounceSmoothTime, 0.1);
@@ -132,9 +132,9 @@ function testRouter(seed) {
 {
   const store = createShimStore(createMemoryStorage(), {});
   const route = createRouter(store);
-  route('PUT', '/api/config', JSON.stringify({ interpolation: 'Cubic' }));
+  (await route('PUT', '/api/config', JSON.stringify({ interpolation: 'Cubic' })));
   assert.equal(store.getConfig().interpolation, 'Cubic');
-  route('PUT', '/api/config', JSON.stringify({ interpolation: 2 }));
+  (await route('PUT', '/api/config', JSON.stringify({ interpolation: 2 })));
   assert.equal(store.getConfig().interpolation, 'Cubic', 'storage int rejected, last name stands');
 }
 
@@ -151,46 +151,46 @@ function testRouter(seed) {
 // Zones PATCH applies present fields only; errors mirror ZoneRoutes shapes.
 {
   const route = testRouter({ zones: ZONES_FIXTURE });
-  const get = route('GET', '/api/zones');
+  const get = (await route('GET', '/api/zones'));
   assert.equal(get.json.outputName, 'hue');
   assert.equal(get.json.zones.length, 2);
   assert.ok('everConfigured' in get.json.zones[0], 'zone shape carries everConfigured');
 
-  const put = route('PUT', '/api/zones', JSON.stringify({ zoneId: 0, gamma: 0.5 }));
+  const put = (await route('PUT', '/api/zones', JSON.stringify({ zoneId: 0, gamma: 0.5 })));
   assert.deepEqual(put.json, { succeeded: true });
-  assert.equal(route('GET', '/api/zones').json.zones[0].gamma, 0.5);
-  assert.deepEqual(route('GET', '/api/zones').json.zones[0].uvs,
+  assert.equal((await route('GET', '/api/zones')).json.zones[0].gamma, 0.5);
+  assert.deepEqual((await route('GET', '/api/zones')).json.zones[0].uvs,
     ZONES_FIXTURE[0].uvs, 'absent uvs untouched');
 
-  assert.deepEqual(route('PUT', '/api/zones', '{bad').json,
+  assert.deepEqual((await route('PUT', '/api/zones', '{bad')).json,
     { succeeded: false, error: 'invalid_json_body' });
-  assert.deepEqual(route('PUT', '/api/zones', JSON.stringify({ gamma: 1 })).json,
+  assert.deepEqual((await route('PUT', '/api/zones', JSON.stringify({ gamma: 1 }))).json,
     { succeeded: false, error: 'zoneId_required' });
-  assert.deepEqual(route('PUT', '/api/zones', JSON.stringify({ zoneId: 99 })).json,
+  assert.deepEqual((await route('PUT', '/api/zones', JSON.stringify({ zoneId: 99 }))).json,
     { succeeded: false, error: 'unknown_zone' });
 }
 
 // Connection stays configured:true (the NUX gate); persist path works.
 {
   const route = testRouter({});
-  const get = route('GET', '/api/hue/connection');
+  const get = (await route('GET', '/api/hue/connection'));
   assert.equal(get.json.configured, true);
   assert.ok(!('username' in get.json), 'credentials never leak, backend-style');
-  const post = route('POST', '/api/hue/connection', JSON.stringify({ entertainmentConfigurationId: 'x' }));
+  const post = (await route('POST', '/api/hue/connection', JSON.stringify({ entertainmentConfigurationId: 'x' })));
   assert.deepEqual(post.json, { succeeded: true });
-  assert.equal(route('GET', '/api/hue/connection').json.entertainmentConfigurationId, 'x');
+  assert.equal((await route('GET', '/api/hue/connection')).json.entertainmentConfigurationId, 'x');
 }
 
 // Entertainment-configurations is a PUT-for-read returning id+name pairs.
 {
-  const r = testRouter({})('PUT', '/api/hue/entertainment-configurations', '{}');
+  const r = (await testRouter({})('PUT', '/api/hue/entertainment-configurations', '{}'));
   assert.equal(r.json.succeeded, true);
   assert.deepEqual(Object.keys(r.json.configurations[0]).sort(), ['id', 'name']);
 }
 
 // Channels map 1:1 onto zones by zoneId for "Zone N (names)" labels.
 {
-  const r = testRouter({ zones: ZONES_FIXTURE })('GET', '/api/hue/channels');
+  const r = (await testRouter({ zones: ZONES_FIXTURE })('GET', '/api/hue/channels'));
   assert.equal(r.json.succeeded, true);
   assert.deepEqual(r.json.channels.map((c) => c.channelId), [0, 1]);
   assert.deepEqual(r.json.channels[0].lightNames, ['Demo Light 0']);
@@ -198,7 +198,7 @@ function testRouter(seed) {
 
 // Output-neutral labels route Zone Mapping reads (Aurora-a0r).
 {
-  const r = testRouter({ zones: ZONES_FIXTURE })('GET', '/api/zones/labels');
+  const r = (await testRouter({ zones: ZONES_FIXTURE })('GET', '/api/zones/labels'));
   assert.equal(r.json.succeeded, true);
   assert.deepEqual(r.json.labels.map((l) => l.zoneId), [0, 1]);
   assert.deepEqual(r.json.labels[0].names, ['Demo Light 0']);
@@ -207,14 +207,14 @@ function testRouter(seed) {
 // String zone ids (the room rig's quadrant names) prettify for labels.
 {
   const zones = [{ zoneId: 'front-left', uvs: { min: [0, 0], max: [0.5, 0.5] }, active: true, gamma: 0, everConfigured: true }];
-  const r = testRouter({ zones })('GET', '/api/hue/channels');
+  const r = (await testRouter({ zones })('GET', '/api/hue/channels'));
   assert.deepEqual(r.json.channels, [{ channelId: 'front-left', lightNames: ['Front Left'] }]);
 }
 
 // Audio sinks answer the DeviceField dropdown probe with name+description
 // pairs (Aurora-67y); copies isolate HTTP readers like the monitors route.
 {
-  const r = testRouter({})('GET', '/api/linux/audio-sinks');
+  const r = (await testRouter({})('GET', '/api/linux/audio-sinks'));
   assert.equal(r.status, 200);
   assert.ok(Array.isArray(r.json.sinks) && r.json.sinks.length > 0, 'demo ships at least one sink');
   for (const s of r.json.sinks) {
@@ -222,13 +222,13 @@ function testRouter(seed) {
     assert.equal(typeof s.description, 'string', 'sink carries a description');
   }
   r.json.sinks[0].name = 'mutated';
-  assert.notEqual(testRouter({})('GET', '/api/linux/audio-sinks').json.sinks[0].name, 'mutated', 'responses are copies');
+  assert.notEqual((await testRouter({})('GET', '/api/linux/audio-sinks')).json.sinks[0].name, 'mutated', 'responses are copies');
 }
 
 // Audio status mirrors the native {followingDefault, sinkName} shape from
 // the demo config (Aurora-ifkn.7); unset target means following default.
 {
-  const r = testRouter({})('GET', '/api/linux/audio-status');
+  const r = (await testRouter({})('GET', '/api/linux/audio-status'));
   assert.equal(r.status, 200);
   assert.deepEqual(r.json, { followingDefault: true, sinkName: '' });
 }
@@ -236,14 +236,14 @@ function testRouter(seed) {
 // Discovery finds no bridge behind a static page (Aurora-ifkn.7), so
 // OutputConnectScreen takes its entry-form fallthrough, never a dead end.
 {
-  const r = testRouter({})('GET', '/api/hue/discover');
+  const r = (await testRouter({})('GET', '/api/hue/discover'));
   assert.equal(r.status, 200);
   assert.deepEqual(r.json, { succeeded: true, bridges: [] });
 }
 
 // Unknown routes 404 instead of falling through to native fetch shapes.
 {
-  const r = testRouter({})('GET', '/api/nope');
+  const r = (await testRouter({})('GET', '/api/nope'));
   assert.equal(r.status, 404);
   assert.equal(r.json.succeeded, false);
 }
@@ -266,9 +266,9 @@ function testRouter(seed) {
 
 // Descriptors serve the seeded copy table; empty seed degrades to [].
 {
-  const seeded = testRouter({ descriptors: [{ key: 'app.mode', description: 'x' }] })('GET', '/api/descriptors');
+  const seeded = (await testRouter({ descriptors: [{ key: 'app.mode', description: 'x' }] })('GET', '/api/descriptors'));
   assert.deepEqual(seeded.json, { descriptors: [{ key: 'app.mode', description: 'x' }] });
-  assert.deepEqual(testRouter({})('GET', '/api/descriptors').json, { descriptors: [] });
+  assert.deepEqual((await testRouter({})('GET', '/api/descriptors')).json, { descriptors: [] });
 }
 
 // Every tooltip key the ported Dashboard can request exists in the generated
@@ -350,37 +350,90 @@ function testRouter(seed) {
   const descriptors = JSON.parse(readFileSync(new URL('./vendor/webui/descriptors.json', import.meta.url), 'utf8')).descriptors;
   const { resolveControls } = await import('./vendor/webui/TuningControls.js');
   const route = testRouter({ descriptors });
-  const nodeTypes = route('GET', '/api/nodes').json.nodes;
-  const video = resolveControls(route('GET', '/api/graph').json.graph, nodeTypes);
+  const nodeTypes = (await route('GET', '/api/nodes')).json.nodes;
+  const video = resolveControls((await route('GET', '/api/graph')).json.graph, nodeTypes);
   assert.deepEqual(video.map((c) => c.configKey), ['subsampleWidth', 'interpolation', 'transitionSmoothing']);
   const audioRoute = testRouter({ descriptors, config: { activeInputName: '', activeAudioInputName: 'linux-audio' } });
-  const audioGraph = audioRoute('GET', '/api/graph').json.graph;
+  const audioGraph = (await audioRoute('GET', '/api/graph')).json.graph;
   assert.equal(audioGraph.tickHz, 60);
   const audio = resolveControls(audioGraph, nodeTypes);
   assert.equal(audio.length, 11);
   for (const c of [...video, ...audio]) assert.ok(c.configKey in DEMO_DEFAULT_CONFIG, c.configKey);
   assert.equal(audio.find((c) => c.configKey === 'audioFixedAnchorHue').allowsUnset, true);
   // The demo runs built-ins only, so Tuning keeps committing through /api/config.
-  assert.equal(route('GET', '/api/effects').json.effect, 'builtin.video');
-  assert.equal(audioRoute('GET', '/api/effects').json.effect, 'builtin.audio');
+  assert.equal((await route('GET', '/api/effects')).json.effect, 'builtin.video');
+  assert.equal((await audioRoute('GET', '/api/effects')).json.effect, 'builtin.audio');
 }
 
 // Picker layout routes (Aurora-kep2.5): hide, move and rename answer like the backend.
 {
   const route = testRouter({});
-  const ids = () => route('GET', '/api/effects').json.effects.map((e) => e.id);
-  assert.deepEqual(route('GET', '/api/effects').json.effects.map((e) => [e.hidden, e.order]), [[false, 0], [false, 1]]);
-  assert.equal(route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'up' })).json.moved, true);
-  assert.deepEqual(ids(), ['builtin.audio', 'builtin.video']);
-  assert.equal(route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'up' })).json.moved, false);
-  assert.equal(route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'left' })).status, 400);
-  assert.equal(route('PUT', '/api/effects/builtin.video/hidden', JSON.stringify({ hidden: true })).json.hidden, true);
-  assert.equal(route('GET', '/api/effects').json.effects[1].hidden, true);
-  assert.equal(route('PUT', '/api/effects/builtin.video/hidden', JSON.stringify({ hidden: false })).status, 200);
-  assert.equal(route('PUT', '/api/effects/nope/hidden', JSON.stringify({ hidden: true })).status, 404);
-  assert.equal(route('PUT', '/api/effects/builtin.video/title', JSON.stringify({ title: 'X' })).json.error, 'builtin_effect');
-  assert.equal(route('PUT', '/api/effects/nope/title', JSON.stringify({ title: 'X' })).status, 404);
-  assert.equal(route('PUT', '/api/effects/nope/title', JSON.stringify({ title: ' ' })).json.error, 'invalid_title');
+  const ids = async () => (await route('GET', '/api/effects')).json.effects.map((e) => e.id);
+  assert.deepEqual((await route('GET', '/api/effects')).json.effects.map((e) => [e.hidden, e.order]), [[false, 0], [false, 1]]);
+  assert.equal((await route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'up' }))).json.moved, true);
+  assert.deepEqual(await ids(), ['builtin.audio', 'builtin.video']);
+  assert.equal((await route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'up' }))).json.moved, false);
+  assert.equal((await route('POST', '/api/effects/builtin.audio/move', JSON.stringify({ direction: 'left' }))).status, 400);
+  assert.equal((await route('PUT', '/api/effects/builtin.video/hidden', JSON.stringify({ hidden: true }))).json.hidden, true);
+  assert.equal((await route('GET', '/api/effects')).json.effects[1].hidden, true);
+  assert.equal((await route('PUT', '/api/effects/builtin.video/hidden', JSON.stringify({ hidden: false }))).status, 200);
+  assert.equal((await route('PUT', '/api/effects/nope/hidden', JSON.stringify({ hidden: true }))).status, 404);
+  assert.equal((await route('PUT', '/api/effects/builtin.video/title', JSON.stringify({ title: 'X' }))).json.error, 'builtin_effect');
+  assert.equal((await route('PUT', '/api/effects/nope/title', JSON.stringify({ title: 'X' }))).status, 404);
+  assert.equal((await route('PUT', '/api/effects/nope/title', JSON.stringify({ title: ' ' }))).json.error, 'invalid_title');
+}
+
+// Custom effects (Aurora-51nv.9): listed after the built-ins, routes act on them, a fresh store over the same storage keeps them.
+{
+  const storage = createMemoryStorage();
+  const open = () => { const store = createShimStore(storage, {}); return { store, route: createRouter(store) }; };
+  const json = (v) => JSON.stringify(v);
+  let { store, route } = open();
+  const list = async () => (await route('GET', '/api/effects')).json.effects;
+  assert.equal(store.effects.putCustom('Bad Id', { title: 'x' }), false);
+  assert.equal(store.effects.putCustom('builtin.video', { title: 'x' }), false);
+  store.effects.putCustom('aaa', { title: 'First', description: 'one' });
+  store.effects.putCustom('bbb', { title: 'Second' });
+  assert.deepEqual((await list()).map((e) => [e.id, e.builtin, e.title, e.description, e.order]), [
+    ['builtin.video', true, 'Screen colors', 'Follows the colors on your screen.', 0],
+    ['builtin.audio', true, 'Music pulse', 'Moves with the sound your computer is playing.', 1],
+    ['aaa', false, 'First', 'one', 2],
+    ['bbb', false, 'Second', null, 3],
+  ]);
+  // Move stays inside the group, hidden customs are skipped.
+  assert.equal((await route('POST', '/api/effects/aaa/move', json({ direction: 'up' }))).json.moved, false);
+  assert.equal((await route('POST', '/api/effects/bbb/move', json({ direction: 'up' }))).json.moved, true);
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'bbb', 'aaa']);
+  store.effects.putCustom('ccc', { title: 'Third' });
+  assert.equal((await route('PUT', '/api/effects/aaa/hidden', json({ hidden: true }))).json.hidden, true);
+  assert.equal((await route('POST', '/api/effects/ccc/move', json({ direction: 'up' }))).json.moved, true);
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'ccc', 'bbb', 'aaa']);
+  assert.equal((await route('POST', '/api/effects/builtin.audio/move', json({ direction: 'down' }))).json.moved, false);
+  const renamed = (await route('PUT', '/api/effects/bbb/title', json({ title: '  Renamed  ' }))).json;
+  assert.deepEqual(renamed, { succeeded: true, id: 'bbb', title: 'Renamed' });
+  assert.equal((await route('PUT', '/api/effects/bbb/title', json({ title: 'x'.repeat(81) }))).json.error, 'invalid_title');
+
+  // Reload round trip: a fresh store over the same storage.
+  ({ store, route } = open());
+  assert.deepEqual((await list()).map((e) => [e.id, e.title, e.hidden]), [
+    ['builtin.video', 'Screen colors', false], ['builtin.audio', 'Music pulse', false],
+    ['ccc', 'Third', false], ['bbb', 'Renamed', false], ['aaa', 'First', true],
+  ]);
+  assert.equal(store.effects.getCustom('aaa').description, 'one');
+
+  assert.equal((await route('DELETE', '/api/effects/builtin.video')).json.error, 'builtin_effect');
+  assert.equal((await route('DELETE', '/api/effects/nope')).status, 404);
+  assert.deepEqual((await route('DELETE', '/api/effects/aaa')).json, { succeeded: true, deleted: 'aaa', fellBack: false });
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'ccc', 'bbb']);
+  ({ route } = open());
+  assert.deepEqual((await list()).map((e) => e.id), ['builtin.video', 'builtin.audio', 'ccc', 'bbb']);
+
+  // Built-in hidden and order persist too, paused does not.
+  await route('PUT', '/api/effects/builtin.video/hidden', json({ hidden: true }));
+  await route('PUT', '/api/state', json({ running: false }));
+  ({ route } = open());
+  assert.equal((await list())[0].hidden, true);
+  assert.equal((await route('GET', '/api/state')).json.paused, false);
 }
 
 console.log('demo-shim contract tests passed.');
@@ -391,8 +444,35 @@ console.log('demo-shim contract tests passed.');
   const store = createShimStore(createMemoryStorage(), {});
   const seen = [];
   const route = createRouter(store, { onPausedChanged: (p) => seen.push(p) });
-  route('PUT', '/api/state', JSON.stringify({ running: false }));
-  route('PUT', '/api/state', JSON.stringify({ running: true }));
-  route('PUT', '/api/state', JSON.stringify({ running: 'nope' }));
+  (await route('PUT', '/api/state', JSON.stringify({ running: false })));
+  (await route('PUT', '/api/state', JSON.stringify({ running: true })));
+  (await route('PUT', '/api/state', JSON.stringify({ running: 'nope' })));
   assert.deepEqual(seen, [true, false]);
+}
+
+// Async router (Aurora-51nv.8): route() hands back a promise, never a bare result.
+{
+  const pending = testRouter({})('GET', '/api/version');
+  assert.ok(pending instanceof Promise, 'route returns a promise');
+  assert.deepEqual(await pending, { status: 200, json: { version: '1.2.0' } });
+  await assert.doesNotReject(testRouter({})('PUT', '/api/state', '{bad'), 'bad body answers 400, never rejects');
+}
+
+// installDemoShim awaits the router before building the Response, and
+// exposes the same router for in-page callers that skip fetch.
+{
+  const calls = [];
+  globalThis.window = { fetch: async (input) => { calls.push(input); return 'native'; } };
+  const { installDemoShim } = await import('./demo-shim.js');
+  const shim = installDemoShim({ storage: createMemoryStorage(), seed: { paused: true } });
+  const res = await window.fetch('/api/state?x=1', { method: 'GET' });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).paused, true);
+  const bad = await window.fetch('/api/nope');
+  assert.equal(bad.status, 404);
+  assert.equal(await window.fetch('/page.css'), 'native');
+  assert.deepEqual(calls, ['/page.css']);
+  assert.equal((await shim.route('GET', '/api/version')).json.version, '1.2.0');
+  shim.uninstall();
+  delete globalThis.window;
 }
