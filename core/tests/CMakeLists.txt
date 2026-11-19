@@ -98,6 +98,7 @@ add_executable(AuroraPipelineTests
   PipelineTests.cpp
   TrayLabelTests.cpp
   OutputLinkMonitorTests.cpp
+  MonitorChangeWatcherTests.cpp
   GraphRunnerZoneMapPersistTests.cpp
 )
 

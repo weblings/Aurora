@@ -238,6 +238,19 @@ namespace Aurora::Input::Linux
 
     m_screenId = XDefaultScreen(m_display.get());
 
+    // Plug and unplug reach us as RandR events on the root window, read in
+    // _pollMonitorChanges beside the damage events. No RandR, no events: the
+    // list stays read at build only.
+    int randrErrorBase = 0;
+    if(XRRQueryExtension(m_display.get(), &m_randrEventBase, &randrErrorBase)){
+      XRRSelectInput(
+        m_display.get(), RootWindow(m_display.get(), m_screenId),
+        RRScreenChangeNotifyMask | RROutputChangeNotifyMask);
+    }
+    else{
+      m_randrEventBase = 0;
+    }
+
     // Fail-soft: without the Damage extension every grab is full (the old
     // behavior), so exotic X servers keep working instead of throwing here.
     int damageErrorBase = 0;
@@ -321,10 +334,18 @@ namespace Aurora::Input::Linux
   }
 
 
+  bool X11Grabber::takeMonitorsChanged()
+  {
+    return m_monitorsChanged.exchange(false);
+  }
+
+
   void X11Grabber::grabFrameSubsample(
     Contracts::ImageData& imageData
   )
   {
+    _pollMonitorChanges();
+
     if(!_ensureXShmData()){
       return;
     }
@@ -426,6 +447,12 @@ namespace Aurora::Input::Linux
 
   void X11Grabber::_initMonitorsList()
   {
+    m_monitorSelectionData = _enumerateMonitors(true);
+  }
+
+
+  IVideoInput::MonitorSelectionData X11Grabber::_enumerateMonitors(bool probe)
+  {
     MonitorSelectionData monitorSelectionData;
 
     if(!m_display.get()){
@@ -433,7 +460,9 @@ namespace Aurora::Input::Linux
     }
 
     Window root = DefaultRootWindow(m_display.get());
-    UniqueScreenResources screenResources(XRRGetScreenResources(m_display.get(), root));
+    UniqueScreenResources screenResources(probe
+      ? XRRGetScreenResources(m_display.get(), root)
+      : XRRGetScreenResourcesCurrent(m_display.get(), root));
     auto monitorsQuantity = screenResources->noutput;
 
     if(monitorsQuantity <= 0){
@@ -503,7 +532,51 @@ namespace Aurora::Input::Linux
       monitorSelectionData.selectedMonitorId = 0;
     }
 
-    std::swap(m_monitorSelectionData, monitorSelectionData);
+    return monitorSelectionData;
+  }
+
+
+  void X11Grabber::_pollMonitorChanges()
+  {
+    if(m_randrEventBase == 0){
+      return;
+    }
+
+    const Window root = RootWindow(m_display.get(), m_screenId);
+    bool any = false;
+    XEvent event;
+    while(XCheckTypedWindowEvent(m_display.get(), root, m_randrEventBase + RRScreenChangeNotify, &event)){
+      // Keeps Xlib's own screen size in step with the server.
+      XRRUpdateConfiguration(&event);
+      any = true;
+    }
+    while(XCheckTypedWindowEvent(m_display.get(), root, m_randrEventBase + RRNotify, &event)){
+      any = true;
+    }
+    if(!any){
+      return;
+    }
+
+    // Mode, position and primary changes of the same outputs raise events too
+    // and must not rebuild: compare what identifies the outputs.
+    try{
+      const auto now = _enumerateMonitors(false);
+      auto identities = [](const MonitorSelectionData& data){
+        std::vector<std::string> keys;
+        std::vector<std::string> names;
+        for(const auto& monitor : data.monitors){
+          keys.push_back(monitor->key);
+          names.push_back(monitor->name);
+        }
+        return monitorIdentities(keys, names);
+      };
+      if(identities(now) != identities(m_monitorSelectionData)){
+        m_monitorsChanged = true;
+      }
+    }
+    catch(const std::exception&){
+      // Mid-replug with no usable output yet; the next event re-checks.
+    }
   }
 
 

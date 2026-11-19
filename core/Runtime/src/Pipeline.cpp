@@ -668,7 +668,7 @@ namespace Aurora::Runtime
       return false;
     }
     std::string error;
-    if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(doc, error)){
+    if(!(m_isAudioMode ? *m_audioRunner : *m_videoRunner).restoreGraph(std::optional<nlohmann::json>(doc), error)){
       return false;
     }
     const GraphSourceNeeds needs = graphSourceNeeds(doc);
@@ -1310,6 +1310,10 @@ namespace Aurora::Runtime
     }
     const double interval = m_pipeline->tickIntervalSeconds();
     m_pipeline->tick(static_cast<float>(interval));
+
+    if(m_pipeline->takeMonitorsChanged()){
+      m_monitorsChanged = true;
+    }
 
     std::string captureError = m_pipeline->captureError();
     if(captureError != m_captureError){
