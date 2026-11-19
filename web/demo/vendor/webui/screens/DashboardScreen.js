@@ -124,6 +124,7 @@ export class DashboardScreen {
     this.channelLightNames = {};
     this.tuningValues = {};
     this.toggleError = null;
+    this.graphEditorAvailable = false; // until _probeGraphEditor answers
     this.toggleErrorMode = null; // the mode the failed switch was heading to (Aurora-tazx)
     this.toggleErrorEffectId = null; // the effect id the failed switch was heading to
     this.toggleErrorRunning = undefined; // the effect running when it was set (kep2.11)
@@ -368,7 +369,7 @@ export class DashboardScreen {
     } catch {
       this.graphEditorAvailable = false;
     }
-    if (this.graphEditorAvailable) this.effectPanel?.update({ canEdit: true });
+    this.effectPanel?.update({ canEdit: this.graphEditorAvailable });
   }
 
   // Every switch, built-in or custom, shows its state and failure on the effect panel.

@@ -812,7 +812,7 @@ function ownerScreen(extra = {}) {
   globalThis.fetch = async () => { throw new Error('offline'); };
   await inst._probeGraphEditor();
   assert.equal(inst.graphEditorAvailable, false);
-  assert.equal(updates.length, 1);
+  assert.deepEqual(updates, [{ canEdit: true }, { canEdit: false }, { canEdit: false }]);
   globalThis.fetch = realFetch;
 }
 
