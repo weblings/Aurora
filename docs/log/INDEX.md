@@ -508,3 +508,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Test edits reach the lights and the demo room, owner-confirmed. The "Edited since the test" label is removed (`Aurora-l9gc`, `Aurora-t8nd`). [[l9gc-t8nd-test-edit-resend]] | `bd show Aurora-l9gc`, `bd show Aurora-t8nd` |
 | 2026-11-18 | `trigger.envelope` node: attack, hold and decay on tick dt, retrigger from the current level (`Aurora-q66y`, previews pending). [[q66y-trigger-envelope]] | `bd show Aurora-q66y` |
 | 2026-11-18 | Dashboard hides Edit graph and New effect until the editor probe succeeds (`Aurora-3m75`). [[3m75-editor-probe-default]] | `bd show Aurora-3m75` |
+| 2026-11-18 | A stored empty section can lead the controls list in the editor and on the Dashboard (`Aurora-e4bi.22`). [[e4bi-22-empty-section-leads]] | `bd show Aurora-e4bi.22` |

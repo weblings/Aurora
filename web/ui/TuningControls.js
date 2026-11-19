@@ -65,7 +65,7 @@ export const SECTIONS_KEY = '#sections';
 const sectionOf = (control) => (typeof control.section === 'string' ? control.section : '');
 
 // The section order both screens show: named sections by first appearance, General ('') last.
-// `ui[SECTIONS_KEY]` only places empty sections, after the one each followed when stored.
+// `ui[SECTIONS_KEY]` only places empty sections, before the next stored section that shows.
 export function deriveSections(controls, ui) {
   const bySection = new Map();
   for (const control of controls ?? []) {
@@ -82,9 +82,9 @@ export function deriveSections(controls, ui) {
   stored.forEach((name, i) => {
     if (bySection.has(name)) return;
     let at = names.length;
-    for (let j = i - 1; j >= 0; j--) {
-      const prior = names.indexOf(stored[j]);
-      if (prior >= 0) { at = prior + 1; break; }
+    for (let j = i + 1; j < stored.length; j++) {
+      const next = names.indexOf(stored[j]);
+      if (next >= 0) { at = next; break; }
     }
     names.splice(at, 0, name);
     bySection.set(name, []);
