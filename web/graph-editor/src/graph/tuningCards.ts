@@ -30,8 +30,7 @@ export function cardMenu(controls: Control[], ui: GraphUi | undefined, c: Contro
 
 export type SectionMenu = { canUp: boolean; canDown: boolean }
 
-// Swaps with the neighbour. An empty section stored first cannot lead (deriveSections places it after
-// the one it followed), so a swap that would not show is refused and its menu item is off.
+// Swaps with the neighbour, keeping General last. The edges do nothing and their menu items are off.
 export function moveSection(state: SectionState, name: string, delta: -1 | 1): SectionState {
   const named = sectionNames(state.controls, state.ui)
   const i = named.indexOf(name)
@@ -39,8 +38,7 @@ export function moveSection(state: SectionState, name: string, delta: -1 | 1): S
   if (i < 0 || to < 0 || to >= named.length) return state
   const order = [...named]
   ;[order[i], order[to]] = [order[to], order[i]]
-  const next = reorderSections(state, order)
-  return sectionNames(next.controls, next.ui).join('|') === order.join('|') ? next : state
+  return reorderSections(state, order)
 }
 
 export function sectionMenu(controls: Control[], ui: GraphUi | undefined, name: string): SectionMenu {
@@ -58,7 +56,6 @@ export function moveToNewSection(state: SectionState, node: string, param: strin
 export type DropPos = 'before' | 'after' | 'on'
 
 // A section dragged next to another (General is ''): before or after it, never onto it or below General.
-// The result is checked against what shows, so an empty section cannot lead and the drop is refused.
 export function dropSection(state: SectionState, name: string, target: string, pos: DropPos): SectionState {
   if (name === '' || name === target || pos === 'on' || (target === '' && pos === 'after')) return state
   const named = sectionNames(state.controls, state.ui)
@@ -67,8 +64,7 @@ export function dropSection(state: SectionState, name: string, target: string, p
   const at = target === '' ? rest.length : rest.indexOf(target) + (pos === 'after' ? 1 : 0)
   if (at < 0 || (target !== '' && !rest.includes(target))) return state
   const order = [...rest.slice(0, at), name, ...rest.slice(at)]
-  const next = reorderSections(state, order)
-  return sectionNames(next.controls, next.ui).join('|') === order.join('|') && order.join('|') !== named.join('|') ? next : state
+  return order.join('|') === named.join('|') ? state : reorderSections(state, order)
 }
 
 // A control dragged onto a section heading (to its end) or between cards. Anything else changes nothing.

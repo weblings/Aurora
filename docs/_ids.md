@@ -17,6 +17,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `23wu-problems-chip-dropdown-node-border` | [log/2026-11-16-23wu-problems-chip-dropdown-node-border.md](log/2026-11-16-23wu-problems-chip-dropdown-node-border.md) | Graph editor: problems chip, dropdown and node border match the mock |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
+| `3m75-editor-probe-default` | [log/2026-11-18-3m75-editor-probe-default.md](log/2026-11-18-3m75-editor-probe-default.md) | Dashboard hides editor actions until the probe succeeds |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
@@ -153,6 +154,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
+| `e4bi-22-empty-section-leads` | [log/2026-11-18-e4bi-22-empty-section-leads.md](log/2026-11-18-e4bi-22-empty-section-leads.md) | A stored empty section can lead the controls list |
 | `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
 | `e4bi10-sections-ui-key` | [log/2026-11-17-e4bi10-sections-ui-key.md](log/2026-11-17-e4bi10-sections-ui-key.md) | Graph ui key "#sections" reserved, node ids must not start with '#' |
@@ -177,6 +179,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |
 | `e4bi9-tuning-picker` | [log/2026-11-17-e4bi9-tuning-picker.md](log/2026-11-17-e4bi9-tuning-picker.md) | Graph editor: Tuning controls picker replaces Details |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
+| `ecl5-windows-monitors-changed` | [log/2026-11-18-ecl5-windows-monitors-changed.md](log/2026-11-18-ecl5-windows-monitors-changed.md) | Windows rebuilds the pipeline when the monitor set changes |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |
 | `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |
@@ -468,6 +471,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-failed-resume-n5ly` | [log/2026-10-06-windows-failed-resume-n5ly.md](log/2026-10-06-windows-failed-resume-n5ly.md) | Windows failed-resume verification closes Aurora-n5ly |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
+| `windows-stale-bead-triage` | [log/2026-11-18-windows-stale-bead-triage.md](log/2026-11-18-windows-stale-bead-triage.md) | Windows stale bead triage before 1.2.0 |
 | `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
 | `wqzp11-firefox-mover-retry` | [log/2026-10-13-wqzp11-firefox-mover-retry.md](log/2026-10-13-wqzp11-firefox-mover-retry.md) | Aurora-wqzp.11: kiosk-Firefox mover poll-check + retry/hard-fail |
 | `wqzp12-windows-hdr-capture` | [log/2026-10-13-wqzp12-windows-hdr-capture.md](log/2026-10-13-wqzp12-windows-hdr-capture.md) | Aurora-wqzp.12: Windows HDR desktops capture at the right colour |

@@ -59,11 +59,13 @@ describe('section menu and moves', () => {
     expect(names(moveSection(st, 'One', 1))).toEqual(['Two', 'One', ''])
     expect(moveSection(st, 'One', -1)).toBe(st)
   })
-  it('moves an empty section down but never to the top', () => {
+  it('moves an empty section to the top and back down', () => {
     const st = { controls, ui: { [SECTIONS_KEY]: ['One', 'Empty', 'Two'] } }
     expect(moveSection(st, 'Empty', 1).ui?.[SECTIONS_KEY]).toEqual(['One', 'Two', 'Empty'])
-    expect(sectionMenu(st.controls, st.ui, 'Empty')).toEqual({ canUp: false, canDown: true })
-    expect(moveSection(st, 'Empty', -1)).toBe(st)
+    expect(sectionMenu(st.controls, st.ui, 'Empty')).toEqual({ canUp: true, canDown: true })
+    const top = moveSection(st, 'Empty', -1)
+    expect(top.ui?.[SECTIONS_KEY]).toEqual(['Empty', 'One', 'Two'])
+    expect(sectionMenu(top.controls, top.ui, 'Empty')).toEqual({ canUp: false, canDown: true })
   })
   it('creates the section and moves the control into it', () => {
     const next = moveToNewSection({ controls, ui: undefined }, 'n', 'd', 'Fresh')
@@ -109,9 +111,9 @@ describe('drops', () => {
     expect(dropSection(st, '', 'One', 'before')).toBe(st)
     expect(order(dropSection(st, 'One', '', 'before'))).toEqual(['Two/d', 'One/a', 'One/b', '/e'])
   })
-  it('refuses to put an empty section first', () => {
+  it('drops an empty section first or last', () => {
     const e = { controls, ui: { [SECTIONS_KEY]: ['One', 'Void', 'Two'] } }
-    expect(dropSection(e, 'Void', 'One', 'before')).toBe(e)
+    expect(dropSection(e, 'Void', 'One', 'before').ui?.[SECTIONS_KEY]).toEqual(['Void', 'One', 'Two'])
     expect(dropSection(e, 'Void', 'Two', 'after').ui?.[SECTIONS_KEY]).toEqual(['One', 'Two', 'Void'])
   })
 })

@@ -173,11 +173,13 @@ namespace Aurora::Input::Windows
     if(FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&m_factory)))){
       throw std::runtime_error("Could not create DXGI factory");
     }
+    _startDisplayWatch();
   }
 
 
   WindowsGrabber::~WindowsGrabber()
   {
+    _stopDisplayWatch();
     _stopCapture();
   }
 
@@ -221,6 +223,20 @@ namespace Aurora::Input::Windows
 
   void WindowsGrabber::_initMonitorsList()
   {
+    m_monitorSelectionData = _enumerateMonitors();
+  }
+
+
+  WindowsGrabber::MonitorSelectionData WindowsGrabber::_enumerateMonitors()
+  {
+    // A factory made before a plug or unplug keeps listing the old outputs.
+    if(!m_factory->IsCurrent()){
+      ComPtr<IDXGIFactory1> fresh;
+      if(SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&fresh)))){
+        m_factory = fresh;
+      }
+    }
+
     MonitorSelectionData monitorSelectionData;
     std::vector<std::string> edidHashes;
     std::vector<std::string> devicePaths;
@@ -297,7 +313,96 @@ namespace Aurora::Input::Windows
       monitorSelectionData.selectedMonitorId = 0;
     }
 
-    std::swap(m_monitorSelectionData, monitorSelectionData);
+    return monitorSelectionData;
+  }
+
+
+  bool WindowsGrabber::takeMonitorsChanged()
+  {
+    if(!m_displayChangePending.exchange(false)){
+      return false;
+    }
+
+    // Mode, position and resolution changes also send WM_DISPLAYCHANGE and must
+    // not rebuild: compare what identifies the outputs.
+    try{
+      const auto now = _enumerateMonitors();
+      auto identities = [](const MonitorSelectionData& data){
+        std::vector<std::string> keys;
+        std::vector<std::string> names;
+        for(const auto& monitor : data.monitors){
+          keys.push_back(monitor->key);
+          names.push_back(monitor->name);
+        }
+        return monitorIdentities(keys, names);
+      };
+      return identities(now) != identities(m_monitorSelectionData);
+    }
+    catch(const std::exception&){
+      // Mid-replug with no output yet: the next WM_DISPLAYCHANGE re-checks.
+      return false;
+    }
+  }
+
+
+  void WindowsGrabber::_startDisplayWatch()
+  {
+    m_displayWatchThread = std::thread([this]{ _displayWatchLoop(); });
+    std::unique_lock lock(m_displayWatchMutex);
+    m_displayWatchReady.wait(lock, [this]{ return m_displayWatchStarted; });
+  }
+
+
+  void WindowsGrabber::_stopDisplayWatch()
+  {
+    if(m_displayWatchThread.joinable()){
+      PostThreadMessageW(m_displayWatchThreadId.load(), WM_QUIT, 0, 0);
+      m_displayWatchThread.join();
+    }
+  }
+
+
+  void WindowsGrabber::_displayWatchLoop()
+  {
+    static const wchar_t* s_className = L"AuroraDisplayWatch";
+    WNDCLASSW windowClass{};
+    windowClass.lpfnWndProc = [](HWND window, UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT {
+      if(message == WM_DISPLAYCHANGE){
+        if(auto* self = reinterpret_cast<WindowsGrabber*>(GetWindowLongPtrW(window, GWLP_USERDATA))){
+          self->m_displayChangePending = true;
+        }
+        return 0;
+      }
+      return DefWindowProcW(window, message, wParam, lParam);
+    };
+    windowClass.hInstance = GetModuleHandleW(nullptr);
+    windowClass.lpszClassName = s_className;
+    RegisterClassW(&windowClass); // already registered by an earlier grabber is fine
+
+    // Never shown. A message-only window would not receive the broadcast.
+    HWND window = CreateWindowExW(0, s_className, L"", WS_OVERLAPPED, 0, 0, 0, 0, nullptr, nullptr, windowClass.hInstance, nullptr);
+    if(window){
+      SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    }
+
+    // The queue exists after the first message-API call, so a quit posted at once is kept.
+    MSG message;
+    PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+    m_displayWatchThreadId = GetCurrentThreadId();
+    {
+      std::lock_guard lock(m_displayWatchMutex);
+      m_displayWatchStarted = true;
+    }
+    m_displayWatchReady.notify_all();
+
+    while(GetMessageW(&message, nullptr, 0, 0) > 0){
+      TranslateMessage(&message);
+      DispatchMessageW(&message);
+    }
+
+    if(window){
+      DestroyWindow(window);
+    }
   }
 
 

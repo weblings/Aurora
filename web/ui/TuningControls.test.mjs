@@ -98,7 +98,7 @@ const names = (groups) => groups.map((g) => `${g.section || 'General'}:${g.contr
   assert.deepEqual(deriveSections([]), []);
 }
 
-// Empty sections come from the ui key: after the section they followed, else before General.
+// Empty sections come from the ui key: before the next stored section that shows, else before General.
 {
   const controls = [c('A', 'a'), c('B', 'b'), c('', 'g')];
   const place = (list) => names(deriveSections(controls, { [SECTIONS_KEY]: list }));
@@ -106,7 +106,10 @@ const names = (groups) => groups.map((g) => `${g.section || 'General'}:${g.contr
   assert.deepEqual(place(['A', 'E', 'B']), ['A:a', 'E:', 'B:b', 'General:g']);
   assert.deepEqual(place(['A', 'B', 'E']), ['A:a', 'B:b', 'E:', 'General:g']);
   assert.deepEqual(place(['A', 'E', 'F', 'B']), ['A:a', 'E:', 'F:', 'B:b', 'General:g']);
-  // Nothing before it is present: appended before General.
+  // An empty section can lead, alone or in a run.
+  assert.deepEqual(place(['E', 'A', 'B']), ['E:', 'A:a', 'B:b', 'General:g']);
+  assert.deepEqual(place(['E', 'F', 'B']), ['A:a', 'E:', 'F:', 'B:b', 'General:g']);
+  // Nothing after it is present: appended before General.
   assert.deepEqual(place(['E']), ['A:a', 'B:b', 'E:', 'General:g']);
   // Names that now have controls, junk and duplicates are ignored, and the controls order wins.
   assert.deepEqual(place(['B', 'A', 'B', '', 7]), ['A:a', 'B:b', 'General:g']);

@@ -48,6 +48,7 @@
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
+#include <Aurora/Runtime/MonitorChangeWatcher.hpp>
 #include <Aurora/Runtime/OutputLinkMonitor.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/TrayLabel.hpp>
@@ -888,6 +889,12 @@ if(!instanceLock.held()){
   auto outputLinkMonitor = Aurora::Runtime::makeHostLinkMonitor(pipelineHost, registry, configRoot);
   outputLinkMonitor->start();
 
+  // A monitor plugged or unplugged under a running capture (Aurora-ecl5):
+  // one debounced rebuild, so /api/monitors and the capture follow without a restart.
+  auto monitorChangeWatcher = Aurora::Runtime::makeHostMonitorChangeWatcher(
+    pipelineHost, registry, configRoot, [lightTest]{ return lightTest->info().active; });
+  monitorChangeWatcher->start();
+
   // Drives whichever Pipeline is current at the top of each iteration -- a
   // reload swapping it mid-loop is exactly what PipelineHost's own lock is
   // for; this loop never needs to know a swap happened.
@@ -904,6 +911,7 @@ if(!instanceLock.held()){
   }
 
   logLine("Stopping...");
+  monitorChangeWatcher->stop();
   outputLinkMonitor->stop();
   pipelineHost.shutdown();
 
