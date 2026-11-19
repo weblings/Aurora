@@ -61,12 +61,19 @@ namespace Aurora::Input::Windows
     void setCaptureWidthHint(unsigned width) override;
     std::uint64_t frameSerial() const override;
     std::string captureError() const override;
+    bool takeMonitorsChanged() override;
     void grabFrameSubsample(Contracts::ImageData& imageData) override;
 
   protected:
     void _initMonitorsList() override;
 
   private:
+    // Reads the attached outputs into a fresh selection without touching the live one.
+    MonitorSelectionData _enumerateMonitors();
+    // Hidden top-level window on its own thread: WM_DISPLAYCHANGE only reaches those.
+    void _displayWatchLoop();
+    void _startDisplayWatch();
+    void _stopDisplayWatch();
     // Capture thread (Aurora-wqzp.6): owns the duplication objects below and
     // publishes the newest frame; grabFrameSubsample() only copies it out.
     void _captureLoop();
@@ -92,6 +99,14 @@ namespace Aurora::Input::Windows
 
     // Set from config apply (another thread) while the tick thread grabs.
     std::atomic<unsigned> m_captureWidthHint{0};
+
+    // Raised by the watch window, consumed by takeMonitorsChanged (Aurora-ecl5).
+    std::atomic<bool> m_displayChangePending{false};
+    std::thread m_displayWatchThread;
+    std::atomic<unsigned long> m_displayWatchThreadId{0};
+    std::mutex m_displayWatchMutex;
+    std::condition_variable m_displayWatchReady;
+    bool m_displayWatchStarted = false;
 
     std::thread m_captureThread;
     std::atomic<bool> m_stopCapture{false};

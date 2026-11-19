@@ -3,10 +3,14 @@
 #include <string>
 #include <vector>
 
+#include <Aurora/Input/MonitorKey.hpp>
+
 // Pure string work for WindowsGrabber's monitor keys, apart from <windows.h>
 // so it is testable on its own (same split as ScRgbConversion.hpp).
 namespace Aurora::Input::Windows
 {
+  using Aurora::Input::monitorIdentities;
+
   // Registry key under HKLM that holds a monitor's "EDID" value, from the
   // monitorDevicePath that DisplayConfig reports:
   //   \\?\DISPLAY#DELA0B9#5&1ca565dc&0&UID4358#{guid}

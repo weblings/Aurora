@@ -509,3 +509,5 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | `trigger.envelope` node: attack, hold and decay on tick dt, retrigger from the current level (`Aurora-q66y`, previews pending). [[q66y-trigger-envelope]] | `bd show Aurora-q66y` |
 | 2026-11-18 | Dashboard hides Edit graph and New effect until the editor probe succeeds (`Aurora-3m75`). [[3m75-editor-probe-default]] | `bd show Aurora-3m75` |
 | 2026-11-18 | A stored empty section can lead the controls list in the editor and on the Dashboard (`Aurora-e4bi.22`). [[e4bi-22-empty-section-leads]] | `bd show Aurora-e4bi.22` |
+| 2026-11-18 | Windows rebuilds the pipeline when the monitor set changes, hardware pass on 3 monitors (`Aurora-ecl5`). [[ecl5-windows-monitors-changed]] | `bd show Aurora-ecl5` |
+| 2026-11-18 | Windows stale bead triage: tray balloon superseded by notifications, install layout and reload timing already shipped, TLS verification moved to 1.2.1 (`Aurora-x2o`, `Aurora-x2o.3`, `Aurora-4mk`, `Aurora-vf1.1`). [[windows-stale-bead-triage]] | `bd show Aurora-x2o`, `bd show Aurora-4mk`, `bd show Aurora-vf1.1` |
