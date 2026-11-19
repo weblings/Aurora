@@ -93,6 +93,15 @@ namespace Aurora::Input
     {
     }
 
+    // True once after the set of monitors changed under a running capture
+    // (an output plugged, unplugged or swapped), so the host can rebuild and
+    // re-enumerate (Aurora-9fn3). Mode and position changes of the same
+    // monitors do not count. Default false: the list is read at build only.
+    virtual bool takeMonitorsChanged()
+    {
+      return false;
+    }
+
     // Changes whenever grabFrameSubsample() delivers a new frame, so a
     // consumer can reuse work on a repeat. 0 = unknown: treat every frame as new.
     virtual std::uint64_t frameSerial() const

@@ -8,4 +8,5 @@ namespace Aurora::Input::Linux
 {
   using Aurora::Input::assignMonitorKeys;
   using Aurora::Input::edidHashKey;
+  using Aurora::Input::monitorIdentities;
 }

@@ -48,3 +48,22 @@ TEST_CASE("assignMonitorKeys leaves outputs without an EDID keyless", "[X11Monit
 
   CHECK(keys == std::vector<std::string>{"", "", "aaaa"});
 }
+
+
+TEST_CASE("monitorIdentities ignores order and connector renames of keyed outputs", "[X11MonitorKey]")
+{
+  CHECK(monitorIdentities({"aaaa", "bbbb"}, {"DP-1", "HDMI-1"}) == monitorIdentities({"bbbb", "aaaa"}, {"HDMI-2", "DP-1-8"}));
+}
+
+
+TEST_CASE("monitorIdentities sees a plugged or unplugged output", "[X11MonitorKey]")
+{
+  CHECK(monitorIdentities({"aaaa"}, {"DP-1"}) != monitorIdentities({"aaaa", "bbbb"}, {"DP-1", "HDMI-1"}));
+}
+
+
+TEST_CASE("monitorIdentities falls back to the name for keyless outputs", "[X11MonitorKey]")
+{
+  CHECK(monitorIdentities({""}, {"DP-1"}) != monitorIdentities({""}, {"DP-2"}));
+  CHECK(monitorIdentities({""}, {"DP-1"}) == monitorIdentities({""}, {"DP-1"}));
+}

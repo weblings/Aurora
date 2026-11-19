@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -58,5 +59,23 @@ namespace Aurora::Input
       }
     }
     return keys;
+  }
+
+
+  // What tells one output from another across a re-enumerate: the key, or the
+  // name for an output that has none. Sorted, so enumeration order does not
+  // matter.
+  inline std::vector<std::string> monitorIdentities(
+    const std::vector<std::string>& keys,
+    const std::vector<std::string>& names
+  )
+  {
+    std::vector<std::string> identities;
+    identities.reserve(keys.size());
+    for(std::size_t i = 0; i < keys.size(); ++i){
+      identities.push_back(keys[i].empty() ? "name:" + names[i] : "key:" + keys[i]);
+    }
+    std::sort(identities.begin(), identities.end());
+    return identities;
   }
 }

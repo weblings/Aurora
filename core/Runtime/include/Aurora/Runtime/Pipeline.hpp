@@ -296,6 +296,9 @@ namespace Aurora::Runtime
     // The video input's captureError(); empty with no video input.
     std::string captureError() const { return m_videoInput ? m_videoInput->captureError() : std::string{}; }
 
+    // The video input's takeMonitorsChanged(); false with no video input.
+    bool takeMonitorsChanged() const { return m_videoInput && m_videoInput->takeMonitorsChanged(); }
+
     bool isAudioMode() const { return m_isAudioMode; }
 
     std::vector<Output::LinkProbe> linkProbes() const
@@ -618,6 +621,11 @@ namespace Aurora::Runtime
       std::string& errorOut
     );
 
+    // True once after the running video input saw its monitor set change
+    // (Aurora-9fn3). Lock-free; the tick thread raises it. MonitorChangeWatcher
+    // turns it into one debounced rebuild.
+    bool takeMonitorsChanged() { return m_monitorsChanged.exchange(false); }
+
     // Lock-free, so the capabilities heartbeat can read it.
     bool isPaused() const { return m_paused.load(); }
 
@@ -768,6 +776,7 @@ namespace Aurora::Runtime
     // Last captureError() tick() saw, so a dismissed entry stays dismissed
     // until the failure clears and recurs. Under m_mutex, reset per build.
     std::string m_captureError;
+    std::atomic<bool> m_monitorsChanged{false};
     // Bumped on every successful swap (reload, resume); see _recordFailure.
     std::atomic<std::uint64_t> m_buildEpoch{0};
 
