@@ -166,15 +166,100 @@ Frame-level recipe above covers the main effect people want from them.
 
 ### Publishing the recipes
 
-The recipes above are also a candidate user and agent reference. Decision
-tracked in Aurora-4g4d. Options, not decided:
+Decision proposed 2026-11-19 for Aurora-4g4d (not yet accepted by the owner).
 
-- A user-facing "effect recipes" page next to the node docs.
-- Starter graphs in the editor's Start from list, one per recipe.
-- An MCP resource or `list_presets` entries, so agents start from a working
-  graph instead of composing one.
+**Existing mechanism.** The editor's clipboard (Aurora-ge1i.2.1) already reads
+and writes marked JSON: `CLIP_MARK` (`aurora-graph-clip`), `parseClip` and
+`pasteSelection` in `web/graph-editor/src/graph/doc.ts`, `pasteText` in
+`App.tsx`. A paste remaps ids and wires, keeps layout and Tuning controls, and
+skips unknown node types with a note. A recipe shipped as a clip needs no new
+import code: the page only has to put the clip on the clipboard.
 
-Each recipe needs a run on real or fake lights before it ships in any form.
+**Proposed form.** A recipes page on the GitHub Pages site (next to the demo
+editor), one card per recipe, each with a Copy button. Starter graphs in Start
+from and MCP entries are deferred:
+
+- Start from replaces the whole graph. Several recipes modify an existing graph
+  (lights opposite the screen inserts a node into Screen colors), so they fit
+  as paste fragments, not starters.
+- MCP and `list_presets` serve agents, a second audience. File them once users
+  have the page, reading the same files.
+
+**First audience:** users. **Source:** `docs/recipes/<name>.clip.json`, one file
+per recipe. The page is generated from those files, so it cannot drift from
+what pastes. A test runs every file through `parseClip` and `pasteSelection`
+against the catalog sample, so a renamed node or port fails CI.
+
+**Verification before a recipe ships:** paste it into the editor on the fake
+light viz stack and watch the output, and log the result on the recipe's bead.
+Audio recipes also get a real-lights check for feel. Layout-dependent recipes
+(anything through `zones.sample`) say so on the card.
+
+**Follow-ups to file:** the clip schema and drift test; the page generator;
+building and verifying the clips (one bead per recipe or small batch); an
+optional MCP resource reading the same files; an optional URL import.
+
+#### Research behind it (2026-11-19, standard web searches)
+
+- **Node-RED:** the Flow Library says to copy the JSON and use the editor's
+  Clipboard import. Pasting a whole "all flows" export can silently fail while
+  single flows import fine, which argues for one small clip per recipe. See
+  [FlowFuse](https://flowfuse.com/blog/2023/03/3-quick-node-red-tips-5/) and
+  [UMH](https://learn.umh.app/course/importing-and-exporting-in-node-red).
+- **WLED:** no official preset library. People share raw JSON in forum threads
+  and whole-file `presets.json` backups, and shared presets break across setups
+  because LED counts and segments differ. See the
+  [Home Assistant forum collection](https://community.home-assistant.io/t/ultimate-wled-scenes-collection-pre-configured-brilliance-to-a-world-of-vivid-light-scenes/710995)
+  and [WLED discourse](https://wled.discourse.group/t/preset-sharing/10292).
+  Aurora's zone-based recipes carry the same risk, so cards state their layout
+  dependence and `pasteNote` reports what was skipped.
+- **Home Assistant blueprints:** import by URL with a preview and a trust
+  warning, and the source URL is kept for updates
+  ([docs](https://www.home-assistant.io/integrations/blueprint)). Discovery was
+  a complaint ([forum thread](https://community.home-assistant.io/t/wth-do-i-have-to-go-to-a-strange-forum-to-search-for-blueprints/805982)),
+  the same problem as this bead. URL import is a possible later step; it adds
+  trust UI that Copy and Paste does not need.
+- **Blender:** the [Copy/Paste Nodes add-on](https://extensions.blender.org/add-ons/copy-paste-nodes/)
+  puts nodes on the system clipboard as JSON text, the same mechanism as
+  `aurora-graph-clip`.
+- **Clipboard API:** `navigator.clipboard.writeText` needs a secure context and
+  a user gesture, and fails in cross-origin iframes
+  ([MDN](https://developer.mozilla.org/docs/Web/API/Clipboard/writeText)).
+  GitHub Pages is HTTPS, so Copy works there. A file opened from disk or a
+  LAN `http://` address needs the fallback below. Not checked: where the
+  Aurora app itself serves its UI.
+
+#### Recipe list review (2026-11-19)
+
+Checked against the presets in `core/Runtime/src/PresetRoutes.cpp` (Screen
+colors, Music colors, Screen colors with bass pulse, Rainbow sweep). Four
+recipes overlap them or each other, and none has been run:
+
+- **Rainbow chase:** the Rainbow sweep preset is the same chain (`lfo saw ->
+  image.hueRamp.phase -> zones.sample`). Only the beat-stepped variant
+  (`stepOnTrigger` on `audio.features.onset`) is new. Ship that one as
+  "Beat-stepped chase".
+- **Gradient scroll:** Rainbow sweep with a different image node. Cut, or a note.
+- **Screen colors pulsing with the music:** close to Screen colors with bass
+  pulse (rms instead of bass). Cut.
+- **Moving level dot:** fold into VU meter fill as a size change.
+- **Twinkle:** the least defined (`image.noise` "about one per zone"). Owner
+  will supply the Candle effect graph from another machine when Aurora-4g4d.1
+  starts; use it as this recipe in place of the sketch.
+- **VU meter fill:** relies on `image.bar.position` not being clamped
+  (`SpatialNodes.cpp`), so it needs a fake-lights run before it ships.
+
+Seven remain: lights opposite the screen, loudness switch, bands as RGB, VU
+meter fill, beat-stepped chase, Twinkle (Candle), audio layered over the screen.
+
+#### Page layout
+
+Being settled in Aurora-4g4d.1 (mock chain diagrams as generated SVG, a live
+read-only viewer, or screenshots; then the layout). Agreed so far: Grille
+`Header` and `Button` only, one flat list with a single how-to line at the top,
+each row showing name, description, In and Out lines and the chain, with Copy.
+No search, tabs, disclosure or Open the editor button. Grille gaps to record
+there: card, tag, copy feedback, code-style chain.
 
 ## How other editors handle it
 
