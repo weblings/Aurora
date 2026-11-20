@@ -161,6 +161,17 @@ body,
   background: var(--ui-color-primary-bg);
 }
 
+/* Wide: the balloon sits left of Copy, pointer on its right edge. */
+.recipes-balloon-left {
+  margin-top: 0;
+}
+
+.recipes-balloon-left::before {
+  top: calc(var(--balloon-arrow, 50%) - 4px);
+  left: auto;
+  right: -4px;
+}
+
 .recipes-sr {
   position: absolute;
   width: 1px;

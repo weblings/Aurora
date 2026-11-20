@@ -482,6 +482,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
 | `windows-stale-bead-triage` | [log/2026-11-18-windows-stale-bead-triage.md](log/2026-11-18-windows-stale-bead-triage.md) | Windows stale bead triage before 1.2.0 |
+| `wlj3-recipes-callout-height` | [log/2026-11-20-wlj3-recipes-callout-height.md](log/2026-11-20-wlj3-recipes-callout-height.md) | Recipes page: shared graph height and Copy callout on the left |
 | `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
 | `wqzp11-firefox-mover-retry` | [log/2026-10-13-wqzp11-firefox-mover-retry.md](log/2026-10-13-wqzp11-firefox-mover-retry.md) | Aurora-wqzp.11: kiosk-Firefox mover poll-check + retry/hard-fail |
 | `wqzp12-windows-hdr-capture` | [log/2026-10-13-wqzp12-windows-hdr-capture.md](log/2026-10-13-wqzp12-windows-hdr-capture.md) | Aurora-wqzp.12: Windows HDR desktops capture at the right colour |

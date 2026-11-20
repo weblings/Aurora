@@ -522,3 +522,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-20 | Sequence E closed: gate passes on Mac and Windows, Linux run waived by the owner; NodesAndAgentUX status set to done. [[pvxx9-sequence-e-gate]] | `bd show Aurora-pvxx.9`, `bd show Aurora-pvxx.18`, `bd show Aurora-pvxx` |
 | 2026-11-20 | NUX capture source picks Screen colors or Music pulse from the effect dropdown (`Aurora-hr92`). [[hr92-nux-effect-dropdown]] | `bd show Aurora-hr92` |
 | 2026-11-20 | Web demo landscape split is 2/3 room, 1/3 Dashboard, 50:50 with the editor open. [[5duz-demo-landscape-split]] | `bd show Aurora-5duz` |
+| 2026-11-20 | Recipes page uses one shared graph height and the desktop Copy callout sits left of the button. [[wlj3-recipes-callout-height]] | `bd show Aurora-wlj3` |
