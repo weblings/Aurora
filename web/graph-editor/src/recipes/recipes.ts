@@ -23,6 +23,9 @@ export type Recipe = {
   // Card lines: Needs, then only the exceptions.
   needs: string
   notes: string[]
+  // Set when the clip is a fragment for an existing graph, not a whole graph.
+  pasteInto?: string
+  layout?: string
 }
 
 const sample = nodesSample as unknown as { nodes: NodeTypeInfo[]; portTypes: { name: string; meaning: string }[] }
@@ -49,6 +52,8 @@ export function describeRecipe(m: Meta, text: string): Recipe {
     doc: { nodes: clip.nodes, edges: clip.edges, ui: clip.ui, controls: clip.controls },
     needs: m.needs,
     notes,
+    pasteInto: m.pasteInto,
+    layout: m.layout,
   }
 }
 

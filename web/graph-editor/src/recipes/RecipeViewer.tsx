@@ -64,14 +64,14 @@ function Canvas({ recipe }: { recipe: Recipe }) {
 
 // The editor's own nodes, wires, zoom, fit and View menu on a read-only canvas: nothing drags, connects,
 // selects or edits. The wheel zooms, as in the editor.
-export function RecipeViewer({ recipe }: { recipe: Recipe }) {
+export function RecipeViewer({ recipe, height }: { recipe: Recipe; height?: number }) {
   const marks = useMemo(() => {
     const map = new Map<string, string>()
     for (const c of recipe.clip.controls) map.set(tuningKey(c.node, c.param), `In Tuning as "${c.label || c.param}", ${c.section || 'General'}.`)
     return map
   }, [recipe])
   return (
-    <div className="recipe-viewer editor" role="group" aria-label={`${recipe.name}, graph as the editor shows it. A text outline follows.`}>
+    <div className="recipe-viewer editor" style={height ? { height } : undefined} role="group" aria-label={`${recipe.name}, graph as the editor shows it. A text outline follows.`}>
       <ReadOnlyContext.Provider value>
         <TuningMarksContext.Provider value={marks}>
           <ReactFlowProvider key={recipe.slug}>

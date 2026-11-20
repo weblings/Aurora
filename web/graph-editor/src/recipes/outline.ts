@@ -1,5 +1,5 @@
 import { splitEndpoint } from '../graph/doc'
-import { positionsFor } from '../graph/layout'
+import { layeredFull, positionsFor } from '../graph/layout'
 import { nodeTitle } from '../graph/nodeTitle'
 import { portStyle } from '../graph/portStyle'
 import type { Catalog, GraphDoc, ParamValue } from '../graph/types'
@@ -100,5 +100,62 @@ export function diagram(doc: GraphDoc, catalog: Catalog): Diagram {
   })
   const width = Math.max(...boxes.map((b) => b.x + BOX_W))
   const height = Math.max(...boxes.map((b) => b.y + BOX_H))
+  return { width, height, boxes, wires }
+}
+
+// Narrow screens: the same layered layout turned 90 degrees, so the flow runs down the page. Boxes are small
+// and show the title only (the full text outline stays in the page for assistive tech). Parallel branches sit
+// side by side, so the widest layer decides the box width and nothing needs a sideways scroll.
+export const TURN_W = 76
+export const TURN_H = 40
+export const TURN_VIEW = 340
+
+export type TurnedBox = { id: string; lines: string[]; x: number; y: number }
+export type TurnedDiagram = { width: number; height: number; boxes: TurnedBox[]; wires: DiagramWire[] }
+
+// A title on one line, or two split at the space nearest the middle.
+export function titleLines(title: string): string[] {
+  if (title.length <= 11 || !title.includes(' ')) return [title]
+  const mid = title.length / 2
+  const at = [...title].map((c, i) => (c === ' ' ? i : -1)).filter((i) => i >= 0).sort((a, b) => Math.abs(a - mid) - Math.abs(b - mid))[0]
+  return [title.slice(0, at), title.slice(at + 1)]
+}
+
+export function turnedDiagram(doc: GraphDoc, catalog: Catalog): TurnedDiagram {
+  const uniform = Object.fromEntries(doc.nodes.map((n) => [n.id, { width: TURN_H, height: TURN_W }]))
+  const { positions, lanes } = layeredFull(doc, catalog, uniform, { gap: 8, columnGap: 26, portOffset: TURN_W / 2 })
+  // layered runs left to right: its x is our downward flow, its y our sideways position.
+  const xs = Object.values(positions).map((p) => p.y).concat(Object.values(lanes).flat().map((p) => p.y))
+  const used = Math.max(...xs) + TURN_W
+  const width = Math.max(TURN_VIEW, used)
+  const shift = (width - used) / 2
+  const at = (id: string) => ({ x: positions[id].y + shift, y: positions[id].x })
+  const nodes = new Map(doc.nodes.map((n) => [n.id, n]))
+  const boxes: TurnedBox[] = doc.nodes.map((n) => ({
+    id: n.id,
+    lines: titleLines(nodeTitle(catalog.get(n.type), n.type)),
+    ...at(n.id),
+  }))
+  const wires: DiagramWire[] = doc.edges.flatMap(([a, b]) => {
+    const from = splitEndpoint(a)
+    const to = splitEndpoint(b)
+    if (!positions[from.node] || !positions[to.node]) return []
+    const s = at(from.node)
+    const t = at(to.node)
+    const via = (lanes[`${from.node}>${to.node}`] ?? []).map((p) => ({ x: p.y + shift, y: p.x }))
+    const points = [{ x: s.x + TURN_W / 2, y: s.y + TURN_H }, ...via, { x: t.x + TURN_W / 2, y: t.y }]
+    // Down-flowing curve through each point: vertical tangents, so wires leave and enter the boxes square.
+    let d = `M${points[0].x} ${points[0].y}`
+    for (let i = 1; i < points.length; i++) {
+      const p = points[i - 1]
+      const q = points[i]
+      const mid = (p.y + q.y) / 2
+      d += ` C${p.x} ${mid} ${q.x} ${mid} ${q.x} ${q.y}`
+    }
+    const type = catalog.get(nodes.get(from.node)?.type ?? '')?.outputs.find((p) => p.name === from.port)?.type ?? ''
+    const look = portStyle(type)
+    return [{ id: `${a}->${b}`, d, color: look.color, bulk: look.bulk, dashed: look.dashed }]
+  })
+  const height = Math.max(...boxes.map((b) => b.y)) + TURN_H
   return { width, height, boxes, wires }
 }

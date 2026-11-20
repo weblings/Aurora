@@ -3,7 +3,7 @@ import { parseClip, pasteSelection, splitEndpoint } from '../graph/doc'
 import { refuseConnection } from '../graph/connection'
 import type { GraphDoc } from '../graph/types'
 import { catalog, clipText, rawClips, recipes } from './recipes'
-import { diagram, outlineSteps } from './outline'
+import { diagram, outlineSteps, turnedDiagram, TURN_VIEW } from './outline'
 import meta from '../../../../docs/recipes/recipes.json'
 
 // Drift test (Aurora-4g4d.2): every docs/recipes clip must still paste into the editor against the catalog
@@ -82,6 +82,11 @@ describe('docs/recipes', () => {
         const pic = diagram(recipe.doc, catalog)
         expect(pic.boxes).toHaveLength(recipe.clip.nodes.length)
         expect(pic.wires).toHaveLength(recipe.clip.edges.length)
+        // The narrow version has every node and wire, and fits the phone width with no sideways scroll.
+        const turned = turnedDiagram(recipe.doc, catalog)
+        expect(turned.boxes).toHaveLength(recipe.clip.nodes.length)
+        expect(turned.wires).toHaveLength(recipe.clip.edges.length)
+        expect(turned.width).toBeLessThanOrEqual(TURN_VIEW)
       })
     })
   }

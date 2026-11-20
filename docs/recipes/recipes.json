@@ -1,11 +1,10 @@
 {
   "recipes": [
     {
-      "file": "lights-opposite-screen",
-      "name": "Lights opposite the screen",
-      "description": "Shows the opposite hue of the screen, so a green screen gives red lights. Greys and blacks have no hue and stay as they are.",
-      "needs": "the screen",
-      "pasteInto": "the Screen colors graph, then wire it between Sample zones and Ease"
+      "file": "complementary-colors",
+      "name": "Complementary colors",
+      "description": "Each light shows the opposite hue of its part of the screen, so green on screen gives red lights. Greys and blacks have no hue and stay as they are.",
+      "needs": "the screen"
     },
     {
       "file": "loudness-switch",

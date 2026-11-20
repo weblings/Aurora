@@ -115,6 +115,27 @@ export function layered(
   measured: Record<string, { width: number; height: number }> = {},
   gap = NODE_GAP,
 ): Record<string, Position> {
+  return layeredFull(doc, catalog, measured, { gap }).positions
+}
+
+export type LayeredOptions = {
+  gap?: number
+  columnGap?: number
+  // How far below a node's top its wires leave and enter (the port row, or half the height).
+  portOffset?: number
+}
+
+// Same layout, plus the lane points of each wire that skips columns, keyed `from>to` in column order, as
+// the centre of the lane in its column (x) and the row its wire runs along (y).
+export function layeredFull(
+  doc: GraphDoc,
+  catalog: Catalog,
+  measured: Record<string, { width: number; height: number }> = {},
+  options: LayeredOptions = {},
+): { positions: Record<string, Position>; lanes: Record<string, Position[]> } {
+  const gap = options.gap ?? NODE_GAP
+  const columnGap = options.columnGap ?? COLUMN_GAP
+  const PORT_OFFSET = options.portOffset ?? 48
   const ids = doc.nodes.map((n) => n.id)
   const known = new Set(ids)
   const feeds = new Map<string, string[]>(ids.map((id) => [id, []]))
@@ -152,7 +173,6 @@ export function layered(
   // A wire that skips columns gets a thin dummy node in each column it crosses, so real nodes stack
   // around its lane instead of sitting on top of it. The target is then fed by the last dummy.
   const LANE = 16
-  const PORT_OFFSET = 48
   const column = new Map<string, number>(ids.map((id) => [id, depth.get(id)!]))
   const lanes: string[] = []
   const inputs = new Map<string, string[]>(ids.map((id) => [id, []]))
@@ -179,7 +199,7 @@ export function layered(
   let x = 0
   for (const c of columns) {
     left.set(c, x)
-    x += Math.max(...all.filter((id) => column.get(id) === c).map(widthOf)) + COLUMN_GAP
+    x += Math.max(...all.filter((id) => column.get(id) === c).map(widthOf)) + columnGap
   }
 
   const placed: Record<string, Position> = {}
@@ -190,7 +210,13 @@ export function layered(
       .filter((id) => column.get(id) === c)
       .map((id, order) => {
         const above = inputs.get(id)!
-        const level = above.length ? above.reduce((sum, f) => sum + topOf(f), 0) / above.length : 0
+        // Fed by a lane: sit level with the lowest lane, so the long wire stays flat past the nodes between.
+        const lanesIn = above.filter(isLane)
+        const level = lanesIn.length
+          ? Math.max(...lanesIn.map(topOf))
+          : above.length
+            ? above.reduce((sum, f) => sum + topOf(f), 0) / above.length
+            : 0
         return { id, order, level: isLane(id) ? level + PORT_OFFSET : level }
       })
       .sort((a, b) => a.level - b.level || a.order - b.order)
@@ -223,5 +249,12 @@ export function layered(
   const top = Math.min(...ids.map((id) => placed[id].y))
   const out: Record<string, Position> = {}
   for (const id of ids) out[id] = { x: Math.round(placed[id].x), y: placed[id].y - top }
-  return out
+  const laneOut: Record<string, Position[]> = {}
+  for (const id of lanes) {
+    const [pair] = id.slice(1).split(':')
+    const c = column.get(id)!
+    const width = Math.max(...all.filter((o) => column.get(o) === c).map(widthOf))
+    ;(laneOut[pair] ??= []).push({ x: placed[id].x + width / 2, y: placed[id].y - top })
+  }
+  return { positions: out, lanes: laneOut }
 }
