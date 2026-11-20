@@ -47,6 +47,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `51nv11-room-on-engine` | [log/2026-11-18-51nv11-room-on-engine.md](log/2026-11-18-51nv11-room-on-engine.md) | Demo room colors come from the WASM engine |
 | `51nv13-loadlive-keeps-state` | [log/2026-11-18-51nv13-loadlive-keeps-state.md](log/2026-11-18-51nv13-loadlive-keeps-state.md) | WASM engine loadLive keeps node state |
 | `51nv2-demo-eventsource` | [log/2026-11-18-51nv2-demo-eventsource.md](log/2026-11-18-51nv2-demo-eventsource.md) | EventSource stand-in for the demo editor |
+| `51nv3-pages-deploy` | [log/2026-11-20-51nv3-pages-deploy.md](log/2026-11-20-51nv3-pages-deploy.md) | Demo, editor and recipes deploy to Pages from a tag workflow |
 | `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
 | `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
 | `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
