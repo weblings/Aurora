@@ -6,7 +6,7 @@
 // called _render against container doubles. Run with
 // `node screens/ModeDeviceScreen.test.mjs`.
 import assert from 'node:assert/strict';
-import { ModeDeviceScreen } from './ModeDeviceScreen.js';
+import { ModeDeviceScreen, onboardingEffects, EXPLAIN } from './ModeDeviceScreen.js';
 
 function makeEl() {
   return {
@@ -27,10 +27,11 @@ function makeEl() {
 function render(overrides) {
   const body = makeEl();
   const deviceSlot = makeEl();
+  const explain = makeEl();
   body.querySelector = (sel) => (sel === '.md-device' ? deviceSlot : makeEl());
   const inst = Object.create(ModeDeviceScreen.prototype);
   Object.assign(inst, {
-    container: { querySelector: (sel) => (sel === '.md-body' ? body : makeEl()) },
+    container: { querySelector: (sel) => (sel === '.md-body' ? body : sel === '.md-explain' ? explain : makeEl()) },
     mode: 'audio',
     pendingMode: null,
     hasAudio: true,
@@ -44,9 +45,11 @@ function render(overrides) {
     onBack() {},
     onComplete() {},
     deviceField: null,
+    effects: [],
+    effectPanel: { update(args) { this.last = args; } },
   }, overrides);
   inst._render();
-  return { body: body.innerHTML, device: deviceSlot.innerHTML };
+  return { body: body.innerHTML, device: deviceSlot.innerHTML, panel: inst.effectPanel, explain };
 }
 
 const NOTE = 'In Audio mode, all your lights react to sound together.';
@@ -116,6 +119,28 @@ const AUDIO_HINT = "Uses your system's default audio device.";
 {
   const { body } = render({ mode: 'video' });
   assert.ok(!body.includes(NOTE));
+}
+
+// Aurora-hr92: no Video / Audio chips; the effect dropdown carries the choice.
+{
+  const { body, panel, explain } = render({ mode: 'audio', pendingMode: 'video' });
+  assert.ok(!/segmented|md-mode-(video|audio)/.test(body), 'no chips');
+  assert.equal(explain.innerHTML, EXPLAIN, 'one-line explanation above the dropdown');
+  assert.ok(!body.includes('md-explain'), 'not in the body below it');
+  assert.equal(panel.last.state.effect, 'builtin.audio', 'shows what runs, not the pick');
+  assert.equal(panel.last.busy, true);
+  assert.equal(panel.last.canEdit, false);
+  assert.equal(render({ hasAudio: false }).explain.hidden, true, 'video only: nothing to choose');
+}
+
+// Only the two visible built-ins are offered.
+{
+  const all = [
+    { id: 'builtin.video', builtin: true }, { id: 'builtin.audio', builtin: true },
+    { id: 'builtin.other', builtin: true }, { id: 'mine', builtin: false },
+    { id: 'builtin.hid', builtin: true, hidden: true },
+  ];
+  assert.deepEqual(onboardingEffects(all).map((e) => e.id), ['builtin.video', 'builtin.audio']);
 }
 
 console.log('ModeDeviceScreen.test.mjs: ok');
