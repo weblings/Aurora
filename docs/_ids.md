@@ -181,6 +181,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi9-tuning-picker` | [log/2026-11-17-e4bi9-tuning-picker.md](log/2026-11-17-e4bi9-tuning-picker.md) | Graph editor: Tuning controls picker replaces Details |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
 | `ecl5-windows-monitors-changed` | [log/2026-11-18-ecl5-windows-monitors-changed.md](log/2026-11-18-ecl5-windows-monitors-changed.md) | Windows rebuilds the pipeline when the monitor set changes |
+| `effect-recipes` | [recipes/README.md](recipes/README.md) | Effect recipes |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |
 | `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |

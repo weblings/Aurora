@@ -2,7 +2,7 @@ import { memo, useContext, useRef } from 'react'
 import { Icon, menuHorizontalIcon } from '@weblings/grille'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { Hint } from './Hint'
-import { TuningMarksContext, tuningKey, useEditorActions, useShowNodeIds } from './EditorContext'
+import { ReadOnlyContext, TuningMarksContext, tuningKey, useEditorActions, useShowNodeIds } from './EditorContext'
 import { TapHint } from './TapHint'
 import type { AuroraNodeData } from './graph/flow'
 import { ParamWidget } from './ParamWidget'
@@ -23,6 +23,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
   const problems = useNodeProblems(id)
   const showIds = useShowNodeIds()
   const marks = useContext(TuningMarksContext)
+  const readOnly = useContext(ReadOnlyContext)
   const pointer = useRef('')
 
   if (!info) {
@@ -42,7 +43,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
     <div className={`aurora-node${problems ? ' aurora-node-problem' : ''}`}>
       <div className="aurora-node-header">
         <Hint text={showIds ? (info.tip ? [info.tip, `${title} (${id})`] : `${title} (${id})`) : info.tip}><strong>{title}</strong></Hint>
-        <button
+        {readOnly ? null : <button
           type="button"
           className="aurora-node-more nodrag"
           aria-label={`Actions for ${title}`}
@@ -56,7 +57,7 @@ function GenericNodeView({ id, data }: NodeProps<Node<AuroraNodeData>>) {
           }}
         >
           <Icon icon={menuHorizontalIcon} size="sm" />
-        </button>
+        </button>}
       </div>
       <div className="aurora-ports">
         <div className="aurora-ports-in">

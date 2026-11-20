@@ -11,7 +11,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:recipes": "vite build --config vite.recipes.config.ts",
+    "dev:recipes": "vite --config vite.recipes.config.ts --open /recipes.html"
   },
   "dependencies": {
     "@weblings/grille": "https://github.com/weblings/GrilleDS/releases/download/v0.1.0-dev.17/weblings-grille-0.1.0-dev.17.tgz",

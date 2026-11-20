@@ -1,0 +1,164 @@
+/* Recipes page (Aurora-4g4d.2). Loaded after editor.css, which sets html/body/#root to 100% for the editor. */
+html,
+body,
+#root {
+  height: auto;
+  min-height: 100%;
+}
+
+.recipes-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--aurora-space-5) 16px;
+}
+
+.recipes-howto {
+  margin: 0 0 var(--aurora-space-5);
+  color: var(--aurora-text-secondary);
+}
+
+.recipes-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--aurora-space-6, 24px);
+  align-items: start;
+}
+
+.recipes-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aurora-space-2);
+}
+
+.recipes-list .ui-button {
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+
+.recipes-list .ui-button[aria-pressed='true'] {
+  border-color: var(--aurora-accent);
+  background: var(--aurora-surface-hover);
+}
+
+.recipe-card h2 {
+  margin: 0 0 var(--aurora-space-3);
+}
+
+.recipe-card p {
+  margin: 0 0 var(--aurora-space-3);
+}
+
+.recipe-card .recipe-meta {
+  color: var(--aurora-text-secondary);
+  margin-bottom: var(--aurora-space-2);
+}
+
+.recipe-copy {
+  display: flex;
+  align-items: center;
+  gap: var(--aurora-space-4);
+  margin: var(--aurora-space-4) 0;
+}
+
+.recipe-copy-status {
+  color: var(--aurora-text-secondary);
+}
+
+.recipe-manual {
+  display: block;
+  margin-bottom: var(--aurora-space-4);
+}
+
+.recipe-manual textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--aurora-space-2);
+  box-sizing: border-box;
+  font-family: monospace;
+}
+
+/* The viewer is the editor's canvas: a fixed-height box, as the editor's .editor-canvas is. */
+.recipe-viewer.editor {
+  height: min(560px, 70vh);
+  min-height: 320px;
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+}
+
+.recipe-viewer .react-flow {
+  flex: 1;
+}
+
+/* React Flow marks every handle connectable whatever nodesConnectable says: take the pointer away. */
+.recipe-viewer .react-flow__handle {
+  pointer-events: none;
+}
+
+.recipe-outline {
+  margin-top: var(--aurora-space-6, 24px);
+}
+
+.recipe-outline h3 {
+  margin: 0 0 var(--aurora-space-3);
+}
+
+.recipe-outline-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 480px;
+}
+
+.recipe-outline-svg rect {
+  fill: var(--aurora-surface);
+  stroke: var(--aurora-border);
+}
+
+.recipe-outline-title {
+  fill: var(--aurora-text-primary);
+  font-size: 13px;
+}
+
+.recipe-outline-type {
+  fill: var(--aurora-text-secondary);
+  font-size: 11px;
+}
+
+/* Wide: the picture, with the list kept for screen readers. Under 650 px: the list. */
+.recipe-outline-list {
+  margin: 0;
+  padding-inline-start: 1.5em;
+}
+
+.recipe-outline-line {
+  display: block;
+  color: var(--aurora-text-secondary);
+}
+
+@media (min-width: 650px) {
+  .recipe-outline-list {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 649px) {
+  .recipe-outline-svg {
+    display: none;
+  }
+
+  .recipes-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .recipes-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

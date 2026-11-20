@@ -14,6 +14,7 @@ on:
       - output/hue/src/HueControlDescriptors.cpp
       - input/*/src/InputControlDescriptors.cpp
       - docs/api/**
+      - docs/recipes/**
       - .github/workflows/web.yml
   pull_request:
     paths:
@@ -25,6 +26,7 @@ on:
       - output/hue/src/HueControlDescriptors.cpp
       - input/*/src/InputControlDescriptors.cpp
       - docs/api/**
+      - docs/recipes/**
       - .github/workflows/web.yml
 
 jobs:
@@ -63,5 +65,7 @@ jobs:
       - run: npm ci
       - name: Typecheck
         run: npm run typecheck
-      - name: Vitest
+      - name: Vitest (includes the docs/recipes drift test)
         run: npm test
+      - name: Recipes page builds
+        run: npm run build:recipes

@@ -1,0 +1,1 @@
+{"aurora-graph-clip":1,"controls":[{"label":"Hue shift","node":"opposite","param":"degrees","section":"Color"}],"edges":[],"nodes":[{"id":"opposite","params":{"degrees":180},"type":"frame.hueShift"}],"ui":{"opposite":{"x":0,"y":0}}}

@@ -1,0 +1,50 @@
+{
+  "recipes": [
+    {
+      "file": "lights-opposite-screen",
+      "name": "Lights opposite the screen",
+      "description": "Shows the opposite hue of the screen, so a green screen gives red lights. Greys and blacks have no hue and stay as they are.",
+      "needs": "the screen",
+      "pasteInto": "the Screen colors graph, then wire it between Sample zones and Ease"
+    },
+    {
+      "file": "loudness-switch",
+      "name": "Loudness switch",
+      "description": "Two looks that swap when the music gets loud. A small band around the threshold stops the lights flickering between them.",
+      "needs": "audio"
+    },
+    {
+      "file": "bands-as-rgb",
+      "name": "Bass, mids and treble as RGB",
+      "description": "Bass drives red, mids green and treble blue, added together, so the room's color follows the balance of the music.",
+      "needs": "audio"
+    },
+    {
+      "file": "vu-meter",
+      "name": "VU meter fill",
+      "description": "A bar of color fills across the room with the music's level. Turn the bar size down for a single dot that slides along instead.",
+      "needs": "audio",
+      "layout": "Fills along your zone layout, so the result depends on where your lights sit"
+    },
+    {
+      "file": "beat-stepped-chase",
+      "name": "Beat-stepped chase",
+      "description": "A rainbow across the room that steps forward on every beat and holds still between them.",
+      "needs": "audio",
+      "layout": "Spreads across your zone layout, so the result depends on where your lights sit"
+    },
+    {
+      "file": "candles",
+      "name": "Candles",
+      "description": "Warm, flickering candle light that needs no input. Each light flickers on its own.",
+      "needs": "nothing",
+      "layout": "Each zone flickers on its own, so the look depends on how many zones you have"
+    },
+    {
+      "file": "audio-over-screen",
+      "name": "Audio color over the screen",
+      "description": "The screen's colors with a drifting audio color layered on top. The louder the music, the more of it shows.",
+      "needs": "audio and the screen"
+    }
+  ]
+}

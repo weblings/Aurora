@@ -31,3 +31,6 @@ export function useEditorActions(): EditorActions {
 // A param in the map gets the muted dot on its node (Aurora-e4bi.9).
 export const TuningMarksContext = createContext<ReadonlyMap<string, string>>(new Map())
 export const tuningKey = (node: string, param: string) => `${node}${param}`
+
+// True in the read-only recipe viewer: nodes show their values but nothing edits and the node menu is hidden.
+export const ReadOnlyContext = createContext(false)
