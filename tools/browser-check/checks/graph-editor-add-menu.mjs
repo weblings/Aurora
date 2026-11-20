@@ -32,9 +32,21 @@ await withEditorStack(async ({ editorUrl }) => {
     await groups.waitFor()
     assert.deepEqual(
       (await groups.getByRole('menuitem').allInnerTexts()).map((t) => t.replace(/\s*›\s*$/, '').trim()),
-      ['Sources', 'Audio', 'Image', 'Color', 'Numbers', 'Motion', 'Lights'],
+      ['Sources', 'Audio', 'Image', 'Color', 'Numbers', 'Motion', 'Lights', 'View recipes'],
     )
-    step('the + button opens the menu with seven group rows')
+    step('the + button opens the menu with seven group rows and View recipes last')
+
+    // Aurora-hzjf: View recipes opens the hosted page in a new tab and closes the menu.
+    await page.context().route('https://weblings.github.io/**', (r) => r.fulfill({ body: 'recipes' }))
+    const opened = page.context().waitForEvent('page')
+    await groups.getByRole('menuitem', { name: 'View recipes' }).click()
+    const tab = await opened
+    await tab.waitForURL('https://weblings.github.io/Aurora/recipes/')
+    await tab.close()
+    await closed()
+    step('View recipes opens the hosted page in a new tab and closes the menu')
+    await plus.click()
+    await groups.waitFor()
 
     // Esc closes; focus returns to +.
     await page.keyboard.press('Escape')

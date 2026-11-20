@@ -91,3 +91,5 @@ web/demo/vendor/engine/
 
 # Graph editor build for the web demo (built by web/demo/vendor/build-editor.py)
 web/demo/graph-editor/
+web/demo/recipes/
+web/graph-editor/dist-recipes/

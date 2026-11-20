@@ -42,16 +42,17 @@ export function restart() {
 
 // AURORA_SHARED_STACK (JSON from checks/run-set.mjs): a stack already up, which the check
 // uses as is and leaves up. It runs the dummy input at the poll cadence it was started with.
-function sharedStack(input) {
+function sharedStack(input, audio = false) {
   if (!process.env.AURORA_SHARED_STACK) return null
+  if (audio) throw new Error('a shared stack has no audio input, this check needs one')
   const shared = JSON.parse(process.env.AURORA_SHARED_STACK)
   if (input !== 'dummy') throw new Error(`a shared stack runs the dummy input, this check needs ${input}`)
   if ((process.env.AURORA_DEV_POLL_MS ?? '') !== shared.pollMs) throw new Error(`this check wants AURORA_DEV_POLL_MS=${process.env.AURORA_DEV_POLL_MS}, the shared stack runs '${shared.pollMs}'`)
   return shared
 }
 
-function stackUp(input) {
-  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
+function stackUp(input, audio = false) {
+  const up = spawnSync(python, [devstack, 'up', '--input', input, ...(audio ? ['--audio-input'] : []), ...(process.env.AURORA_VIZ_PORT ? ['--viz-port', process.env.AURORA_VIZ_PORT] : [])], { encoding: 'utf8', timeout: 170_000, windowsHide: true })
   const port = /WebUI http:\/\/127\.0\.0\.1:(\d+)/.exec(up.stdout ?? '')?.[1]
   if (!port) {
     stackDown()
@@ -79,8 +80,8 @@ export async function withAuroraStack(body, { input = 'dummy' } = {}) {
 
 // Starts the stack and (unless AURORA_EDITOR=embedded) the editor's dev server. Returns
 // `{ editorUrl, aurora, viteLog, stop }`; `stop()` tears both down.
-export async function startEditorStack({ input = 'dummy' } = {}) {
-  const port = stackUp(input)
+export async function startEditorStack({ input = 'dummy', audio = false } = {}) {
+  const port = stackUp(input, audio)
   const aurora = `http://127.0.0.1:${port}`
   if (process.env.AURORA_EDITOR === 'embedded') return { editorUrl: `${aurora}/graph-editor/`, aurora, viteLog: null, stop: stackDown }
   let vite = null
@@ -127,10 +128,10 @@ export function printViteLog(viteLog) {
 // config (same port), as a user quitting and reopening it. AURORA_EDITOR=embedded skips the dev server and
 // uses the editor built into the app binary (/graph-editor/ on `aurora`).
 // Under AURORA_SHARED_STACK it uses that stack and leaves it up.
-export async function withEditorStack(body, { input = 'dummy' } = {}) {
-  const shared = sharedStack(input)
+export async function withEditorStack(body, { input = 'dummy', audio = false } = {}) {
+  const shared = sharedStack(input, audio)
   if (shared) return body({ editorUrl: shared.editorUrl, aurora: shared.aurora, restart })
-  const { editorUrl, aurora, viteLog, stop } = await startEditorStack({ input })
+  const { editorUrl, aurora, viteLog, stop } = await startEditorStack({ input, audio })
   try {
     await body({ editorUrl, aurora, restart })
   } catch (e) {

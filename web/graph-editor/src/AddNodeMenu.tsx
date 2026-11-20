@@ -1,7 +1,8 @@
 import { useState, type RefObject } from 'react'
-import { Autocomplete, Dialog, ListBox, ListBoxItem, Menu, MenuItem, Section, SubmenuItem } from '@weblings/grille'
+import { Autocomplete, Dialog, ListBox, ListBoxItem, Menu, MenuItem, MenuSeparator, Section, SubmenuItem } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 import { addGroups, searchNodes, summaryOf } from './graph/addMenu'
+import { RECIPES_URL } from './recipesLink'
 import type { Catalog, NodeTypeInfo } from './graph/types'
 
 // A node row: name and summary. Menu rows cannot host a tooltip (React Aria needs
@@ -44,6 +45,10 @@ export function AddNodeMenu({
     close()
     onAdd(type)
   }
+  const openRecipes = () => {
+    close()
+    window.open(RECIPES_URL, '_blank', 'noopener')
+  }
   const searching = query.trim() !== ''
   const found = searchNodes(catalog, query)
   return (
@@ -83,6 +88,10 @@ export function AddNodeMenu({
                     ))}
                   </SubmenuItem>
                 ))}
+                <MenuSeparator />
+                <MenuItem id="view-recipes" onAction={openRecipes}>
+                  View recipes
+                </MenuItem>
               </Menu>
             )}
           </Autocomplete>

@@ -2,7 +2,7 @@ import type { ReactNode, RefObject } from 'react'
 import { Dialog, Icon, Menu, MenuItem, MenuSeparator, chevronDownIcon } from '@weblings/grille'
 import { EditorPopup } from './EditorPopup'
 
-export type EditAction = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete'
+export type EditAction = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'select-all' | 'tidy' | 'delete'
 
 // A menu row: the label, with its key hint at the far end.
 export function Keyed({ children, hint }: { children: ReactNode; hint: string }) {
@@ -37,7 +37,7 @@ export function EditMenu({
   canRedo: boolean
   hasSelection: boolean
   canPaste: boolean
-  hints: Record<EditAction, string>
+  hints: Record<Exclude<EditAction, 'tidy'>, string>
   onAction: (action: EditAction) => void
 }) {
   return (
@@ -72,6 +72,8 @@ export function EditMenu({
             <MenuItem id="paste" isDisabled={!canPaste}><Keyed hint={hints.paste}>Paste</Keyed></MenuItem>
             <MenuSeparator />
             <MenuItem id="select-all"><Keyed hint={hints['select-all']}>Select all</Keyed></MenuItem>
+            <MenuSeparator />
+            <MenuItem id="tidy">Tidy</MenuItem>
             <MenuSeparator />
             <MenuItem id="delete" isDisabled={!hasSelection}><Keyed hint={hints.delete}>Delete</Keyed></MenuItem>
           </Menu>

@@ -770,7 +770,7 @@ namespace Aurora::Runtime
     const bool haveVideo = !m_isAudioMode || preview.hasVideo();
     const bool haveAudio = m_isAudioMode || m_bothInputs || preview.hasAudio();
     if((needs.video && !haveVideo) || (needs.audio && !haveAudio)){
-      errorOut = std::string("the draft now needs a ") + (needs.video && !haveVideo ? "video" : "audio")
+      errorOut = std::string("the draft now needs ") + (needs.video && !haveVideo ? "a video" : "an audio")
         + " input the preview did not open; reconnect the preview";
       return false;
     }

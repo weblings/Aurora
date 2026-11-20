@@ -24,6 +24,11 @@ export function tabSession(): string {
   }
 }
 
+// Pipeline::reloadPreview words this refusal "...input the preview did not open; reconnect the preview".
+export function needsReopen(message: string | undefined): boolean {
+  return typeof message === 'string' && message.includes('reconnect the preview')
+}
+
 function newSession(): string {
   return `editor-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -105,6 +110,11 @@ export function useDraftLoop(doc: GraphDoc | null, lookNow: () => void, layout: 
         // Treated as an unnamed refusal below.
       }
       if (body.error === 'draft_invalid') {
+        // The draft grew a source this stream did not open: reopen, which opens it (Aurora-ookv).
+        if (needsReopen(body.message)) {
+          openStream()
+          return
+        }
         dispatch({ type: 'draft-invalid', message: body.message ?? '' })
         return
       }

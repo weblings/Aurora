@@ -50,6 +50,7 @@ import { NewerSavedPrompt } from './NewerSavedPrompt'
 import { converterFor, insertConverter, refuseConnection } from './graph/connection'
 import { addControl, controlIndex, controlsOf, removeControl } from './graph/controls'
 import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
+import { positionsFor, tidyPositions } from './graph/layout'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
 import { hints, mod } from './graph/keys'
@@ -62,6 +63,7 @@ import { portStyle } from './graph/portStyle'
 import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
 import { draftIssues, groupProblems, sameProblems, type Problems } from './graph/problems'
 import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
+import { positionIn } from './graph/types'
 
 const nodeTypes = { [NODE_KIND]: GenericNode }
 const DEFAULT_EFFECT = 'builtin.video'
@@ -718,8 +720,48 @@ export function App() {
     }
   }, [editOpen, menuKind, menu])
 
+  // Tidy: the selection only when there is one, else every node. One history entry, from measured sizes.
+  const tidy = () => {
+    const current = docRef.current
+    if (!current || !catalog || current.nodes.length === 0) return
+    const ids = picked.length > 0 ? new Set(picked.map((n) => n.id)) : null
+    const measured = Object.fromEntries(
+      nodes.filter((n) => n.measured?.width && n.measured.height).map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }]),
+    )
+    const at = tidyPositions(current, catalog, ids, measured)
+    const was = positionsFor(current, catalog)
+    if (Object.entries(at).every(([id, p]) => was[id].x === p.x && was[id].y === p.y)) {
+      announce('Already tidy')
+      return
+    }
+    edit((d) => moveNodes(d, at))
+    announce(`Tidied ${countOf(Object.keys(at).length)}`)
+    if (!ids) requestAnimationFrame(() => void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 }))
+  }
+
+  // Content that arrives with no positions (MCP, built-ins) is tidied once on open, as one Undo-able edit.
+  const autoTidied = useRef(false)
+  useEffect(() => {
+    if (!doc) {
+      autoTidied.current = false
+      return
+    }
+    if (autoTidied.current || !catalog || nodes.length === 0) return
+    const loose = doc.nodes.filter((n) => !positionIn(doc.ui, n.id)).map((n) => n.id)
+    if (loose.length === 0) {
+      autoTidied.current = true
+      return
+    }
+    if (!nodes.every((n) => n.measured?.width && n.measured.height)) return
+    autoTidied.current = true
+    const measured = Object.fromEntries(nodes.map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }]))
+    edit((d) => moveNodes(d, tidyPositions(d, catalog, new Set(loose), measured)))
+    requestAnimationFrame(() => void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 }))
+  }, [doc, catalog, nodes, edit])
+
   const onEditAction = (a: EditAction) => {
     if (a === 'undo') undo()
+    else if (a === 'tidy') tidy()
     else if (a === 'redo') redo()
     else if (a === 'cut') void copyPicked(true)
     else if (a === 'copy') void copyPicked(false)
@@ -812,6 +854,7 @@ export function App() {
     if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
     else if (a.type === 'undo') undo()
     else if (a.type === 'redo') redo()
+    else if (a.type === 'tidy') tidy()
     else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
     else if (a.type === 'cut' || a.type === 'copy') void copyPicked(a.type === 'cut')
     else if (a.type === 'paste') void pasteFromClipboard(at ? { x: at.x, y: at.y } : 'centre')

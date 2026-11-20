@@ -1,5 +1,6 @@
 import { TapHint } from './TapHint'
-import { useRef, type CSSProperties } from 'react'
+import { useContext, useRef, type CSSProperties } from 'react'
+import { ReadOnlyContext } from './EditorContext'
 import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
 import { Button, Icon, dotIcon, minusIcon } from '@weblings/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
@@ -24,6 +25,7 @@ type Props = {
 // widget from moving the node or zooming the canvas.
 export function ParamWidget({ info, value, onChange, onCommit, onMenu, tuning }: Props) {
   const touch = useRef(false)
+  const readOnly = useContext(ReadOnlyContext)
   const current = effectiveValue(info, value)
   const label = info.label || info.name
   return (
@@ -71,7 +73,7 @@ export function ParamWidget({ info, value, onChange, onCommit, onMenu, tuning }:
           </span>
         ) : null}
       </span>
-      {renderInput(info, current, onChange, () => onCommit())}
+      {renderInput(info, current, onChange, () => onCommit(), readOnly)}
     </div>
   )
 }
@@ -85,7 +87,7 @@ export function effectiveValue(info: ParamInfo, value: ParamValue | undefined): 
 
 // `onChange` is for continuous inputs; a click, toggle or pick is a whole
 // gesture, so `onDiscrete` also commits it.
-function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamValue) => void, commit: () => void) {
+function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamValue) => void, commit: () => void, readOnly: boolean) {
   const onDiscrete = (v: ParamValue) => {
     onChange(v)
     commit()
@@ -100,6 +102,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
           <input
             type="checkbox"
             aria-label={`${info.name} set`}
+            disabled={readOnly}
             checked={!unset}
             onChange={(e) => onDiscrete(e.target.checked ? Math.max(numberOr(info.default, 0), info.min ?? 0) : null)}
           />
@@ -112,6 +115,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
         <input
           type="checkbox"
           aria-label={info.name}
+          disabled={readOnly}
           checked={current === true}
           onChange={(e) => onDiscrete(e.target.checked)}
         />
@@ -125,13 +129,14 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
             type="text"
             className="text-input"
             aria-label={info.name}
+            disabled={readOnly}
             value={String(current ?? '')}
             onChange={(e) => onChange(e.target.value)}
           />
         )
       }
       return (
-        <select aria-label={info.name} value={String(current)} onChange={(e) => onDiscrete(e.target.value)}>
+        <select aria-label={info.name} disabled={readOnly} value={String(current)} onChange={(e) => onDiscrete(e.target.value)}>
           {options.includes(String(current)) ? null : (
             <option value={String(current)} disabled>
               choose...
@@ -146,7 +151,7 @@ function renderInput(info: ParamInfo, current: ParamValue, onChange: (v: ParamVa
       )
     }
     case 'gradient':
-      return <GradientInput stops={current as GradientStop[]} onChange={onChange} onDiscrete={onDiscrete} />
+      return <GradientInput stops={current as GradientStop[]} onChange={onChange} onDiscrete={onDiscrete} readOnly={readOnly} />
   }
 }
 
@@ -169,6 +174,7 @@ export function displayNumber(v: number): number {
 }
 
 function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number; onChange: (v: number) => void }) {
+  const readOnly = useContext(ReadOnlyContext)
   return (
     <span className="param-float">
       <input
@@ -176,6 +182,7 @@ function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number;
         className="slider-input"
         style={sliderFill(info, value)}
         aria-label={info.name}
+        disabled={readOnly}
         min={info.min}
         max={info.max}
         step={info.step}
@@ -186,6 +193,7 @@ function FloatInput({ info, value, onChange }: { info: ParamInfo; value: number;
         type="number"
         className="text-input"
         aria-label={`${info.name} value`}
+        disabled={readOnly}
         min={info.min}
         max={info.max}
         step={info.step}
@@ -203,7 +211,9 @@ function GradientInput({
   stops,
   onChange,
   onDiscrete,
+  readOnly,
 }: {
+  readOnly: boolean
   stops: GradientStop[]
   onChange: (v: ParamValue) => void
   onDiscrete: (v: ParamValue) => void
@@ -221,6 +231,7 @@ function GradientInput({
           <input
             type="color"
             aria-label={`stop ${i + 1} color`}
+            disabled={readOnly}
             value={stop.color}
             onChange={(e) => replace(i, { color: e.target.value })}
           />
@@ -228,6 +239,7 @@ function GradientInput({
             type="number"
             className="text-input"
             aria-label={`stop ${i + 1} position`}
+            disabled={readOnly}
             min={0}
             max={1}
             step={0.05}
@@ -239,14 +251,14 @@ function GradientInput({
           <Button
             icon
             aria-label={`remove stop ${i + 1}`}
-            isDisabled={stops.length <= MIN_STOPS}
+            isDisabled={readOnly || stops.length <= MIN_STOPS}
             onPress={() => onDiscrete(stops.filter((_, j) => j !== i))}
           >
             <Icon icon={minusIcon} size="sm" />
           </Button>
         </span>
       ))}
-      <Button isDisabled={stops.length >= MAX_STOPS} onPress={() => onDiscrete(addStop(stops))}>
+      <Button isDisabled={readOnly || stops.length >= MAX_STOPS} onPress={() => onDiscrete(addStop(stops))}>
         + stop
       </Button>
     </span>

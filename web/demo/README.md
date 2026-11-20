@@ -33,6 +33,7 @@ once its metadata loads, rather than assuming exactly 16:9.
   [`web/engine`](../engine/README.md), plus `batch`. `engine-room.js` feeds the graph
   what it needs each tick and reads the colors back. `vendor/fetch-engine.py` copies
   the (uncommitted) wasm module in from a CI artifact.
+- `recipes/` (gitignored) — the recipes page, made by `vendor/build-recipes.py` from `web/graph-editor` and `docs/recipes`. See [[effect-recipes]].
 - `graph-editor/` (gitignored) — the graph editor build, made by `vendor/build-editor.py`
   (also run by `fetch-engine.py`). The Dashboard probes it, so without the build Edit graph
   stays hidden. It opens in an iframe in the Dashboard pane (`demo-boot.js` `openEditor`),

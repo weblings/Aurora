@@ -511,3 +511,10 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | A stored empty section can lead the controls list in the editor and on the Dashboard (`Aurora-e4bi.22`). [[e4bi-22-empty-section-leads]] | `bd show Aurora-e4bi.22` |
 | 2026-11-18 | Windows rebuilds the pipeline when the monitor set changes, hardware pass on 3 monitors (`Aurora-ecl5`). [[ecl5-windows-monitors-changed]] | `bd show Aurora-ecl5` |
 | 2026-11-18 | Windows stale bead triage: tray balloon superseded by notifications, install layout and reload timing already shipped, TLS verification moved to 1.2.1 (`Aurora-x2o`, `Aurora-x2o.3`, `Aurora-4mk`, `Aurora-vf1.1`). [[windows-stale-bead-triage]] | `bd show Aurora-x2o`, `bd show Aurora-4mk`, `bd show Aurora-vf1.1` |
+| 2026-11-19 | Linux X11 rebuilds the pipeline when the monitor set changes, X11 and Wayland hardware passes (`Aurora-9fn3`). [[9fn3-x11-monitors-changed]] | `bd show Aurora-9fn3` |
+| 2026-11-19 | Effect recipes page: read-only editor viewer, seven canon clips, Copy, layered layout, turned outline (`Aurora-4g4d.2`). [[4g4d2-recipes-page]] | `bd show Aurora-4g4d.2`, `bd show Aurora-4g4d.3` |
+| 2026-11-20 | Tidy action, layered layout for content without positions, WebMCP out of 1.2.0 (`Aurora-y8ku`). [[y8ku-tidy-action]] | `bd show Aurora-y8ku` |
+| 2026-11-20 | Pasting an audio recipe reopens the preview instead of showing an input problem (`Aurora-ookv`). [[ookv-paste-reopens-preview]] | `bd show Aurora-ookv` |
+| 2026-11-20 | The Problems list fits its panel with no sideways scroll (`Aurora-eu0r`). [[eu0r-problems-list-fit]] | `bd show Aurora-eu0r` |
+| 2026-11-20 | Audio recipes retuned for real loudness and smoothed (`Aurora-ppqo`). [[ppqo-audio-recipes-tuned]] | `bd show Aurora-ppqo` |
+| 2026-11-20 | View recipes item in the Add node menu (`Aurora-hzjf`). [[hzjf-view-recipes-menu-item]] | `bd show Aurora-hzjf` |

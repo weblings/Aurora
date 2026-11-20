@@ -421,3 +421,23 @@ Applies-when: running a graph-editor browser check with AURORA_EDITOR=embedded, 
 Aurora-51nv.1 (2026-11-18): the back link changed from `/` to `../`, and `AURORA_EDITOR=embedded npm run graph-editor:back-link` still saw `/`. Copying the fresh `dist` over `build/windows-app/app/windows/graph-editor-dist` changed nothing, because the app compiles the bundle into a generated header (`aurora_graph_editor_embed`, `GraphEditorWebRoot.hpp`) and serves it from the binary. An incremental `cmake --build build/windows-app --config Release --target aurora-app-windows` (184 s) and the check passed.
 
 **Fix:** after an editor source change, rebuild the app before any embedded-mode check. An embedded failure on a stale app says nothing about the change. The dev-server mode (the default) serves the source tree.
+
+---
+
+## Playwright isVisible is true for a visually hidden element, and padding counts toward its width
+Tags: browser-check, playwright, visually-hidden, accessibility, recipes
+Applies-when: asserting that a screen-reader-only list is in the page but not shown (Aurora-4g4d.2, `checks/recipes-page.mjs`)
+
+An `ol` with `position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)` passed `isVisible()` (it has a box), and `boundingBox().width` was 19 px, because the list's 1.5em padding adds to a 1 px content width.
+
+**Fix:** assert the bounding box is at most 1 px wide, and give the hidden rule `margin: 0; padding: 0`. Do not use `isVisible()` to prove something is visually hidden.
+
+---
+
+## An empty graph opens no preview stream, so a paste check must warm one first
+Tags: browser-check, graph-editor, preview, paste, recipes
+Applies-when: reproducing a bug that needs a live preview stream when the user acts (Aurora-ookv, `checks/graph-editor-recipes-paste.mjs`)
+
+An empty graph is an invalid draft, so loading `?effect=@empty` and pasting opened the stream for the pasted graph and the bug never showed. The owner's case was a stream already live from an earlier graph, then cleared.
+
+**Fix:** paste a video recipe, wait for Live, select all and delete, then paste the recipe under test. Confirm a new check fails with the fix reverted before trusting it.

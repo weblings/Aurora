@@ -23,6 +23,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
 | `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
+| `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
@@ -81,6 +82,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `91cj-zone-map-empty-save` | [log/2026-11-13-91cj-zone-map-empty-save.md](log/2026-11-13-91cj-zone-map-empty-save.md) | Zone maps: an output with no zone ids no longer overwrites its saved zone map |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
+| `9fn3-x11-monitors-changed` | [log/2026-11-19-9fn3-x11-monitors-changed.md](log/2026-11-19-9fn3-x11-monitors-changed.md) | Linux X11 rebuilds the pipeline when the monitor set changes |
 | `9hqa1-shell-row-model` | [log/2026-11-13-9hqa1-shell-row-model.md](log/2026-11-13-9hqa1-shell-row-model.md) | Error shell: one row model for both pages, the Dashboard patches rows by key |
 | `9hqa2-shell-spotlight` | [log/2026-11-13-9hqa2-shell-spotlight.md](log/2026-11-13-9hqa2-shell-spotlight.md) | Error shell arrival spotlight: one pulse and a polite announcement |
 | `9hqa3-shell-cap` | [log/2026-11-13-9hqa3-shell-cap.md](log/2026-11-13-9hqa3-shell-cap.md) | Error shell 60vh safety cap: fades, scroll to the new row, pulses that wait to be seen |
@@ -180,10 +182,12 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `e4bi9-tuning-picker` | [log/2026-11-17-e4bi9-tuning-picker.md](log/2026-11-17-e4bi9-tuning-picker.md) | Graph editor: Tuning controls picker replaces Details |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
 | `ecl5-windows-monitors-changed` | [log/2026-11-18-ecl5-windows-monitors-changed.md](log/2026-11-18-ecl5-windows-monitors-changed.md) | Windows rebuilds the pipeline when the monitor set changes |
+| `effect-recipes` | [recipes/README.md](recipes/README.md) | Effect recipes |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |
 | `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |
 | `es51-x11-damage-latch` | [log/2026-10-20-es51-x11-damage-latch.md](log/2026-10-20-es51-x11-damage-latch.md) | Aurora-es51: X11 damage latch + 1 s staleness grab |
+| `eu0r-problems-list-fit` | [log/2026-11-20-eu0r-problems-list-fit.md](log/2026-11-20-eu0r-problems-list-fit.md) | The Problems list fits its panel with no sideways scroll |
 | `ewyz-connection-watcher` | [log/2026-10-06-ewyz-connection-watcher.md](log/2026-10-06-ewyz-connection-watcher.md) | Aurora-ewyz: shell-level connection watcher (implemented, verified) |
 | `ex8z-port-type-sockets` | [log/2026-10-30-ex8z-port-type-sockets.md](log/2026-10-30-ex8z-port-type-sockets.md) | Graph editor: sockets and wires by port type |
 | `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
@@ -212,6 +216,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |
 | `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
@@ -339,10 +344,12 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
 | `oecx-focus-ring-tokens` | [log/2026-11-05-oecx-focus-ring-tokens.md](log/2026-11-05-oecx-focus-ring-tokens.md) | Shared focus-ring tokens |
+| `ookv-paste-reopens-preview` | [log/2026-11-20-ookv-paste-reopens-preview.md](log/2026-11-20-ookv-paste-reopens-preview.md) | Pasting an audio recipe reopens the preview instead of showing an input problem |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
 | `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
+| `ppqo-audio-recipes-tuned` | [log/2026-11-20-ppqo-audio-recipes-tuned.md](log/2026-11-20-ppqo-audio-recipes-tuned.md) | Audio recipes retuned for real loudness and smoothed |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `pvxx1-save-and-duplicate` | [log/2026-10-29-pvxx1-save-and-duplicate.md](log/2026-10-29-pvxx1-save-and-duplicate.md) | E0b: save without going live, and duplicate an effect |
 | `pvxx11-browser-check` | [log/2026-10-29-pvxx11-browser-check.md](log/2026-10-29-pvxx11-browser-check.md) | Browser-check tooling for the web screens |
@@ -488,6 +495,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
+| `y8ku-tidy-action` | [log/2026-11-20-y8ku-tidy-action.md](log/2026-11-20-y8ku-tidy-action.md) | Tidy: the recipes page's layered layout in the editor |
 | `yqu8-settings-put-transport-retry` | [log/2026-11-13-yqu8-settings-put-transport-retry.md](log/2026-11-13-yqu8-settings-put-transport-retry.md) | Core test: concurrent settings PUTs retry a refused connection instead of failing under load |
 | `ytlo-no-console-windows-in-tests` | [log/2026-11-15-ytlo-no-console-windows-in-tests.md](log/2026-11-15-ytlo-no-console-windows-in-tests.md) | Windows tests: no console windows, no stolen focus |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |

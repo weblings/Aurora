@@ -17,7 +17,7 @@ export type MenuTarget =
 
 export type MenuAction =
   | { type: 'add'; nodeType: string }
-  | { type: 'undo' | 'redo' | 'fit' | 'dashboard' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete-nodes' | 'delete-edge' }
+  | { type: 'undo' | 'redo' | 'fit' | 'tidy' | 'dashboard' | 'cut' | 'copy' | 'paste' | 'select-all' | 'delete-nodes' | 'delete-edge' }
   | { type: 'tuning-add' | 'tuning-remove' }
 
 // Right-click and node-button menus (Aurora-daaa.27.1): canvas, node and wire. One popup
@@ -54,7 +54,7 @@ export function ContextMenu({
             aria-label="Canvas actions"
             onClose={onClose}
             onAction={(id) => {
-              if (id === 'undo' || id === 'redo' || id === 'fit' || id === 'paste' || id === 'select-all') run({ type: id })
+              if (id === 'undo' || id === 'redo' || id === 'fit' || id === 'tidy' || id === 'paste' || id === 'select-all') run({ type: id })
             }}
           >
             <SubmenuItem id="add" label="Add node" aria-label="Add node" onAction={(type) => run({ type: 'add', nodeType: type })}>
@@ -72,6 +72,7 @@ export function ContextMenu({
             <MenuItem id="undo" isDisabled={!canUndo}><Keyed hint={hints.undo}>Undo</Keyed></MenuItem>
             <MenuItem id="redo" isDisabled={!canRedo}><Keyed hint={hints.redo}>Redo</Keyed></MenuItem>
             <MenuItem id="fit">Fit view</MenuItem>
+            <MenuItem id="tidy">Tidy</MenuItem>
             <MenuSeparator />
             <MenuItem id="paste" isDisabled={!canPaste}><Keyed hint={hints.paste}>Paste</Keyed></MenuItem>
             <MenuItem id="select-all"><Keyed hint={hints['select-all']}>Select all</Keyed></MenuItem>

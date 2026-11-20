@@ -15,8 +15,11 @@ WebAssembly. A visitor can open any effect in the editor, change it, see the pre
 on the 3D room, and save, apply or duplicate it as a custom effect. No Hue hardware, no
 install, no API key.
 
-Not a goal for 1.2.0: the in-page agent and a WebMCP registration. Both reuse the same engine
-and shim and stay stretch goals after the editor works.
+Not a goal for 1.2.0: the in-page agent and a WebMCP registration. The in-page agent reuses
+the same engine and shim and stays a stretch goal after the editor works. WebMCP is not
+needed for 1.2.0 at all: Aurora's MCP cannot act on the graph open in an editor session
+(`put_draft` saves a separate draft and nothing reads or edits the open graph), so a WebMCP
+registration would have no session to drive.
 
 ## Why WASM
 
@@ -71,7 +74,8 @@ which is retired in the same change (`Aurora-51nv.3`).
 ## Decisions
 
 - **WASM engine, editor first** (owner, 2026-11-17). The editor ships in the 1.2.0 demo. The
-  in-page agent and WebMCP are stretch goals.
+  in-page agent is a stretch goal. WebMCP is out of 1.2.0 (owner, 2026-11-20): the MCP does not
+  work in an active graph session yet.
 - **Actions deploy** (owner, 2026-11-17). Replaces the subtree push.
 - **No JS evaluator.** If the gate fails, the editor leaves the 1.2.0 demo rather than
   running on a hand-written evaluator.

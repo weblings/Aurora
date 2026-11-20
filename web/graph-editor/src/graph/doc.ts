@@ -1,6 +1,7 @@
 import { controlsOf, dropControlsOf, type Control } from './controls'
 import type { Catalog, GraphDoc, GraphEdge, GraphNode, NodeTypeInfo, ParamInfo, ParamValue, Position } from './types'
 import { positionIn } from './types'
+import { layered } from './layout'
 import { SECTIONS_KEY } from '../../../ui/TuningControls.js'
 
 // Every edit returns a new document and leaves the old one untouched, so the
@@ -179,12 +180,6 @@ export function pasteSelection(
   const origin = [...added.keys()].map((id) => clip.ui[id]).filter((p): p is Position => !!p)
   const minX = Math.min(...origin.map((p) => p.x))
   const minY = Math.min(...origin.map((p) => p.y))
-  const ui = { ...doc.ui }
-  for (const [from, to] of added) {
-    const p = clip.ui[from]
-    if (p) ui[to] = { x: Math.round(at.x + p.x - minX), y: Math.round(at.y + p.y - minY) }
-    else ui[to] = { x: Math.round(at.x), y: Math.round(at.y) }
-  }
   const remap = (endpoint: string): string | null => {
     const { node, port } = splitEndpoint(endpoint)
     const id = added.get(node)
@@ -195,6 +190,14 @@ export function pasteSelection(
     const from = remap(a)
     const to = remap(b)
     if (from && to) edges.push([from, to])
+  }
+  // Nodes the clip has no position for (hand-written or MCP text) are laid out from their wiring.
+  const fresh = [...added.keys()].some((id) => !clip.ui[id]) ? layered({ ...next, nodes: pasted, edges }, catalog) : {}
+  const ui = { ...doc.ui }
+  for (const [from, to] of added) {
+    const p = clip.ui[from]
+    if (p) ui[to] = { x: Math.round(at.x + p.x - minX), y: Math.round(at.y + p.y - minY) }
+    else ui[to] = { x: Math.round(at.x + (fresh[to]?.x ?? 0)), y: Math.round(at.y + (fresh[to]?.y ?? 0)) }
   }
   const controls = clip.controls.filter((c) => added.has(c.node)).map((c) => ({ ...copyJson(c), node: added.get(c.node)! }))
   const out: GraphDoc = { ...next, edges: [...next.edges, ...edges], ui }
