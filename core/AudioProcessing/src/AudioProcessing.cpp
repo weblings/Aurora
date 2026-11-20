@@ -1,5 +1,7 @@
 #include <Aurora/Processing/AudioProcessing.hpp>
 
+#include <Aurora/Contracts/PickIndex.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -53,8 +55,7 @@ namespace Aurora::Processing
       // AudioAnalysis.md's palette table (Red/Cyan, Orange/Azure, ...).
       static const std::array<float, 6> anchors{0.0f, 30.0f, 60.0f, 90.0f, 120.0f, 150.0f};
       static std::mt19937 rng{std::random_device{}()};
-      std::uniform_int_distribution<size_t> dist(0, anchors.size() - 1);
-      return anchors[dist(rng)];
+      return anchors[Aurora::Contracts::pickIndex(rng, static_cast<std::uint32_t>(anchors.size()))];
     }
 
 

@@ -1,3 +1,10 @@
+v1.2.0:
+- Graph editor - (Beta, the UX will likely shift around in 1.2.x versions) Build and edit your own effects as node graphs! The recipes or MCP can help get your started.
+- Built-In Effects Renamed - Video is now "Screen Colors" and Audio is now "Music Pulse"
+- Effect dropdown - Effects are now chosen through a dropdown. Effects can be renamed, hidden, and reordered. This is also the entrypoint to the graph editor.
+- API v1 - Stable /api/v1 for other apps and assistants (apiVersion 1.0.0). Standard error format, a pairing flow with polling, and an events stream that reconnects on its own. Existing routes keep working
+- Error Shell - Messages now have a distinction between: Errors and Notices
+
 v1.1.3:
 - MCP server for effects - Claude and other MCP assistants can browse nodes and presets, draft and preview an effect, try it on your lights (it reverts on its own if not kept), and apply it. Control tools (pause, brightness, source) are not included yet. Setup in adapters/mcp/SETUP.md. Unstable while the API is not public yet
 - Linux - X11 - Video mode CPU use at 4K drops from ~63% to ~4% on a still screen and ~1% when moving

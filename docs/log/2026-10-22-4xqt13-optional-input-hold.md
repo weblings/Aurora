@@ -27,7 +27,7 @@ both-input graphs, fixed here.
   Trigger, AudioBuffer and AudioFeatures ports are not held.
 - `adoptStateFrom` carries a held value when the same source still feeds the
   same input, so an in-place swap does not drop a tick.
-- Frozen spec "Absent data" amended in `NodeGraphPipeline.md`.
+- Frozen spec "Absent data" amended in [`docs/planning/NodeGraphPipeline.md`](../planning/NodeGraphPipeline.md).
 - Gate: dark checks require every sampled frame dark for 1 s (`stays`).
 
 ## Verified (Linux, Ubuntu, Wayland session, `linux-app` RelWithDebInfo)

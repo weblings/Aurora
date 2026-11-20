@@ -1,42 +1,54 @@
 // Mapping tests for demo-tuning.js (node:assert/strict, no framework --
-// run with `node demo-tuning.test.mjs`). Shapes mirror the backend routes:
-// interpolation names, probeState's mode rule, Config.hpp live defaults.
+// run with `node demo-tuning.test.mjs`). Config keys land as engine graph params.
 import assert from 'node:assert/strict';
-import { AUDIO_KEYS, NO_OP_KEYS, configToPipeline } from './demo-tuning.js';
+import { NO_OP_KEYS, buildGraphDoc, configToEngine } from './demo-tuning.js';
+import { BUILTIN_GRAPHS } from './builtin-graphs.js';
 import { DEMO_DEFAULT_CONFIG } from './demo-shim.js';
 
 const cfg = (patch) => ({ ...DEMO_DEFAULT_CONFIG, ...patch });
+const node = (doc, id) => doc.nodes.find((n) => n.id === id);
 
-// All 11 audio keys map 1:1 onto the ported settings shape.
+// Every control of both built-ins moves its node param.
 {
-  const { audio } = configToPipeline(cfg({}));
-  assert.equal(Object.keys(audio).length, 11);
-  assert.equal(audio.bounceSmoothTime, 0.285);
-  assert.equal(audio.driftBaseRateDegPerSec, 10);
-  assert.equal(audio.fixedAnchorHue, undefined, '-1 seed means unset/random');
-  const { audio: fixed } = configToPipeline(cfg({ audioFixedAnchorHue: 180 }));
-  assert.equal(fixed.fixedAnchorHue, 180);
+  const patch = {
+    transitionSmoothing: 0.4, subsampleWidth: 32, interpolation: 'Cubic',
+    audioBounceSmoothTime: 0.5, audioBrightnessSmoothTime: 0.6, audioDriftBaseRateDegPerSec: 33,
+    audioVibrancySaturation: 0.1, audioVibrancyValue: 0.2, audioFixedAnchorHue: 180,
+    audioDynamismFloor: 0.7, audioCentroidStrength: 0.8, audioReferenceRms: 0.9,
+    audioBrightnessFloor: 0.15, audioCentroidRangeHz: 1000,
+  };
+  for (const mode of ['video', 'audio']) {
+    const doc = buildGraphDoc(mode, cfg(patch));
+    for (const c of BUILTIN_GRAPHS[mode].controls) {
+      assert.equal(node(doc, c.node).params[c.param], patch[c.config], `${mode} ${c.config}`);
+    }
+  }
 }
 
-// Smoothing and sample width pass through with the documented fallbacks.
+// Defaults: unset anchor is null, subsampleWidth 0 keeps the document's width, base untouched.
 {
-  assert.equal(configToPipeline(cfg({})).transitionSmoothing, 0);
-  assert.equal(configToPipeline(cfg({ subsampleWidth: 0 })).sampleWidth, null);
-  assert.equal(configToPipeline(cfg({ subsampleWidth: 320 })).sampleWidth, 320);
+  const audio = buildGraphDoc('audio', cfg({}));
+  assert.equal(node(audio, 'drift').params.fixedAnchorHue, null);
+  assert.equal(node(audio, 'beat').params.bounceSmoothTime, 0.285);
+  const video = buildGraphDoc('video', cfg({}));
+  assert.equal(node(video, 'rescale').params.width, BUILTIN_GRAPHS.video.nodes.find((n) => n.id === 'rescale').params.width);
+  assert.equal(node(video, 'ease_hue').params.smoothing, 0);
+  assert.notEqual(video, BUILTIN_GRAPHS.video, 'a copy, never the shared base');
 }
 
 // Mode follows probeState's rule exactly.
 {
-  assert.equal(configToPipeline(cfg({ activeInputName: 'x11', activeAudioInputName: '' })).mode, 'video');
-  assert.equal(configToPipeline(cfg({ activeInputName: '', activeAudioInputName: 'linux-audio' })).mode, 'audio');
-  assert.equal(configToPipeline(cfg({ activeInputName: '', activeAudioInputName: '' })).mode, 'video');
+  assert.equal(configToEngine(cfg({ activeInputName: 'x11', activeAudioInputName: '' })).mode, 'video');
+  assert.equal(configToEngine(cfg({ activeInputName: '', activeAudioInputName: 'linux-audio' })).mode, 'audio');
+  assert.equal(configToEngine(cfg({ activeInputName: '', activeAudioInputName: '' })).mode, 'video');
+  assert.equal(configToEngine(cfg({ activeEffectId: 'builtin.audio' })).mode, 'audio');
 }
 
-// The ledger covers exactly the keys with no demo effect -- no silent no-ops.
+// The ledger covers exactly the keys with no demo effect, and none that drive a control.
 {
-  assert.deepEqual(Object.keys(NO_OP_KEYS).sort(),
-    ['activeMonitorName', 'audioTargetSinkName', 'interpolation', 'refreshRate']);
-  for (const key of AUDIO_KEYS) assert.ok(!(key in NO_OP_KEYS), `${key} is live, not ledgered`);
+  assert.deepEqual(Object.keys(NO_OP_KEYS).sort(), ['activeMonitorName', 'audioTargetSinkName', 'refreshRate']);
+  const controlled = new Set(['video', 'audio'].flatMap((m) => BUILTIN_GRAPHS[m].controls.map((c) => c.config)));
+  for (const key of Object.keys(NO_OP_KEYS)) assert.ok(!controlled.has(key), `${key} is live, not ledgered`);
 }
 
 console.log('demo-tuning mapping tests passed.');

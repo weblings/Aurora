@@ -1,5 +1,7 @@
-import { friendlyReloadError } from './messages.js';
-import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner, renderLocalNetworkBanner } from './MacPermissionRecovery.js';
+import { arrivalAnnouncement, arrivedKeys, baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
+import { applyPatch } from './shellPatch.js';
+import { decidePairing, fetchPendingPairings } from './Pairing.js';
+import { createShellCap } from './shellCap.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
 // pattern as RockyRoad's own App.ts, trimmed to what Aurora actually needs
@@ -42,6 +44,11 @@ import { renderReloadError, parseMacPermissionError, renderAudioPermissionBanner
 // answers (a stale error is worse than none, so the takeover clears it).
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
+// The arrival pulse is 1375 ms (styles/shell.css); shellCap.js clears data-new if animationend never
+// comes (an animation turned off, a hidden tab), from the moment the pulse starts. These are the
+// announcement's two timers (shellRows.js arrivals).
+const ANNOUNCE_DELAY_MS = 50;
+const ANNOUNCE_CLEAR_MS = 10_000;
 const DEFAULT_FAILURE_THRESHOLD = 2;
 // Routes where a 'reload' error is real (an output is paired); see
 // _visibleErrors. Capture Source is one: a denied capture permission lands here.
@@ -61,26 +68,9 @@ async function defaultFetchStatus(signal) {
   return { reachable: true, ...(body && typeof body === 'object' ? body : {}) };
 }
 
-// Row prefix per error source, so the raw server reason reads as a sentence
-// ("Couldn't start: <reason>"). Unknown sources show the message bare.
-// Condition source -> row renderer. A new standing condition (another
-// permission, a network fact) adds one entry here, not a branch in the shell.
-const CONDITION_ROWS = {
-  local_network: renderLocalNetworkBanner,
-};
-
 // Pending LAN pairing requests (Aurora-5ipy.6), polled with the beat only
 // while this browser can approve them (loopback or a paired admin).
-async function defaultFetchPending() {
-  const body = await (await fetch('/api/pairing/pending')).json();
-  return Array.isArray(body?.pending) ? body.pending : [];
-}
-
-const SOURCE_PREFIX = {
-  startup: "Couldn't start: ",
-  resume: "Couldn't resume: ",
-  reload: "Couldn't apply settings: ",
-};
+const defaultFetchPending = () => fetchPendingPairings();
 
 export class App {
   constructor({
@@ -95,6 +85,25 @@ export class App {
     this.screenContainer = document.getElementById('screen-container');
     this.overlaySlot = document.getElementById('shell-overlay-slot');
     this.bannerSlot = document.getElementById('shell-banner-slot');
+    // One delegated click handler for every button in the banner: data-action and data-key name
+    // what was pressed (shellRows.js), _act does it. The patch keeps the buttons alive across polls.
+    this._rows = []; // the rows last drawn, laid out
+    // Arrivals (Aurora-9hqa.2): every row key the last render held (null until the baseline), the one
+    // polite live region (#shell-announcer, outside the slot so the patch never touches it) and its timers.
+    this._knownKeys = null;
+    this.announcer = document.getElementById('shell-announcer');
+    this._announceParts = [];
+    this._announceTimer = null;
+    this._announceClearTimer = null;
+    // The 60vh cap on the rows region (Aurora-9hqa.3): scroll to a new row, pulses start when seen.
+    this._cap = createShellCap({ onPulseDone: (node) => node.removeAttribute('data-new') });
+    this.bannerSlot?.addEventListener?.('animationend', (event) => {
+      if (event.target?.hasAttribute?.('data-new')) event.target.removeAttribute('data-new');
+    });
+    this.bannerSlot?.addEventListener?.('click', (event) => {
+      const button = event.target?.closest?.('[data-action]');
+      if (button) void this._act(button.getAttribute('data-action'), button.getAttribute('data-key'));
+    });
     // onRecovered(preservedRouteId): re-probe and navigate back after the
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
@@ -112,9 +121,12 @@ export class App {
     // until then, which just means a Mac permission row renders generic
     // (Retry, not Open Settings) for the few seconds before that happens.
     this.platform = '';
-    // Set by app.js from GET /api/pairing/status: true on loopback or a paired admin.
+    // Set by app.js from GET /api/pairing/status: true on loopback or a paired admin. app.js starts
+    // it at null (not read yet), which holds the collapse baseline back (Aurora-9hqa.4); the default
+    // here is false so a page with no status read has nothing to wait for.
     this.canApprove = false;
     this.pendingPairings = []; // [{ref, name, scope, code}]
+    this._pendingLoaded = false; // the first pending-pairing result is in (a failed read counts, so the baseline cannot hang)
     // Fired after an approval, so an open Dashboard refreshes its device list.
     this.onPairedDevicesChanged = null;
     this._fetchStatus = fetchStatus;
@@ -129,8 +141,16 @@ export class App {
     this.hostState = null; // idle | running | paused | failed, from the last reachable poll
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
-    this._bannerExpanded = false;
+    // Collapse state (Aurora-u8jx.5): the row keys the user collapsed over, or null for open. Memory
+    // only. The baseline (2+ rows collapsed, a lone row open) is taken once per page load and once per
+    // recovery, when the first /api/state reply, the canApprove answer and (if it can approve) the
+    // first pending-pairing result are all in (shellRows.js baselineReady). Nothing is drawn before.
+    this._collapsed = null;
+    this._stateReplied = false;
+    this._baselined = false;
+    this.lightTestLive = false; // a running light test with no deadline
     this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
+    this.lightTestHolder = null; // {session, client} of the running light test, from /api/state test.holder
     this._lightTestTimer = null;
   }
 
@@ -246,8 +266,15 @@ export class App {
     try {
       this.pendingPairings = await this._fetchPending();
     } catch {
+      // Keep the last list. The first read still counts for the baseline, so a broken route cannot
+      // hold the whole shell back.
+      this._pendingLoaded = true;
+      this._maybeBaseline();
+      this._renderBanner();
       return;
     }
+    this._pendingLoaded = true;
+    this._maybeBaseline();
     this._renderBanner();
   }
 
@@ -266,10 +293,39 @@ export class App {
     this.hostState = state;
     this.hostErrors = errors;
     this.hostConditions = conditions;
-    const remainingMs = result?.test?.active === true ? Number(result.test.confirmRemainingMs) : NaN;
+    // A live test has no deadline (confirmRemainingMs null): it is still a test.
+    const testing = result?.test?.active === true;
+    this.lightTestLive = testing && result.test.confirmRemainingMs === null;
+    this.lightTestHolder = testing && result.test.holder && typeof result.test.holder === 'object' ? result.test.holder : null;
+    const remainingMs = testing && !this.lightTestLive ? Number(result.test.confirmRemainingMs) : NaN;
     this.lightTestEndsAt = Number.isFinite(remainingMs) ? Date.now() + remainingMs : null;
+    // Dev-only (AURORA_DEV_POLL_MS on the app, browser checks): the reply names a faster cadence. Absent in release.
+    const devPollMs = Number(result?.devPollMs);
+    if (Number.isFinite(devPollMs) && devPollMs >= 50 && devPollMs <= this._pollIntervalMs) this._pollIntervalMs = devPollMs;
+    this._stateReplied = true;
+    this._maybeBaseline();
     this._renderBanner();
     if (this.onStateUpdate) this.onStateUpdate({ state, errors, paused, ...flags });
+  }
+
+  // The first reply (and the first after the takeover) is the baseline, once everything it counts is in.
+  _maybeBaseline() {
+    if (this._baselined) return;
+    if (!baselineReady({ stateReplied: this._stateReplied, canApprove: this.canApprove, pendingLoaded: this._pendingLoaded })) return;
+    this._baselined = true;
+    const ordered = orderRows(this._bannerInput());
+    this._collapsed = baselineSnapshot(ordered);
+    this._knownKeys = new Set(ordered.map((row) => row.key)); // what is there at the baseline is not an arrival
+  }
+
+  // app.js calls this after reading /api/pairing/status, which may land after the first poll.
+  setCanApprove(canApprove) {
+    this.canApprove = canApprove;
+    if (canApprove) void this._refreshPending();
+    else {
+      this._maybeBaseline();
+      this._renderBanner();
+    }
   }
 
   _handleUnreachable() {
@@ -295,11 +351,19 @@ export class App {
     // Rejected alternatives). Fresh errors repopulate it on recovery, via
     // the same poll that clears this takeover.
     if (this.bannerSlot) this.bannerSlot.innerHTML = '';
+    this._rows = [];
     this.hostState = null;
     this.hostErrors = [];
     this.hostConditions = [];
     this.pendingPairings = [];
+    this._pendingLoaded = false;
     this.lightTestEndsAt = null;
+    this.lightTestLive = false;
+    this.lightTestHolder = null;
+    this._collapsed = null;
+    this._stateReplied = false;
+    this._baselined = false;
+    this._knownKeys = null;
     this._stopLightTestTimer();
     if (!this.overlaySlot) return;
     this._takeover = kind;
@@ -334,87 +398,93 @@ export class App {
     return this.hostErrors.filter((error) => !(suppressReload && error.source === 'reload'));
   }
 
-  _renderBanner() {
-    if (!this.bannerSlot) return;
-    const errors = this._visibleErrors();
-    const conditions = this.hostConditions;
-    // Pairing requests sit above the problems and never collapse: each waits on a click.
-    const pairings = this.pendingPairings;
-    const rowCount = conditions.length + errors.length;
-    const testing = this.lightTestEndsAt !== null;
-    if (!testing) this._stopLightTestTimer();
-    if (rowCount === 0 && pairings.length === 0 && !testing) {
-      this.bannerSlot.innerHTML = '';
-      this._bannerExpanded = false;
-      return;
-    }
-
-    const collapsible = rowCount > 1;
-    const collapsed = collapsible && !this._bannerExpanded;
-    // Same chevron-down.svg the accordions use (dashboard.css's
-    // .accordion-chevron), not a one-off glyph -- rotated 180deg here for
-    // "collapse" the same way .accordion-section.expanded already does.
-    const pairingRows = pairings.map((request) => this._renderPairingRow(request)).join('');
-    const testRow = testing ? this._renderLightTestRow() : '';
-    const problems = rowCount === 0 ? '' : collapsed
-      ? `<button type="button" class="shell-banner-summary" id="shell-banner-expand"><span class="warn-glyph" aria-hidden="true"></span> ${rowCount} problems <span class="accordion-chevron" aria-hidden="true"></span></button>`
-      : conditions.map((condition) => this._renderConditionRow(condition)).join('')
-        + errors.map((error) => this._renderBannerRow(error)).join('')
-        + (collapsible
-          ? `<button type="button" class="shell-banner-summary shell-banner-collapse" id="shell-banner-collapse">Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`
-          : '');
-
-    this.bannerSlot.innerHTML = `
-      <div class="shell-banner">
-        <div class="shell-banner-inner">${pairingRows}${testRow}${problems}</div>
-      </div>
-    `;
-
-    for (const request of pairings) {
-      const ref = escapeHtml(request.ref);
-      this.bannerSlot.querySelector(`#shell-pairing-approve-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'approve'));
-      this.bannerSlot.querySelector(`#shell-pairing-deny-${ref}`)?.addEventListener('click', () => this._decidePairing(request.ref, 'deny'));
-    }
-
-    if (testing) {
-      this.bannerSlot.querySelector('#shell-light-test-stop')?.addEventListener('click', () => this._stopLightTest());
-      this._startLightTestTimer();
-    }
-
-    if (rowCount === 0) return;
-    if (collapsed) {
-      this.bannerSlot.querySelector('#shell-banner-expand')?.addEventListener('click', () => {
-        this._bannerExpanded = true;
-        this._renderBanner();
-      });
-      return;
-    }
-    if (collapsible) {
-      this.bannerSlot.querySelector('#shell-banner-collapse')?.addEventListener('click', () => {
-        this._bannerExpanded = false;
-        this._renderBanner();
-      });
-    }
-    for (const error of errors) {
-      this.bannerSlot.querySelector(`#shell-banner-retry-${error.source}`)?.addEventListener('click', () => this._retry(error.source));
-      this.bannerSlot.querySelector(`#shell-banner-dismiss-${error.source}`)?.addEventListener('click', () => this._dismiss(error));
-    }
+  // The shell's rows as the model lays them out for the current state (shellRows.js).
+  _bannerInput() {
+    const testing = this.lightTestEndsAt !== null || this.lightTestLive;
+    return {
+      conditions: this.hostConditions,
+      errors: this._visibleErrors(),
+      pairings: this.pendingPairings,
+      lightTest: testing ? { holder: this.lightTestHolder, endsAtMs: this.lightTestLive ? null : this.lightTestEndsAt } : null,
+    };
   }
 
-  // No Keep here: that stays with the agent (confirm needs an effect id the
-  // user has not chosen). 'by' because a dead client reverts sooner.
-  _renderLightTestRow() {
-    return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">An MCP client is testing an effect on the lights. Will revert in: <span id="shell-light-test-time">${this._lightTestClock()}</span></p>
-      <div class="shell-banner-actions">
-        <button type="button" class="btn btn-secondary" id="shell-light-test-stop">Stop test</button>
-      </div>
-    </div></div>`;
+  // `fresh`: the keys of rows that arrived this render (they pulse); the caller works them out.
+  _bannerRowList(fresh = []) {
+    const input = this._bannerInput();
+    // Nothing is drawn before the baseline; after it, a snapshot the rows no longer match is dropped.
+    if (!this._baselined) return [];
+    this._collapsed = reconcileSnapshot(orderRows(input), this._collapsed);
+    return bannerRows(input, { snapshot: this._collapsed, hostState: this.hostState, platform: this.platform, fresh });
+  }
+
+  // The banner's whole markup ('' when there is nothing to say). The page draws it with a keyed
+  // patch; this is what unit tests and the editor's markup parity check read.
+  _bannerHtml() {
+    return bannerHtml(this._bannerRowList());
+  }
+
+  _renderBanner() {
+    if (!this.bannerSlot) return;
+    const testing = this.lightTestEndsAt !== null || this.lightTestLive;
+    if (!testing) this._stopLightTestTimer();
+    // Arrivals are judged against every key the last render held, drawn or folded, so a row folded
+    // into the collapse is not new when the shell opens; a new key opens the shell in this same render
+    // (bannerRowList reconciles the snapshot), and the rows that were already there do not pulse.
+    const ordered = orderRows(this._bannerInput());
+    const fresh = arrivedKeys(ordered, this._knownKeys);
+    if (this._baselined) this._knownKeys = new Set(ordered.map((row) => row.key));
+    const rows = this._bannerRowList(fresh);
+    this._rows = rows;
+    // Only rows whose key or content changed are touched, so focus survives a poll.
+    applyPatch(this.bannerSlot, rows);
+    if (fresh.length > 0) {
+      this._announce(arrivalAnnouncement(ordered, fresh, { hostState: this.hostState, platform: this.platform }));
+    }
+    this._cap.render(this.bannerSlot);
+    if (testing) this._startLightTestTimer();
+  }
+
+  // Says `text` in the polite live region. Parts raised within the short delay (one poll can render
+  // twice: state, then pending pairings) go out as one announcement. Empty first so the same words
+  // twice in a row are still a change; cleared after a while.
+  _announce(text) {
+    if (!this.announcer || !text) return;
+    this._announceParts.push(text);
+    if (this._announceTimer !== null) return;
+    clearTimeout(this._announceClearTimer);
+    this.announcer.textContent = '';
+    this._announceTimer = setTimeout(() => {
+      this._announceTimer = null;
+      this.announcer.textContent = this._announceParts.join(' ');
+      this._announceParts = [];
+      this._announceClearTimer = setTimeout(() => { this.announcer.textContent = ''; }, ANNOUNCE_CLEAR_MS);
+      this._announceClearTimer.unref?.();
+    }, ANNOUNCE_DELAY_MS);
+    this._announceTimer.unref?.();
+  }
+
+  // A banner button was pressed: `action` and `key` come from its data-action and data-key.
+  async _act(action, key) {
+    const row = this._rows.find((candidate) => candidate.key === key);
+    if (!row) return;
+    switch (action) {
+      case 'toggle':
+        // Collapsing stores the keys on screen; opening drops them.
+        this._collapsed = row.collapsed ? null : collapsibleKeys(orderRows(this._bannerInput()));
+        this._renderBanner();
+        return;
+      case 'retry': return this._retry(row.source);
+      case 'dismiss': return this._dismiss(row.error);
+      case 'stop-test': return this._stopLightTest();
+      case 'approve': return this._decidePairing(row.request.ref, 'approve');
+      case 'deny': return this._decidePairing(row.request.ref, 'deny');
+      default:
+    }
   }
 
   _lightTestClock() {
-    const seconds = Math.max(0, Math.ceil((this.lightTestEndsAt - Date.now()) / 1000));
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+    return clockText(this.lightTestEndsAt);
   }
 
   // Ticks only the clock text so the Stop button keeps focus between polls.
@@ -443,95 +513,14 @@ export class App {
     await this.checkNow();
   }
 
-  // The code is the user's check that the request is their own device.
-  _renderPairingRow(request) {
-    const ref = escapeHtml(request.ref);
-    return `<div class="shell-banner-row"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">Pair a device with Aurora?</p>
-      <ul class="shell-pairing-details">
-        <li><span class="shell-pairing-label">Device:</span> ${escapeHtml(request.name ?? '')}</li>
-        ${request.from ? `<li><span class="shell-pairing-label">From:</span> ${escapeHtml(request.from)}</li>` : ''}
-        ${this._pairingAccess(request.scope)}
-        <li><span class="shell-pairing-label">Code:</span> <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>. Approve only if the device shows the same code.</li>
-      </ul>
-      <div class="shell-banner-actions">
-        <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}">Approve</button>
-        <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}">Deny</button>
-      </div>
-    </div></div>`;
-  }
-
-  // Browsers ask for admin and read as before. Below admin is an agent token
-  // (aurora-mcp --pair), so the approver sees what it can do.
-  _pairingAccess(scope) {
-    const access = {
-      read: 'View only.',
-      draft: 'Edit drafts, not the lights.',
-      apply: 'Change effects and test on the lights, not settings.',
-    }[scope];
-    return access ? `<li><span class="shell-pairing-label">Access:</span> ${scope[0].toUpperCase()}${scope.slice(1)}. ${access}</li>` : '';
-  }
-
   // No optimistic removal: the re-read shows what the daemon holds (an
   // expired request just disappears, same as a decided one).
   async _decidePairing(ref, decision) {
-    let approved = false;
-    try {
-      const response = await fetch(`/api/pairing/pending/${encodeURIComponent(ref)}/${decision}`, { method: 'POST' });
-      approved = decision === 'approve' && response.ok;
-    } catch {
-      // Unreachable is the beat's takeover.
-    }
+    // Pairing.js decidePairing, the same call the editor makes. Unreachable is the beat's takeover.
+    const accepted = await decidePairing(ref, decision);
+    const approved = decision === 'approve' && accepted;
     await this._refreshPending();
     if (approved && this.onPairedDevicesChanged) this.onPairedDevicesChanged();
-  }
-
-  // Conditions (Aurora-rbp3) are standing facts, not failures: no Retry
-  // (the daemon re-checks and clears them itself) and no X (they go away
-  // when the cause does). Known sources get their own row from
-  // CONDITION_ROWS; anything else shows its message plainly.
-  _renderConditionRow(condition) {
-    const render = CONDITION_ROWS[condition.source];
-    const inner = render
-      ? render()
-      : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(condition.message ?? '')}</p>`;
-    return `<div class="shell-banner-row"><div class="shell-banner-content">${inner}</div></div>`;
-  }
-
-  // Permission-prefixed errors reuse renderReloadError with Retry only (no
-  // Open Settings link: it never adds Aurora to the Screen Recording list,
-  // only macOS's own prompt does, and a retry applies the grant live);
-  // everything else gets the generic row with a Retry button (ErrorOverlay.md, 'Resolve
-  // action'). platform comes from wherever it's been set (see
-  // constructor); unknown platform just means no Mac row is ever detected.
-  _renderBannerRow(error) {
-    const parsed = this.platform === 'mac' ? parseMacPermissionError(error.message) : null;
-    const retryId = `shell-banner-retry-${escapeHtml(error.source)}`;
-    // Saved-not-applied: a reload error on a running host (the old setup
-    // still drives the lights). Never promises the next launch works, it
-    // builds from the same saved config (ErrorOverlay.md, 'Banner and copy').
-    const message = friendlyReloadError(error.message);
-    const text = this.hostState === 'running' && error.source === 'reload'
-      ? `Saved, but couldn't apply: ${message}. Aurora is still running your previous setup and will try the new one next time it starts.`
-      : (SOURCE_PREFIX[error.source] ?? '') + message;
-    // Daemon-pushed heuristic (Aurora-h457). Retry is the generic reload: it
-    // rebuilds the grabber, which a grant alone does not revive.
-    const inner = error.source === 'audio_permission'
-      ? renderAudioPermissionBanner({ retryId })
-      : parsed
-      ? renderReloadError(error.message, this.platform, { retryId })
-      : `<p class="status-text status-text-error"><span class="warn-glyph" aria-hidden="true"></span> ${escapeHtml(text)}</p>
-         <button type="button" class="btn btn-secondary" id="${retryId}" style="margin-top: var(--aurora-space-3);">Retry</button>`;
-    // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'):
-    // a paused or failed host's row is the reason there are no lights.
-    const dismiss = this.hostState === 'running' && Number.isInteger(error.id)
-      ? `<button type="button" class="shell-banner-dismiss" id="shell-banner-dismiss-${escapeHtml(error.source)}" aria-label="Dismiss">×</button>`
-      : '';
-    // Content wrapped so the row can flex dismiss-beside-text instead of
-    // absolutely positioning the x with a fixed pixel nudge: that fixed
-    // offset doesn't track the text's actual first line, so it looks
-    // off whenever row padding or text length changes (see shell.css).
-    return `<div class="shell-banner-row"><div class="shell-banner-content">${inner}</div>${dismiss}</div>`;
   }
 
   // The daemon owns the dismissal; the {source, id} pair makes a click that
@@ -566,8 +555,4 @@ export class App {
     }
     await this.checkNow();
   }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

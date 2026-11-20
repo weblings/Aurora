@@ -70,12 +70,42 @@ namespace Aurora::Network::Http::Server
   }
 
 
+  bool HttpServer::aliasRoute(
+    HttpMethod method,
+    const std::string& fromPath,
+    const std::string& toPath
+  )
+  {
+    for(const auto& route : m_routes){
+      if(route.method == method && route.path == fromPath){
+        const Handler handler = route.handler;
+        addRoute(method, toPath, handler);
+        return true;
+      }
+    }
+    return false;
+  }
+
+
   void HttpServer::addStreamRoute(
     const std::string& path,
     StreamHandler handler
   )
   {
     m_streamRoutes.push_back({path, std::move(handler)});
+  }
+
+
+  std::vector<RouteInfo> HttpServer::routeList() const
+  {
+    std::vector<RouteInfo> routes;
+    for(const auto& route : m_routes){
+      routes.push_back({route.method, route.path, false});
+    }
+    for(const auto& route : m_streamRoutes){
+      routes.push_back({HttpMethod::Get, route.path, true});
+    }
+    return routes;
   }
 
 

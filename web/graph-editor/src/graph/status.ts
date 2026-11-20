@@ -1,0 +1,121 @@
+// The editor's single status spot: which state it shows. The rule is the
+// status priority table in [[graph-editor-cleanup]]. Pure, so every rank
+// is testable without a server.
+
+import { summarize, type LoopState } from './loop'
+import { describeTest, initialTest, lightsInUseText, type Holder, type TestState } from './lightTest'
+
+export type StatusRank = 1 | 4 | 5 | 7
+
+export type Status = {
+  rank: StatusRank
+  label: string
+  // The Test button's own label for this state.
+  action: 'reconnect' | 'take-over' | null
+}
+
+export type StatusInput = {
+  // The effect or catalog would not load although Aurora answers (rank 1; the error shell says why).
+  openError: boolean
+  // Aurora cannot be reached: the one verdict, from the host-state poll that also raises
+  // the shell's takeover (rank 1; the Test button is off with it).
+  unreachable: boolean
+  loop: LoopState
+  test: TestState
+  // Another session's test, from the host-state poll (the same source as the shell's
+  // light-test row), or null. Rank 5.
+  otherHolder: Holder | null
+}
+
+/** Stop was pressed and the lights are back: the user's own act, announced and not drawn (Aurora-u68h.6). */
+export function stopAnnounced(ended: TestState['ended']): boolean {
+  return ended?.reason === 'reverted'
+}
+
+/** The toast for a test that ended by itself or by Stop, else null. A heartbeat lost is the one end
+ *  nobody caused and nothing else shows; the lights return by themselves, so it has no steps. */
+export function quietEndToast(test: TestState): string | null {
+  switch (test.ended?.reason) {
+    case 'reverted':
+      return 'Reverted'
+    case 'confirm_timeout':
+      return 'Test finished: the lights are back'
+    case 'heartbeat_lost':
+      return describeTest({ ...initialTest, ended: test.ended })
+    default:
+      return null
+  }
+}
+
+// Rank 5: someone else is testing on the lights. Only offered when this tab is idle.
+export function lightsInUse(test: TestState, otherHolder: Holder | null): string | null {
+  return test.phase === 'idle' && otherHolder ? lightsInUseText(otherHolder) : null
+}
+
+// Why a test ended for a reason the user did not cause, else null. Announced only (a heartbeat
+// lost is also a toast, quietEndToast); it never draws on the button and is not a status.
+// Kept, Reverted and the end of a Once test are the user's own and are toasts; unreachable
+// is the "Aurora has stopped" takeover; a null reason is a Stop that found the test over.
+export function testOutcome(test: TestState): string | null {
+  if (test.phase !== 'idle') return null
+  switch (test.ended?.reason) {
+    case 'replaced':
+    case 'heartbeat_lost':
+    case 'stopped':
+    case 'superseded':
+    case 'pipeline_gone':
+      return describeTest({ ...initialTest, ended: test.ended })
+    default:
+      return null
+  }
+}
+
+/** The toast for a Test the server refused to start (or a Stop it refused): its own failure text. */
+export function testFailureToast(test: TestState): string | null {
+  return test.phase === 'idle' || test.phase === 'running' ? test.failure : null
+}
+
+/** A document change that dismisses a test outcome and a failed-save row: any
+ *  change after an effect is open, but not the open itself (from no document). */
+export function changeIsEdit(before: unknown, after: unknown): boolean {
+  return before !== null && after !== null && before !== after
+}
+
+/** The Test split button's label while a test runs: Stop, with the Once countdown. */
+export function stopLabel(test: TestState): string {
+  if (test.mode === 'live') return 'Stop'
+  const s = Math.max(0, Math.ceil(test.remainingMs / 1000))
+  return `Stop ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+// Stop's accessible name in the bar's icon form, where the countdown is not drawn.
+export function stopName(test: TestState): string {
+  if (test.mode === 'live') return 'Stop the test'
+  const s = Math.max(0, Math.ceil(test.remainingMs / 1000))
+  return `Stop the test, ${s} ${s === 1 ? 'second' : 'seconds'} left`
+}
+
+const at = (rank: StatusRank, label: string, action: Status['action'] = null): Status => ({ rank, label, action })
+
+export function pickStatus({ openError, unreachable, loop, test, otherHolder }: StatusInput): Status {
+  // Rank 1: the takeover (or the shell row for an effect that would not open) says it; the button
+  // is disabled with this as its tooltip, and nothing is open to save. A lost preview stream alone is not this: it only
+  // asks the host poll to look (useDraftLoop), which owns the verdict.
+  if (unreachable) return at(1, 'Cannot reach Aurora')
+  if (openError) return at(1, 'No effect is open')
+  // Draft not sent is split by the server's error code: the error shell shows the editor-supplied
+  // rows (graph/hostState.ts draftShellNote), and a too-large draft is a Whole graph problem.
+  // Draft would not load is a problem with the graph: it is a Whole graph row in
+  // the problems popover (graph/problems.ts draftIssues), not a banner.
+  // Rank 4 and 5 are the button's own labels.
+  if (loop.stream === 'replaced') return at(4, 'Reconnect', 'reconnect')
+  const use = lightsInUse(test, otherHolder)
+  if (use) return at(5, 'Take over', 'take-over')
+  // There is no rank 6: a failed Save is an error-shell row (graph/hostState.ts failedSaveNote), test
+  // outcomes are the live region (testOutcome) and a toast for a lost heartbeat, and a failed start is a toast.
+  // Preview state (Preview paused, Connecting, Live) is no longer text: problems
+  // are the chip's job and the zones island tints when stale.
+  if (loop.valid === false) return at(7, 'Preview paused')
+  const line = summarize(loop)
+  return at(7, line.label)
+}

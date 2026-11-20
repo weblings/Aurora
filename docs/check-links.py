@@ -9,6 +9,7 @@ resolves through a Superseded-by: chain prints a warning instead of failing.
 (pre-commit / CI use)."""
 import os
 import re
+import subprocess
 import sys
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -104,6 +105,7 @@ def find_extra_citer_files():
                     yield path
 
 
+path_to_id = {}
 # --- Pass 1: build the id index (id -> path, id -> heading-slug set,
 # id -> superseded-by) across every doc, regardless of which subtree it's
 # in -- this is what lets [[id]] resolve sideways, unlike the upward-only
@@ -130,6 +132,7 @@ for path in find_all_md_files():
         )
         continue
     id_to_path[doc_id] = os.path.relpath(path, root)
+    path_to_id[id_to_path[doc_id]] = doc_id
     id_to_slugs[doc_id] = {slugify(h) for h in heading_re.findall(text)}
     title_match = title_re.search(text)
     id_to_title[doc_id] = title_match.group(1) if title_match else doc_id
@@ -165,6 +168,16 @@ def resolve_id(doc_id, anchor, citing_path):
         )
 
 
+def staged_files():
+    r = subprocess.run(['git', 'diff', '--cached', '--name-only'], cwd=root,
+                       capture_output=True, text=True, encoding='utf-8')
+    return set(r.stdout.split()) if r.returncode == 0 else set()
+
+
+STAGED = staged_files()
+CITE_HINT = ' -- cite docs by id as [[id]] (docs/README.md "Citing other docs"), not by path'
+
+
 def check_file(path, dirpath):
     text = open(path, encoding='utf-8').read()
     targets = set(link_re.findall(text)) | set(bare_re.findall(text))
@@ -182,13 +195,19 @@ def check_file(path, dirpath):
         t = t.split('#')[0]
         if not t or t.startswith('http') or os.path.isabs(t):
             continue
-        if any(os.path.exists(os.path.join(b, t)) for b in bases):
+        hit = next((os.path.join(b, t) for b in bases if os.path.exists(os.path.join(b, t))), None)
+        if hit:
+            # Advisory, staged citers only (existing path citations are legacy).
+            rel_hit = os.path.relpath(os.path.realpath(hit), os.path.realpath(root))
+            rel_path = os.path.relpath(path, root)
+            if rel_path in STAGED and rel_hit in path_to_id:
+                warnings.append(f'PATH CITATION: {rel_path} -> {t}; use [[{path_to_id[rel_hit]}]]')
             continue
         if not os.path.normpath(os.path.join(dirpath, t)).startswith(ws):
             continue  # escapes the workspace, not verifiable here
         if t in GRANDFATHERED:
             continue
-        dead.append(f'DEAD: {os.path.relpath(path, root)} -> {t}')
+        dead.append(f'DEAD: {os.path.relpath(path, root)} -> {t}{CITE_HINT}')
     for doc_id, anchor in wikilink_re.findall(strip_code(text)):
         resolve_id(doc_id, anchor or None, path)
 

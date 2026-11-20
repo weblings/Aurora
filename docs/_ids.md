@@ -5,14 +5,27 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 
 | Id | Path | Title |
 |---|---|---|
+| `0veq-converter-auto-insert` | [log/2026-11-11-0veq-converter-auto-insert.md](log/2026-11-11-0veq-converter-auto-insert.md) | Auto-insert Float/Angle converter on drop |
 | `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `112-linux-verification` | [log/2026-10-18-112-linux-verification.md](log/2026-10-18-112-linux-verification.md) | v1.1.2 Linux verification |
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
+| `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
+| `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
+| `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
+| `1n1u-browser-check-set` | [log/2026-11-17-1n1u-browser-check-set.md](log/2026-11-17-1n1u-browser-check-set.md) | Browser checks: the editor regression set on one stack |
+| `1na1-grille-0-2-0` | [log/2026-11-20-1na1-grille-0-2-0.md](log/2026-11-20-1na1-grille-0-2-0.md) | Graph editor moves to stable Grille 0.2.0 |
 | `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |
+| `23wu-problems-chip-dropdown-node-border` | [log/2026-11-16-23wu-problems-chip-dropdown-node-border.md](log/2026-11-16-23wu-problems-chip-dropdown-node-border.md) | Graph editor: problems chip, dropdown and node border match the mock |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
 | `3ddb-pause-cli` | [log/2026-10-03-3ddb-pause-cli.md](log/2026-10-03-3ddb-pause-cli.md) | Aurora-3ddb: pause/resume, core and CLI only |
+| `3m75-editor-probe-default` | [log/2026-11-18-3m75-editor-probe-default.md](log/2026-11-18-3m75-editor-probe-default.md) | Dashboard hides editor actions until the probe succeeds |
 | `3ono-stale-core-test-tree` | [log/2026-10-02-3ono-stale-core-test-tree.md](log/2026-10-02-3ono-stale-core-test-tree.md) | Aurora-3ono: PipelineTests segfault on Windows was a stale build tree |
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
+| `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
+| `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
+| `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
+| `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
+| `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
@@ -29,6 +42,18 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4xqt8-node-preset-read-tools` | [log/2026-10-22-4xqt8-node-preset-read-tools.md](log/2026-10-22-4xqt8-node-preset-read-tools.md) | Aurora-4xqt.8: node and preset read tools (D2) |
 | `4xqt9-draft-tools` | [log/2026-10-22-4xqt9-draft-tools.md](log/2026-10-22-4xqt9-draft-tools.md) | Aurora-4xqt.9: draft tools (D3) |
 | `4zr11-floor-wiring` | [log/2026-10-16-4zr11-floor-wiring.md](log/2026-10-16-4zr11-floor-wiring.md) | Brightness floor wiring (Aurora-4zr.11) |
+| `51nv1-subpath-editor-links` | [log/2026-11-18-51nv1-subpath-editor-links.md](log/2026-11-18-51nv1-subpath-editor-links.md) | Editor links work under a sub-path host |
+| `51nv10-demo-engine-routes` | [log/2026-11-18-51nv10-demo-engine-routes.md](log/2026-11-18-51nv10-demo-engine-routes.md) | Engine-backed editor routes in the demo |
+| `51nv11-room-on-engine` | [log/2026-11-18-51nv11-room-on-engine.md](log/2026-11-18-51nv11-room-on-engine.md) | Demo room colors come from the WASM engine |
+| `51nv13-loadlive-keeps-state` | [log/2026-11-18-51nv13-loadlive-keeps-state.md](log/2026-11-18-51nv13-loadlive-keeps-state.md) | WASM engine loadLive keeps node state |
+| `51nv2-demo-eventsource` | [log/2026-11-18-51nv2-demo-eventsource.md](log/2026-11-18-51nv2-demo-eventsource.md) | EventSource stand-in for the demo editor |
+| `51nv3-pages-deploy` | [log/2026-11-20-51nv3-pages-deploy.md](log/2026-11-20-51nv3-pages-deploy.md) | Demo, editor and recipes deploy to Pages from a tag workflow |
+| `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
+| `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
+| `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
+| `51nv7-wasm-ci` | [log/2026-11-17-51nv7-wasm-ci.md](log/2026-11-17-51nv7-wasm-ci.md) | WASM build and parity job in CI |
+| `51nv8-async-demo-router` | [log/2026-11-18-51nv8-async-demo-router.md](log/2026-11-18-51nv8-async-demo-router.md) | Demo shim router is async |
+| `51nv9-demo-editor-shell` | [log/2026-11-18-51nv9-demo-editor-shell.md](log/2026-11-18-51nv9-demo-editor-shell.md) | Demo editor iframe shell and custom effects |
 | `52oz1-custom-effects-storage` | [log/2026-10-20-52oz1-custom-effects-storage.md](log/2026-10-20-52oz1-custom-effects-storage.md) | Aurora-52oz.1: custom effects under effects/, activeEffectId, fallback warning (closed) |
 | `52oz2-graph-source-inputs` | [log/2026-10-20-52oz2-graph-source-inputs.md](log/2026-10-20-52oz2-graph-source-inputs.md) | Aurora-52oz.2: pipeline builds inputs from the graph's source nodes (closed) |
 | `52oz3-drafts-and-validate` | [log/2026-10-20-52oz3-drafts-and-validate.md](log/2026-10-20-52oz3-drafts-and-validate.md) | Aurora-52oz.3: per-session drafts and validate (closed) |
@@ -38,6 +63,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `52oz7-tuning-custom-effects` | [log/2026-10-20-52oz7-tuning-custom-effects.md](log/2026-10-20-52oz7-tuning-custom-effects.md) | Aurora-52oz.7: Tuning edits on custom effects (closed) |
 | `52oz8-linux-verification` | [log/2026-10-20-52oz8-linux-verification.md](log/2026-10-20-52oz8-linux-verification.md) | Sequence C Linux verification: core, gate 7/7, web tuning tests |
 | `52oz8-sequence-c-gate` | [log/2026-10-20-52oz8-sequence-c-gate.md](log/2026-10-20-52oz8-sequence-c-gate.md) | Aurora-52oz.8: Sequence C gate on the fake-Hue stack (8/8 with the audio step on Windows, Mac and Linux) |
+| `5duz-demo-landscape-split` | [log/2026-11-20-5duz-demo-landscape-split.md](log/2026-11-20-5duz-demo-landscape-split.md) | Web demo landscape split is 2/3 room, 1/3 Dashboard |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy19-lan-reads-paired` | [log/2026-10-16-5ipy19-lan-reads-paired.md](log/2026-10-16-5ipy19-lan-reads-paired.md) | LAN GETs require the read scope (Aurora-5ipy.19) |
@@ -50,55 +76,151 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5ipy8-coalesce-settings-reloads` | [log/2026-10-16-5ipy8-coalesce-settings-reloads.md](log/2026-10-16-5ipy8-coalesce-settings-reloads.md) | Coalesce settings-PUT reloads (Aurora-5ipy.8) |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
+| `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
+| `7nyu-pairing-e2e-frozen-clock` | [log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md](log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md) | Pairing end-to-end test uses a frozen clock |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
 | `8ydf-wayland-rate-cap-review` | [log/2026-10-20-8ydf-wayland-rate-cap-review.md](log/2026-10-20-8ydf-wayland-rate-cap-review.md) | Aurora-8ydf step 1: Wayland rate-cap review + tests (motion run open) |
+| `91cj-zone-map-empty-save` | [log/2026-11-13-91cj-zone-map-empty-save.md](log/2026-11-13-91cj-zone-map-empty-save.md) | Zone maps: an output with no zone ids no longer overwrites its saved zone map |
 | `98pr-webui-banner-x` | [log/2026-10-06-98pr-webui-banner-x.md](log/2026-10-06-98pr-webui-banner-x.md) | Aurora-98pr: saved-not-applied errors move to the banner; banner X (closed) |
 | `9ca-fromhsv-nan-guard` | [log/2026-10-01-9ca-fromhsv-nan-guard.md](log/2026-10-01-9ca-fromhsv-nan-guard.md) | Aurora-9ca: NaN/Inf into Color::fromHSV's uint8_t cast — fixed |
+| `9fn3-x11-monitors-changed` | [log/2026-11-19-9fn3-x11-monitors-changed.md](log/2026-11-19-9fn3-x11-monitors-changed.md) | Linux X11 rebuilds the pipeline when the monitor set changes |
+| `9hqa1-shell-row-model` | [log/2026-11-13-9hqa1-shell-row-model.md](log/2026-11-13-9hqa1-shell-row-model.md) | Error shell: one row model for both pages, the Dashboard patches rows by key |
+| `9hqa2-shell-spotlight` | [log/2026-11-13-9hqa2-shell-spotlight.md](log/2026-11-13-9hqa2-shell-spotlight.md) | Error shell arrival spotlight: one pulse and a polite announcement |
+| `9hqa3-shell-cap` | [log/2026-11-13-9hqa3-shell-cap.md](log/2026-11-13-9hqa3-shell-cap.md) | Error shell 60vh safety cap: fades, scroll to the new row, pulses that wait to be seen |
+| `9hqa4-shell-pairing` | [log/2026-11-13-9hqa4-shell-pairing.md](log/2026-11-13-9hqa4-shell-pairing.md) | Pairing requests in the error shell: collapse, editor, baseline wait |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
+| `ajr5-graph-capabilities` | [log/2026-11-13-ajr5-graph-capabilities.md](log/2026-11-13-ajr5-graph-capabilities.md) | Pipeline capabilities follow the running graph's nodes |
+| `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
+| `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
+| `api-v1-review` | [planning/ApiV1Review.md](planning/ApiV1Review.md) | API v1 spec review: fields, scopes, public and internal split |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
+| `bju0-failed-save-check` | [log/2026-11-13-bju0-failed-save-check.md](log/2026-11-13-bju0-failed-save-check.md) | Browser check failed-save: the audio graph ran because Aurora picks the missing input |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
+| `c5gw-builtin-save-title` | [log/2026-10-29-c5gw-builtin-save-title.md](log/2026-10-29-c5gw-builtin-save-title.md) | Graph editor: saving a built-in picks a distinct title |
 | `cgr-tick-yield` | [log/2026-10-16-cgr-tick-yield.md](log/2026-10-16-cgr-tick-yield.md) | Tick loop yields the host mutex (Aurora-cgr) |
 | `cj11-shell-banner` | [log/2026-10-06-cj11-shell-banner.md](log/2026-10-06-cj11-shell-banner.md) | Aurora-cj11: sticky shell banner for system errors (closed) |
 | `cli-help-version` | [log/2026-10-06-cli-help-version.md](log/2026-10-06-cli-help-version.md) | CLI --help/--version closes Aurora-v3in and Aurora-0gd |
+| `control-scope` | [log/2026-10-26-control-scope.md](log/2026-10-26-control-scope.md) | 5ipy.38: Control scope (Aurora-5ipy.38) |
 | `cyee-rbp3-mdns-and-host-conditions` | [log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md](log/2026-10-08-cyee-rbp3-mdns-and-host-conditions.md) | Aurora-cyee + Aurora-rbp3: local bridge discovery and host conditions (closed) |
+| `d0hv-circle-sockets` | [log/2026-11-11-d0hv-circle-sockets.md](log/2026-11-11-d0hv-circle-sockets.md) | Graph editor: circle sockets in four domain colours |
 | `d2r3-windows-sdr-alpha-guard` | [log/2026-10-13-d2r3-windows-sdr-alpha-guard.md](log/2026-10-13-d2r3-windows-sdr-alpha-guard.md) | Aurora-d2r3: Windows SDR capture dropped every frame |
 | `d3ec-host-build-errors` | [log/2026-10-06-d3ec-host-build-errors.md](log/2026-10-06-d3ec-host-build-errors.md) | Aurora-d3ec: host holds build errors, GET /api/state reports state |
 | `d3ec-linux-verification` | [log/2026-10-06-d3ec-linux-verification.md](log/2026-10-06-d3ec-linux-verification.md) | Aurora-d3ec Linux verification (compile, Catch2, live failed-state cycle) |
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
+| `daaa-graph-editor-stage1` | [log/2026-11-08-daaa-graph-editor-stage1.md](log/2026-11-08-daaa-graph-editor-stage1.md) | Graph editor cleanup stage 1: back link and Aurora styles |
+| `daaa10-title-menu` | [log/2026-11-08-daaa10-title-menu.md](log/2026-11-08-daaa10-title-menu.md) | Graph editor title menu: Save, Save as new and Save and apply |
+| `daaa11-top-bar` | [log/2026-11-08-daaa11-top-bar.md](log/2026-11-08-daaa11-top-bar.md) | Graph editor top bar, title and view menus, status spot |
+| `daaa12-doc-cleanup` | [log/2026-11-08-daaa12-doc-cleanup.md](log/2026-11-08-daaa12-doc-cleanup.md) | Graph editor cleanup doc: status, final bundle, daaa.11 acceptance |
+| `daaa13-embedded-run` | [log/2026-11-09-daaa13-embedded-run.md](log/2026-11-09-daaa13-embedded-run.md) | Graph editor stage 2 in the embedded build |
+| `daaa14-test-outcome-clears` | [log/2026-11-09-daaa14-test-outcome-clears.md](log/2026-11-09-daaa14-test-outcome-clears.md) | Graph editor: a test outcome clears on Save and on undo to the saved graph |
+| `daaa15-dead-css-chunk-limit` | [log/2026-11-09-daaa15-dead-css-chunk-limit.md](log/2026-11-09-daaa15-dead-css-chunk-limit.md) | Graph editor: dead status CSS removed, chunk-size warning settled |
+| `daaa17-problems-popover-rows` | [log/2026-11-09-daaa17-problems-popover-rows.md](log/2026-11-09-daaa17-problems-popover-rows.md) | Graph editor: problems popover rows stack the node id above the message |
+| `daaa18-fit-zoom-thumbnail` | [log/2026-11-09-daaa18-fit-zoom-thumbnail.md](log/2026-11-09-daaa18-fit-zoom-thumbnail.md) | Graph editor: fit view keeps a readable zoom, thumbnail hidden until a frame arrives |
+| `daaa19-name-dialog` | [log/2026-11-09-daaa19-name-dialog.md](log/2026-11-09-daaa19-name-dialog.md) | Naming a new effect in a modal dialog |
+| `daaa21-connecting-status` | [log/2026-11-10-daaa21-connecting-status.md](log/2026-11-10-daaa21-connecting-status.md) | Graph editor: status spot reads Connecting before the first draft |
+| `daaa24-1-catalog-group` | [log/2026-11-10-daaa24-1-catalog-group.md](log/2026-11-10-daaa24-1-catalog-group.md) | Graph editor: catalog group field |
+| `daaa24-2-node-copy` | [log/2026-11-10-daaa24-2-node-copy.md](log/2026-11-10-daaa24-2-node-copy.md) | Graph editor: user-facing node copy |
+| `daaa24-3-add-node-menu` | [log/2026-11-10-daaa24-3-add-node-menu.md](log/2026-11-10-daaa24-3-add-node-menu.md) | Graph editor: cascade Add node menu |
+| `daaa24-4-palette-removed` | [log/2026-11-10-daaa24-4-palette-removed.md](log/2026-11-10-daaa24-4-palette-removed.md) | Graph editor: palette removed |
+| `daaa25-browser-check-timeouts` | [log/2026-11-10-daaa25-browser-check-timeouts.md](log/2026-11-10-daaa25-browser-check-timeouts.md) | Graph editor: top-bar and title-menu checks fixed |
+| `daaa26-gate-status` | [log/2026-11-10-daaa26-gate-status.md](log/2026-11-10-daaa26-gate-status.md) | Graph editor: gate check fixed |
+| `daaa27-1-context-menus` | [log/2026-11-10-daaa27-1-context-menus.md](log/2026-11-10-daaa27-1-context-menus.md) | Graph editor: right-click and ⋯ menus |
+| `daaa27-2-delete-key` | [log/2026-11-10-daaa27-2-delete-key.md](log/2026-11-10-daaa27-2-delete-key.md) | Graph editor: Delete key and the dropped-controls toast |
+| `daaa27-29-stage4-closed` | [log/2026-11-10-daaa27-29-stage4-closed.md](log/2026-11-10-daaa27-29-stage4-closed.md) | Graph editor: stage 4 and narrow windows closed |
+| `daaa27-3-drawers` | [log/2026-11-10-daaa27-3-drawers.md](log/2026-11-10-daaa27-3-drawers.md) | Graph editor: Details and Dashboard controls drawers, on-node mark |
+| `daaa27-4-inspector-removed` | [log/2026-11-10-daaa27-4-inspector-removed.md](log/2026-11-10-daaa27-4-inspector-removed.md) | Graph editor: Inspector removed, checks migrated |
+| `daaa28-grille-drawer` | [log/2026-11-10-daaa28-grille-drawer.md](log/2026-11-10-daaa28-grille-drawer.md) | Graph editor: Grille dev.7 (Drawer) |
+| `daaa29-1-narrow-top-bar` | [log/2026-11-10-daaa29-1-narrow-top-bar.md](log/2026-11-10-daaa29-1-narrow-top-bar.md) | Graph editor: top bar shrinks to 400 px |
+| `daaa29-2-drawer-clear` | [log/2026-11-10-daaa29-2-drawer-clear.md](log/2026-11-10-daaa29-2-drawer-clear.md) | Graph editor: side drawer narrows and the view keeps the node clear |
+| `daaa29-3-grille-dev8` | [log/2026-11-10-daaa29-3-grille-dev8.md](log/2026-11-10-daaa29-3-grille-dev8.md) | Graph editor: Grille dev.8 (bottom Drawer, Esc) |
+| `daaa29-4-bottom-dock` | [log/2026-11-10-daaa29-4-bottom-dock.md](log/2026-11-10-daaa29-4-bottom-dock.md) | Graph editor: bottom dock for drawers in narrow or portrait windows |
+| `daaa29-5-narrow-leftovers` | [log/2026-11-10-daaa29-5-narrow-leftovers.md](log/2026-11-10-daaa29-5-narrow-leftovers.md) | Graph editor: 1100 px no-pan assertion, drawer-body container queries skipped |
+| `daaa30-full-browser-check` | [log/2026-11-10-daaa30-full-browser-check.md](log/2026-11-10-daaa30-full-browser-check.md) | Graph editor: full browser-check suite on the narrow-window head |
+| `daaa31-grille-mock` | [log/2026-11-10-daaa31-grille-mock.md](log/2026-11-10-daaa31-grille-mock.md) | Graph editor mock rebuilt on Grille |
+| `daaa32-test-split-zones-island` | [log/2026-11-11-daaa32-test-split-zones-island.md](log/2026-11-11-daaa32-test-split-zones-island.md) | Test split button and Zones island variant in the Grille mock |
+| `daaa33-mock-icons` | [log/2026-11-11-daaa33-mock-icons.md](log/2026-11-11-daaa33-mock-icons.md) | Grille mock: one icon set, fixed-height bar, drawer icon buttons |
+| `daaa33-notices-audit` | [log/2026-11-10-daaa33-notices-audit.md](log/2026-11-10-daaa33-notices-audit.md) | Icon audit, third-party notices, and what the build ships |
+| `daaa34-mock-narrow-drawers` | [log/2026-11-11-daaa34-mock-narrow-drawers.md](log/2026-11-11-daaa34-mock-narrow-drawers.md) | Grille mock: narrow-window drawers |
+| `daaa35-zone-preview-drawer` | [log/2026-11-11-daaa35-zone-preview-drawer.md](log/2026-11-11-daaa35-zone-preview-drawer.md) | Graph editor zone preview clears a side drawer |
+| `daaa36-mock-minimap` | [log/2026-11-11-daaa36-mock-minimap.md](log/2026-11-11-daaa36-mock-minimap.md) | Grille mock: minimap above the zoom menu |
+| `daaa37-width-only-dock` | [log/2026-11-17-daaa37-width-only-dock.md](log/2026-11-17-daaa37-width-only-dock.md) | Graph editor: drawers dock at the bottom by width only |
+| `daaa4-control-count-baseline` | [log/2026-11-08-daaa4-control-count-baseline.md](log/2026-11-08-daaa4-control-count-baseline.md) | Graph editor control-count baseline and CMake rebuild check |
+| `daaa5-graph-editor-owner-decisions` | [log/2026-11-08-daaa5-graph-editor-owner-decisions.md](log/2026-11-08-daaa5-graph-editor-owner-decisions.md) | Graph editor cleanup: owner decisions before stage 2 |
+| `daaa6-graph-editor-gap-states` | [log/2026-11-08-daaa6-graph-editor-gap-states.md](log/2026-11-08-daaa6-graph-editor-gap-states.md) | Graph editor cleanup: gap states and the status priority rule |
+| `daaa7-grille-release-and-build-dependency` | [log/2026-11-08-daaa7-grille-release-and-build-dependency.md](log/2026-11-08-daaa7-grille-release-and-build-dependency.md) | Grille releases and the editor's first Grille dependency |
+| `dh1p-failure-light` | [log/2026-11-05-dh1p-failure-light.md](log/2026-11-05-dh1p-failure-light.md) | Failure light: dim magenta while no effect can run |
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
+| `e4bi-22-empty-section-leads` | [log/2026-11-18-e4bi-22-empty-section-leads.md](log/2026-11-18-e4bi-22-empty-section-leads.md) | A stored empty section can lead the controls list |
+| `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
+| `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
+| `e4bi10-sections-ui-key` | [log/2026-11-17-e4bi10-sections-ui-key.md](log/2026-11-17-e4bi10-sections-ui-key.md) | Graph ui key "#sections" reserved, node ids must not start with '#' |
+| `e4bi11-subgraph-readiness` | [log/2026-11-17-e4bi11-subgraph-readiness.md](log/2026-11-17-e4bi11-subgraph-readiness.md) | Sub-graph readiness: Tuning is one graph level's exposed params |
+| `e4bi12-drawer-chrome` | [log/2026-11-17-e4bi12-drawer-chrome.md](log/2026-11-17-e4bi12-drawer-chrome.md) | Graph editor: Tuning drawer chrome |
+| `e4bi13-naming-dialog` | [log/2026-11-17-e4bi13-naming-dialog.md](log/2026-11-17-e4bi13-naming-dialog.md) | Graph editor: one naming dialog on Grille |
+| `e4bi14-param-row-menu-mock` | [log/2026-11-17-e4bi14-param-row-menu-mock.md](log/2026-11-17-e4bi14-param-row-menu-mock.md) | Param-row menu on the node: mock decided, build split out |
+| `e4bi15-param-row-menu` | [log/2026-11-17-e4bi15-param-row-menu.md](log/2026-11-17-e4bi15-param-row-menu.md) | Param-row menu built on the graph editor node |
+| `e4bi16-tickfirst-label` | [log/2026-11-17-e4bi16-tickfirst-label.md](log/2026-11-17-e4bi16-tickfirst-label.md) | Browser checks: tickFirst follows the Tuning controls rename |
+| `e4bi17-title-menu-builtin` | [log/2026-11-17-e4bi17-title-menu-builtin.md](log/2026-11-17-e4bi17-title-menu-builtin.md) | Browser checks: title-menu picks a built-in from the Built-in sub-menu |
+| `e4bi18-narrow-tooltip-esc` | [log/2026-11-17-e4bi18-narrow-tooltip-esc.md](log/2026-11-17-e4bi18-narrow-tooltip-esc.md) | Browser checks: narrow parks the pointer before Esc |
+| `e4bi19-gate-undo-menu` | [log/2026-11-17-e4bi19-gate-undo-menu.md](log/2026-11-17-e4bi19-gate-undo-menu.md) | Browser checks: the gate undoes through the Edit menu |
+| `e4bi2-section-helpers` | [log/2026-11-17-e4bi2-section-helpers.md](log/2026-11-17-e4bi2-section-helpers.md) | Tuning sections: one shared derivation, editor section helpers, General heading |
+| `e4bi20-tuning-control-copy` | [log/2026-11-17-e4bi20-tuning-control-copy.md](log/2026-11-17-e4bi20-tuning-control-copy.md) | Problem copy says Tuning control |
+| `e4bi23-gate-draft-invalid-retry` | [log/2026-11-17-e4bi23-gate-draft-invalid-retry.md](log/2026-11-17-e4bi23-gate-draft-invalid-retry.md) | Browser checks: the gate retries a missed draft_invalid status |
+| `e4bi3-tuning-cards` | [log/2026-11-17-e4bi3-tuning-cards.md](log/2026-11-17-e4bi3-tuning-cards.md) | Graph editor: Tuning cards with the card menu and select-node |
+| `e4bi4-tuning-sections` | [log/2026-11-17-e4bi4-tuning-sections.md](log/2026-11-17-e4bi4-tuning-sections.md) | Graph editor: Tuning sections, panel and section menus |
+| `e4bi5-tuning-drag` | [log/2026-11-17-e4bi5-tuning-drag.md](log/2026-11-17-e4bi5-tuning-drag.md) | Graph editor: drag Tuning cards and sections |
+| `e4bi6-controls-panel-wrapup` | [log/2026-11-17-e4bi6-controls-panel-wrapup.md](log/2026-11-17-e4bi6-controls-panel-wrapup.md) | Graph editor: Tuning panel wrap-up (Stage 10) |
+| `e4bi7-grille-dev17` | [log/2026-11-17-e4bi7-grille-dev17.md](log/2026-11-17-e4bi7-grille-dev17.md) | Grille dev.17 in the graph editor |
+| `e4bi8-tuning-node-tabs-design` | [log/2026-11-16-e4bi8-tuning-node-tabs-design.md](log/2026-11-16-e4bi8-tuning-node-tabs-design.md) | Graph editor: Details and controls panel as one drawer with Tuning and Node tabs (design, ready to mock) |
+| `e4bi8-tuning-only-design` | [log/2026-11-17-e4bi8-tuning-only-design.md](log/2026-11-17-e4bi8-tuning-only-design.md) | Graph editor: Tuning is the only panel, controls are added from the node (design and mock) |
+| `e4bi9-tuning-picker` | [log/2026-11-17-e4bi9-tuning-picker.md](log/2026-11-17-e4bi9-tuning-picker.md) | Graph editor: Tuning controls picker replaces Details |
 | `easy-bead-trio` | [log/2026-10-06-easy-bead-trio.md](log/2026-10-06-easy-bead-trio.md) | Easy-bead trio: 2qj verify-close, ryvy ifdef, ncdd regex |
+| `ecl5-windows-monitors-changed` | [log/2026-11-18-ecl5-windows-monitors-changed.md](log/2026-11-18-ecl5-windows-monitors-changed.md) | Windows rebuilds the pipeline when the monitor set changes |
+| `effect-recipes` | [recipes/README.md](recipes/README.md) | Effect recipes |
 | `error-overlay` | [planning/ErrorOverlay.md](planning/ErrorOverlay.md) | Error overlay |
 | `error-overlay-design` | [log/2026-10-05-error-overlay-design.md](log/2026-10-05-error-overlay-design.md) | Error overlay design pass |
 | `error-text-and-leak-beads` | [log/2026-10-05-error-text-and-leak-beads.md](log/2026-10-05-error-text-and-leak-beads.md) | Aurora-jm6s, tazx and kea closed; 2pe5, d3ec designed; 36b7, k73j and 9swq filed |
 | `es51-x11-damage-latch` | [log/2026-10-20-es51-x11-damage-latch.md](log/2026-10-20-es51-x11-damage-latch.md) | Aurora-es51: X11 damage latch + 1 s staleness grab |
+| `eu0r-problems-list-fit` | [log/2026-11-20-eu0r-problems-list-fit.md](log/2026-11-20-eu0r-problems-list-fit.md) | The Problems list fits its panel with no sideways scroll |
 | `ewyz-connection-watcher` | [log/2026-10-06-ewyz-connection-watcher.md](log/2026-10-06-ewyz-connection-watcher.md) | Aurora-ewyz: shell-level connection watcher (implemented, verified) |
+| `ex8z-port-type-sockets` | [log/2026-10-30-ex8z-port-type-sockets.md](log/2026-10-30-ex8z-port-type-sockets.md) | Graph editor: sockets and wires by port type |
 | `external-control` | [planning/ExternalControl.md](planning/ExternalControl.md) | External control: assistants, hubs and Muse driving Aurora |
 | `external-control-beads` | [log/2026-10-03-external-control-beads.md](log/2026-10-03-external-control-beads.md) | External control: bead sequence, overlap with nodes and HA |
 | `external-control-planning` | [log/2026-10-02-external-control-planning.md](log/2026-10-02-external-control-planning.md) | External control planning, Muse and Hyperion survey |
+| `f8yk-failed-apply-browser-check` | [log/2026-11-13-f8yk-failed-apply-browser-check.md](log/2026-11-13-f8yk-failed-apply-browser-check.md) | Browser check: a Save and apply that cannot run shows as an error-shell row |
 | `first-scan` | [archive/FirstScan.md](archive/FirstScan.md) | Huenicorn pipeline scan |
 | `fq5y-x11-xrender-downscale` | [log/2026-10-20-fq5y-x11-xrender-downscale.md](log/2026-10-20-fq5y-x11-xrender-downscale.md) | Aurora-fq5y: X11 XRender server-side downscale (39.7/20.4% -> 4.2/1.3%) |
 | `future-steamos-support` | [planning/FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md) | SteamOS / Steam Deck support |
+| `fzzr-laptop-width-fit` | [log/2026-10-29-fzzr-laptop-width-fit.md](log/2026-10-29-fzzr-laptop-width-fit.md) | Graph editor: fit holds at laptop width |
+| `ge1i-stage8-minimap-mark-start-from` | [log/2026-11-15-ge1i-stage8-minimap-mark-start-from.md](log/2026-11-15-ge1i-stage8-minimap-mark-start-from.md) | Graph editor stage 8: minimap contrast, unsaved *, New from any effect |
+| `ge1i21-clipboard` | [log/2026-11-16-ge1i21-clipboard.md](log/2026-11-16-ge1i21-clipboard.md) | Graph editor clipboard: copy, cut, paste, Select all, Edit menu |
+| `graph-editor-cleanup` | [planning/WebUI/GraphEditorCleanup.md](planning/WebUI/GraphEditorCleanup.md) | Graph editor cleanup |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
+| `gujj-gate-flake` | [log/2026-11-13-gujj-gate-flake.md](log/2026-11-13-gujj-gate-flake.md) | graph-editor:gate flake: the problems chip unmounts under a late draft PUT |
 | `h45-post-110-upstream-sweep` | [log/2026-10-08-h45-post-110-upstream-sweep.md](log/2026-10-08-h45-post-110-upstream-sweep.md) | Aurora-h45: post-1.1.0 sweep for more huenicorn upstream candidates |
 | `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
 | `h457-audio-permission-banner-row` | [log/2026-10-06-h457-audio-permission-banner-row.md](log/2026-10-06-h457-audio-permission-banner-row.md) | Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed) |
+| `h55g-refused-callout-narrow` | [log/2026-11-13-h55g-refused-callout-narrow.md](log/2026-11-13-h55g-refused-callout-narrow.md) | Graph editor: the refused-save callout stays inside the window |
+| `h87j-math-step` | [log/2026-11-18-h87j-math-step.md](log/2026-11-18-h87j-math-step.md) | math.step node |
 | `ha-prep-4y9` | [log/2026-10-01-ha-prep-4y9.md](log/2026-10-01-ha-prep-4y9.md) | Aurora-4y9: output-neutral NUX probe table in web/ui/app.js |
 | `ha-prep-a0r` | [log/2026-10-01-ha-prep-a0r.md](log/2026-10-01-ha-prep-a0r.md) | Aurora-a0r: output-neutral zone labels endpoint for Zone Mapping |
 | `ha-prep-d9v` | [log/2026-10-01-ha-prep-d9v.md](log/2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
 | `ha-prep-pp8-dwo` | [log/2026-10-01-ha-prep-pp8-dwo.md](log/2026-10-01-ha-prep-pp8-dwo.md) | Aurora-pp8, Aurora-dwo: first two HA prep items implemented |
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
+| `hr92-nux-effect-dropdown` | [log/2026-11-20-hr92-nux-effect-dropdown.md](log/2026-11-20-hr92-nux-effect-dropdown.md) | NUX capture source picks from the effect dropdown |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |
 | `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
@@ -125,16 +247,50 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `implementation-plan-directory-layout` | [archive/ImplementationPlan_DirectoryLayout.md](archive/ImplementationPlan_DirectoryLayout.md) | Implementation plan: proposed directory layout (superseded) |
 | `implementation-plan-early-phases` | [archive/ImplementationPlan_EarlyPhases.md](archive/ImplementationPlan_EarlyPhases.md) | Implementation plan: phases 1, 2, 2.5 (native build) |
 | `implementation-plan-phase-3` | [archive/ImplementationPlan_Phase3.md](archive/ImplementationPlan_Phase3.md) | Implementation plan: Phase 3 — Three.js browser demo, then the native WebUI milestone |
+| `iryq-title-menu-new-open` | [log/2026-11-12-iryq-title-menu-new-open.md](log/2026-11-12-iryq-title-menu-new-open.md) | Title menu: New and Open submenus |
+| `j8i6-grille-dev13-title-cast` | [log/2026-11-13-j8i6-grille-dev13-title-cast.md](log/2026-11-13-j8i6-grille-dev13-title-cast.md) | Graph editor: Grille 0.1.0-dev.13, the MenuSection title cast is removed |
 | `ja76-hold-running-reload-error` | [log/2026-10-06-ja76-hold-running-reload-error.md](log/2026-10-06-ja76-hold-running-reload-error.md) | Aurora-ja76: hold a failed reload on a running host (closed) |
 | `jk4p-mac-tray-tip-gif-copy` | [log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md](log/2026-10-08-jk4p-mac-tray-tip-gif-copy.md) | Aurora-jk4p: Mac menu-bar tip gets a new GIF and Pause / Resume copy (closed) |
+| `jsjj-angle-converters` | [log/2026-11-11-jsjj-angle-converters.md](log/2026-11-11-jsjj-angle-converters.md) | angle.fromFloat and angle.toFloat |
 | `jwcd-real-bridge-pause-resume` | [log/2026-10-06-jwcd-real-bridge-pause-resume.md](log/2026-10-06-jwcd-real-bridge-pause-resume.md) | Real-bridge pause/resume closes Aurora-jwcd |
 | `jwt7-demo-reset-specificity` | [log/2026-10-08-jwt7-demo-reset-specificity.md](log/2026-10-08-jwt7-demo-reset-specificity.md) | Aurora-jwt7: demo Dashboard lost component padding after ifkn.2 (closed) |
 | `k73j-tray-see-error` | [log/2026-10-07-k73j-tray-see-error.md](log/2026-10-07-k73j-tray-see-error.md) | Aurora-k73j: tray "See Error" — built, Linux-, Windows- and Mac-verified |
 | `kea-capability-flags` | [log/2026-10-03-kea-capability-flags.md](log/2026-10-03-kea-capability-flags.md) | Aurora-kea: running-pipeline flags drive the Dashboard (open: Mac/Windows unverified) |
 | `kea-dashboard-capabilities-scoping` | [log/2026-10-02-kea-dashboard-capabilities-scoping.md](log/2026-10-02-kea-dashboard-capabilities-scoping.md) | Aurora-kea: scoping pass on Dashboard capability-driven sections (paused, no code) |
 | `kea-route-and-shared-capture-source` | [log/2026-10-03-kea-route-and-shared-capture-source.md](log/2026-10-03-kea-route-and-shared-capture-source.md) | Aurora-kea: route decision, shared capture-source scope, pending-highlight follow-up (paused, no code) |
+| `kep2-epic-close` | [log/2026-11-05-kep2-epic-close.md](log/2026-11-05-kep2-epic-close.md) | Effect picker epic closed |
+| `kep21-effect-picker` | [log/2026-10-30-kep21-effect-picker.md](log/2026-10-30-kep21-effect-picker.md) | Dashboard effect picker beside Video/Audio |
+| `kep210-cut-over` | [log/2026-11-05-kep210-cut-over.md](log/2026-11-05-kep210-cut-over.md) | Effect panel replaces the Video/Audio toggle on the Dashboard |
+| `kep211-inline-switch-error` | [log/2026-11-05-kep211-inline-switch-error.md](log/2026-11-05-kep211-inline-switch-error.md) | Inline effect switch errors no longer double the banner or stick |
+| `kep212-effect-switch-log` | [log/2026-11-05-kep212-effect-switch-log.md](log/2026-11-05-kep212-effect-switch-log.md) | Rejected effect switch logging |
+| `kep213-v1-effect-manage` | [log/2026-11-05-kep213-v1-effect-manage.md](log/2026-11-05-kep213-v1-effect-manage.md) | Hide, move and rename mirrored in /api/v1 |
+| `kep215-button-row-panel` | [log/2026-11-04-kep215-button-row-panel.md](log/2026-11-04-kep215-button-row-panel.md) | Effect panel moves to the button row model |
+| `kep216-empty-start` | [log/2026-11-05-kep216-empty-start.md](log/2026-11-05-kep216-empty-start.md) | Empty graph as a Start from option |
+| `kep217-effect-fault-log` | [log/2026-11-05-kep217-effect-fault-log.md](log/2026-11-05-kep217-effect-fault-log.md) | Effect route server faults reach the log |
+| `kep218-builtin-switch-states` | [log/2026-11-05-kep218-builtin-switch-states.md](log/2026-11-05-kep218-builtin-switch-states.md) | Built-in picks use the panel's switch states |
+| `kep219-trigger-focus` | [log/2026-11-05-kep219-trigger-focus.md](log/2026-11-05-kep219-trigger-focus.md) | Effect trigger keeps focus through a switch |
+| `kep22-effect-panel-mocks` | [log/2026-11-03-kep22-effect-panel-mocks.md](log/2026-11-03-kep22-effect-panel-mocks.md) | Effect panel static mocks |
+| `kep220-failed-switch-announce` | [log/2026-11-05-kep220-failed-switch-announce.md](log/2026-11-05-kep220-failed-switch-announce.md) | Failed effect switches announce through the live region |
+| `kep221-long-press-first-tap` | [log/2026-11-05-kep221-long-press-first-tap.md](log/2026-11-05-kep221-long-press-first-tap.md) | The first tap after a touch long-press runs |
+| `kep224-cut-long-press` | [log/2026-11-05-kep224-cut-long-press.md](log/2026-11-05-kep224-cut-long-press.md) | Touch long-press cut from the effect panel |
+| `kep226-duplicate-order` | [log/2026-11-05-kep226-duplicate-order.md](log/2026-11-05-kep226-duplicate-order.md) | A duplicated effect is last in Custom straight away |
+| `kep227-paused-pick` | [log/2026-11-05-kep227-paused-pick.md](log/2026-11-05-kep227-paused-pick.md) | A pick while paused says it starts on resume |
+| `kep228-title-limit` | [log/2026-11-05-kep228-title-limit.md](log/2026-11-05-kep228-title-limit.md) | One effect title limit |
+| `kep23-effect-id-picks-mode` | [log/2026-11-03-kep23-effect-id-picks-mode.md](log/2026-11-03-kep23-effect-id-picks-mode.md) | Effect id picks the mode, both inputs kept, missing ones auto-picked |
+| `kep24-failed-effect-no-fallback` | [log/2026-11-05-kep24-failed-effect-no-fallback.md](log/2026-11-05-kep24-failed-effect-no-fallback.md) | A failed effect leaves no effect running |
+| `kep25-effect-list-layout` | [log/2026-11-03-kep25-effect-list-layout.md](log/2026-11-03-kep25-effect-list-layout.md) | Effect list data: hidden flag, custom order and a Rename route |
+| `kep26-row-menu-flows` | [log/2026-11-03-kep26-row-menu-flows.md](log/2026-11-03-kep26-row-menu-flows.md) | Row menu follow-on flows |
+| `kep27-voiceover-tree-check` | [log/2026-11-03-kep27-voiceover-tree-check.md](log/2026-11-03-kep27-voiceover-tree-check.md) | VoiceOver check of the effect panel tree |
+| `kep28-effect-panel` | [log/2026-11-05-kep28-effect-panel.md](log/2026-11-05-kep28-effect-panel.md) | Effect panel: rows, layers and switch states |
+| `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
+| `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
+| `kuee-portable-anchor-pick` | [log/2026-11-17-kuee-portable-anchor-pick.md](log/2026-11-17-kuee-portable-anchor-pick.md) | Seeded palette anchor pick is portable across platforms |
+| `l8ua-start-from-built-in-submenu` | [log/2026-11-16-l8ua-start-from-built-in-submenu.md](log/2026-11-16-l8ua-start-from-built-in-submenu.md) | Graph editor: New menu lists Built-in as its first sub-menu |
+| `l9gc-t8nd-test-edit-resend` | [log/2026-11-18-l9gc-t8nd-test-edit-resend.md](log/2026-11-18-l9gc-t8nd-test-edit-resend.md) | Test edits reach the lights and the demo room |
+| `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
 | `lby1-os-assigned-test-ports` | [log/2026-10-16-lby1-os-assigned-test-ports.md](log/2026-10-16-lby1-os-assigned-test-ports.md) | Route tests bind OS-assigned ports (Aurora-lby1) |
 | `leak-fix-and-device-hint` | [log/2026-10-05-leak-fix-and-device-hint.md](log/2026-10-05-leak-fix-and-device-hint.md) | Aurora-2pe5 fixed, Aurora-36b7 and the 9swq copy done; d3ec still waits on its retry path |
+| `lesson-agent-coordination` | [lessons/agent-coordination.md](lessons/agent-coordination.md) | Agent coordination |
 | `lesson-architecture-process` | [lessons/architecture-process.md](lessons/architecture-process.md) | Architecture process |
 | `lesson-build-toolchain` | [lessons/build-toolchain.md](lessons/build-toolchain.md) | Build toolchain |
 | `lesson-components` | [lessons/components.md](lessons/components.md) | WebUI components |
@@ -158,35 +314,71 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-audio-sink-status` | [log/2026-09-29-linux-audio-sink-status.md](log/2026-09-29-linux-audio-sink-status.md) | Linux audio sink status: Using-hint replaces the no-list warning |
 | `linux-build-spa-headers` | [log/2026-10-07-linux-build-spa-headers.md](log/2026-10-07-linux-build-spa-headers.md) | Linux app preset built clean on a fresh checkout; one missing-header fix |
 | `linux-capture-analysis` | [archive/LinuxCaptureAnalysis.md](archive/LinuxCaptureAnalysis.md) | Grabber / GnuLinux capture — Conversion analysis |
+| `linux-post-d-verification` | [log/2026-10-23-linux-post-d-verification.md](log/2026-10-23-linux-post-d-verification.md) | Linux verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |
+| `lt66-output-link-monitor` | [log/2026-11-05-lt66-output-link-monitor.md](log/2026-11-05-lt66-output-link-monitor.md) | A dead or dropped Hue bridge raises a banner row and reconnects by itself |
+| `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |
 | `m4wp-pairing-revoke-persist` | [log/2026-10-16-m4wp-pairing-revoke-persist.md](log/2026-10-16-m4wp-pairing-revoke-persist.md) | Pairing revoke may not persist on Windows (Aurora-m4wp) |
+| `m5kl-grille-install-spike` | [log/2026-11-08-m5kl-grille-install-spike.md](log/2026-11-08-m5kl-grille-install-spike.md) | Grille install spike for the graph editor |
 | `m6pd-close-gate` | [log/2026-10-16-m6pd-close-gate.md](log/2026-10-16-m6pd-close-gate.md) | Pre-commit close gate (Aurora-m6pd) |
 | `mac-audio` | [archive/mac/Audio.md](archive/mac/Audio.md) | macOS audio capture |
 | `mac-notarization` | [planning/mac/Notarization.md](planning/mac/Notarization.md) | macOS Gatekeeper/notarization |
 | `mac-pause-verification-sck-crash` | [log/2026-10-05-mac-pause-verification-sck-crash.md](log/2026-10-05-mac-pause-verification-sck-crash.md) | Mac verification of pause/resume, kea and axoz; SCK teardown crash found and fixed (Aurora-eq7a) |
 | `mac-permissions` | [archive/mac/Permissions.md](archive/mac/Permissions.md) | macOS Screen Recording permission |
+| `mac-post-d-verification` | [log/2026-10-23-mac-post-d-verification.md](log/2026-10-23-mac-post-d-verification.md) | Mac verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `mac-tray-parity` | [archive/mac/TrayParity.md](archive/mac/TrayParity.md) | macOS tray-parity: open work |
 | `mac-tray-parity-history` | [archive/mac/TrayParityHistory.md](archive/mac/TrayParityHistory.md) | macOS tray-parity: build history |
 | `mac-video-capture` | [archive/mac/VideoCapture.md](archive/mac/VideoCapture.md) | macOS video capture (tier 1) |
 | `mac-windows-tray-pause` | [log/2026-10-04-mac-windows-tray-pause.md](log/2026-10-04-mac-windows-tray-pause.md) | Aurora-5ipy.14 / .15: Mac and Windows tray Pause/Resume (written, unbuilt) |
+| `mcp-link-lock` | [log/2026-10-26-mcp-link-lock.md](log/2026-10-26-mcp-link-lock.md) | 2v8l: aurora-mcp link lock on Windows (Aurora-2v8l) |
+| `mfud-effect-titles-builtin-graphinputs` | [log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md](log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md) | Mfud + 5ipy.26: effect titles and descriptions, graphInputs for built-ins (Aurora-mfud, Aurora-5ipy.26) |
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
+| `my6z-devstack-no-browser-tab` | [log/2026-11-12-my6z-devstack-no-browser-tab.md](log/2026-11-12-my6z-devstack-no-browser-tab.md) | devstack stops opening a browser tab on Mac |
+| `ngoj-faster-shell-checks` | [log/2026-11-13-ngoj-faster-shell-checks.md](log/2026-11-13-ngoj-faster-shell-checks.md) | Browser checks: shell checks run in under a minute (dev poll cadence, poll-count waits, STEP) |
+| `node-conversion-gaps` | [planning/NodeConversionGaps.md](planning/NodeConversionGaps.md) | Node data conversion: audit and gaps |
 | `node-graph-pipeline` | [planning/NodeGraphPipeline.md](planning/NodeGraphPipeline.md) | Node-graph processing pipeline |
 | `node-ha-prep-sequencing` | [log/2026-10-01-node-ha-prep-sequencing.md](log/2026-10-01-node-ha-prep-sequencing.md) | Node and HA prep: scoping, HA core read, bead sequences |
 | `nodes-agent-ux` | [planning/NodesAndAgentUX.md](planning/NodesAndAgentUX.md) | Nodes and agent UX: sequences |
 | `nodes-agent-ux-planning` | [log/2026-10-13-nodes-agent-ux-planning.md](log/2026-10-13-nodes-agent-ux-planning.md) | Nodes and agent UX: planning session, Sequence A filed |
 | `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
+| `oecx-focus-ring-tokens` | [log/2026-11-05-oecx-focus-ring-tokens.md](log/2026-11-05-oecx-focus-ring-tokens.md) | Shared focus-ring tokens |
+| `ookv-paste-reopens-preview` | [log/2026-11-20-ookv-paste-reopens-preview.md](log/2026-11-20-ookv-paste-reopens-preview.md) | Pasting an audio recipe reopens the preview instead of showing an input problem |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
 | `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
+| `ppqo-audio-recipes-tuned` | [log/2026-11-20-ppqo-audio-recipes-tuned.md](log/2026-11-20-ppqo-audio-recipes-tuned.md) | Audio recipes retuned for real loudness and smoothed |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
+| `pvxx1-save-and-duplicate` | [log/2026-10-29-pvxx1-save-and-duplicate.md](log/2026-10-29-pvxx1-save-and-duplicate.md) | E0b: save without going live, and duplicate an effect |
+| `pvxx11-browser-check` | [log/2026-10-29-pvxx11-browser-check.md](log/2026-10-29-pvxx11-browser-check.md) | Browser-check tooling for the web screens |
+| `pvxx12-embed-stale-glob` | [log/2026-10-29-pvxx12-embed-stale-glob.md](log/2026-10-29-pvxx12-embed-stale-glob.md) | Graph editor embed: no stale configure-time glob |
+| `pvxx13-node-palette` | [log/2026-10-29-pvxx13-node-palette.md](log/2026-10-29-pvxx13-node-palette.md) | Graph editor: node palette |
+| `pvxx14-save-as-new` | [log/2026-10-29-pvxx14-save-as-new.md](log/2026-10-29-pvxx14-save-as-new.md) | Graph editor: Save as new for customs |
+| `pvxx16-17-addnode-defaults` | [log/2026-10-29-pvxx16-17-addnode-defaults.md](log/2026-10-29-pvxx16-17-addnode-defaults.md) | Graph editor addNode defaults: optional-floats and output bindings |
+| `pvxx2-output-options` | [log/2026-10-29-pvxx2-output-options.md](log/2026-10-29-pvxx2-output-options.md) | E0c: output params list the registered outputs |
+| `pvxx3-titles-port-descriptions` | [log/2026-10-29-pvxx3-titles-port-descriptions.md](log/2026-10-29-pvxx3-titles-port-descriptions.md) | E0d: node titles and port descriptions |
+| `pvxx4-editor-foundation` | [log/2026-10-29-pvxx4-editor-foundation.md](log/2026-10-29-pvxx4-editor-foundation.md) | E1: graph editor foundation |
+| `pvxx5-undo-autosave` | [log/2026-10-29-pvxx5-undo-autosave.md](log/2026-10-29-pvxx5-undo-autosave.md) | E2: undo/redo and browser autosave |
+| `pvxx6-draft-preview-loop` | [log/2026-10-29-pvxx6-draft-validate-preview.md](log/2026-10-29-pvxx6-draft-validate-preview.md) | E3: draft, validate and preview loop |
+| `pvxx7-test-save-controls` | [log/2026-10-29-pvxx7-test-save-controls.md](log/2026-10-29-pvxx7-test-save-controls.md) | E4: test on lights, Save, Save and apply, Dashboard controls |
+| `pvxx8-dashboard-entry-shipping` | [log/2026-10-29-pvxx8-dashboard-entry-shipping.md](log/2026-10-29-pvxx8-dashboard-entry-shipping.md) | E5: Dashboard entry point and shipping the editor |
+| `pvxx9-sequence-e-gate` | [log/2026-10-29-pvxx9-sequence-e-gate.md](log/2026-10-29-pvxx9-sequence-e-gate.md) | E6: Sequence E gate on the fake-Hue stack |
+| `q5eb-windows-no-browser-tab` | [log/2026-11-15-q5eb-windows-no-browser-tab.md](log/2026-11-15-q5eb-windows-no-browser-tab.md) | devstack: the Windows app no longer opens a browser tab on `up` |
+| `q66y-trigger-envelope` | [log/2026-11-18-q66y-trigger-envelope.md](log/2026-11-18-q66y-trigger-envelope.md) | trigger.envelope node |
 | `q9l1-tray-target-live` | [log/2026-10-07-q9l1-tray-target-live.md](log/2026-10-07-q9l1-tray-target-live.md) | Aurora-q9l1: tray click-time target — Linux live green, Windows exercised, closed |
+| `qjqy-light-test-modes-close-out` | [log/2026-11-11-qjqy-light-test-modes-close-out.md](log/2026-11-11-qjqy-light-test-modes-close-out.md) | Light test modes close-out |
+| `qjqy1-light-test-modes` | [log/2026-11-11-qjqy1-light-test-modes.md](log/2026-11-11-qjqy1-light-test-modes.md) | Light test modes: Once (15 s) and Live |
+| `qjqy2-mcp-light-test-modes` | [log/2026-11-11-qjqy2-mcp-light-test-modes.md](log/2026-11-11-qjqy2-mcp-light-test-modes.md) | MCP try_on_lights: Once by default, keep after a timeout |
+| `qjqy3-test-split-button` | [log/2026-11-11-qjqy3-test-split-button.md](log/2026-11-11-qjqy3-test-split-button.md) | Test split button in the graph editor |
+| `qqcn-link-monitor-real-bridge` | [log/2026-11-05-qqcn-link-monitor-real-bridge.md](log/2026-11-05-qqcn-link-monitor-real-bridge.md) | The link monitor was checked on a real bridge and its banner copy reworded |
+| `que2-input-free-build` | [log/2026-11-04-que2-input-free-build.md](log/2026-11-04-que2-input-free-build.md) | Source-less custom graphs build with no capture input |
+| `qv7a-thumbnail-regions` | [log/2026-10-29-qv7a-thumbnail-regions.md](log/2026-10-29-qv7a-thumbnail-regions.md) | Graph editor thumbnail: zones at their sampled regions |
 | `r7ff-noise-nodes` | [log/2026-10-22-r7ff-noise-nodes.md](log/2026-10-22-r7ff-noise-nodes.md) | R7ff: noise source nodes (Aurora-r7ff) |
 | `ra4o10-g2e-pre-g3-fixes` | [log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md](log/2026-10-14-ra4o10-g2e-pre-g3-fixes.md) | G2e pre-G3 review fixes (Aurora-ra4o.10) |
 | `ra4o11-g4a-loader-float-clamp` | [log/2026-10-15-ra4o11-g4a-loader-float-clamp.md](log/2026-10-15-ra4o11-g4a-loader-float-clamp.md) | G4a: loader clamps Float params (Aurora-ra4o.11) |
@@ -201,22 +393,85 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
 | `ra4o8-g3-cutover` | [log/2026-10-15-ra4o8-g3-cutover.md](log/2026-10-15-ra4o8-g3-cutover.md) | G3 cutover: the app runs on the Graph (Aurora-ra4o.8) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
+| `ruig-temp-dir-per-process` | [log/2026-11-18-ruig-temp-dir-per-process.md](log/2026-11-18-ruig-temp-dir-per-process.md) | Test temp dirs unique per process |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
+| `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
+| `s1t71-bar-grille-buttons` | [log/2026-11-11-s1t71-bar-grille-buttons.md](log/2026-11-11-s1t71-bar-grille-buttons.md) | Graph editor: top bar on Grille buttons |
+| `s1t710-grille-dev9` | [log/2026-11-11-s1t710-grille-dev9.md](log/2026-11-11-s1t710-grille-dev9.md) | Graph editor: Grille dev.9 (icons) |
+| `s1t72-problems-chip-regroup` | [log/2026-11-11-s1t72-problems-chip-regroup.md](log/2026-11-11-s1t72-problems-chip-regroup.md) | Graph editor problems chip moves before Undo |
+| `s1t73-canvas-corners` | [log/2026-11-11-s1t73-canvas-corners.md](log/2026-11-11-s1t73-canvas-corners.md) | Graph editor canvas corners match the Grille mock |
+| `s1t74-zones-island` | [log/2026-11-11-s1t74-zones-island.md](log/2026-11-11-s1t74-zones-island.md) | Graph editor Zones island |
+| `s1t75-grille-icons` | [log/2026-11-11-s1t75-grille-icons.md](log/2026-11-11-s1t75-grille-icons.md) | Graph editor adopts Grille icons |
+| `s1t76-mock-switches-decided` | [log/2026-11-10-s1t76-mock-switches-decided.md](log/2026-11-10-s1t76-mock-switches-decided.md) | Graph editor stage 5: Grille mock switches decided |
+| `s1t78-stage5-close-out` | [log/2026-11-11-s1t78-stage5-close-out.md](log/2026-11-11-s1t78-stage5-close-out.md) | Stage 5 close-out |
+| `s1t79-error-shell` | [log/2026-11-13-s1t79-error-shell.md](log/2026-11-13-s1t79-error-shell.md) | Graph editor stage 6a: the Dashboard's error shell in the editor |
 | `scig-capture-source-banner` | [log/2026-10-08-scig-capture-source-banner.md](log/2026-10-08-scig-capture-source-banner.md) | Aurora-scig: Capture Source (NUX) errors move to the shell banner (closed) |
 | `sequence-b-planning` | [log/2026-10-15-sequence-b-planning.md](log/2026-10-15-sequence-b-planning.md) | Sequence B planning: decisions recorded, epic filed |
 | `sequence-c-planning` | [log/2026-10-20-sequence-c-planning.md](log/2026-10-20-sequence-c-planning.md) | Sequence C planning: decisions recorded, epic filed |
 | `sequence-d-planning` | [log/2026-10-21-sequence-d-planning.md](log/2026-10-21-sequence-d-planning.md) | Sequence D planning: MCP for graphs, gaps first, epic filed |
+| `sequence-e-planning` | [log/2026-10-28-sequence-e-planning.md](log/2026-10-28-sequence-e-planning.md) | Sequence E planning: graph editor, edit loop first, epic filed |
+| `sequence-e-research` | [log/2026-10-28-sequence-e-research.md](log/2026-10-28-sequence-e-research.md) | Sequence E research: what the editor can reuse, and what it is missing |
 | `set-running-helper` | [log/2026-10-04-set-running-helper.md](log/2026-10-04-set-running-helper.md) | Aurora-5ipy.18: shared setRunning helper (closed) |
 | `skv-one-tick-clock` | [log/2026-10-01-skv-one-tick-clock.md](log/2026-10-01-skv-one-tick-clock.md) | Aurora-skv: explicit dt into both orchestrators, one tick clock |
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
+| `stable-monitor-keys` | [log/2026-10-24-stable-monitor-keys.md](log/2026-10-24-stable-monitor-keys.md) | 5ipy.27: stable monitor keys (Aurora-5ipy.27) |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
+| `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
+| `th7f-node-title-in-shell` | [log/2026-11-17-th7f-node-title-in-shell.md](log/2026-11-17-th7f-node-title-in-shell.md) | Shell row names a node that can't be set up by its title |
 | `tjoq-audio-grant-live` | [log/2026-10-06-tjoq-audio-grant-live.md](log/2026-10-06-tjoq-audio-grant-live.md) | Aurora-tjoq: audio permission block copy vs. live grant |
 | `u5k0-x11-decimate-on-copy` | [log/2026-10-20-u5k0-x11-decimate-on-copy.md](log/2026-10-20-u5k0-x11-decimate-on-copy.md) | Aurora-u5k0: X11 decimate-on-copy (neutral on CPU, kept) |
+| `u68h-stage6-7-rescope` | [log/2026-11-12-u68h-stage6-7-rescope.md](log/2026-11-12-u68h-stage6-7-rescope.md) | Graph editor stage 6 rescoped, stage 7 filed |
+| `u68h1-grille-mock-frame` | [log/2026-11-13-u68h1-grille-mock-frame.md](log/2026-11-13-u68h1-grille-mock-frame.md) | Graph editor stage 6.0: Grille mock frame, owner review applied |
+| `u68h2-kept-copies` | [log/2026-11-13-u68h2-kept-copies.md](log/2026-11-13-u68h2-kept-copies.md) | Graph editor stage 6b: kept copies restore silently, Revert to saved, own ids for new effects |
+| `u68h3-test-outcomes` | [log/2026-11-13-u68h3-test-outcomes.md](log/2026-11-13-u68h3-test-outcomes.md) | Graph editor stage 6c: test outcomes the user did not cause, and the live region |
+| `u68h4-refused-saves` | [log/2026-11-13-u68h4-refused-saves.md](log/2026-11-13-u68h4-refused-saves.md) | Graph editor stage 6d: refused saves point at the problems chip, unsaved dots |
+| `u68h5-draft-load-problem` | [log/2026-11-12-u68h5-draft-load-problem.md](log/2026-11-12-u68h5-draft-load-problem.md) | Draft would not load is a Whole graph problem; DesktopNote dropped |
+| `u68h6-undo-toasts` | [log/2026-11-13-u68h6-undo-toasts.md](log/2026-11-13-u68h6-undo-toasts.md) | Graph editor stage 6g: toast audit, announce-only messages, Undo on lossy toasts |
+| `u68h7-close-out` | [log/2026-11-13-u68h7-close-out.md](log/2026-11-13-u68h7-close-out.md) | Graph editor stage 6f: a failed Save is a shell row, the banner is gone, the priority rule is rewritten |
+| `u68h9-open-failure-row` | [log/2026-11-13-u68h9-open-failure-row.md](log/2026-11-13-u68h9-open-failure-row.md) | Graph editor stage 6h: a failed effect or catalog load is an error-shell row without Retry |
+| `u8jx1-problem-copy` | [log/2026-11-13-u8jx1-problem-copy.md](log/2026-11-13-u8jx1-problem-copy.md) | Graph editor: graph problems and refused test starts read in people's words, from one table in web/ui |
+| `u8jx11-grille-button-scheme` | [log/2026-11-13-u8jx11-grille-button-scheme.md](log/2026-11-13-u8jx11-grille-button-scheme.md) | Graph editor: Grille's 31px button scheme applied (dev.16), local button overrides removed |
+| `u8jx12-shell-start-mock` | [log/2026-11-13-u8jx12-shell-start-mock.md](log/2026-11-13-u8jx12-shell-start-mock.md) | Graph editor: mock for how a shell with 2+ rows starts (decision frame and A/B storyboard) |
+| `u8jx14-shell-spotlight-mock` | [log/2026-11-13-u8jx14-shell-spotlight-mock.md](log/2026-11-13-u8jx14-shell-spotlight-mock.md) | Graph editor: mock for the uncapped shell with a one-pulse arrival spotlight |
+| `u8jx15-shell-effect-copy` | [log/2026-11-15-u8jx15-shell-effect-copy.md](log/2026-11-15-u8jx15-shell-effect-copy.md) | Shell: a failed effect or reload reads in 7a's words on the Dashboard and in the editor |
+| `u8jx16-popover-node-titles` | [log/2026-11-13-u8jx16-popover-node-titles.md](log/2026-11-13-u8jx16-popover-node-titles.md) | Graph editor: Problems popover node rows read the node's title, not its id |
+| `u8jx17-ui-extra-keys` | [log/2026-11-15-u8jx17-ui-extra-keys.md](log/2026-11-15-u8jx17-ui-extra-keys.md) | Graph doc ui entries keep extra keys through draft PUT, GET and save |
+| `u8jx2-whole-graph-actions` | [log/2026-11-13-u8jx2-whole-graph-actions.md](log/2026-11-13-u8jx2-whole-graph-actions.md) | Graph editor: a Whole graph row offers an action only when one fits its code |
+| `u8jx3-runtime-wording` | [log/2026-11-13-u8jx3-runtime-wording.md](log/2026-11-13-u8jx3-runtime-wording.md) | Graph editor: a node that fails during the preview reads "Runs, but this node fails", through 7a's table |
+| `u8jx4-stage70-close` | [log/2026-11-13-u8jx4-stage70-close.md](log/2026-11-13-u8jx4-stage70-close.md) | Graph editor: stage 6 edge cases left after close-out are fixed |
+| `u8jx41-callout-clear-of-title` | [log/2026-11-13-u8jx41-callout-clear-of-title.md](log/2026-11-13-u8jx41-callout-clear-of-title.md) | Graph editor: the refused-save callout stays clear of the title and Add node |
+| `u8jx42-test-ended-toast` | [log/2026-11-13-u8jx42-test-ended-toast.md](log/2026-11-13-u8jx42-test-ended-toast.md) | Graph editor: test-ended outcomes are announced, only a lost heartbeat is a toast |
+| `u8jx43-bar-menu-motion-padding` | [log/2026-11-13-u8jx43-bar-menu-motion-padding.md](log/2026-11-13-u8jx43-bar-menu-motion-padding.md) | Graph editor: the Test menu opens like the other bar menus, and menu items pad like the bar |
+| `u8jx44-number-field-spinners` | [log/2026-11-13-u8jx44-number-field-spinners.md](log/2026-11-13-u8jx44-number-field-spinners.md) | Graph editor: node param number fields drop the native spin buttons |
+| `u8jx45-status-detail-reload-coverage` | [log/2026-11-13-u8jx45-status-detail-reload-coverage.md](log/2026-11-13-u8jx45-status-detail-reload-coverage.md) | Graph editor: the dead open-failure status detail is gone, the reload row's coverage is checked |
+| `u8jx5-shell-collapse` | [log/2026-11-13-u8jx5-shell-collapse.md](log/2026-11-13-u8jx5-shell-collapse.md) | Error shell collapses as one: baseline, snapshot, one toggle |
+| `u8jx6-preview-island-planning` | [log/2026-11-15-u8jx6-preview-island-planning.md](log/2026-11-15-u8jx6-preview-island-planning.md) | Graph editor: Preview island and sim layouts planned, per-node previews filed |
+| `u8jx61-preview-island-build` | [log/2026-11-15-u8jx61-preview-island-build.md](log/2026-11-15-u8jx61-preview-island-build.md) | Graph editor: Preview island with a layout menu and sim layouts built |
+| `u8jx9-narrow-bar-mock` | [log/2026-11-15-u8jx9-narrow-bar-mock.md](log/2026-11-15-u8jx9-narrow-bar-mock.md) | Graph editor: narrow top bar mock, Test drops to its icon |
+| `u8jx91-narrow-top-bar` | [log/2026-11-15-u8jx91-narrow-top-bar.md](log/2026-11-15-u8jx91-narrow-top-bar.md) | Graph editor: narrow top bar, idle Test drops to its icon, the Problems chip gets a chevron |
+| `uds2-status-undrawn-fields` | [log/2026-11-13-uds2-status-undrawn-fields.md](log/2026-11-13-uds2-status-undrawn-fields.md) | Graph editor: Status no longer carries the undrawn detail and where fields, and Take over's tooltip is drawn |
 | `upstream-findings` | [planning/UpstreamFindings.md](planning/UpstreamFindings.md) | Findings worth upstreaming to huenicorn |
+| `v1-core-refactor` | [log/2026-10-26-v1-core-refactor.md](log/2026-10-26-v1-core-refactor.md) | 5ipy.39: core refactor for v1 (Aurora-5ipy.39) |
+| `v1-freeze` | [log/2026-10-26-v1-freeze.md](log/2026-10-26-v1-freeze.md) | Aurora-5ipy.9: /api/v1 frozen at 1.0.0 (plan B6) |
+| `v1-graph-pairing-routes` | [log/2026-10-26-v1-graph-pairing-routes.md](log/2026-10-26-v1-graph-pairing-routes.md) | 5ipy.41: v1 graph and pairing routes (Aurora-5ipy.41) |
+| `v1-lane-b-gate` | [log/2026-10-26-v1-lane-b-gate.md](log/2026-10-26-v1-lane-b-gate.md) | 5ipy.45: Lane B gate (Aurora-5ipy.45) |
+| `v1-mcp-adapter` | [log/2026-10-26-v1-mcp-adapter.md](log/2026-10-26-v1-mcp-adapter.md) | 5ipy.43: aurora-mcp on /api/v1 (Aurora-5ipy.43) |
+| `v1-mcp-control` | [log/2026-10-26-v1-mcp-control.md](log/2026-10-26-v1-mcp-control.md) | 5ipy.10: aurora-mcp control tools (Aurora-5ipy.10) |
+| `v1-patch-state` | [log/2026-10-26-v1-patch-state.md](log/2026-10-26-v1-patch-state.md) | 5ipy.42: PATCH /api/v1/state (Aurora-5ipy.42) |
+| `v1-read-routes` | [log/2026-10-26-v1-read-routes.md](log/2026-10-26-v1-read-routes.md) | 5ipy.40: v1 read routes (Aurora-5ipy.40) |
+| `v1-source-selection-gate` | [log/2026-10-26-v1-source-selection-gate.md](log/2026-10-26-v1-source-selection-gate.md) | 5ipy.44: source selection gate missed, B8 moved to C1 (Aurora-5ipy.44) |
+| `v1-spec-harness` | [log/2026-10-26-v1-spec-harness.md](log/2026-10-26-v1-spec-harness.md) | 5ipy.36: v1 spec harness (Aurora-5ipy.36) |
+| `v1-spec-hook` | [log/2026-10-27-v1-spec-hook.md](log/2026-10-27-v1-spec-hook.md) | 5ipy.37: pre-commit hook for the API spec (Aurora-5ipy.37, Aurora-pa6c) |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
+| `w6zq-ux-notes-first-fixes` | [log/2026-11-11-w6zq-ux-notes-first-fixes.md](log/2026-11-11-w6zq-ux-notes-first-fixes.md) | Graph editor UX notes: first fixes |
+| `w6zq4-test-button-mode-label` | [log/2026-11-11-w6zq4-test-button-mode-label.md](log/2026-11-11-w6zq4-test-button-mode-label.md) | Test split button shows its mode |
+| `w6zq6-grille-dev10-popover-toggle` | [log/2026-11-11-w6zq6-grille-dev10-popover-toggle.md](log/2026-11-11-w6zq6-grille-dev10-popover-toggle.md) | Grille dev.10 bump and popover toggle check |
+| `w6zq7-test-menu-selected-mode` | [log/2026-11-11-w6zq7-test-menu-selected-mode.md](log/2026-11-11-w6zq7-test-menu-selected-mode.md) | Test mode menu marks the current mode |
+| `w6zq8-grille-tooltips` | [log/2026-11-11-w6zq8-grille-tooltips.md](log/2026-11-11-w6zq8-grille-tooltips.md) | Grille Tooltip in the graph editor |
+| `web-demo-editor` | [planning/WebDemoEditor.md](planning/WebDemoEditor.md) | Graph editor in the web demo |
 | `web-demo-ui-update` | [archive/WebDemoUIUpdate.md](archive/WebDemoUIUpdate.md) | Web Demo Dashboard Port — Plan (WebDemoUIUpdate.md) |
 | `webui-design-1st-pass` | [archive/WebUI_Design_1stPass.md](archive/WebUI_Design_1stPass.md) | WebUI screens, jobs, and component research |
 | `webui-design-2-5-pass` | [planning/WebUI/WebUI_Design_2.5Pass.md](planning/WebUI/WebUI_Design_2.5Pass.md) | WebUI design, pass 2.5: visual polish diffs |
@@ -227,6 +482,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-failed-resume-n5ly` | [log/2026-10-06-windows-failed-resume-n5ly.md](log/2026-10-06-windows-failed-resume-n5ly.md) | Windows failed-resume verification closes Aurora-n5ly |
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
+| `windows-stale-bead-triage` | [log/2026-11-18-windows-stale-bead-triage.md](log/2026-11-18-windows-stale-bead-triage.md) | Windows stale bead triage before 1.2.0 |
+| `wlj3-recipes-callout-height` | [log/2026-11-20-wlj3-recipes-callout-height.md](log/2026-11-20-wlj3-recipes-callout-height.md) | Recipes page: shared graph height and Copy callout on the left |
 | `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
 | `wqzp11-firefox-mover-retry` | [log/2026-10-13-wqzp11-firefox-mover-retry.md](log/2026-10-13-wqzp11-firefox-mover-retry.md) | Aurora-wqzp.11: kiosk-Firefox mover poll-check + retry/hard-fail |
 | `wqzp12-windows-hdr-capture` | [log/2026-10-13-wqzp12-windows-hdr-capture.md](log/2026-10-13-wqzp12-windows-hdr-capture.md) | Aurora-wqzp.12: Windows HDR desktops capture at the right colour |
@@ -241,6 +498,13 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
+| `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
+| `y8ku-tidy-action` | [log/2026-11-20-y8ku-tidy-action.md](log/2026-11-20-y8ku-tidy-action.md) | Tidy: the recipes page's layered layout in the editor |
+| `yqu8-settings-put-transport-retry` | [log/2026-11-13-yqu8-settings-put-transport-retry.md](log/2026-11-13-yqu8-settings-put-transport-retry.md) | Core test: concurrent settings PUTs retry a refused connection instead of failing under load |
+| `ytlo-no-console-windows-in-tests` | [log/2026-11-15-ytlo-no-console-windows-in-tests.md](log/2026-11-15-ytlo-no-console-windows-in-tests.md) | Windows tests: no console windows, no stolen focus |
 | `yzp4-takeover-unification` | [log/2026-10-06-yzp4-takeover-unification.md](log/2026-10-06-yzp4-takeover-unification.md) | Aurora-yzp4: takeover unified to heading-only "Aurora has stopped" (closed) |
+| `z5y5-bar-collapse-stages` | [log/2026-11-16-z5y5-bar-collapse-stages.md](log/2026-11-16-z5y5-bar-collapse-stages.md) | Graph editor: the header collapses by measured stage, not by three separate rules |
+| `z6kw-port-type-glossary` | [log/2026-11-11-z6kw-port-type-glossary.md](log/2026-11-11-z6kw-port-type-glossary.md) | Port type glossary |
 | `zfre-test-state-and-stop` | [log/2026-10-22-zfre-test-state-and-stop.md](log/2026-10-22-zfre-test-state-and-stop.md) | Zfre: /api/state reports the light test, the WebUI can stop it (Aurora-zfre) |
+| `zl32-no-input-running` | [log/2026-11-05-zl32-no-input-running.md](log/2026-11-05-zl32-no-input-running.md) | Source-less effects run with no inputs configured |

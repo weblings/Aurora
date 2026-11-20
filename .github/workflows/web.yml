@@ -13,6 +13,8 @@ on:
       - core/Runtime/include/Aurora/Runtime/Config.hpp
       - output/hue/src/HueControlDescriptors.cpp
       - input/*/src/InputControlDescriptors.cpp
+      - docs/api/**
+      - docs/recipes/**
       - .github/workflows/web.yml
   pull_request:
     paths:
@@ -23,6 +25,8 @@ on:
       - core/Runtime/include/Aurora/Runtime/Config.hpp
       - output/hue/src/HueControlDescriptors.cpp
       - input/*/src/InputControlDescriptors.cpp
+      - docs/api/**
+      - docs/recipes/**
       - .github/workflows/web.yml
 
 jobs:
@@ -42,3 +46,26 @@ jobs:
         run: |
           python3 web/demo/gen-demo-graph.py --check
           python3 web/demo/vendor/webui/gen-descriptors.py --check
+      - name: API spec is valid and openapi.json is current
+        run: |
+          python3 -m venv "$RUNNER_TEMP/apispec"
+          "$RUNNER_TEMP/apispec/bin/pip" install -q -r docs/api/requirements.txt
+          "$RUNNER_TEMP/apispec/bin/python" docs/api/gen-openapi.py --check
+
+  graph-editor:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/graph-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Vitest (includes the docs/recipes drift test)
+        run: npm test
+      - name: Recipes page builds
+        run: npm run build:recipes

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="styles/forms.css" />
   <link rel="stylesheet" href="styles/dropdown.css" />
   <link rel="stylesheet" href="styles/dashboard.css" />
+  <link rel="stylesheet" href="styles/effect-panel.css" />
   <link rel="stylesheet" href="styles/welcome.css" />
   <link rel="stylesheet" href="styles/mac-tray-tip.css" />
   <link rel="stylesheet" href="styles/output-connect.css" />
@@ -26,6 +27,8 @@
 </head>
 <body>
   <div id="shell-banner-slot"></div>
+  <!-- The shell's polite live region (Aurora-9hqa.2): outside the slot, which the keyed patch rewrites, and present from load. -->
+  <div id="shell-announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="screen-container"></div>
   <div id="shell-overlay-slot"></div>
 

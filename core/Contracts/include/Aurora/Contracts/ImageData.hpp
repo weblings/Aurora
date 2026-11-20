@@ -6,6 +6,8 @@
 // (include/Huenicorn/Imaging/ImageData.hpp) verbatim -- this is a Contract
 // type: the frame shape Input produces and Processing consumes, with no
 // transform logic of its own. See docs/ProcessingAnalysis.md.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Contracts
 {
   enum class PixelFormat {

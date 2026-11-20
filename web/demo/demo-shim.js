@@ -3,7 +3,7 @@
 // No backend, no build step -- runs anywhere the static page runs.
 //
 // Layered for testability: createShimStore (state + localStorage guard) and
-// createRouter (method+path -> {status, json}) are pure and covered by
+// createRouter (method+path -> Promise<{status, json}>) are pure and covered by
 // demo-shim.test.mjs. installDemoShim is thin browser glue (window.fetch
 // override) verified by booting the page, not by unit test.
 //
@@ -12,7 +12,9 @@
 // response shapes). The HTTP layer speaks interpolation NAMES ('Area'),
 // not the storage ints -- same as SettingsRoutes::_interpolationName.
 
-import { demoGraph, demoNodes } from './demo-graph.js';
+import { createEffectsStore, BUILTIN_EFFECTS, activeEffectId, effectText } from './demo-effects.js';
+import { createGraphRoutes } from './demo-graph-routes.js';
+
 
 // Live Config.hpp persisted values (see Aurora/core/Runtime/.../Config.hpp).
 export const DEMO_DEFAULT_CONFIG = {
@@ -37,6 +39,7 @@ export const DEMO_DEFAULT_CONFIG = {
   audioCentroidRangeHz: 2250,
   audioBrightnessSmoothTime: 0.265,
   nuxCompleted: true,
+  activeEffectId: '',
 };
 
 const CONFIG_KEYS = new Set(Object.keys(DEMO_DEFAULT_CONFIG));
@@ -113,6 +116,8 @@ export function createShimStore(storage = createMemoryStorage(), seed = {}) {
   };
 
   return {
+    // Custom effects, hidden and order persist like the app's effects folder and config.
+    effects: createEffectsStore(storage),
     getConfig: () => ({ ...state.config }),
     // Partial PATCH, SettingsRoutes convention: known keys apply (with the
     // backend's own interpolation-name rule), unknown keys are ignored.
@@ -189,8 +194,18 @@ const DEMO_AUDIO_SINKS = [
 
 export function createRouter(store, hooks = {}) {
   const ok = (json, status = 200) => ({ status, json });
+  const effects = store.effects;
+  const graph = createGraphRoutes(store, hooks);
+  const parseBody = (rawBody) => {
+    try {
+      return rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      return null;
+    }
+  };
 
-  return function route(method, path, rawBody) {
+  // Async so engine-backed routes (Worker round trips) can await.
+  const route = async function route(method, path, rawBody) {
     // GET /api/capabilities -- "compiled with" contract: the demo compiles
     // to video (x11/pipewire capture names) + linux-audio + hue output.
     if (method === 'GET' && path === '/api/capabilities') {
@@ -199,7 +214,7 @@ export function createRouter(store, hooks = {}) {
     // GET /api/version -- mirrors the native route: the CHANGELOG top entry
     // is the demo's version truth, pinned by demo-shim.test.mjs.
     if (method === 'GET' && path === '/api/version') {
-      return ok({ version: '1.1.3' });
+      return ok({ version: '1.2.0' });
     }
     if (method === 'GET' && path === '/api/config') {
       return ok(store.getConfig());
@@ -216,13 +231,14 @@ export function createRouter(store, hooks = {}) {
       return ok({ succeeded: true });
     }
     // GET /api/state (Aurora-kea) -- the demo "runs" whatever its config
-    // names, by Pipeline::build's rule (audio only with no video input), so
-    // a mode switch reads back at once. Paused flips only through
-    // PUT /api/state (Aurora-5ipy.13). The audio device list is the sink
-    // route below, as on Linux.
+    // names, by the effect id (core's runsAudioMode), so a mode
+    // switch reads back at once. Paused flips only through PUT /api/state.
     if (method === 'GET' && path === '/api/state') {
-      const config = store.getConfig();
-      const audio = !config.activeInputName && !!config.activeAudioInputName;
+      const id = activeEffectId(store.getConfig(), effects);
+      const inputs = effects.getInputs(id);
+      const text = effectText(effects, id);
+      const samplesZones = effects.isBuiltin(id) ? id === 'builtin.video'
+        : (effects.getCustom(id).nodes ?? []).some((n) => n?.type === 'zones.sample');
       return ok({
         paused: store.isPaused(),
         // No daemon behind this page to stop (Aurora-ifkn.3): the
@@ -230,14 +246,14 @@ export function createRouter(store, hooks = {}) {
         canStop: false,
         // The demo runs no MCP clients, so the Dashboard's MCP toggle stays hidden.
         mcpEffectId: null,
-        // Only built-ins run here, so no graph declares inputs.
-        graphInputs: null,
-        effect: audio ? 'builtin.audio' : 'builtin.video',
-        // No MCP client can test on a page with no lights (Aurora-exbp).
-        test: { active: false, confirmRemainingMs: 0 },
-        usesVideoInput: !audio,
-        usesAudioInput: audio,
-        samplesZones: !audio,
+        graphInputs: { ...inputs },
+        effect: id,
+        effectTitle: text.title,
+        effectDescription: text.description,
+        test: graph.lightTest.stateTest(),
+        usesVideoInput: inputs.video,
+        usesAudioInput: inputs.audio,
+        samplesZones,
         audioDevicesUrl: '/api/linux/audio-sinks',
       });
     }
@@ -336,26 +352,70 @@ export function createRouter(store, hooks = {}) {
     if (method === 'GET' && path === '/api/descriptors') {
       return ok(store.getDescriptors());
     }
-    // Tuning's field list (Aurora-id8j.10): the running mode's controls.
-    if (method === 'GET' && path === '/api/graph') {
-      return ok({ graph: demoGraph(store.getConfig()) });
-    }
-    if (method === 'GET' && path === '/api/nodes') {
-      return ok(demoNodes());
-    }
-    // The demo only runs the built-in effects, so Tuning stays on /api/config.
+    // Built-ins run here, custom effects are stored and listed (Aurora-51nv.9).
     if (method === 'GET' && path === '/api/effects') {
       const config = store.getConfig();
-      const audio = !config.activeInputName && !!config.activeAudioInputName;
-      return ok({ effects: [], activeEffectId: '', effect: audio ? 'builtin.audio' : 'builtin.video' });
+      const list = effects.displayOrder().map((id, order) => {
+        const builtin = effects.isBuiltin(id);
+        const info = builtin ? BUILTIN_EFFECTS.find((e) => e.id === id) : effects.getCustom(id);
+        return {
+          id, builtin, title: info.title ?? id,
+          description: info.description || null,
+          hidden: effects.isHidden(id), order,
+          inputs: effects.getInputs(id),
+        };
+      });
+      const running = activeEffectId(config, effects);
+      return ok({ effects: list, activeEffectId: config.activeEffectId, effect: running, requestedEffect: running });
+    }
+    const fail = (error, status) => ok({ succeeded: false, error }, status);
+    const deleteRoute = /^\/api\/effects\/([^/]+)$/.exec(path);
+    if (method === 'DELETE' && deleteRoute) {
+      const id = deleteRoute[1];
+      if (effects.isBuiltin(id)) return fail('builtin_effect', 400);
+      if (!effects.isCustom(id)) return fail('unknown_effect', 404);
+      const wasActive = store.getConfig().activeEffectId === id;
+      if (wasActive) store.putConfigPatch({ activeEffectId: '' });
+      effects.remove(id);
+      if (wasActive) hooks.onActiveGraphChanged?.();
+      return ok({ succeeded: true, deleted: id, fellBack: wasActive });
+    }
+    const layoutRoute = /^\/api\/effects\/([^/]+)\/(hidden|move|title)$/.exec(path);
+    if (layoutRoute) {
+      const [, id, action] = layoutRoute;
+      const body = parseBody(rawBody);
+      if (!body) return fail('invalid_body', 400);
+      if (action === 'title') {
+        if (typeof body.title !== 'string') return fail('invalid_body', 400);
+        const title = body.title.trim();
+        if (!title || [...title].length > 80) return fail('invalid_title', 400);
+        if (effects.isBuiltin(id)) return fail('builtin_effect', 400);
+        if (!effects.isCustom(id)) return fail('unknown_effect', 404);
+        return ok({ succeeded: true, id, title: effects.rename(id, title) });
+      }
+      if (action === 'hidden') {
+        if (typeof body.hidden !== 'boolean') return fail('invalid_body', 400);
+        if (!effects.exists(id)) return fail('unknown_effect', 404);
+        effects.setHidden(id, body.hidden);
+        return ok({ succeeded: true, id, hidden: body.hidden });
+      }
+      const step = { up: -1, down: 1 }[body.direction];
+      if (!step) return fail('invalid_body', 400);
+      if (!effects.exists(id)) return fail('unknown_effect', 404);
+      return ok({ succeeded: true, id, moved: effects.move(id, step) });
     }
     // PUT-for-read with {} body (PairingRoutes convention -- do NOT "fix" to
     // GET; the Dashboard sends PUT and parity means matching it).
     if (method === 'PUT' && path === '/api/hue/entertainment-configurations') {
       return ok({ succeeded: true, configurations: [{ id: 'demo-config-1', name: 'Demo Room' }] });
     }
+    const handled = await graph.handle(method, path, rawBody ?? '');
+    if (handled) return handled;
     return ok({ succeeded: false, error: 'unknown_route' }, 404);
   };
+  route.streams = graph.streams;
+  route.roomExtras = graph.roomExtras;
+  return route;
 }
 
 // Browser glue: hijacks only /api/*, delegates everything else (page assets,
@@ -370,7 +430,7 @@ export function installDemoShim(options = {}) {
     const url = typeof input === 'string' ? input : input.url;
     const method = (init.method ?? 'GET').toUpperCase();
     if (!url.startsWith('/api/')) return nativeFetch(input, init);
-    const result = route(method, url.split('?')[0], init.body ?? '');
+    const result = await route(method, url.split('?')[0], init.body ?? '');
     return new Response(JSON.stringify(result.json), {
       status: result.status,
       headers: { 'Content-Type': 'application/json' },
@@ -379,6 +439,11 @@ export function installDemoShim(options = {}) {
 
   return {
     store,
+    // Direct entry for in-page callers (no fetch): same promise as the router.
+    route,
+    // The editor's preview stream provider and the room's per-tick extras (Aurora-51nv.10).
+    streams: route.streams,
+    roomExtras: route.roomExtras,
     uninstall: () => { window.fetch = nativeFetch; },
   };
 }

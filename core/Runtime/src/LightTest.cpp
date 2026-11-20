@@ -36,8 +36,11 @@ namespace Aurora::Runtime
   {
     m_active = false;
     m_session.clear();
+    m_client.clear();
     m_doc = nullptr;
     m_lastEnd = reason;
+    m_expiredSession.clear();
+    m_expiredDoc = nullptr;
   }
 
 
@@ -52,7 +55,7 @@ namespace Aurora::Runtime
     }
     const std::int64_t now = m_clock();
     const char* reason = nullptr;
-    if(now - m_startedAt >= m_options.confirmMs){
+    if(m_mode == LightTestMode::Once && now - m_startedAt >= m_options.confirmMs){
       reason = "confirm_timeout";
     }
     else if(now - m_lastBeat >= m_options.lapseMs){
@@ -60,12 +63,19 @@ namespace Aurora::Runtime
     }
     if(reason){
       m_hooks.revert();
+      const bool timedOut = m_mode == LightTestMode::Once && std::string(reason) == "confirm_timeout";
+      std::string session = m_session;
+      nlohmann::json doc = std::move(m_doc);
       _endLocked(reason);
+      if(timedOut){
+        m_expiredSession = std::move(session);
+        m_expiredDoc = std::move(doc);
+      }
     }
   }
 
 
-  std::string LightTest::start(const std::string& session, const nlohmann::json& doc)
+  std::string LightTest::start(const std::string& session, const nlohmann::json& doc, const std::string& client, LightTestMode mode)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
@@ -77,10 +87,21 @@ namespace Aurora::Runtime
     // pipeline it built is the one this test must revert (Aurora-4xqt.1).
     const std::uint64_t generation = m_hooks.generation();
     const std::int64_t now = m_clock();
+    const bool sameHolder = m_active && m_session == session;
+    if(m_active && m_session != session){
+      m_lastEnd = "replaced";
+    }
+    m_expiredSession.clear();
+    m_expiredDoc = nullptr;
     m_active = true;
     m_session = session;
+    m_client = client;
+    m_mode = mode;
     m_doc = doc;
-    m_startedAt = now;
+    // The holder re-sending an edited graph keeps its confirm clock.
+    if(!sameHolder){
+      m_startedAt = now;
+    }
     m_lastBeat = now;
     m_generation = generation;
     return {};
@@ -104,6 +125,12 @@ namespace Aurora::Runtime
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
     if(!m_active || m_session != session){
+      // Reverting after a timeout: the lights are back already, the chance
+      // to keep is given up.
+      if(!m_active && m_expiredSession == session){
+        m_expiredSession.clear();
+        m_expiredDoc = nullptr;
+      }
       return false;
     }
     error = m_hooks.revert();
@@ -129,6 +156,10 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
+    if(!m_active && !m_expiredSession.empty() && m_expiredSession == session){
+      _endLocked("confirmed");
+      return true;
+    }
     if(!m_active || m_session != session){
       return false;
     }
@@ -141,6 +172,9 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     _expireLocked();
+    if(!m_active && !m_expiredSession.empty() && m_expiredSession == session){
+      return m_expiredDoc;
+    }
     if(!m_active || m_session != session){
       return std::nullopt;
     }
@@ -157,6 +191,9 @@ namespace Aurora::Runtime
     if(m_active){
       const std::int64_t now = m_clock();
       info.active = true;
+      info.session = m_session;
+      info.client = m_client;
+      info.mode = m_mode;
       info.confirmRemainingMs = std::max<std::int64_t>(0, m_options.confirmMs - (now - m_startedAt));
       info.lapseRemainingMs = std::max<std::int64_t>(0, m_options.lapseMs - (now - m_lastBeat));
     }

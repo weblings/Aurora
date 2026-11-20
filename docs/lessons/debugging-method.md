@@ -1243,3 +1243,33 @@ Applies-when: writing or trusting an end-to-end gate that claims an input (audio
 Aurora-52oz.8: the Sequence C gate went 7/7 on Windows, Mac and Linux with an `audio.capture` node that nothing read. It proved the graph applied, survived a restart and kept the lights on, and the Linux log then called the audio path "covered" on that evidence. Two attempts at a real check also passed with no tone: a single before/after level reading (the dummy video drifts, and the lights hold their last frame in silence, so the level moved anyway), and a settle wait that accepted a level that had not changed yet.
 
 **Fix:** wire the signal into the output (`audio.features` rms into `frame.brightnessScale`), drive a real stimulus on, off, on, and wait on thresholds from fresh frames, not on "stable". Then run it once with the stimulus never started and see it fail. A check you have not seen fail proves nothing. See `docs/log/2026-10-20-52oz8-sequence-c-gate.md`.
+
+---
+
+## A fixture snapshot and a "not empty" assertion can both pass on data that lacks the field
+Tags: fixtures, snapshot, stale-build, vacuous-test, contract
+Applies-when: snapshotting a server response into test fixtures, or asserting a field is non-empty
+
+Aurora-pvxx.4: the editor's `/api/nodes` fixture came from `build/mac-app`, a binary older than the branch (no `title`, no port descriptions, empty `output` options; the duplicate route 404ed too). The test "every type has a title" used `expect(info.title).not.toBe('')`, which passes for `undefined`, so it went green on a snapshot with no titles at all. Only a screenshot with blank node headers showed it.
+
+**Fix:** assert the type and the value (`typeof x === 'string' && x !== ''`), not the absence of one bad value. Before snapshotting, rebuild the app and check a field the newest server commits added (`title`) is in the sample. A test over fixtures should fail when pointed at an old build.
+
+---
+
+## "No API exposes X" needs a repo-wide search, not the directories you guessed
+Tags: debugging, search, verification, planning
+Applies-when: about to tell the owner that a value or name is not available anywhere in code
+
+Asked whether the Hue entertainment area's name could label the Preview layout, a search of `core/Output`, `core/Runtime` and `web/graph-editor/src` found only `entertainmentConfigurationId`, and the answer given was that no API exposes the name. A repo-wide search then found `output/hue` (`ApiTools::loadEntertainmentConfigurations`, `PUT /api/hue/entertainment-configurations`) and the Dashboard's `EntertainmentConfigSelect.js`, which already show `{id, name}` from the bridge. The earlier answer was wrong.
+
+**Fix:** search from the repo root with several spellings (snake, camel, route and UI wording) before claiming absence, and say which paths were searched. Output modules live outside `core/`.
+
+---
+
+## A file written from a Bash heredoc can end mid-line, so check its tail
+Tags: agent, shell, heredoc, windows, verification
+Applies-when: an agent writes source files through `cat <<'EOF'` in the Bash tool on Windows (Aurora-4g4d.2)
+
+Four times in one session a heredoc write was cut off or rejected: `RecipesApp.tsx` ended at `{state === 'copied' ? 'Copied. Paste it in the graph editor with Ctrl+V.' : '`, `main.tsx` was never created, and `unexpected EOF while looking for matching` appeared with no obvious unbalanced quote. A batch of edits sent as one call applied none of them, and the next build failed on a file the call had reported nothing about.
+
+**Fix:** write source files with the Write tool, or write a script file first and run it. After any heredoc write, read the tail or run the typecheck before building on it.

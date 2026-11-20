@@ -1,0 +1,308 @@
+/* Recipes page (Aurora-4g4d.2). Loaded after editor.css, which sets html/body/#root to 100% for the editor.
+   Page chrome uses Grille's --ui-* tokens only. The viewer keeps the editor's --aurora-* look. */
+html,
+body,
+#root {
+  height: auto;
+  min-height: 100%;
+}
+
+/* The viewer is the editor's canvas in a box; its height comes from the graph's shape (inline). */
+.recipe-viewer.editor {
+  overflow: hidden;
+}
+
+.recipe-viewer .react-flow {
+  flex: 1;
+}
+
+/* React Flow marks every handle connectable whatever nodesConnectable says: take the pointer away. */
+.recipe-viewer .react-flow__handle {
+  pointer-events: none;
+}
+
+.recipe-outline-svg {
+  width: 100%;
+  height: auto;
+}
+
+.recipe-outline-svg rect {
+  fill: var(--ui-color-surface-raised);
+  stroke: var(--ui-color-border-subtle);
+}
+
+.recipe-outline-title {
+  fill: var(--ui-color-text-default);
+  font-size: 13px;
+}
+
+.recipe-outline-type {
+  fill: var(--ui-color-text-secondary);
+  font-size: 11px;
+}
+
+.recipes {
+  color: var(--ui-color-text-default);
+  font-family: var(--ui-font-family-sans);
+  font-size: var(--ui-size-font-md);
+}
+
+.recipes-head {
+  width: 100%;
+  text-align: center;
+}
+
+.recipes-head h1 {
+  margin: 0;
+  font-size: var(--ui-size-font-xl);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-text-emphasis);
+}
+
+.recipes-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  /* The same gutter on all four sides. */
+  padding: 16px;
+}
+
+/* Recipe pills: Grille's Tabs, wrapped and centered. */
+.recipes-main .ui-tab-list {
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: var(--ui-size-space-xl);
+}
+
+/* One rhythm: the pills, the top block and the viewer are each separated by the same step. */
+.recipes-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-xl);
+}
+
+.recipes-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--ui-size-space-xl);
+  /* Two columns, each centered against the other. */
+  align-items: center;
+}
+
+.recipes-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-md);
+}
+
+.recipes-info h2 {
+  margin: 0;
+  line-height: 1.3;
+  font-size: var(--ui-size-font-lg);
+  font-weight: var(--ui-font-weight-semibold);
+  color: var(--ui-color-text-emphasis);
+}
+
+.recipes-desc {
+  margin: 0;
+  max-width: 70ch;
+}
+
+.recipes-meta {
+  margin: 0;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-secondary);
+}
+
+.recipes-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ui-size-space-md);
+}
+
+.recipes-text-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-md);
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-secondary);
+  cursor: pointer;
+}
+
+/* The popover's own frame goes: the balloon is the box. */
+.ui-popover:has(.recipes-balloon) {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.recipes-balloon {
+  position: relative;
+  display: block;
+  max-width: 260px;
+  margin-top: 6px;
+  white-space: normal;
+  /* Light, like the primary button, so it stands out from the dark page. */
+  background: var(--ui-color-primary-bg);
+  border-color: var(--ui-color-primary-bg);
+  color: var(--ui-color-text-on-primary);
+}
+
+.recipes-balloon::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: calc(var(--balloon-arrow, 50%) - 4px);
+  width: 8px;
+  height: 8px;
+  rotate: 45deg;
+  background: var(--ui-color-primary-bg);
+}
+
+/* Wide: the balloon sits left of Copy, pointer on its right edge. */
+.recipes-balloon-left {
+  margin-top: 0;
+}
+
+.recipes-balloon-left::before {
+  top: calc(var(--balloon-arrow, 50%) - 4px);
+  left: auto;
+  right: -4px;
+}
+
+.recipes-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.recipes-manual {
+  display: block;
+  font-size: var(--ui-size-font-sm);
+}
+
+.recipes-manual textarea {
+  display: block;
+  width: 100%;
+  margin-top: var(--ui-size-space-sm);
+  box-sizing: border-box;
+  font-family: monospace;
+}
+
+/* The viewer's height comes from the graph's shape (inline), not a fixed box. */
+.recipes .recipe-viewer.editor {
+  min-height: 0;
+  max-height: 70vh;
+  border-color: var(--ui-color-border-subtle);
+  border-radius: var(--ui-size-radius-md);
+}
+
+/* The text list is always in the page for assistive tech, never shown. */
+.recipes .recipe-outline-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Wide: the box-and-wire picture. Narrow: the same outline as one column, so it needs no sideways scroll. */
+.recipes .recipe-outline-svg {
+  display: block;
+  max-height: none;
+}
+
+.recipes .recipe-outline-svg-tall {
+  display: none;
+}
+
+.recipe-outline-svg-tall .recipe-outline-title {
+  font-size: 11.5px;
+}
+
+.recipe-outline-svg-tall rect {
+  fill: var(--ui-color-surface-raised);
+  stroke: var(--ui-color-border-subtle);
+}
+
+.recipes-pick {
+  display: none;
+}
+
+@media (max-width: 649px) {
+  .recipes-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--ui-size-space-md);
+    margin-bottom: var(--ui-size-space-xl);
+  }
+
+  .recipes-picker {
+    width: min(100%, 340px);
+    justify-content: space-between;
+  }
+
+  .recipes-picker-popup {
+    box-sizing: border-box;
+    width: min(340px, calc(100vw - 32px));
+  }
+
+  /* The picker already shows the name; the heading stays for assistive tech. */
+  .recipes-info h2 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /* Narrow: the text, then Copy and the switch in a row beneath it. */
+  .recipes-top {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--ui-size-space-lg);
+  }
+
+  .recipes-detail {
+    gap: var(--ui-size-space-lg);
+  }
+
+  .recipes-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ui-size-space-2xl);
+  }
+
+  .recipes .recipe-viewer.editor {
+    height: 70vh;
+    min-height: 320px;
+    max-height: none;
+  }
+
+  .recipes .recipe-outline-svg {
+    display: none;
+  }
+
+  .recipes .recipe-outline-svg-tall {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    margin-inline: auto;
+  }
+}
+
+/* The React Flow credit is just text, with no box behind it. */
+.recipes .recipe-viewer .react-flow__attribution {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}

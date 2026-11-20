@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>kep2 frame 12: paused</title>
+  <link rel="stylesheet" href="../styles/tokens.css" />
+  <link rel="stylesheet" href="../styles/page.css" />
+  <link rel="stylesheet" href="../styles/shell.css" />
+  <link rel="stylesheet" href="../styles/forms.css" />
+  <link rel="stylesheet" href="../styles/dropdown.css" />
+  <link rel="stylesheet" href="../styles/dashboard.css" />
+  <link rel="stylesheet" href="../styles/tuning.css" />
+  <link rel="stylesheet" href="mock.css" />
+</head>
+<body>
+  <div id="screen-container">
+    <div class="top-bar-slot db-top-bar-slot">
+      <div class="top-bar top-bar-with-logo">
+        <span></span>
+        <h1 class="top-bar-title"><img src="../icons/aurora-logo.png" alt="Aurora" class="top-bar-logo" /></h1>
+        <div class="top-bar-trailing">
+          <button type="button" class="btn btn-secondary btn-icon" aria-label="Resume"><img src="../icons/play-rockyroad.svg" alt="" class="top-bar-trailing-icon" /></button>
+          <button type="button" class="btn btn-secondary btn-icon top-bar-power-btn" aria-label="Stop"><img src="../icons/power-svgrepo-com.svg" alt="" class="top-bar-trailing-icon" /></button>
+        </div>
+      </div>
+    </div>
+    <div class="db-controls mk-picker field">
+      <label class="field-label" id="effects-label">Effect</label>
+      <div class="dropdown dropdown-fill">
+        <button type="button" class="dropdown-trigger" id="effects-trigger" aria-labelledby="effects-label effects-trigger" aria-controls="effects-panel" aria-haspopup="dialog" aria-expanded="false"><span class="mk-trigger-main"><span class="dropdown-label">Fire</span></span><img src="../icons/chevron-down.svg" alt="" class="mk-chev" /></button>
+      </div>
+    </div>
+    <div class="db-top-tier">
+      <div class="db-device-slot"><p class="status-text device-field-hint">Uses your system's default audio device.</p></div>
+    </div>
+    <div class="db-accordions">
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Zone Mapping</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Tuning</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Output</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+      <div><div class="accordion-section"><button type="button" class="accordion-header" aria-expanded="false"><span class="accordion-title">Paired devices</span><span class="accordion-chevron" aria-hidden="true"></span></button><div class="accordion-content" hidden></div></div></div>
+    </div>
+    <div class="db-version"><p>v1.1.4</p></div>
+    <script src="layers.js"></script>
+  </div>
+</body>
+</html>

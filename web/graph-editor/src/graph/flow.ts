@@ -1,0 +1,83 @@
+import type { Edge, Node } from '@xyflow/react'
+import { splitEndpoint } from './doc'
+import { positionsFor } from './layout'
+import { portStyle } from './portStyle'
+import type { Catalog, GraphDoc, GraphEdge, NodeTypeInfo, ParamValue } from './types'
+
+export type AuroraNodeData = {
+  type: string
+  // Undefined when the catalog has no such type (a graph from a newer build).
+  info: NodeTypeInfo | undefined
+  params: Record<string, ParamValue>
+  // Input ports with an edge, so the node can dim the ones still open.
+  connectedInputs: ReadonlySet<string>
+  [key: string]: unknown
+}
+
+export const NODE_KIND = 'aurora'
+
+export function edgeId(edge: GraphEdge): string {
+  return `${edge[0]}->${edge[1]}`
+}
+
+export function toFlowNodes(doc: GraphDoc, catalog: Catalog): Node<AuroraNodeData>[] {
+  const positions = positionsFor(doc, catalog)
+  const fed = new Map<string, Set<string>>()
+  for (const [, to] of doc.edges) {
+    const { node, port } = splitEndpoint(to)
+    if (!fed.has(node)) fed.set(node, new Set())
+    fed.get(node)!.add(port)
+  }
+  return doc.nodes.map((node) => ({
+    id: node.id,
+    type: NODE_KIND,
+    ariaLabel: catalog.get(node.type)?.title || node.type,
+    position: positions[node.id],
+    data: {
+      type: node.type,
+      info: catalog.get(node.type),
+      params: node.params ?? {},
+      connectedInputs: fed.get(node.id) ?? new Set(),
+    },
+  }))
+}
+
+export function toFlowEdges(doc: GraphDoc, catalog?: Catalog): Edge[] {
+  return doc.edges.map((edge) => {
+    const from = splitEndpoint(edge[0])
+    const to = splitEndpoint(edge[1])
+    const sourceType = catalog?.get(doc.nodes.find((n) => n.id === from.node)?.type ?? '')?.outputs.find((p) => p.name === from.port)?.type
+    const look = sourceType ? portStyle(sourceType) : null
+    return {
+      id: edgeId(edge),
+      interactionWidth: 24,
+      source: from.node,
+      sourceHandle: from.port,
+      target: to.node,
+      targetHandle: to.port,
+      ...(look && {
+        style: { stroke: look.color, strokeWidth: look.bulk ? 3 : 2, ...(look.dashed && { strokeDasharray: '6 4' }) },
+      }),
+    }
+  })
+}
+
+// React Flow owns selection and measured size, and the position of a node
+// mid-drag; the document owns the rest. Merge the two by id.
+type ViewState = {
+  id: string
+  selected?: boolean
+  measured?: unknown
+  dragging?: boolean
+  position?: unknown
+}
+
+export function carryViewState<T extends ViewState>(view: readonly T[], derived: T[]): T[] {
+  const byId = new Map(view.map((item) => [item.id, item]))
+  return derived.map((item) => {
+    const old = byId.get(item.id)
+    if (!old) return item
+    const carried = { ...item, selected: old.selected, measured: old.measured }
+    return old.dragging ? { ...carried, dragging: true, position: old.position } : carried
+  })
+}

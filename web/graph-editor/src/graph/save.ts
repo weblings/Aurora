@@ -1,0 +1,84 @@
+import type { GraphDoc } from './types'
+
+// The effect id a new custom effect gets: the server accepts a-z, 0-9, '_' and
+// '-' (not first), up to 64.
+export function slugify(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/g, '')
+  return slug || 'effect'
+}
+
+// A slug no existing effect uses: name, name-2, name-3, ...
+export function freshEffectId(title: string, taken: Iterable<string>): string {
+  const used = new Set(taken)
+  const base = slugify(title)
+  if (!used.has(base)) return base
+  for (let n = 2; ; n++) {
+    const candidate = `${base}-${n}`
+    if (!used.has(candidate)) return candidate
+  }
+}
+
+export function titleOf(doc: GraphDoc): string {
+  return typeof doc.title === 'string' ? doc.title : ''
+}
+
+export function setTitle(doc: GraphDoc, title: string): GraphDoc {
+  return { ...doc, title }
+}
+
+// A title no existing effect shows: the title itself, else "title (Copy)",
+// "title (Copy 2)", ... so the picker never lists two effects with one name.
+export function distinctTitle(title: string, taken: Iterable<string>): string {
+  const norm = (t: string) => t.trim().toLowerCase()
+  const used = new Set([...taken].map(norm))
+  if (!used.has(norm(title))) return title
+  const base = title.trim()
+  const first = `${base} (Copy)`
+  if (!used.has(norm(first))) return first
+  for (let n = 2; ; n++) {
+    const candidate = `${base} (Copy ${n})`
+    if (!used.has(norm(candidate))) return candidate
+  }
+}
+
+// The seed of a New or Duplicate pick: the source graph under a title no listed effect shows
+// ('X (Copy)'), kept to this browser until a Save writes it.
+export function copyOf(source: GraphDoc, fallbackTitle: string, taken: Iterable<string>): GraphDoc {
+  const title = titleOf(source) || fallbackTitle
+  return setTitle(source, distinctTitle(title, [...taken, title]))
+}
+
+// The document a write sends. A write that makes a new effect (a fork, or a
+// built-in saved under a name) takes a title no other effect shows; one that
+// overwrites a custom effect, sends the document as it is.
+export function forWrite(doc: GraphDoc, makesNew: boolean, taken: Iterable<string>): GraphDoc {
+  return makesNew ? setTitle(doc, distinctTitle(titleOf(doc), taken)) : doc
+}
+
+// The editor id of the old shared slot for an unsaved empty graph. Each new
+// effect now gets its own '@new-' id (newEffectId); this one only starts a New ▸
+// Empty and names the legacy kept copy (autosave.ts migrateLegacyBlank).
+export const BLANK_ID = '@empty'
+
+// A new effect's id until its first Save: '@' is not a valid effect id, so it
+// never names a stored effect. It is the URL's effect and the kept copy's key.
+export function newEffectId(random: () => number = Math.random): string {
+  let tail = ''
+  while (tail.length < 6) tail += Math.floor(random() * 36).toString(36)
+  return `@new-${tail}`
+}
+
+// Any id that is not a stored effect.
+export function isDraftId(id: string): boolean {
+  return id.startsWith('@')
+}
+
+export function blankDoc(): GraphDoc {
+  // No title key: the server rejects an empty one (title_invalid), and a save adds it.
+  return { version: 1, nodes: [], edges: [] }
+}

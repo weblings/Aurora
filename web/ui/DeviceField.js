@@ -117,8 +117,8 @@ export class DeviceField {
       { label: 'Auto (primary)', value: AUTO_MONITOR_VALUE, selected: selectedMonitorName === AUTO_MONITOR_VALUE },
       ...monitors.map((m) => ({
         label: `${m.name} — ${m.width}x${m.height}${m.isPrimary ? ' (primary)' : ''}`,
-        value: m.name,
-        selected: m.name === selectedMonitorName,
+        value: m.key || m.name,
+        selected: (m.key || m.name) === selectedMonitorName || m.name === selectedMonitorName,
       })),
     ];
     const selected = options.find((o) => o.selected) ?? options[0];

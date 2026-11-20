@@ -6,7 +6,8 @@
 // seconds and blends by 1 - exp(-dt/tau) on the nominal dt, so settle time
 // matches at any tick rate. A non-finite input fails the node.
 //
-//   smooth.exp, smooth.angle, rollingAverage, integrate, stepOnTrigger, lfo
+//   smooth.exp, smooth.angle, rollingAverage, integrate, stepOnTrigger, lfo,
+//   trigger.envelope (attack, hold, decay on the tick dt)
 namespace Aurora::Runtime::Graph
 {
   void registerTimeNodes(NodeRegistry& registry);

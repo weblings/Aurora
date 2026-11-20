@@ -1258,3 +1258,79 @@ the status. Tests use `SseReader::waitFor` plus `waitFinished`.
 
 **Fix:** document the error events beside the route. If a real status is needed, validate in a plain
 route first and hand the client a stream URL.
+
+---
+
+## Write client types from the live response, not from the bead or C++ enum names
+Tags: api, contract, catalog, param-kind, graph-editor
+Applies-when: typing a client (editor, MCP, demo) against `/api/nodes` or any catalog the server serializes
+
+Aurora-pvxx.4: the bead and `GraphLoader` call the param kinds `Float`, `OptionalFloat`, `Bool`, `Enum`, `Gradient`; the wire carries `float`, `optional-float`, `bool`, `enum`, `gradient` (`paramKindName`). Typecheck passed and the first unit tests used the same wrong spelling, so no widget rendered until the editor met a real catalog. A second trap in the same payload: an `optional-float` the graph omits is unset (null), but the catalog `default` is a number (-1), so showing the default invents a value the loader would not use.
+
+**Fix:** curl the route and type from that JSON; keep a real-response sample as a fixture (`web/graph-editor/src/graph/server-samples/`). For optional values, mirror the loader: absent means unset, the default is only what a user gets on turning it on.
+
+---
+
+## A generator for checked-in output belongs beside that output, not in a session scratchpad
+Tags: process, codegen, mocks, webui
+Applies-when: generating checked-in files (mocks, fixtures, tables) from a script
+
+Aurora-kep2.2's nine mock frames and index.html were written by `gen4.py` in one agent session's temp scratchpad, alongside superseded `gen.py`–`gen3.py`, a `.bak` and three patch scripts. Only the output was committed. Each frame repeats ~70 lines of shell markup, so once the temp folder was cleared, any design change would have meant editing nine files by hand.
+
+**Fix:** commit the generator next to its output with a usage line, and confirm a regen is byte-identical before committing. Now at `web/ui/Static_kep2_Mocks/gen.py`.
+
+---
+
+## An unset log hook means the default stream, not silence
+Tags: logging, pipeline, platform, options, tests
+Applies-when: adding a new way to reach an optional callback such as PipelineOptions::log
+
+Aurora-kep2.12 added `PipelineHost::log` as `if(m_options.log){ m_options.log(...); }`. Only the Windows main sets that hook. Linux and Mac leave it unset on purpose and rely on `_log` in `Pipeline.cpp` falling back to stdout/stderr, so the new line was dropped on two of three platforms. The test passed because `LogCapture` always sets the hook, and a Windows run could not show the gap.
+
+**Fix:** route through the existing `_log` rather than re-checking the hook, and test the unset case as well as the captured one.
+
+---
+
+## A public API write may be a separate handler, not an alias of the internal route
+Tags: api, routes, v1, mcp, effects
+Applies-when: changing behavior on an internal /api route that has a public /api/v1 counterpart
+
+`kAliases` in `PublicApiRoutes.cpp` shares one handler between `/api` and `/api/v1`, which suggests a change to the internal route reaches v1 too. Effect switching is not aliased: the WebUI uses `PUT /api/effects`, while MCP `set_effect` uses `PATCH /api/v1/state`, a handler with its own validation and its own config write. Aurora-kep2.12 first added logging to the PUT alone, and the MCP path stayed silent until a review of v1.
+
+**Fix:** before calling a route behavior done, grep for the config write (here `setActiveEffectId`) to find every path, not just the route the bead names.
+
+---
+
+## A Grille change request is filed as a bead in the GrilleDS repo, with an Aurora bead for the consumer side
+Tags: grille, beads, process, upstream
+Applies-when: finding that Grille (`@weblings/grille`) lacks or gets a component, style or behavior wrong, and deciding where to record the request
+
+- Grille is its own repo (`weblings/GrilleDS`, a sibling checkout at `../GrilleDS`) with its own beads, prefix `Grille`. A bead in Aurora's `.beads` is not a Grille bead: nothing in GrilleDS sees it.
+- A Grille clone can have its beads tracked in `.beads/issues.jsonl` but no local database (`bd` says "no beads database found"). Run `bd bootstrap` there, as its AGENTS.md says. Bootstrap also adds a Dolt remote, which Grille does not use: remove it with `bd dolt remote remove origin` and leave `sync.remote` in the tracked config. From Python on Windows, call `bd.cmd`; the npm shim `bd` is not found by `subprocess`.
+- File the Grille bead first: `cd` to the GrilleDS checkout and run `bd create` there. Then file or update the Aurora bead for the consumer work (bump, copy CSS into the mock's `grille/`, adopt the change) and cross-reference both IDs in notes. The GrilleDS beads files are not committed, so the cross-reference in the Aurora bead is the only trail.
+- Aurora-fhal / Grille-7o0 (slider fill) was first filed in Aurora's beads alone and reported as the Grille request. The rule was already in `docs/planning/WebUI/GraphEditorCleanup.md` and a dated log, but neither is where an agent looks while filing.
+
+**Fix:** state the repo in the report ("Grille-xxx in GrilleDS") so a missing Grille bead is visible.
+
+---
+
+## Before building new behavior, find the app's existing equivalent operation and compose from it
+Tags: process, reuse, scoping, code, webui
+Applies-when: scoping or writing a feature that resembles something the app already does elsewhere (copy, duplicate, add, open, new)
+
+Stage 8 planning (Aurora-ge1i) scoped "Start from any effect" as a new path with an unknown, and proposed paste positioning from scratch. Both had existing equivalents: the dashboard's Duplicate (a server route, so a client-side draft variant only needs `fetchEffectGraph`, `distinctTitle`, `newEffectId` and the kept-copy machinery) and `addFromMenu` (pointer else canvas centre, via `screenToFlowPosition`). They surfaced only after the owner asked "wouldn't Duplicate already do most of this?" The search had stopped at the files the question named (the menu code). The same habit costs in code: a second copy of a position rule, id remap or title rule drifts from the first.
+
+**Fix:**
+1. Before designing or writing, grep the app for the operation by its verbs (duplicate, add, new, open, copy) in the editor, the dashboard and the core routes. Read the match, not just its name.
+2. State what was reused and what is new. If nothing was found, say what was searched.
+3. Build new code as a variant of the existing path (a client-side draft of Duplicate, a paste that calls the add-node position rule), and extract a shared helper only when a second caller is real.
+
+---
+
+## Filing an epic with children takes minutes, because every `bd` write runs a full export
+Tags: beads, tooling, timeouts, windows
+Applies-when: filing an epic with several children and dependencies in one script
+
+With about 750 beads each state-changing `bd` command printed "auto-export wrote 751 issues in 7s". One script that converted a task to an epic, created six children and added five dependencies passed the 120 s foreground timeout and was moved to the background, with the later commands still running. A second copy would have created duplicate children. This adds to the debounce lesson above: the export is slow, not only late.
+
+**Fix:** run a filing script with `run_in_background` and wait for its notification instead of starting it again, or batch the writes into fewer commands. Afterwards check the result with `bd show <epic>` (children and dependencies) before committing.

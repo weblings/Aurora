@@ -11,7 +11,7 @@ Closed 2026-10-22. Follow-up to the Sequence D epic ([[sequence-b-planning]] nod
   optional `background` (black) and `color` (white) inputs; `rateHz`, `seed`, `width`, `height`.
   Same ImagePtr while time is frozen (rateHz 0).
 - Shared hash and smoothstep lattice in `Graph/ValueNoise.hpp`.
-- `NodeGraphPipeline.md` node list updated.
+- [`docs/planning/NodeGraphPipeline.md`](../planning/NodeGraphPipeline.md) node list updated.
 
 ## Verification
 

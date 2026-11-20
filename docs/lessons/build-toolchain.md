@@ -866,6 +866,16 @@ header strings are fine: the allowlist and Origin check ignore the port.
 
 ---
 
+## Test temp dirs named by a fixed string collide across parallel ctest processes
+Tags: ctest, catch2, parallel, temp-dir, flaky, repro
+Applies-when: a test builds a temp dir or harness from a name, or a core test flakes only under `ctest -j8`
+
+Aurora-16i9 (2026-11-17): two PipelineTests cases both built `LightTestHarness h("lt-replace")`. `ScopedTempDir` maps a name to one fixed temp path and `remove_all`s it on construct and destruct, so each test process could wipe the other's `config.json` mid-run. The revert then reloaded an empty config and the next start answered 409 "no pipeline is running", which looked like a revert race. About 20 full-suite `-j8` repeats never hit it. A loop running only the two suspects at once failed 49 of 100. Aurora-ruig is the same class (two RuntimeTests `"config"` dirs).
+
+**Fix:** give each test a unique name, and before chasing a `-j8`-only flake, list duplicate names (`grep -ohE 'ScopedTempDir [a-z]+\("[^"]+"' core/tests/*.cpp | sort | uniq -d`, per file prefix). Reproduce by running the two suspects concurrently in a loop, not by repeating the whole suite.
+
+---
+
 ## The e2e gate runs the app from its own build tree, not the top-level build
 Tags: cmake, build-trees, e2e-gate, linux
 Applies-when: rebuilding the app before running tools/light-viz-relay/sequence_c_gate.py (or devstack.py)
@@ -880,3 +890,48 @@ the route while everything else was green.
 **Fix:** `cmake --build build/linux-app` (and `build/core-test` for core)
 before the gate. When a new route 404s on an otherwise green tree, `ls -la`
 the binary the gate actually launched before suspecting the route.
+
+---
+
+## A green build is not a fresh binary: check the launched exe's mtime
+Tags: cmake, build-trees, windows, locked-exe, devstack
+Applies-when: rebuilding the Windows app before devstack.py up or any live run, especially inside an agent session
+
+On Windows `AuroraApp` builds only a `.lib`, and the real exe comes from
+`aurora-app-windows`, whose link fails with LNK1104 while any
+`aurora-mcp.exe` runs (every agent session has one). Aurora-5ipy.42:
+a chained build and `devstack up` launched the Oct 24 `Aurora.exe`, and the
+failure showed only in the build tail.
+
+**Fix (Aurora-2v8l):** build `aurora-app-windows`. The `aurora-mcp` target now renames a running exe aside
+before the link (`adapters/mcp/cmake/MoveAsideExe.cmake`), leaving `aurora-mcp.old*.exe` copies in `bin/`.
+Still compare `bin/Release/Aurora.exe` mtime to the source edit before `devstack up`.
+
+---
+
+## A string-replace patch to a script must assert each anchor, or a drifted anchor is a silent no-op
+Tags: build, codegen, scripting, patch
+Applies-when: editing a generator or config through `str.replace` patch scripts instead of an editor
+
+Aurora-kep2.2 evolved its mock generator through `patch5`–`patch7.py`, each a run of `s.replace(old, new, 1)`. `patch6.py` asserted none of its anchors and `patch7.py` asserted only the first. Python's `replace` returns the string unchanged when `old` is missing, so a drifted anchor would write a "patched" file that is missing the change. The later regen came out byte-identical to the committed frames, so no change was lost this time.
+
+**Fix:** guard every replace with `assert old in s` (or check the count), or edit the generator directly and diff its output, per this file's codegen-regen entry.
+
+## Vite's license output lists JS modules only, so CSS-referenced fonts ship without their license
+Tags: vite, licenses, fonts, notices
+Applies-when: importing a stylesheet whose `@font-face` rules pull in font files
+
+`build.license` in Vite 8 builds the generated third-party notices file from the JS module graph. Importing Grille's `fonts.css` added 6 Inter woff/woff2 files (~165 kB) to the bundle but no Inter or OFL entry, and the package's `LICENSE-Inter.txt` was not copied.
+
+**Fix:** add the OFL text to the embedded notices by hand when a font stylesheet is imported, and ship woff2 only.
+
+
+## OpenCV under Emscripten needs `-msimd128`, and its installed CMake config cannot be used for a core+imgproc build
+Tags: emscripten, wasm, opencv, cmake
+Applies-when: building OpenCV for `wasm32-emscripten` or linking a WASM target against it
+
+With `CPU_BASELINE` and `CPU_DISPATCH` empty, OpenCV 4.12 still compiles `intrin_wasm.hpp`, and Emscripten 7.0.0 fails with "always_inline function 'wasm_v128_load' requires target feature 'simd128'" (Aurora-51nv.4). Pass `-msimd128` in `CMAKE_C_FLAGS` and `CMAKE_CXX_FLAGS` for OpenCV and every consumer. With `BUILD_LIST=core,imgproc`, the installed `OpenCVModules.cmake` still imports 3rdparty libs (`liblibtiff.a`) that were never built, so `find_package(OpenCV)` fails.
+
+**Fix:** link `libopencv_imgproc.a`, `libopencv_core.a` and `opencv4/3rdparty/libzlib.a` from the install prefix directly, as `core/Wasm/WasmDeps.cmake` does.
+
+Confirmed natively (Aurora-51nv.7, 2026-11-18): the gcc build of the same core+imgproc install for the parity reference failed `find_package(OpenCV)` on the CI runner the same way (`liblibtiff.a`). Turning the codec and IO backends off (`WITH_TIFF`, `WITH_PNG`, `WITH_JPEG`, `WITH_WEBP` and the rest, see `core/Wasm/build-deps.sh`) leaves only core, imgproc and zlib in the install, and `find_package` works. On Windows that build also needs `BUILD_WITH_STATIC_CRT=OFF` to link with the project's `/MD` runtime, and consumers need `-DOpenCV_STATIC=ON`.

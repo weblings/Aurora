@@ -1,20 +1,13 @@
 # web/demo — agent rules
 
-## `processing.js`/`smoother.js`/`audioFeatures.js`/`colorModel.js` are copies, not authored here
+## Room colors come from the WASM engine, not JS copies
 
-These files are copied verbatim from `../../web-processing/` (the
-hand-ported JS mirror of Aurora core's crop/mean/easing/audio-feature/color-model math) —
-not an npm package, by deliberate choice. **Don't edit them in place here.**
-If a bug or improvement is found in one of these copies:
-
-1. Fix it in `../../web-processing/` instead.
-2. Update that file's own `*.test.mjs` if the fix changes expected behavior,
-   and check it still passes (e.g. `node audioFeatures.test.mjs`).
-3. Recopy the fixed file(s) here.
-
-See `../../CLAUDE.md` for the other side of this rule, and
-[[browser-analysis]]/[[implementation-plan-phase-3]] for
-why this is a copy instead of a shared package.
+The room's colors run on `web/engine` (wrapEngine) inside `engine-worker.js`. The
+module (`aurora-engine.mjs`/`.wasm`) is a CI artifact and never committed: run
+`python web/demo/vendor/fetch-engine.py <dir>` to copy it into the gitignored
+`vendor/engine/`. The old `processing.js`/`smoother.js`/`audioFeatures.js`/`colorModel.js`
+copies are gone, so there is no sync rule. `builtin-graphs.js` is generated:
+`python web/demo/gen-builtin-graphs.py` after a built-in graph change.
 
 ## Check `../../docs/lessons/rendering-apis.md` and `../../docs/lessons/rendering-internals.md` before touching the Three.js scene
 

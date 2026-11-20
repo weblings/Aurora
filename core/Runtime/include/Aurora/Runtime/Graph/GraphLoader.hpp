@@ -15,6 +15,9 @@
 // ```json
 // {
 //   "version": 1,
+//   "minorVersion": 1,
+//   "title": "Rainbow sweep",
+//   "description": "Colors drift across the lights.",
 //   "tickHz": 60,
 //   "nodes": [{"id": "cap", "type": "video.capture", "params": {}}],
 //   "edges": [["cap.image", "zones.image"]],
@@ -34,6 +37,21 @@
 // (not an object, version, nodes) stop at the first.
 namespace Aurora::Runtime::Graph
 {
+  // Character limits for the optional top-level title and description (Aurora-mfud). Every title
+  // writer checks the same limit, or a saved title stops the effect loading (Aurora-kep2.28).
+  constexpr std::size_t kMaxTitleLength = 80;
+  constexpr std::size_t kMaxDescriptionLength = 280;
+
+  // Length of UTF-8 text in code points: every byte that isn't a continuation byte.
+  inline std::size_t textLength(const std::string& text)
+  {
+    std::size_t length = 0;
+    for(const char byte : text){
+      length += (static_cast<unsigned char>(byte) & 0xC0u) != 0x80u ? 1 : 0;
+    }
+    return length;
+  }
+
   struct LoadOptions
   {
     // Known output names for the per-output binding params (zones.sample,
@@ -51,6 +69,7 @@ namespace Aurora::Runtime::Graph
     std::string port;    // port named by the problem, empty when none
     std::string param;   // param named by the problem, empty when none
     std::vector<std::string> options; // valid choices or nearest matches, empty when none
+    std::string nodeTitle; // node_construct_failed only: the node type's catalog title, else its type
   };
 
   struct LoadResult

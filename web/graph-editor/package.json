@@ -3,18 +3,23 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Aurora node-graph editor. Hello-world toolchain spike (Aurora-lzj); built by CMake when AURORA_ENABLE_GRAPH_EDITOR is ON.",
+  "description": "Aurora node-graph editor (React Flow); built by CMake when AURORA_ENABLE_GRAPH_EDITOR is ON.",
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build:recipes": "vite build --config vite.recipes.config.ts",
+    "dev:recipes": "vite --config vite.recipes.config.ts --open /recipes.html"
   },
   "dependencies": {
+    "@weblings/grille": "https://github.com/weblings/GrilleDS/releases/download/v0.2.0/weblings-grille-0.2.0.tgz",
     "@xyflow/react": "12.12.0",
     "react": "19.3.0",
+    "react-aria-components": "1.22.1",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
@@ -23,6 +28,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "typescript": "7.0.2",
-    "vite": "8.3.2"
+    "vite": "8.3.2",
+    "vitest": "4.1.10"
   }
 }

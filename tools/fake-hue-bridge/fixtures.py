@@ -104,7 +104,8 @@ def register_link_button_not_pressed():
                        "description": "link button not pressed"}}]
 
 
-def entertainment_configurations():
+def entertainment_configurations(stream_status=None):
+    stream_status = stream_status or {}
     data = []
     for conf in CONFIGS:
         channels = [
@@ -116,6 +117,7 @@ def entertainment_configurations():
         light_ids = {d["entertainment_id"]: d["light_id"] for d in DEVICES}
         members = sorted({rid for rids in conf["channels"].values() for rid in rids})
         data.append({"id": conf["id"],
+                     "status": stream_status.get(conf["id"], "inactive"),
                      "metadata": {"name": conf["name"]},
                      "channels": channels,
                      "light_services": [{"rtype": "light", "rid": light_ids[rid]}

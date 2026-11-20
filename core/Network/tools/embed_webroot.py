@@ -9,6 +9,8 @@ Unlike huenicorn's embed_directory(), which keys by bare filename and escapes
 only backslash/quote/newline, this keys by relative path (Aurora's webroot
 has subdirectories) and escapes binary-safely (icons, favicons survive).
 
+Directories named Static_* are skipped (design mocks kept beside the UI).
+
 Usage: embed_webroot.py <input-dir> <output-header> [namespace]
   namespace: the map's namespace under Aurora (default EmbeddedWebRoot), so
   one target can hold several maps (e.g. the graph editor's, Aurora-lzj).
@@ -88,7 +90,9 @@ def main() -> int:
     input_dir, output_header = sys.argv[1], sys.argv[2]
     namespace = sys.argv[3] if len(sys.argv) == 4 else "EmbeddedWebRoot"
     entries = []
-    for root, _dirs, files in os.walk(input_dir):
+    for root, dirs, files in os.walk(input_dir):
+        # Static_* folders are design mocks (web/ui/Static_*), never app assets.
+        dirs[:] = [d for d in dirs if not d.startswith("Static_")]
         for name in files:
             full = os.path.join(root, name)
             key = os.path.relpath(full, input_dir).replace(os.sep, "/")

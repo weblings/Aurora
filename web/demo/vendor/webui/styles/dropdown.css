@@ -128,3 +128,14 @@
   background: var(--aurora-surface-selected);
   color: var(--aurora-text-primary);
 }
+
+/* Group break inside one listbox (the effect picker's built-ins vs
+   customs): a rule on the option itself, so keyboard indexes stay 1:1. */
+.dropdown-option-divided {
+  border-top: 1px solid var(--aurora-border);
+}
+
+/* setBusy(): a switch is in flight. */
+.dropdown-trigger:disabled {
+  cursor: wait;
+}

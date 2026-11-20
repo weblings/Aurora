@@ -17,6 +17,28 @@ namespace Aurora::Runtime::Graph
     return "?";
   }
 
+  const char* portTypeMeaning(PortType type)
+  {
+    switch(type){
+      case PortType::Image: return "One video frame, or Absent while the source is unhealthy.";
+      case PortType::AudioBuffer: return "The latest block of raw audio samples.";
+      case PortType::AudioFeatures: return "All audio features for this tick, bundled.";
+      case PortType::Color: return "One RGB color.";
+      case PortType::Frame: return "One color per light zone, sent to the lights by an output node.";
+      case PortType::Float: return "A plain number, usually 0..1. Not an Angle.";
+      case PortType::Angle: return "A direction in degrees. Not a Float.";
+      case PortType::Trigger: return "True for one tick when an event happens, false otherwise.";
+    }
+    return "?";
+  }
+
+  const std::array<PortType, 8>& allPortTypes()
+  {
+    static const std::array<PortType, 8> all{PortType::Image, PortType::AudioBuffer, PortType::AudioFeatures, PortType::Color,
+      PortType::Frame, PortType::Float, PortType::Angle, PortType::Trigger};
+    return all;
+  }
+
   std::optional<PortType> parsePortType(std::string_view name)
   {
     if(name == "Image"){ return PortType::Image; }

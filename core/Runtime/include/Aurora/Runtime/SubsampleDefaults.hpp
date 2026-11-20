@@ -6,6 +6,8 @@
 
 // Picks a sane default subsample width when Config doesn't have one yet.
 // Ported from huenicorn's Runtime::_initSettings() inline search.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Runtime
 {
   // The smallest candidate width that's still >= percentThreshold% of the

@@ -29,4 +29,20 @@ namespace Aurora::Runtime
   };
 
   using ZoneMap = std::vector<ZoneConfig>;
-}
+
+  // The editor's "Sim: basic room" layout: 4 screen quadrants, ids 0..3. Kept equal to
+  // tools/fake-hue-bridge/room-4zone-zonemap.json and the web demo's ROOM_ZONE_MAP by tests.
+  inline ZoneMap basicRoomZoneMap()
+  {
+    ZoneMap map;
+    for(uint8_t i = 0; i < 4; ++i){
+      ZoneConfig zone;
+      zone.zoneId = i;
+      const float x = (i % 2) * 0.5f;
+      const float y = (i / 2) * 0.5f;
+      zone.uvs = {{x, y}, {x + 0.5f, y + 0.5f}};
+      zone.everConfigured = true;
+      map.push_back(zone);
+    }
+    return map;
+  }}

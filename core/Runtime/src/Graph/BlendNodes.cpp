@@ -141,10 +141,10 @@ namespace Aurora::Runtime::Graph
       std::vector<ParamDecl> params,
       std::function<ColorFn(const EvalContext&)> makeFn)
     {
-      std::vector<PortDecl> inputs{{"frame", PortType::Frame, true}};
+      std::vector<PortDecl> inputs{{"frame", PortType::Frame, true, "The Frame to adjust."}};
       inputs.insert(inputs.end(), extraInputs.begin(), extraInputs.end());
       add(registry, std::move(type), std::move(meta), std::move(inputs),
-        {{"frame", PortType::Frame, false}}, std::move(params),
+        {{"frame", PortType::Frame, false, "The adjusted Frame, same zones."}}, std::move(params),
         [makeFn](const EvalContext& c, Outputs& out) {
           ColorFn fn = makeFn(c);
           const Frame& frame = c.input<Frame>("frame");
@@ -246,14 +246,20 @@ namespace Aurora::Runtime::Graph
   void registerBlendNodes(NodeRegistry& registry)
   {
     add(registry, "frame.mix",
-      {.purpose =
+      {.title = "Mix frames",
+       .group = "Lights",
+       .summary = "Blends two sets of light colors into one.",
+       .tip = "Combine a screen effect with a music effect.",
+       .purpose =
          "Blend Frame b into Frame a by t (0 gives a, 1 gives the full blend mode result). Zones match "
          "by id: the output has a's zones, a zone missing from b passes through unchanged, and zones "
          "only in b are dropped. Gamma comes from a.",
        .useWhen = "Combine a video frame with an audio frame, e.g. mode multiply to let audio gate video.",
        .example = "{\"id\": \"mixed\", \"type\": \"frame.mix\", \"params\": {\"mode\": \"add\", \"t\": 0.5}}"},
-      {{"a", PortType::Frame, true}, {"b", PortType::Frame, true}, {"t", PortType::Float, false}},
-      {{"frame", PortType::Frame, false}},
+      {{"a", PortType::Frame, true, "The base Frame; its zones are kept."},
+       {"b", PortType::Frame, true, "The Frame blended into a."},
+       {"t", PortType::Float, false, "Blend amount 0..1; param t is used when unwired."}},
+      {{"frame", PortType::Frame, false, "The blended Frame."}},
       {modeParam(), floatParam("t", "Mix", 0.f, 1.f, 1.f, "Blend amount when the 't' input is unconnected.")},
       [](const EvalContext& c, Outputs& out) {
         float t = std::clamp(inputOrParam(c, "t"), 0.f, 1.f);
@@ -262,14 +268,20 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "image.mix",
-      {.purpose =
+      {.title = "Mix images",
+       .group = "Image",
+       .summary = "Blends two pictures into one.",
+       .tip = "Use to fade or layer two generated pictures.",
+       .purpose =
          "Blend Image b into Image a by t, per pixel in RGB. Both must be the same size or the node "
          "fails. b is converted to a's pixel format and the result keeps a's format and alpha.",
        .useWhen = "Layer two video sources, e.g. difference of two captures to find motion.",
        .example = "{\"id\": \"layer\", \"type\": \"image.mix\", \"params\": {\"mode\": \"screen\", \"t\": 0.5}}",
        .cost = "moderate"},
-      {{"a", PortType::Image, true}, {"b", PortType::Image, true}, {"t", PortType::Float, false}},
-      {{"image", PortType::Image, false}},
+      {{"a", PortType::Image, true, "The base Image; its format and alpha are kept."},
+       {"b", PortType::Image, true, "The Image blended into a; must be the same size."},
+       {"t", PortType::Float, false, "Blend amount 0..1; param t is used when unwired."}},
+      {{"image", PortType::Image, false, "The blended Image."}},
       {modeParam(), floatParam("t", "Mix", 0.f, 1.f, 1.f, "Blend amount when the 't' input is unconnected.")},
       [](const EvalContext& c, Outputs& out) {
         float t = std::clamp(inputOrParam(c, "t"), 0.f, 1.f);
@@ -277,10 +289,14 @@ namespace Aurora::Runtime::Graph
       });
 
     addFrameOp(registry, "frame.brightnessScale",
-      {.purpose = "Multiply every zone's RGB by factor (1 unchanged, 0 black, above 1 brightens, clamped).",
+      {.title = "Brightness",
+       .group = "Lights",
+       .summary = "Dims or brightens the lights partway through an effect.",
+       .tip = "Use for a dimmer you can drive with a signal.",
+       .purpose = "Multiply every zone's RGB by factor (1 unchanged, 0 black, above 1 brightens, clamped).",
        .useWhen = "Dim or boost a frame, e.g. fade with a Float from an lfo.",
        .example = "{\"id\": \"dim\", \"type\": \"frame.brightnessScale\", \"params\": {\"factor\": 0.5}}"},
-      {{"factor", PortType::Float, false}},
+      {{"factor", PortType::Float, false, "Brightness multiplier; param factor is used when unwired."}},
       {floatParam("factor", "Factor", 0.f, 4.f, 1.f, "Scale when the 'factor' input is unconnected.")},
       [](const EvalContext& c) -> ColorFn {
         float factor = std::max(0.f, inputOrParam(c, "factor"));
@@ -288,10 +304,14 @@ namespace Aurora::Runtime::Graph
       });
 
     addFrameOp(registry, "frame.saturation",
-      {.purpose = "Scale color intensity about each zone's grey (1 unchanged, 0 grey, above 1 vivid).",
+      {.title = "Saturation",
+       .group = "Lights",
+       .summary = "Makes the colors paler or more vivid.",
+       .tip = "Use to wash colors out or make them punch.",
+       .purpose = "Scale color intensity about each zone's grey (1 unchanged, 0 grey, above 1 vivid).",
        .useWhen = "Wash out or punch up a frame.",
        .example = "{\"id\": \"vivid\", \"type\": \"frame.saturation\", \"params\": {\"amount\": 1.5}}"},
-      {{"amount", PortType::Float, false}},
+      {{"amount", PortType::Float, false, "Saturation multiplier; param amount is used when unwired."}},
       {floatParam("amount", "Amount", 0.f, 4.f, 1.f, "Saturation when the 'amount' input is unconnected.")},
       [](const EvalContext& c) -> ColorFn {
         float amount = std::max(0.f, inputOrParam(c, "amount"));
@@ -302,10 +322,14 @@ namespace Aurora::Runtime::Graph
       });
 
     addFrameOp(registry, "frame.hueShift",
-      {.purpose = "Rotate every zone's hue by degrees, keeping saturation and value.",
+      {.title = "Hue shift",
+       .group = "Lights",
+       .summary = "Turns every light's color around the color wheel.",
+       .tip = "Use to cycle the whole room through colors.",
+       .purpose = "Rotate every zone's hue by degrees, keeping saturation and value.",
        .useWhen = "Cycle a frame around the color wheel.",
        .example = "{\"id\": \"rotate\", \"type\": \"frame.hueShift\", \"params\": {\"degrees\": 60}}"},
-      {{"degrees", PortType::Float, false}},
+      {{"degrees", PortType::Float, false, "Degrees to rotate the hue; param degrees is used when unwired."}},
       {floatParam("degrees", "Degrees", -360.f, 360.f, 0.f,
          "Rotation when the 'degrees' input is unconnected.")},
       [](const EvalContext& c) -> ColorFn {
@@ -317,10 +341,15 @@ namespace Aurora::Runtime::Graph
       });
 
     addFrameOp(registry, "frame.tint",
-      {.purpose = "Multiply every zone by a tint Color, blended in by amount (0 unchanged, 1 full tint).",
+      {.title = "Tint",
+       .group = "Lights",
+       .summary = "Colors the whole scene toward one color.",
+       .tip = "Use to warm or cool the look of the lights.",
+       .purpose = "Multiply every zone by a tint Color, blended in by amount (0 unchanged, 1 full tint).",
        .useWhen = "Warm or cool a frame with a color from the audio or a gradient.",
        .example = "{\"id\": \"warm\", \"type\": \"frame.tint\", \"params\": {\"amount\": 1}}"},
-      {{"color", PortType::Color, true}, {"amount", PortType::Float, false}},
+      {{"color", PortType::Color, true, "The tint color."},
+       {"amount", PortType::Float, false, "Tint strength 0..1; param amount is used when unwired."}},
       {floatParam("amount", "Amount", 0.f, 1.f, 1.f, "Tint strength when the 'amount' input is unconnected.")},
       [](const EvalContext& c) -> ColorFn {
         float amount = std::clamp(inputOrParam(c, "amount"), 0.f, 1.f);

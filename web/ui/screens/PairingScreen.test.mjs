@@ -89,20 +89,37 @@ async function mounted(opts = {}) {
   screen.unmount();
 }
 
-// Declined or expired: back to the form with the error and no more polls.
-{
+// Declined, expired or forgotten: back to the form with the matching error and no more polls.
+for (const [code, state, expected] of [
+  [403, 'denied', 'declined'],
+  [410, 'expired', 'expired'],
+  [404, 'unknown', 'no longer knows'],
+]) {
   const calls = stubFetch({
-    '/api/pairing/request/': [[404, { state: 'unknown' }]],
+    '/api/pairing/request/': [[code, { state }]],
     '/api/pairing/request': [[202, { pollKey: 'pk2', code: 'ABCDE' }]],
   });
   const { screen, body, completed } = await mounted();
   await screen._request();
   await until(() => screen.phase === 'intro');
-  assert.ok(body.innerHTML.includes('declined or expired'));
+  assert.ok(body.innerHTML.includes(expected), `${code} shows "${expected}"`);
   assert.equal(completed(), 0);
   const polls = calls.filter((c) => c.url.startsWith('/api/pairing/request/')).length;
   await sleep(40);
   assert.equal(calls.filter((c) => c.url.startsWith('/api/pairing/request/')).length, polls, 'polling stopped');
+}
+
+// slow_down keeps polling.
+{
+  const calls = stubFetch({
+    '/api/pairing/request/': [[429, { error: 'slow_down' }], [200, { state: 'approved' }]],
+    '/api/pairing/request': [[202, { pollKey: 'pk3', code: 'ABCDE' }]],
+  });
+  const { screen, completed } = await mounted();
+  await screen._request();
+  await until(() => completed() > 0);
+  assert.equal(calls.filter((c) => c.url === '/api/pairing/request/pk3').length, 2);
+  screen.unmount();
 }
 
 // Too many pending: 429 copy, stays on the form.

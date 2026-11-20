@@ -3,8 +3,6 @@
 // takes (zones, mode) and returns [{zoneId, color:{r,g,b} 0..1}] or null when
 // the video has no data yet. The 'live' SSE provider (gj0.6) will be a third.
 import * as THREE from 'three';
-import { composeFrame } from './processing.js';
-import { Smoother } from './smoother.js';
 
 export const video = document.createElement('video');
 video.src = 'assets/168273-838673780.webm';
@@ -18,17 +16,8 @@ document.body.appendChild(video);
 export const videoTexture = new THREE.VideoTexture(video);
 videoTexture.colorSpace = THREE.SRGBColorSpace;
 
-// Per-frame color-sampling resolution, not the video's playback resolution.
-let sampleWidthPx = 160; // live-applied from sampleWidth via setSampleWidth below
-export function setSampleWidth(px) {
-  sampleWidthPx = px;
-}
-
-// Native default is 0, so a default config un-smooths this (parity, not regression -- see tuning-ledger.md).
-let smoothingFactor = 0.85; // live-applied from transitionSmoothing via setSmoothing below
-export function setSmoothing(f) {
-  smoothingFactor = f;
-}
+// Readback resolution fed to the engine (its rescale node narrows it further), not the playback size.
+const sampleWidthPx = 160;
 
 // Deterministic source modes for verifying the per-zone data pipeline and the light rig's
 // own behavior independent of real video content.
@@ -121,13 +110,15 @@ export function invalidateScreenTexture(mode) {
   delete tvScreenTextures[mode];
 }
 
-// Real per-frame processing, replacing the scaffold's fake color driver.
+// Per-frame readback for the engine: RGBA ImageData, or null before the video has data.
 const sampleCanvas = document.createElement('canvas');
 const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
-const smoother = new Smoother();
 
-function sampleVideoFrame(mode) {
-  if (mode !== 'video') return testPatterns[mode].imageData;
+export function readFrame(mode) {
+  if (mode !== 'video') {
+    const { data, width, height } = testPatterns[mode].imageData;
+    return { data: new Uint8ClampedArray(data), width, height }; // copy: the engine client transfers it
+  }
   if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) return null;
 
   const sampleHeight = Math.round(sampleWidthPx * (video.videoHeight / video.videoWidth));
@@ -135,14 +126,6 @@ function sampleVideoFrame(mode) {
     sampleCanvas.width = sampleWidthPx;
     sampleCanvas.height = sampleHeight;
   }
-  // drawImage's own scaling stands in for the native pipeline's separate rescale() step.
   sampleCtx.drawImage(video, 0, 0, sampleWidthPx, sampleHeight);
   return sampleCtx.getImageData(0, 0, sampleWidthPx, sampleHeight);
-}
-
-export function sampleFrame(zones, mode) {
-  const imageData = sampleVideoFrame(mode);
-  if (!imageData) return null;
-  return smoother.smooth(composeFrame(imageData, zones), smoothingFactor)
-    .map(({ zoneId, color }) => ({ zoneId, color: { r: color.r / 255, g: color.g / 255, b: color.b / 255 } }));
 }

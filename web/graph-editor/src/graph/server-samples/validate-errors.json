@@ -1,0 +1,65 @@
+{
+ "errors": [
+  {
+   "code": "node_type_unknown",
+   "message": "node 'cap': unknown type 'video.captur' (expected a registered node type; 'video.capture', 'image.rescale', 'image.dropAlpha', 'zones.sample', 'frame.smooth', 'frame.smoothTime', 'frame.gain', 'frame.floor', 'output.send', 'math.scale', 'math.divide', 'math.clamp', 'math.mapRange', 'math.lerp', 'math.add', 'math.multiply', 'math.max', 'math.invert', 'math.step', 'smooth.exp', 'smooth.angle', 'rollingAverage', 'integrate', 'stepOnTrigger', 'trigger.envelope', 'lfo', 'noise', 'color.fromHSV', 'color.constant', 'angle.constant', 'color.toHSV', 'color.brightness', 'color.mix', 'color.hueShift', 'color.complement', 'color.fromGradient', 'palette.randomAnchor', 'angle.add', 'angle.fromFloat', 'angle.toFloat', 'palette.pick', 'frame.mix', 'image.mix', 'frame.brightnessScale', 'frame.saturation', 'frame.hueShift', 'frame.tint', 'image.gradient', 'image.bar', 'image.noise', 'image.hueRamp', 'frame.broadcast', 'audio.capture', 'audio.features', 'audio.bands', 'audio.drift', 'audio.bounce')",
+   "node": "cap",
+   "options": [
+    "video.capture",
+    "audio.capture",
+    "audio.features",
+    "audio.bands",
+    "zones.sample"
+   ],
+   "param": null,
+   "port": null
+  },
+  {
+   "code": "param_unknown",
+   "message": "node 'gain': unknown param 'factr' (expected a param declared by type 'math.scale')",
+   "node": "gain",
+   "options": [
+    "factor"
+   ],
+   "param": "factr",
+   "port": null
+  },
+  {
+   "code": "output_unregistered",
+   "message": "node 'zones': unregistered output 'huee' (expected an output the app registered)",
+   "node": "zones",
+   "options": [
+    "hue"
+   ],
+   "param": "output",
+   "port": null
+  },
+  {
+   "code": "port_unknown_input",
+   "message": "edges[0]: node 'scaled' (type 'math.scale') has no input port 'valu'",
+   "node": "scaled",
+   "options": [
+    "value"
+   ],
+   "param": null,
+   "port": "valu"
+  },
+  {
+   "code": "input_missing",
+   "message": "node 'scaled': missing required input 'value' (expected Float from some node's output; connect an edge to it)",
+   "node": "scaled",
+   "options": [],
+   "param": null,
+   "port": "value"
+  },
+  {
+   "code": "input_missing",
+   "message": "node 'zones': missing required input 'image' (expected Image from some node's output; connect an edge to it)",
+   "node": "zones",
+   "options": [],
+   "param": null,
+   "port": "image"
+  }
+ ],
+ "valid": false
+}

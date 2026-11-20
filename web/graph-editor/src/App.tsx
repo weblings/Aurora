@@ -1,40 +1,1304 @@
-import { useEffect, useState } from 'react'
-import { ReactFlow, Background, Controls, type Edge, type Node } from '@xyflow/react'
+import { Hint } from './Hint'
+import { closeFramedEditor } from './backLink'
+import type { CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
+import {
+  ReactFlow,
+  Background,
+  BackgroundVariant,
+  Panel,
+  applyEdgeChanges,
+  applyNodeChanges,
+  type Connection,
+  type Edge,
+  type EdgeChange,
+  type Node,
+  type NodeChange,
+  type ReactFlowInstance,
+} from '@xyflow/react'
+import { ApiError, applyGraph, fetchCatalog, fetchEffectGraph, fetchEffects, fetchCapabilities, fetchShowNodeIds, putDraft, saveGraph, type WriteResult } from './api'
+import { EditorContext, ShowNodeIdsContext, TuningMarksContext, tuningKey, type EditorActions } from './EditorContext'
+import { GenericNode } from './GenericNode'
+import { TuningPicker } from './TuningPicker'
+import { ControlsDrawer } from './ControlsDrawer'
+import { GRAB_TAB, GrabTab, TUNING_KEY } from './GrabTab'
+import { pingParam } from './pingParam'
+import { AddNodeMenu } from './AddNodeMenu'
+import { ContextMenu, type MenuAction, type MenuTarget } from './ContextMenu'
+import { ProblemsContext } from './ProblemsContext'
+import { nodeLabels as nodeLabelsFor } from './graph/nodeTitle'
+import { ProblemsChip, problemCount, type Refusal } from './ProblemsChip'
+import { Toast, useToast } from './Toast'
+import { Announcer, useAnnouncer } from './Announcer'
+import { NameDialog } from './NameDialog'
+import { renameEffectSpec, saveAsSpec } from './graph/naming'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
+import { COMPACT_BAR, DOCK_BOTTOM, useMedia } from './useMedia'
+import { stageAttrs, useBarStage } from './barStage'
+import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
+import { NEW_EFFECT_TITLE } from './graph/titleMenu'
+import { FIT_OPTIONS, ViewMenu } from './ViewMenu'
+import { PreviewIsland } from './PreviewIsland'
+import { lightsUnreachable, usePreviewLayout } from './usePreviewLayout'
+import { ErrorShell } from './ErrorShell'
+import { useHostState } from './useHostState'
+import { draftShellNote, failedSaveNote, openFailedNote, openFailureCause, otherTest, writeFailureReason, type OpenFailure } from './graph/hostState'
+import { tabSession, useDraftLoop } from './useDraftLoop'
+import { useLightTest } from './useLightTest'
+import { clearUnsaved, fingerprint, isUnsaved, migrateLegacyBlank, openKept, saveUnsaved, syncUnsaved } from './graph/autosave'
+import { NewerSavedPrompt } from './NewerSavedPrompt'
+import { converterFor, insertConverter, refuseConnection } from './graph/connection'
+import { addControl, controlIndex, controlsOf, removeControl } from './graph/controls'
+import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
+import { positionsFor, tidyPositions } from './graph/layout'
+import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
+import { EditMenu, type EditAction } from './EditMenu'
+import { hints, mod } from './graph/keys'
+import { editorReducer, emptyEditor, sameDoc } from './graph/history'
+import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
+import { SplitTestButton } from './SplitTestButton'
+import { initialTest, type TestMode } from './graph/lightTest'
+import { BLANK_ID, blankDoc, copyOf, forWrite, freshEffectId, isDraftId, newEffectId, setTitle, titleOf } from './graph/save'
+import { portStyle } from './graph/portStyle'
+import { NODE_KIND, carryViewState, edgeId, toFlowEdges, toFlowNodes, type AuroraNodeData } from './graph/flow'
+import { draftIssues, groupProblems, sameProblems, type Problems } from './graph/problems'
+import type { Catalog, EffectListEntry, GraphDoc, ParamValue } from './graph/types'
+import { positionIn } from './graph/types'
 
-// Toolchain spike (Aurora-lzj): proves Vite+React+@xyflow/react build through
-// CMake, embed into the C++ binary, and load at /graph-editor/. No real
-// editor code yet.
-const nodes: Node[] = [
-  { id: 'input', position: { x: 0, y: 0 }, data: { label: 'Input' } },
-  { id: 'output', position: { x: 240, y: 0 }, data: { label: 'Output' } },
-]
-const edges: Edge[] = [{ id: 'input-output', source: 'input', target: 'output' }]
+const nodeTypes = { [NODE_KIND]: GenericNode }
+const DEFAULT_EFFECT = 'builtin.video'
+
+// Read once per page load (a state initializer may run twice, and the legacy
+// '@empty' copy moves to its new id only the first time).
+let startId: string | null = null
+function initialEffectId(): string {
+  if (startId !== null) return startId
+  const params = new URLSearchParams(window.location.search)
+  // A kept copy from before each new effect had its own id comes along under a fresh id.
+  const migrated = migrateLegacyBlank(newEffectId)
+  const asked = params.get('effect')
+  if (asked === BLANK_ID) startId = migrated ?? newEffectId()
+  else if (params.get('new') === 'empty') startId = newEffectId()
+  else startId = asked ?? DEFAULT_EFFECT
+  return startId
+}
 
 export function App() {
-  const [version, setVersion] = useState('...')
+  const [catalog, setCatalog] = useState<Catalog | null>(null)
+  const [effects, setEffects] = useState<EffectListEntry[]>([])
+  // Whether an audio input exists; New offers Music pulse only then, as the dashboard's Start from does.
+  const [hasAudio, setHasAudio] = useState(false)
+  const [showNodeIds, setShowNodeIds] = useState(false)
+  const [effectId, setEffectId] = useState(initialEffectId)
+  // The whole graph, replaced by every edit, with its undo history.
+  const [{ doc, past, future }, dispatch] = useReducer(editorReducer, emptyEditor)
+  // What the server last gave us or accepted; unsaved edits are measured from it.
+  const [baseline, setBaseline] = useState<{ id: string; doc: GraphDoc } | null>(null)
+  // The kept copy of an earlier visit's edits when the saved effect has changed since: awaiting a choice.
+  // New and Duplicate seeds by draft id: read once by the loader below, then the kept copy carries them.
+  const seeds = useRef(new Map<string, GraphDoc>())
+  const [outdated, setOutdated] = useState<GraphDoc | null>(null)
+  // The effect or the catalog would not load although Aurora answered: a row in the error shell,
+  // worded by cause, with no Retry (Aurora-u68h.9). When Aurora does not answer, the shell's takeover
+  // says so and nothing is set here. `id` is the effect that failed; null for the catalog.
+  const [openError, setOpenError] = useState<{ cause: OpenFailure; id: string | null } | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  // A Save or Save and apply that failed; cleared by the next edit or write.
+  // A failed write's shell row (graph/hostState.ts failedSaveNote), cleared by the next Save or edit.
+  const [writeTrouble, setWriteTrouble] = useState<string | null>(null)
+  const { text: toastText, undo: toastUndo, show: showToast, dismiss: dismissToast, hold: holdToast } = useToast()
+  const { text: announced, announce } = useAnnouncer()
+  // GET /api/state: the error shell's rows, and the one verdict on whether Aurora is reachable.
+  const host = useHostState()
+  const [platform, setPlatform] = useState('')
+  // A load that failed for want of Aurora runs again once it answers.
+  const retryOnRecovery = useRef(false)
+  const loadFailed = (e: Error, id: string | null) => {
+    retryOnRecovery.current = true
+    const cause = e instanceof ApiError ? openFailureCause(e.status, e.code) : 'other'
+    void host.checkNow().then((answered) => answered && setOpenError({ cause, id }))
+  }
+  const [writing, setWriting] = useState(false)
+  const onBackClick = (e: React.MouseEvent) => { if (closeFramedEditor()) e.preventDefault() }
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false)
+  const compactBar = useMedia(COMPACT_BAR)
+  const [barEl, setBarEl] = useState<HTMLElement | null>(null)
+  const barStage = useBarStage(barEl)
+  const drawerSide = useMedia(DOCK_BOTTOM) ? 'bottom' : 'right'
+  // The naming dialog (Aurora-daaa.19): a write that creates a new effect, or Rename.
+  const [naming, setNaming] = useState<
+    { kind: 'save' | 'apply'; asNew: boolean; initial: string } | { kind: 'rename'; initial: string } | null
+  >(null)
+  const titleMenuTrigger = useRef<HTMLButtonElement>(null)
+  // A write refused for problems points at the problems chip (Aurora-u68h.4); `focusAfter` tells the popup that
+  // just closed where focus goes (the chip, or a problem's node) instead of back to where it was.
+  const problemsChip = useRef<HTMLButtonElement>(null)
+  const focusAfter = useRef<(() => HTMLElement | null) | null>(null)
+  const [refusal, setRefusal] = useState<Refusal | null>(null)
+  const refusals = useRef(0)
+  const [minimap, setMinimap] = useState(false)
+  // Non-modal: canvas clicks leave it open (Aurora-daaa.27.3).
+  const [drawer, setDrawer] = useState<'controls' | null>(null)
+  // The docked drawer at full height (Aurora-e4bi.12); a side drawer or a closed one is never full.
+  const [dockFull, setDockFull] = useState(false)
+  const [canvasTop, setCanvasTop] = useState(0)
+  useLayoutEffect(() => {
+    const t = canvas.current?.getBoundingClientRect().top ?? 0
+    if (t !== canvasTop) setCanvasTop(t)
+  })
+  const toggleTuning = useCallback(() => {
+    setDrawer((d) => (d === 'controls' ? null : 'controls'))
+    setDockFull(false)
+  }, [])
+  const closeTuning = useCallback(() => {
+    setDrawer(null)
+    setDockFull(false)
+  }, [])
+  // The node whose "Tuning controls…" picker is open (Aurora-e4bi.9).
+  const [pickFor, setPickFor] = useState<string | null>(null)
+  // Focus inside a drawer: Delete and Backspace there must not delete nodes.
+  const [inDrawer, setInDrawer] = useState(false)
+  // The graph as the running test was started with it.
+  const [testedDoc, setTestedDoc] = useState<GraphDoc | null>(null)
+  // What React Flow has told us (selection, measured sizes, a drag in progress).
+  // The nodes it draws are derived from `doc` in the same render, so a param
+  // edit never shows one frame of the old value.
+  const [nodeView, setNodeView] = useState<Node<AuroraNodeData>[]>([])
+  const [edgeView, setEdgeView] = useState<Edge[]>([])
+  const flow = useRef<ReactFlowInstance<Node<AuroraNodeData>, Edge> | null>(null)
+  const canvas = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Root-absolute on purpose: Aurora's REST API ignores the editor's base.
-    fetch('/api/version')
-      .then((r) => r.json())
-      .then((j: { version: string }) => setVersion(j.version))
-      .catch(() => setVersion('unavailable'))
+    fetchCapabilities().then(({ hasAudio: audio, platform: p }) => {
+      setHasAudio(audio)
+      setPlatform(p)
+    })
+    fetchShowNodeIds().then(setShowNodeIds)
+    Promise.all([fetchCatalog(), fetchEffects()])
+      .then(([c, e]) => {
+        setCatalog(c)
+        setEffects(e)
+        setOpenError((current) => (current?.id === null ? null : current))
+      })
+      .catch((e: Error) => loadFailed(e, null))
+  }, [attempt])
+
+  useEffect(() => {
+    let stale = false
+    dispatch({ type: 'open', doc: null })
+    setBaseline(null)
+    setOutdated(null)
+    setNodeView([])
+    setEdgeView([])
+    const opening = isDraftId(effectId) ? Promise.resolve(blankDoc()) : fetchEffectGraph(effectId)
+    opening
+      .then((graph) => {
+        if (stale) return
+        // A seeded copy opens as the doc over a blank baseline, so it counts as unsaved until Save.
+        const seed = seeds.current.get(effectId)
+        seeds.current.delete(effectId)
+        dispatch({ type: 'open', doc: seed ?? graph })
+        setBaseline({ id: effectId, doc: graph })
+        if (seed) return setOpenError(null)
+        // A kept copy comes back without asking, as an edit on the saved graph (one Undo
+        // reaches the saved version). If the saved effect moved on since the copy was
+        // made, the graph stays as saved until the prompt is answered.
+        const kept = openKept(effectId, graph)
+        if (kept.kind === 'restore') dispatch({ type: 'edit', change: () => kept.doc })
+        setOutdated(kept.kind === 'newer' ? kept.doc : null)
+        setOpenError(null)
+      })
+      .catch((e: Error) => !stale && loadFailed(e, effectId))
+    return () => {
+      stale = true
+    }
+  }, [effectId, attempt])
+
+  // Back up unsaved edits per effect. Held back while a stored copy awaits
+  // its answer to the newer-saved-version prompt, or it would be overwritten unseen.
+  useEffect(() => {
+    if (doc && baseline && !outdated) syncUnsaved(baseline.id, baseline.doc, doc)
+  }, [doc, baseline, outdated])
+
+  // Aurora came back after the takeover: load again what could not load.
+  useEffect(() => {
+    if (host.recoveries === 0 || !retryOnRecovery.current) return
+    retryOnRecovery.current = false
+    setAttempt((n) => n + 1)
+  }, [host.recoveries])
+
+  const session = useMemo(tabSession, [])
+  const docRef = useRef(doc)
+  docRef.current = doc
+  const lights = useLightTest(session, () => putDraft(session, docRef.current!))
+  const testing = lights.state.phase === 'running'
+  const noLights = lightsUnreachable(host.host)
+  const preview = usePreviewLayout({ noLights, testing, announce })
+  const loop = useDraftLoop(doc, () => void host.checkNow(), preview.layout)
+  const [testMode, setTestMode] = useState<TestMode>('once')
+  const dirty = useMemo(() => isUnsaved(baseline?.doc ?? null, doc), [doc, baseline])
+  const isBuiltin = effects.find((e) => e.id === effectId)?.builtin ?? (isDraftId(effectId) || effectId.startsWith('builtin.'))
+  const picked = nodeView.filter((n) => n.selected)
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('effect') === effectId && !url.searchParams.has('new')) return
+    url.searchParams.delete('new')
+    url.searchParams.set('effect', effectId)
+    window.history.replaceState(null, '', url)
+  }, [effectId])
+
+  // Edits during a test (a Tuning slider included) go to the lights after a short pause.
+  const { push } = lights
+  useEffect(() => {
+    if (!testing || !doc || !testedDoc || sameDoc(testedDoc, doc)) return
+    const timer = window.setTimeout(() => {
+      const sent = docRef.current
+      void push().then((ok) => ok && sent && setTestedDoc(sent))
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [testing, doc, testedDoc, push])
+
+  const startTest = (mode: TestMode) => {
+    setTestMode(mode)
+    setTestedDoc(docRef.current)
+    void lights.start(mode)
+  }
+
+  // Save, Save and apply and Save as new write the document under an id: the open
+  // custom effect's, or a fresh one named after the title when a built-in is
+  // open (a built-in is never overwritten). Save as new forks a custom the
+  // same way, leaving the original file as it was.
+  // A write that creates a new effect asks for its name first; `named` is the answer.
+  const refuseWrite = (n: number, plain: boolean) => {
+    focusAfter.current = () => problemsChip.current
+    const text = `Couldn't save. Fix ${n} ${n === 1 ? 'problem' : 'problems'} first.${plain ? ' Your changes are kept in this browser.' : ''}`
+    setRefusal({ id: ++refusals.current, text })
+  }
+  const write = async (kind: 'save' | 'apply', asNew = false, named?: string) => {
+    if (!doc || !baseline || writing) return
+    // A saved effect is always runnable: with problems nothing is written (and nothing is asked first).
+    // The draft's own problems count: a graph the server cannot build is in the chip too.
+    if (problemCount(problems) > 0) {
+      refuseWrite(problemCount(problems), kind === 'save' && !asNew)
+      return
+    }
+    if ((isBuiltin || asNew) && named === undefined) {
+      setNaming({ kind, asNew, initial: titleOf(doc) })
+      return
+    }
+    const source = named === undefined ? doc : setTitle(doc, named)
+    if (named !== undefined) dispatch({ type: 'edit', change: (d) => setTitle(d, named) })
+    // A new effect that kept a taken title would show as a second row of the
+    // same name in the picker, so it takes a distinct one.
+    const sent = forWrite(source, isBuiltin || asNew, effects.map((e) => e.title || e.id))
+    const id = isBuiltin || asNew ? freshEffectId(titleOf(sent), effects.map((e) => e.id)) : baseline.id
+    setWriting(true)
+    setWriteTrouble(null)
+    try {
+      const verdict = await putDraft(session, sent)
+      if (!verdict.valid) {
+        // The server found problems the editor had not shown yet: the same refusal.
+        refuseWrite(verdict.errors.length, kind === 'save' && !asNew)
+        return
+      }
+      const result: WriteResult = kind === 'save' ? await saveGraph(session, id) : await applyGraph(session, id)
+      if (!result.ok) {
+        setWriteTrouble(failedSaveNote(titleOf(sent) || barTitle(), result.reason))
+        return
+      }
+      // Apply does not end a running test. The lights then go back to the
+      // live effect, which is now this one, read from the file just written.
+      if (kind === 'apply' && testing) await lights.finishAfterApply()
+      const live = kind !== 'save'
+      // A failed reload is in /api/state errors, which the error shell shows (Aurora-s1t7.9).
+      showToast(`${live ? 'Saved and live' : 'Saved'} as ${titleOf(sent) || id}`)
+      fetchEffects().then(setEffects).catch(() => {})
+      if (id !== baseline.id) {
+        // The built-in stays as it was; its edits now live in the new effect.
+        // Edits made while the write ran (the saved copy has the rest) ride along as the
+        // new id's kept copy, based on what was just saved.
+        clearUnsaved(baseline.id)
+        const latest = docRef.current
+        if (latest && !sameDoc(latest, source)) saveUnsaved(id, latest, fingerprint(sent))
+        setEffectId(id)
+      } else {
+        setBaseline({ id, doc: sent })
+      }
+    } catch (e) {
+      // A network failure sets no row: the takeover says it.
+      const reason = writeFailureReason(e)
+      setWriteTrouble(reason === null ? null : failedSaveNote(titleOf(sent) || barTitle(), reason))
+    } finally {
+      setWriting(false)
+    }
+  }
+  // Keep the previous object while the messages are unchanged, so a preview
+  // event that repeats the same runtime error does not re-render every node.
+  const lastProblems = useRef<Problems | null>(null)
+  const problems = useMemo(() => {
+    const next = groupProblems(draftIssues(loop.state), loop.state.runtime, new Set(doc?.nodes.map((n) => n.id)))
+    if (lastProblems.current && sameProblems(lastProblems.current, next)) return lastProblems.current
+    lastProblems.current = next
+    return next
+  }, [loop.state.valid, loop.state.issues, loop.state.reloadError, loop.state.runtime, doc])
+
+  const prevDoc = useRef<GraphDoc | null>(null)
+  useEffect(() => {
+    const before = prevDoc.current
+    prevDoc.current = doc
+    // Opening an effect (null then the graph) is not an edit; every later
+    // change is, including an undo back to the saved graph.
+    if (!changeIsEdit(before, doc)) return
+    setWriteTrouble(null)
+    // Only a change of the document counts as an edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc])
+  const ended = lights.state.ended
+  useEffect(() => {
+    const text = quietEndToast({ ...initialTest, ended })
+    if (!text) return
+    // Stop's own "Reverted" is announced, not drawn: the lights and the button already show it. The end
+    // of a Once test is still a toast.
+    if (stopAnnounced(ended)) announce(text)
+    else showToast(text)
+  }, [ended, showToast, announce])
+  // A test that ended for a reason the user did not cause is announced, and nothing is drawn on the
+  // button. A lost heartbeat is a toast, and the toast's own live region speaks it, so it is not announced twice.
+  useEffect(() => {
+    if (quietEndToast({ ...initialTest, ended })) return
+    const text = testOutcome({ ...initialTest, ended })
+    if (text) announce(text)
+  }, [ended, announce])
+  // The user pressed Test and the server refused: a toast with the server's own words.
+  const failure = lights.state.failure
+  useEffect(() => {
+    const text = testFailureToast({ ...initialTest, failure })
+    if (text) showToast(text)
+  }, [failure, showToast])
+  // The shell row and the Test button's Take over both read the host poll; look at once when this
+  // tab's own test starts or ends so neither lags.
+  const testPhase = lights.state.phase
+  const { checkNow } = host
+  useEffect(() => {
+    void checkNow()
+  }, [testPhase, checkNow])
+  // The shell's light-test row is another session's test: this tab's own shows as Stop on the Test button.
+  const otherHeld = otherTest(host.host.test, session)
+  const otherLightTest = otherHeld ? { holder: otherHeld.holder, endsAtMs: host.testEndsAtMs } : null
+  const status = pickStatus({ openError: openError !== null, unreachable: !host.reachable, loop: loop.state, test: lights.state, otherHolder: otherHeld?.holder ?? null })
+  // Without Aurora nothing can be tested or saved.
+  const blocked = status.rank === 1
+  // The error shell's editor-supplied rows: a refused draft PUT, and an effect or catalog that would not open.
+  // <title> is the effects-list title for the id when known, else the id (as the title label).
+  const failedTitle = openError?.id ? effects.find((e) => e.id === openError.id)?.title || openError.id : ''
+  const shellNotes = [draftShellNote(loop.state.putError), openError ? openFailedNote(openError.cause, failedTitle) : null, writeTrouble].filter(
+    (n): n is string => n !== null,
+  )
+
+  // An Undo toast is spent by any change of the document other than the one it offered (another edit, an
+  // undo, Ctrl+Z, another effect), so Undo never acts on a graph the user has moved on from.
+  useEffect(() => {
+    if (toastUndo && doc !== toastUndo.doc) dismissToast()
+  }, [doc, toastUndo, dismissToast])
+
+  const edit = useCallback((change: (d: GraphDoc) => GraphDoc) => dispatch({ type: 'edit', change }), [])
+
+  // One path for key Delete, Backspace and the menu: deleting a node drops its
+  // Tuning controls, so say so (global undo brings them back).
+  const deleteNodes = useCallback(
+    (ids: ReadonlySet<string>) => {
+      const current = docRef.current
+      const dropped = current ? controlsOf(current).filter((c) => ids.has(c.node)) : []
+      const next = current ? removeNodes(current, ids) : null
+      edit((d) => (next && d === current ? next : removeNodes(d, ids)))
+      if (dropped.length > 0) {
+        const n = dropped.length
+        // A control without a label reads as '<node title> <param>'.
+        const nameOf = (c: (typeof dropped)[number]) => {
+          if (c.label) return c.label
+          const type = current?.nodes.find((x) => x.id === c.node)?.type
+          const title = type ? catalog?.get(type)?.title : undefined
+          return title ? `${title} ${c.param}` : c.param
+        }
+        const names = [...new Set(dropped.map(nameOf))]
+        const shown = names.length > 3 ? [...names.slice(0, 3), `${names.length - 3} more`] : names
+        const list = shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : shown[0]
+        // The delete is one history entry, so Undo is the history's own.
+        showToast(`Removed ${n} Tuning control${n === 1 ? '' : 's'} with ${list}`, {
+          doc: next,
+          run: () => dispatch({ type: 'undo' }),
+        })
+      }
+    },
+    [edit, showToast, catalog],
+  )
+  const undo = useCallback(() => dispatch({ type: 'undo' }), [])
+  const redo = useCallback(() => dispatch({ type: 'redo' }), [])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      // Ctrl+Y is Redo on Windows and Linux; Cmd+Y is not bound on macOS.
+      const redoY = key === 'y' && e.ctrlKey && !e.metaKey && !e.shiftKey
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || (key !== 'z' && !redoY)) return
+      // Text boxes keep their own undo.
+      const target = e.target as HTMLElement | null
+      if (target?.isContentEditable || target?.tagName === 'TEXTAREA') return
+      if (target instanceof HTMLInputElement && ['text', 'number'].includes(target.type)) return
+      e.preventDefault()
+      dispatch({ type: redoY || e.shiftKey ? 'redo' : 'undo' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Ctrl/Cmd+S saves, wherever focus is (the browser would save the page).
+  const saveKey = useRef<() => void>(() => {})
+  saveKey.current = () => void write('save')
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 's') return
+      e.preventDefault()
+      saveKey.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Shift+A opens the Add node menu while the canvas has focus (not in a text box).
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const addMenuTrigger = useRef<HTMLButtonElement>(null)
+  const canAdd = doc !== null && catalog !== null
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!canAdd || e.key !== 'A' || !e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return
+      const target = e.target as HTMLElement | null
+      // A click on the pane leaves focus on <body>, which counts as the canvas.
+      if (!target || (target !== document.body && !target.closest('.editor-canvas'))) return
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      e.preventDefault()
+      setAddMenuOpen(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [canAdd])
+
+  const nodes = useMemo(
+    () => (doc && catalog ? carryViewState(nodeView, toFlowNodes(doc, catalog)) : []),
+    [doc, catalog, nodeView],
+  )
+  const edges = useMemo(() => (doc ? carryViewState(edgeView, toFlowEdges(doc, catalog ?? undefined)) : []), [doc, catalog, edgeView])
+
+  const nodeLabels = useMemo(() => nodeLabelsFor(nodes.map((n) => ({ id: n.id, type: n.data.type, info: n.data.info }))), [nodes])
+
+  // A problems row points at its node: select it and bring it into view.
+  const selectNode = useCallback(
+    (id: string) => {
+      setNodeView(nodes.map((n) => ({ ...n, selected: n.id === id })))
+      // After the popup closes its own way: keyboard focus goes to the node (Delete and its keys act on it).
+      focusAfter.current = () => canvas.current?.querySelector<HTMLElement>(`.react-flow__node[data-id="${CSS.escape(id)}"]`) ?? null
+      void flow.current?.fitView({ nodes: [{ id }], maxZoom: 1, duration: 200 })
+    },
+    [nodes],
+  )
+
+  // Right-click and node-button menus (Aurora-daaa.27.1).
+  const [menu, setMenu] = useState<MenuTarget | null>(null)
+  // A node menu on an unselected node selects it alone first, so Delete and the
+  // count act on what the menu was opened on.
+  const openMenu = useCallback(
+    (target: MenuTarget) => {
+      if (target.kind === 'node') {
+        const id = target.id
+        const info = nodes.find((n) => n.id === id)?.data.info
+        target = { ...target, tip: info?.tip, params: (info?.params.length ?? 0) > 0 }
+      }
+      if (target.kind === 'node' || target.kind === 'param') {
+        setNodeView((view) => {
+          const base = view.length > 0 ? view : nodes
+          if (base.find((n) => n.id === target.id)?.selected) return view
+          return base.map((n) => ({ ...n, selected: n.id === target.id }))
+        })
+      }
+      setPickFor(null)
+      setMenu(target)
+    },
+    [nodes],
+  )
+  const openMenuRef = useRef(openMenu)
+  openMenuRef.current = openMenu
+
+  // Shift+F10 (or the Menu key) on a focused node opens its menu.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!isMenuKey(e)) return
+      const t = e.target as HTMLElement | null
+      const node = t?.closest<HTMLElement>('.react-flow__node')
+      const id = node?.dataset.id
+      if (!node || !id) return
+      // A number or text field keeps the browser's own menu.
+      if (isNativeField(t!)) return
+      e.preventDefault()
+      swallowKeyContextMenu()
+      const box = node.getBoundingClientRect()
+      openMenuRef.current({ kind: 'node', id, x: box.left, y: box.top + 24 })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const actions = useMemo<EditorActions>(
+    () => ({
+      setParam: (nodeId: string, name: string, value: ParamValue) =>
+        dispatch({ type: 'edit', change: (d) => setParam(d, nodeId, name, value), live: true }),
+      commit: () => dispatch({ type: 'commit' }),
+      openNodeMenu: (nodeId: string, at: { x: number; y: number }, touch?: boolean) => openMenuRef.current({ kind: 'node', id: nodeId, touch, ...at }),
+      openParamMenu: (nodeId: string, param: string, label: string, at: { x: number; y: number }) => {
+        const d = docRef.current
+        openMenuRef.current({ kind: 'param', id: nodeId, param, label, on: !!d && controlIndex(d, nodeId, param) >= 0, ...at })
+      },
+    }),
+    [],
+  )
+
+  // Each Tuning control's text for its param row: the muted dot and the label's hint (Aurora-e4bi.9).
+  const controls = doc?.controls
+  const tuningMarks = useMemo(() => {
+    const marks = new Map<string, string>()
+    if (!doc) return marks
+    for (const c of controlsOf(doc)) {
+      const type = doc.nodes.find((n) => n.id === c.node)?.type
+      const own = (type ? catalog?.get(type)?.params.find((p) => p.name === c.param) : undefined)
+      const label = c.label || own?.label || c.param
+      marks.set(tuningKey(c.node, c.param), `In Tuning as "${label}", ${c.section || 'General'}.`)
+    }
+    return marks
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a control edit changes the marks
+  }, [controls, catalog])
+
+  const onNodesChange = useCallback(
+    (changes: NodeChange<Node<AuroraNodeData>>[]) => {
+      setNodeView(applyNodeChanges(changes, nodes))
+    },
+    [nodes],
+  )
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      setEdgeView(applyEdgeChanges(changes, edges))
+    },
+    [edges],
+  )
+
+  // A key delete reports its nodes and their wires together: one edit, so one
+  // undo brings all of it back (the per-change handlers made two history steps).
+  const onDelete = useCallback(
+    ({ nodes: gone, edges: wires }: { nodes: Node[]; edges: Edge[] }) => {
+      const ids = new Set(gone.map((n) => n.id))
+      // Wires on a deleted node leave with it; only the others need their own edit.
+      const wireIds = new Set(wires.filter((w) => !ids.has(w.source) && !ids.has(w.target)).map((w) => w.id))
+      if (ids.size > 0) deleteNodes(ids)
+      else if (wireIds.size > 0) edit((d) => d.edges.filter((e) => wireIds.has(edgeId(e))).reduce(removeEdge, d))
+    },
+    [deleteNodes, edit],
+  )
+
+  // Position lands in the document once, when the drag ends.
+  const onNodeDragStop = useCallback((_: unknown, __: Node, dragged: Node[]) => {
+    edit((d) => moveNodes(d, Object.fromEntries(dragged.map((n) => [n.id, { x: n.position.x, y: n.position.y }]))))
+  }, [edit])
+
+  // Adds a node of a catalog type at the pointer, else the canvas centre.
+  const addFromMenu = useCallback(
+    (type: string, pointer?: { x: number; y: number }) => {
+      const info = catalog?.get(type)
+      const view = flow.current
+      if (!info || !view) return
+      const box = canvas.current?.getBoundingClientRect()
+      const point = pointer ?? { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+      const at = view.screenToFlowPosition(point)
+      edit((d) => addNode(d, info, at))
+      announce(`Added ${info.type}`)
+    },
+    [catalog, edit, announce],
+  )
+
+  // Clipboard (Aurora-ge1i.2.1): the system clipboard holds marked JSON, so a paste works in another tab.
+  // 'none' (readable, no Aurora nodes) disables Paste; 'unknown' (not readable) leaves it on.
+  const [clipState, setClipState] = useState<'unknown' | 'none' | 'clip'>('unknown')
+  const [editOpen, setEditOpen] = useState(false)
+  const editTrigger = useRef<HTMLButtonElement>(null)
+  const lastPaste = useRef<{ text: string; n: number } | null>(null)
+  // Where the pointer last was over the canvas, for Ctrl+V.
+  const pointer = useRef<{ x: number; y: number } | null>(null)
+  const countOf = (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`
+
+  const copyPicked = async (cut: boolean) => {
+    const current = docRef.current
+    if (!current || picked.length === 0) return
+    const ids = new Set(picked.map((n) => n.id))
+    const positions = Object.fromEntries(nodes.filter((n) => n.selected).map((n) => [n.id, n.position]))
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(copySelection(current, ids, positions)))
+    } catch {
+      showToast("Couldn't copy to the clipboard")
+      return
+    }
+    setClipState('clip')
+    lastPaste.current = null
+    if (cut) deleteNodes(ids)
+    announce(`${cut ? 'Cut' : 'Copied'} ${countOf(ids.size)}`)
+  }
+
+  // Returns false when the text holds no Aurora nodes.
+  const pasteText = (text: string, where: { x: number; y: number } | 'pointer' | 'centre'): boolean => {
+    const clip = parseClip(text)
+    const view = flow.current
+    const current = docRef.current
+    if (!clip || !view || !catalog || !current) return false
+    const box = canvas.current?.getBoundingClientRect()
+    const centre = { x: (box?.left ?? 0) + (box?.width ?? 0) / 2, y: (box?.top ?? 0) + (box?.height ?? 0) / 2 }
+    const point = where === 'pointer' ? pointer.current ?? centre : where === 'centre' ? centre : where
+    // The same clip pasted again steps down and right, so copies do not stack.
+    const n = lastPaste.current?.text === text ? lastPaste.current.n + 1 : 0
+    const base = view.screenToFlowPosition(point)
+    const at = { x: base.x + 24 * n, y: base.y + 24 * n }
+    const result = pasteSelection(current, clip, at, catalog)
+    const note = pasteNote(result.added.size, result.skipped, catalog)
+    if (result.added.size > 0) {
+      lastPaste.current = { text, n }
+      edit((d) => (d === current ? result.doc : pasteSelection(d, clip, at, catalog).doc))
+      // The pasted nodes are the selection.
+      const fresh = [...result.added.values()].map((id) => ({ id, selected: true, position: { x: 0, y: 0 }, data: {} }) as unknown as Node<AuroraNodeData>)
+      setNodeView([...nodes.map((x) => ({ ...x, selected: false })), ...fresh])
+      if (!note) announce(`Pasted ${countOf(result.added.size)}`)
+    }
+    if (note) showToast(note)
+    return true
+  }
+
+  const pasteFromClipboard = async (where: { x: number; y: number } | 'centre') => {
+    let text: string
+    try {
+      text = await navigator.clipboard.readText()
+    } catch {
+      showToast(`Couldn't read the clipboard. Press ${mod}+V to paste.`)
+      return
+    }
+    if (!pasteText(text, where)) {
+      setClipState('none')
+      showToast('Nothing to paste')
+    }
+  }
+
+  const selectAll = () => {
+    if (nodes.length === 0) return
+    setNodeView(nodes.map((n) => ({ ...n, selected: true })))
+    announce(`Selected ${countOf(nodes.length)}`)
+  }
+
+  // Look at the clipboard when a menu with Paste opens, only where it is already allowed:
+  // Firefox answers readText with its own "Paste" popup, so there Paste stays on ('unknown').
+  const menuKind = menu?.kind
+  useEffect(() => {
+    if (!editOpen && menuKind !== 'canvas') return
+    let stale = false
+    const look = async () => {
+      try {
+        const allowed = await navigator.permissions.query({ name: 'clipboard-read' as PermissionName })
+        if (allowed.state !== 'granted') return
+        const text = await navigator.clipboard.readText()
+        if (!stale) setClipState(parseClip(text) ? 'clip' : 'none')
+      } catch {
+        if (!stale) setClipState('unknown')
+      }
+    }
+    void look()
+    return () => {
+      stale = true
+    }
+  }, [editOpen, menuKind, menu])
+
+  // Tidy: the selection only when there is one, else every node. One history entry, from measured sizes.
+  const tidy = () => {
+    const current = docRef.current
+    if (!current || !catalog || current.nodes.length === 0) return
+    const ids = picked.length > 0 ? new Set(picked.map((n) => n.id)) : null
+    const measured = Object.fromEntries(
+      nodes.filter((n) => n.measured?.width && n.measured.height).map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }]),
+    )
+    const at = tidyPositions(current, catalog, ids, measured)
+    const was = positionsFor(current, catalog)
+    if (Object.entries(at).every(([id, p]) => was[id].x === p.x && was[id].y === p.y)) {
+      announce('Already tidy')
+      return
+    }
+    edit((d) => moveNodes(d, at))
+    announce(`Tidied ${countOf(Object.keys(at).length)}`)
+    if (!ids) requestAnimationFrame(() => void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 }))
+  }
+
+  // Content that arrives with no positions (MCP, built-ins) is tidied once on open, as one Undo-able edit.
+  const autoTidied = useRef(false)
+  useEffect(() => {
+    if (!doc) {
+      autoTidied.current = false
+      return
+    }
+    if (autoTidied.current || !catalog || nodes.length === 0) return
+    const loose = doc.nodes.filter((n) => !positionIn(doc.ui, n.id)).map((n) => n.id)
+    if (loose.length === 0) {
+      autoTidied.current = true
+      return
+    }
+    if (!nodes.every((n) => n.measured?.width && n.measured.height)) return
+    autoTidied.current = true
+    const measured = Object.fromEntries(nodes.map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }]))
+    edit((d) => moveNodes(d, tidyPositions(d, catalog, new Set(loose), measured)))
+    requestAnimationFrame(() => void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 }))
+  }, [doc, catalog, nodes, edit])
+
+  const onEditAction = (a: EditAction) => {
+    if (a === 'undo') undo()
+    else if (a === 'tidy') tidy()
+    else if (a === 'redo') redo()
+    else if (a === 'cut') void copyPicked(true)
+    else if (a === 'copy') void copyPicked(false)
+    else if (a === 'paste') void pasteFromClipboard('centre')
+    else if (a === 'select-all') selectAll()
+    else deleteNodes(new Set(picked.map((n) => n.id)))
+  }
+
+  // Ctrl/Cmd+A, C and X, and the paste event, act on the canvas only: not in a text box, popup or drawer.
+  // With nodes selected, copy and cut take them even when a shift-click left page text selected.
+  const clipKeys = useRef({ copyPicked, pasteText, selectAll, hasPicked: false })
+  clipKeys.current = { copyPicked, pasteText, selectAll, hasPicked: picked.length > 0 }
+  const tuningReady = useRef(false)
+  tuningReady.current = !!doc && !!catalog
+  useEffect(() => {
+    const onCanvas = (target: HTMLElement | null) => {
+      if (!target) return false
+      if (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return false
+      if (target.closest('.ui-popover, .ui-drawer, [role="dialog"]')) return false
+      return target === document.body || !!target.closest('.editor-canvas, .editor-header')
+    }
+    const onKey = (e: KeyboardEvent) => {
+      // A bare T shows or hides Tuning, like Blender's N for its sidebar: canvas only, never a field.
+      if (e.key.toLowerCase() === TUNING_KEY.toLowerCase() && !(e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || e.repeat || e.isComposing)) {
+        if (tuningReady.current && onCanvas(e.target as HTMLElement | null)) {
+          e.preventDefault()
+          toggleTuning()
+        }
+        return
+      }
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || !onCanvas(e.target as HTMLElement | null)) return
+      const key = e.key.toLowerCase()
+      if (key === 'a') clipKeys.current.selectAll()
+      else if ((key === 'c' || key === 'x') && clipKeys.current.hasPicked) void clipKeys.current.copyPicked(key === 'x')
+      else return
+      e.preventDefault()
+    }
+    const onPaste = (e: ClipboardEvent) => {
+      if (!onCanvas(e.target as HTMLElement | null)) return
+      if (clipKeys.current.pasteText(e.clipboardData?.getData('text/plain') ?? '', 'pointer')) e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('paste', onPaste)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('paste', onPaste)
+    }
+  }, [toggleTuning])
+  useEffect(() => {
+    const pane = canvas.current
+    if (!pane) return
+    const move = (e: PointerEvent) => {
+      pointer.current = { x: e.clientX, y: e.clientY }
+    }
+    const leave = () => {
+      pointer.current = null
+    }
+    pane.addEventListener('pointermove', move)
+    pane.addEventListener('pointerleave', leave)
+    return () => {
+      pane.removeEventListener('pointermove', move)
+      pane.removeEventListener('pointerleave', leave)
+    }
+  }, [])
+
+  // Remove from Tuning with an Undo toast: the menu's and the card menu's one path.
+  const removeFromTuning = useCallback(
+    (node: string, param: string, fallback: string) => {
+      const current = docRef.current
+      const i = current ? controlIndex(current, node, param) : -1
+      if (!current || i < 0) return
+      const next = removeControl(current, i)
+      edit((d) => (d === current ? next : removeControl(d, controlIndex(d, node, param))))
+      showToast(`Removed ${controlsOf(current)[i].label || fallback} from Tuning.`, { doc: next, run: () => dispatch({ type: 'undo' }) })
+    },
+    [edit, showToast],
+  )
+
+  // Show on node: select it, fit the view, then ping the param's row.
+  const showParam = useCallback(
+    (node: string, param: string) => {
+      selectNode(node)
+      window.setTimeout(() => pingParam(canvas.current, node, param), 220)
+    },
+    [selectNode],
+  )
+
+  const onMenuAction = (a: MenuAction) => {
+    const at = menu
+    if (a.type === 'add') addFromMenu(a.nodeType, at ? { x: at.x, y: at.y } : undefined)
+    else if (a.type === 'undo') undo()
+    else if (a.type === 'redo') redo()
+    else if (a.type === 'tidy') tidy()
+    else if (a.type === 'fit') void flow.current?.fitView({ ...FIT_OPTIONS, duration: 200 })
+    else if (a.type === 'cut' || a.type === 'copy') void copyPicked(a.type === 'cut')
+    else if (a.type === 'paste') void pasteFromClipboard(at ? { x: at.x, y: at.y } : 'centre')
+    else if (a.type === 'select-all') selectAll()
+    else if (a.type === 'delete-nodes') deleteNodes(new Set(picked.map((n) => n.id)))
+    else if (a.type === 'delete-edge' && at?.kind === 'edge') edit((d) => d.edges.filter((e) => edgeId(e) === at.id).reduce(removeEdge, d))
+    else if ((a.type === 'tuning-add' || a.type === 'tuning-remove') && at?.kind === 'param') {
+      if (a.type === 'tuning-add') edit((d) => addControl(d, at.id, at.param))
+      else removeFromTuning(at.id, at.param, at.label)
+    } else if (a.type === 'dashboard' && at?.kind === 'node') setPickFor(at.id)
+  }
+
+  const wiring = useCallback(
+    (c: Connection | Edge) => {
+      if (!doc || !catalog || !c.sourceHandle || !c.targetHandle) return 'incomplete connection'
+      return refuseConnection(doc, catalog, {
+        source: c.source,
+        sourceHandle: c.sourceHandle,
+        target: c.target,
+        targetHandle: c.targetHandle,
+      })
+    },
+    [doc, catalog],
+  )
+
+  // Float <-> Angle is accepted by the canvas and gets a converter node.
+  const convertible = useCallback(
+    (c: Connection | Edge) =>
+      !!doc && !!catalog && !!c.sourceHandle && !!c.targetHandle &&
+      converterFor(doc, catalog, { source: c.source, sourceHandle: c.sourceHandle, target: c.target, targetHandle: c.targetHandle }) !== null,
+    [doc, catalog],
+  )
+
+  const isValidConnection = useCallback((c: Connection | Edge) => wiring(c) === null || convertible(c), [wiring, convertible])
+
+  const onConnect = useCallback(
+    (c: Connection) => {
+      if (doc && catalog && c.sourceHandle && c.targetHandle && convertible(c)) {
+        const conn = { source: c.source, sourceHandle: c.sourceHandle, target: c.target, targetHandle: c.targetHandle }
+        const result = insertConverter(doc, catalog, conn)
+        if ('reason' in result) showToast(result.reason)
+        else {
+          edit((d) => {
+            const r = insertConverter(d, catalog, conn)
+            return 'doc' in r ? r.doc : d
+          })
+          showToast(`Inserted ${result.id} to convert ${catalog.get(doc.nodes.find((n) => n.id === c.source)!.type)?.outputs.find((p) => p.name === c.sourceHandle)?.type} to ${catalog.get(doc.nodes.find((n) => n.id === c.target)!.type)?.inputs.find((p) => p.name === c.targetHandle)?.type}`)
+        }
+        return
+      }
+      const reason = wiring(c)
+      if (reason) showToast(reason)
+      if (reason || !c.sourceHandle || !c.targetHandle) return
+      edit((d) => addEdge(d, [joinEndpoint(c.source, c.sourceHandle!), joinEndpoint(c.target, c.targetHandle!)]))
+    },
+    [doc, catalog, convertible, wiring, edit, showToast],
+  )
+
+  // Type of the port a connection drag started from: its colour tints the drag
+  // line and handles of other types dim.
+  const [dragType, setDragType] = useState<string | null>(null)
+  const onConnectStart = useCallback(
+    (_: unknown, p: { nodeId: string | null; handleId: string | null; handleType: string | null }) => {
+      const node = doc?.nodes.find((n) => n.id === p.nodeId)
+      const info = node && catalog?.get(node.type)
+      const ports = p.handleType === 'source' ? info?.outputs : info?.inputs
+      setDragType(ports?.find((x) => x.name === p.handleId)?.type ?? null)
+    },
+    [doc, catalog],
+  )
+
+  const onConnectEnd = useCallback(
+    (_: unknown, state: { isValid: boolean | null; fromNode: Node | null; toHandle: { nodeId: string; id?: string | null } | null; fromHandle: { id?: string | null; type: string } | null }) => {
+      setDragType(null)
+      // A drop on a handle that isValidConnection refused: say why.
+      if (state.isValid === false && state.fromNode && state.toHandle && state.fromHandle) {
+        const from = state.fromHandle.type === 'source'
+        const reason = wiring({
+          source: from ? state.fromNode.id : state.toHandle.nodeId,
+          sourceHandle: from ? state.fromHandle.id ?? null : state.toHandle.id ?? null,
+          target: from ? state.toHandle.nodeId : state.fromNode.id,
+          targetHandle: from ? state.toHandle.id ?? null : state.fromHandle.id ?? null,
+        })
+        if (reason) showToast(reason)
+      }
+    },
+    [wiring, showToast],
+  )
+
+  const title = doc ? titleOf(doc) : ''
+  // The dialog's own focus restore lands on whatever had focus; the title
+  // button is where the action began, so it takes focus after the dialog goes.
+  const focusTitleButton = () => {
+    requestAnimationFrame(() => requestAnimationFrame(() => titleMenuTrigger.current?.focus()))
+  }
+  // A built-in has no title of its own in the graph; the effect list names it.
+  const shownTitle = title || effects.find((e) => e.id === effectId)?.title || ''
+  // What the title button shows (also the <title> of a failed-save row).
+  const barTitle = () => shownTitle || (isDraftId(effectId) ? NEW_EFFECT_TITLE : effectId)
+  // New and Open both come through here. `where` is the seam for opening in a new tab if the editor gets tabs.
+  // A New ▸ Empty gets its own id, so two new effects never share one kept copy.
+  const openEffect = (id: string, where: 'here') => {
+    if (where === 'here') setEffectId(id === BLANK_ID ? newEffectId() : id)
+  }
+
+  // A New or Duplicate pick: the graph opens as an unsaved copy under a new draft id, nothing written.
+  const openCopy = (graph: GraphDoc, listTitle: string) => {
+    const id = newEffectId()
+    seeds.current.set(id, copyOf(graph, listTitle, effects.map((e) => e.title || e.id)))
+    setEffectId(id)
+  }
+  const startFrom = (id: string) => {
+    if (id === BLANK_ID) return openEffect(id, 'here')
+    const listed = effects.find((e) => e.id === id)?.title || id
+    fetchEffectGraph(id).then((graph) => openCopy(graph, listed)).catch((e: Error) => loadFailed(e, id))
+  }
+
+  // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
+  // the kept copy goes with it.
+  const revertToSaved = () => {
+    if (!baseline || !doc || !dirty) return
+    clearUnsaved(baseline.id)
+    dispatch({ type: 'edit', change: () => baseline.doc })
+    // One history entry, so Undo is the history's own; the sync effect writes the kept copy again
+    // once the edits are back, so the copy this dropped returns with them.
+    showToast('Reverted to the saved version', {
+      doc: baseline.doc,
+      run: () => {
+        dispatch({ type: 'undo' })
+      },
+    })
+  }
+  const loadSaved = () => {
+    if (!baseline || !outdated) return
+    clearUnsaved(baseline.id)
+    setOutdated(null)
+    // Not a history entry (the graph on screen did not change), so Undo puts the kept edits back as
+    // an edit, as Keep my edits does; the sync effect then writes the kept copy again.
+    const lost = outdated
+    showToast('Loaded the saved version', {
+      doc,
+      run: () => {
+        dispatch({ type: 'edit', change: () => lost })
+      },
+    })
+  }
+  const keepMyEdits = () => {
+    if (!outdated) return
+    dispatch({ type: 'edit', change: () => outdated })
+    setOutdated(null)
+  }
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center' }}>
-        {/* Asset URLs are built from BASE_URL: a bare '/icon.svg' would 404. */}
-        <img src={`${import.meta.env.BASE_URL}icon.svg`} width={20} height={20} alt="" />
-        <strong>Aurora graph editor</strong>
-        <span>server: {version}</span>
+    <div className="editor" style={{ '--editor-top': `${canvasTop}px` } as CSSProperties}>
+      <ErrorShell
+        unreachable={!host.reachable}
+        hasReplied={host.hasReplied}
+        hostState={host.host.state}
+        platform={platform}
+        conditions={host.host.conditions}
+        errors={host.host.errors}
+        notes={shellNotes}
+        onAnnounce={announce}
+        lightTest={otherLightTest}
+        pairings={host.pairings}
+        onDecidePairing={(ref, decision) => void host.decidePairing(ref, decision)}
+        onRetry={(source) => void host.retry(source)}
+        onDismiss={(error) => void host.dismiss(error)}
+        onStopTest={() => void host.stopTest()}
+      />
+      <header ref={setBarEl} className="editor-header" data-preview={status.label} data-status-rank={status.rank} {...stageAttrs(barStage)}>
+        <a className="ui-button editor-back" href="../" aria-label="Dashboard" onClick={onBackClick}>
+          <Icon icon={arrowLeftIcon} size="sm" />
+          <span className="editor-back-label">Dashboard</span>
+        </a>
+        <span className="editor-sep" aria-hidden="true" />
+        <button
+          ref={titleMenuTrigger}
+          type="button"
+          className="ui-button editor-title-menu"
+          aria-label={dirty ? `Effect menu, ${UNSAVED_TEXT}` : 'Effect menu'}
+          aria-haspopup="dialog"
+          aria-expanded={titleMenuOpen}
+          data-effect={effectId}
+          data-unsaved={dirty ? 'true' : 'false'}
+          // Open stays reachable when the effect would not load, so the user can leave through it.
+          disabled={!doc && !openError}
+          onClick={() => setTitleMenuOpen((open) => !open)}
+        >
+          <span className="editor-title-label">{barTitle()}</span>
+          {dirty ? <span className="editor-unsaved-mark" aria-hidden="true">*</span> : null}
+          <Icon icon={chevronDownIcon} size="sm" />
+        </button>
+        {catalog ? (
+          <AddNodeMenu
+            isOpen={addMenuOpen}
+            onClose={() => setAddMenuOpen(false)}
+            triggerRef={addMenuTrigger}
+            catalog={catalog}
+            onAdd={(type) => addFromMenu(type)}
+          />
+        ) : null}
+        <TitleMenu
+          isOpen={titleMenuOpen}
+          onClose={() => setTitleMenuOpen(false)}
+          triggerRef={titleMenuTrigger}
+          isBuiltin={isBuiltin}
+          busy={writing}
+          blocked={blocked}
+          nothingOpen={!doc}
+          effects={effects}
+          currentId={effectId}
+          hasAudio={hasAudio}
+          unsaved={dirty}
+          focusAfter={focusAfter}
+          onAction={(action: TitleMenuAction) => {
+            if (action === 'save') void write('save')
+            else if (action === 'save-as-new') void write('save', true)
+            else if (action === 'save-and-apply') void write('apply')
+            else if (action === 'duplicate') { if (doc) openCopy(doc, shownTitle) }
+            else if (action === 'revert') revertToSaved()
+            else setNaming({ kind: 'rename', initial: title })
+          }}
+          onOpenEffect={(id) => openEffect(id, 'here')}
+          onNewEffect={startFrom}
+        />
+        <EditMenu
+          isOpen={editOpen}
+          onOpen={() => setEditOpen(true)}
+          onClose={() => setEditOpen(false)}
+          triggerRef={editTrigger}
+          disabled={!doc}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          hasSelection={picked.length > 0}
+          canPaste={clipState !== 'none'}
+          hints={hints}
+          onAction={onEditAction}
+        />
+        {naming ? (
+          <NameDialog
+            spec={
+              naming.kind === 'rename'
+                ? renameEffectSpec(naming.initial, effects.map((e) => e.title || e.id))
+                : saveAsSpec(naming.initial, effects.map((e) => e.title || e.id), naming.kind === 'apply' ? 'Save and apply' : 'Save')
+            }
+            onCancel={() => {
+              setNaming(null)
+              focusTitleButton()
+            }}
+            onConfirm={(name) => {
+              setNaming(null)
+              focusTitleButton()
+              if (naming.kind === 'rename') edit((d) => setTitle(d, name))
+              else void write(naming.kind, naming.asNew, name)
+            }}
+          />
+        ) : null}
+        <span className="editor-bar-end" />
+        <ProblemsChip
+          problems={problems}
+          chipRef={problemsChip}
+          refusal={refusal}
+          focusAfter={focusAfter}
+          nodeLabels={nodeLabels}
+          onSelectNode={selectNode}
+          onGraphAction={(run) => {
+            if (run === 'openControls') setDrawer('controls')
+          }}
+        />
+        <span className="editor-sep" aria-hidden="true" />
+        <SplitTestButton
+          mode={testMode}
+          running={testing}
+          stopText={stopLabel(lights.state)}
+          stopName={stopName(lights.state)}
+          iconForm={barStage >= 2}
+          action={status.action}
+          disabledReason={
+            blocked ? status.label : noLights ? 'No lights reachable' : loop.state.valid === false || draftIssues(loop.state).length > 0 ? 'Fix the problems before testing' : null
+          }
+          takeOverHint={lightsInUse(lights.state, otherHeld?.holder ?? null)}
+          busy={!doc || writing || (lights.state.phase !== 'idle' && lights.state.phase !== 'running')}
+          onStart={startTest}
+          onStop={() => void lights.revert()}
+          onReconnect={loop.reconnect}
+        />
       </header>
-      <div style={{ flex: 1 }}>
-        <ReactFlow nodes={nodes} edges={edges} fitView>
-          <Background />
-          <Controls />
-        </ReactFlow>
+      {outdated && baseline ? (
+        <NewerSavedPrompt effectTitle={shownTitle || baseline.id} onLoadSaved={loadSaved} onKeepEdits={keepMyEdits} />
+      ) : null}
+      <div className="editor-body">
+            <div className="editor-canvas" ref={canvas}>
+        <PreviewIsland
+          frame={loop.frame}
+          live={loop.state.stream === 'live'}
+          layout={preview.layout}
+          area={preview.area}
+          savedZones={preview.savedZones}
+          noLights={noLights}
+          testing={testing}
+          onPick={preview.choose}
+        />
+        <ProblemsContext.Provider value={problems}>
+        <ShowNodeIdsContext.Provider value={showNodeIds}>
+        <EditorContext.Provider value={actions}>
+        <TuningMarksContext.Provider value={tuningMarks}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onDelete={onDelete}
+            deleteKeyCode={inDrawer ? null : ['Backspace', 'Delete']}
+            onEdgesChange={onEdgesChange}
+            onNodeDragStop={onNodeDragStop}
+            onPaneContextMenu={(e) => {
+              e.preventDefault()
+              openMenu({ kind: 'canvas', x: (e as React.MouseEvent).clientX, y: (e as React.MouseEvent).clientY })
+            }}
+            onNodeContextMenu={(e, node) => {
+              e.preventDefault()
+              openMenu({ kind: 'node', id: node.id, x: e.clientX, y: e.clientY })
+            }}
+            onEdgeContextMenu={(e, edge) => {
+              e.preventDefault()
+              openMenu({ kind: 'edge', id: edge.id, x: e.clientX, y: e.clientY })
+            }}
+            onConnect={onConnect}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
+            connectionLineStyle={dragType ? { stroke: portStyle(dragType).color, strokeWidth: 2 } : undefined}
+            className={dragType ? 'is-connecting' : undefined}
+            data-drag-type={dragType ?? undefined}
+            isValidConnection={isValidConnection}
+            colorMode="dark"
+            fitView
+            attributionPosition="bottom-center"
+            fitViewOptions={FIT_OPTIONS}
+            minZoom={0.2}
+            onInit={(instance) => {
+              flow.current = instance
+            }}
+            key={effectId}
+          >
+            <Background variant={BackgroundVariant.Dots} />
+            <Panel position="top-left">
+              <Hint text="Add node (Shift+A)" placement="bottom">
+                <button
+                  ref={addMenuTrigger}
+                  type="button"
+                  className="ui-button editor-add-node"
+                  aria-label="Add node"
+                  aria-haspopup="dialog"
+                  aria-expanded={addMenuOpen}
+                  disabled={!doc || !catalog}
+                  onClick={() => setAddMenuOpen((open) => !open)}
+                >
+                  <Icon icon={addIcon} size="sm" /> Add node
+                </button>
+              </Hint>
+            </Panel>
+            <ViewMenu minimap={minimap} onMinimap={setMinimap} />
+          </ReactFlow>
+        </TuningMarksContext.Provider>
+        </EditorContext.Provider>
+        </ShowNodeIdsContext.Provider>
+        </ProblemsContext.Provider>
       </div>
+      </div>
+      {doc && catalog ? (
+        <div onFocus={() => setInDrawer(true)} onBlur={() => setInDrawer(false)}>
+          <ControlsDrawer
+            isOpen={drawer === 'controls'}
+            onClose={closeTuning}
+            top={canvasTop + (drawerSide === 'bottom' && dockFull ? GRAB_TAB : 0)}
+            side={drawerSide}
+            full={drawerSide === 'bottom' && dockFull}
+            doc={doc}
+            catalog={catalog}
+            edit={edit}
+            onShow={showParam}
+            onRemove={removeFromTuning}
+          />
+        </div>
+      ) : null}
+      {doc && catalog ? (
+        <GrabTab
+          side={drawerSide}
+          open={drawer === 'controls'}
+          full={dockFull}
+          count={controlsOf(doc).length}
+          onStep={(dir) => {
+            if (drawerSide === 'right') {
+              if (dir === 0) toggleTuning()
+              else if (dir === 1) setDrawer('controls')
+              else closeTuning()
+            } else if (dir === 0) {
+              if (drawer !== 'controls') setDrawer('controls')
+              else setDockFull((f) => !f)
+            } else if (dir === 1) {
+              if (drawer !== 'controls') setDrawer('controls')
+              else setDockFull(true)
+            } else if (dockFull) setDockFull(false)
+            else closeTuning()
+          }}
+        />
+      ) : null}
+      {doc && catalog && pickFor && catalog.get(doc.nodes.find((n) => n.id === pickFor)?.type ?? '') ? (
+        <TuningPicker
+          node={pickFor}
+          info={catalog.get(doc.nodes.find((n) => n.id === pickFor)!.type)!}
+          doc={doc}
+          drawerOpen={drawer === 'controls'}
+          onToggle={(param, label, on) => (on ? removeFromTuning(pickFor, param, label) : edit((d) => addControl(d, pickFor, param)))}
+          onOpenTuning={() => {
+            setPickFor(null)
+            setDrawer('controls')
+          }}
+          onClose={() => setPickFor(null)}
+        />
+      ) : null}
+      {catalog ? (
+        <ContextMenu
+          target={menu}
+          catalog={catalog}
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
+          canPaste={clipState !== 'none'}
+          onClose={() => setMenu(null)}
+          onAction={onMenuAction}
+        />
+      ) : null}
+      <Toast
+        text={toastText}
+        undo={toastUndo}
+        onUndo={() => {
+          const offer = toastUndo
+          dismissToast()
+          if (offer && docRef.current === offer.doc) offer.run()
+        }}
+        onHold={holdToast}
+      />
+      <Announcer text={announced} />
     </div>
   )
 }

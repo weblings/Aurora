@@ -68,3 +68,15 @@ TEST_CASE("HueOutput reports its name and starts unconnected", "[HueOutput]")
   CHECK(output.zoneIds().empty()); // not init()'d -- no live bridge in this test
   CHECK(output.zoneLabels().empty());
 }
+
+
+TEST_CASE("linkProbe reads a bridge that does not answer as Unreachable, selection or not", "[HueOutput][linkprobe]")
+{
+  // Port 1 on loopback refuses at once, so no test waits on the HTTP timeout.
+  Aurora::Output::Hue::HueOutput output(Aurora::Output::Hue::Credentials("user", "00"), "127.0.0.1:1");
+
+  // Never init()ed: no selection, so the probe falls back to plain reachability.
+  const auto probe = output.linkProbe();
+  REQUIRE(probe);
+  CHECK(probe() == Aurora::Output::LinkState::Unreachable);
+}

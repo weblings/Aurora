@@ -48,6 +48,10 @@ namespace Aurora::Runtime::Graph
     const std::vector<std::string>& outputNames,
     const ParamOverlay& overlay = {});
 
+  // A dim steady magenta on every output (Aurora-dh1p), shown while no effect
+  // can run: #330033 on every zone, then the master `brightness` gain. No source nodes.
+  nlohmann::json failureLightGraph(const std::vector<std::string>& outputNames, float brightness);
+
   // Builds the doc with the config overlay and loads it with
   // knownOutputs = outputNames.
   LoadResult loadBuiltInVideoGraph(

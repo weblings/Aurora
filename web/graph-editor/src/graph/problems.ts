@@ -1,0 +1,124 @@
+// What the server says is wrong with a draft, regrouped by the node, port or
+// param to badge. Two sources: validation (`errors` of PUT /api/graph/drafts,
+// each naming a node and sometimes a port or param) and the preview's runtime
+// `errors` (output, node, message).
+
+import { describeIssue } from '../../../ui/problemCopy.js'
+import { graphRowAction, type GraphRowAction } from './problemActions'
+
+export type ServerIssue = {
+  node: string | null
+  message: string
+  code?: string
+  port?: string | null
+  param?: string | null
+  options?: string[]
+}
+
+export type PreviewIssue = { output: string; node: string; message: string; code?: string }
+
+export type NodeProblems = {
+  // Whole-node problems, plus the ones that named a port or param (so the
+  // header badge counts everything).
+  messages: string[]
+  ports: ReadonlyMap<string, string[]>
+  params: ReadonlyMap<string, string[]>
+}
+
+export type Problems = {
+  nodes: ReadonlyMap<string, NodeProblems>
+  // Issues with no node, or naming one that is not in the document.
+  graph: string[]
+  // The action a Whole graph row offers, by its text; a row not in the map has none (problemActions.ts).
+  graphActions: ReadonlyMap<string, GraphRowAction>
+}
+
+// The server's issues for the draft as sent. With problems the server refuses the
+// draft and they explain it. A draft the editor believes valid that the server
+// still cannot build ("Draft would not load") has no node: it is a Whole graph
+// problem carrying the server's error text.
+// A draft the server refused as too large (413) is also a Whole graph problem: it is about
+// this graph, so it goes to the chip, not the error shell (Aurora-s1t7.9).
+export const DRAFT_TOO_LARGE = 'draft_too_large'
+export const DRAFT_TOO_LARGE_MESSAGE = "Couldn't check your last edit: the graph is too large (over 256 KB)."
+
+export function draftIssues(state: { valid: boolean | null; issues: readonly ServerIssue[]; reloadError: string | null; putError: string | null }): readonly ServerIssue[] {
+  if (state.putError === DRAFT_TOO_LARGE) return [{ node: null, message: DRAFT_TOO_LARGE_MESSAGE }]
+  if (state.valid === false) return state.issues
+  return state.reloadError ? [{ node: null, message: state.reloadError }] : []
+}
+
+export const noProblems: Problems = { nodes: new Map(), graph: [], graphActions: new Map() }
+
+function push<K>(map: Map<K, string[]>, key: K, message: string) {
+  const list = map.get(key)
+  if (list) {
+    if (!list.includes(message)) list.push(message)
+  } else {
+    map.set(key, [message])
+  }
+}
+
+// `nodeIds` are the document's nodes: an issue naming any other id (a node
+// since deleted, a stale preview) cannot be badged and goes to the graph list.
+export function groupProblems(
+  issues: readonly ServerIssue[],
+  runtime: readonly PreviewIssue[],
+  nodeIds: ReadonlySet<string>,
+): Problems {
+  const messages = new Map<string, string[]>()
+  const ports = new Map<string, Map<string, string[]>>()
+  const params = new Map<string, Map<string, string[]>>()
+  const graph: string[] = []
+  const graphActions = new Map<string, GraphRowAction>()
+
+  const add = (node: string | null | undefined, message: string, port?: string | null, param?: string | null, code?: string | null) => {
+    if (!node || !nodeIds.has(node)) {
+      if (!graph.includes(message)) graph.push(message)
+      const action = graphRowAction(code)
+      if (action) graphActions.set(message, action)
+      return
+    }
+    push(messages, node, message)
+    if (port) push(ports.get(node) ?? ports.set(node, new Map()).get(node)!, port, message)
+    if (param) push(params.get(node) ?? params.set(node, new Map()).get(node)!, param, message)
+  }
+
+  // The editor's words for an issue's code; a code with none shows the server's text.
+  for (const issue of issues) add(issue.node, describeIssue(issue), issue.port, issue.param, issue.code)
+  // A runtime failure reads "Runs, but <node> fails: <reason>" (code node_tick_failed). Its row or badge
+  // already names a node in the document, so only a node outside it is named in the words.
+  for (const issue of runtime) {
+    const inDoc = !!issue.node && nodeIds.has(issue.node)
+    const words = describeIssue({ ...issue, code: issue.code ?? 'node_tick_failed', node: inDoc ? null : issue.node || undefined })
+    add(issue.node, words)
+  }
+
+  const nodes = new Map<string, NodeProblems>()
+  for (const [id, list] of messages) {
+    nodes.set(id, { messages: list, ports: ports.get(id) ?? new Map(), params: params.get(id) ?? new Map() })
+  }
+  return { nodes, graph, graphActions }
+}
+
+// Keeps the previous object when nothing changed, so the nodes that read it
+// do not re-render on every preview event.
+export function sameProblems(a: Problems, b: Problems): boolean {
+  if (a === b) return true
+  if (a.graph.join('\n') !== b.graph.join('\n') || a.nodes.size !== b.nodes.size) return false
+  if (a.graphActions.size !== b.graphActions.size) return false
+  for (const [m, x] of a.graphActions) if (b.graphActions.get(m)?.run !== x.run) return false
+  for (const [id, x] of a.nodes) {
+    const y = b.nodes.get(id)
+    if (!y || x.messages.join('\n') !== y.messages.join('\n')) return false
+  }
+  return true
+}
+
+// The node's messages that were not pinned to one of its ports or params.
+export function unattributed(problems: NodeProblems): string[] {
+  const pinned = new Set<string>()
+  for (const list of problems.ports.values()) list.forEach((m) => pinned.add(m))
+  for (const list of problems.params.values()) list.forEach((m) => pinned.add(m))
+  return problems.messages.filter((m) => !pinned.has(m))
+}

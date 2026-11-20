@@ -38,9 +38,13 @@ export class Dropdown {
   // the far edge, instead of hugging its own content -- needed for the
   // full-width dropdowns shown on constrained layouts throughout
   // docs/WebUI/WebUI_Design_1stPass.md's screen designs.
-  constructor(container, initialLabel, onSelect, { labelId = null, fill = false, tooltipKey = null, tooltip = null } = {}) {
+  // controlled: a commit only closes and calls onSelect. The caller owns the
+  // label and selection (the effect picker shows what runs, not the pick).
+  constructor(container, initialLabel, onSelect, { labelId = null, fill = false, tooltipKey = null, tooltip = null, controlled = false, onClose = null } = {}) {
     const id = `dropdown-${_nextId++}`;
     this._onSelect = onSelect;
+    this._controlled = controlled;
+    this._onClose = onClose;
     this._labelId = labelId;
     this._tooltipKey = tooltipKey;
     this._tooltip = tooltip;
@@ -155,6 +159,16 @@ export class Dropdown {
     this.root.classList.remove('open');
     this.trigger.setAttribute('aria-expanded', 'false');
     this.chevron.src = CHEVRON_DOWN_URL;
+    this._onClose?.();
+  }
+
+  // A switch in flight: the trigger is disabled and announced busy, and an
+  // open menu closes so nothing can be picked mid-switch.
+  setBusy(busy) {
+    if (busy) this.close();
+    this.trigger.disabled = busy;
+    if (busy) this.trigger.setAttribute('aria-busy', 'true');
+    else this.trigger.removeAttribute('aria-busy');
   }
 
   setTriggerLabel(text) {
@@ -182,9 +196,10 @@ export class Dropdown {
       btn.id = `${this.menu.id}-option-${index}`;
       btn.setAttribute('role', 'option');
       btn.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
-      btn.className = 'dropdown-option' + (opt.selected ? ' selected' : '');
+      btn.className = 'dropdown-option' + (opt.selected ? ' selected' : '') + (opt.dividerBefore ? ' dropdown-option-divided' : '');
       btn.textContent = opt.label;
       btn.dataset.value = opt.value;
+      if (opt.tooltip) btn.title = opt.tooltip;
       this.menu.appendChild(btn);
     });
     const selectedIndex = options.findIndex((o) => o.selected);
@@ -236,7 +251,7 @@ export class Dropdown {
   // from a broken click without checking the network request directly.
   _commit(index) {
     const opt = this._options[index];
-    if (opt) {
+    if (opt && !this._controlled) {
       this._options.forEach((o) => { o.selected = o.value === opt.value; });
       this.setTriggerLabel(opt.label);
       this._optionButtons().forEach((btn, i) => {

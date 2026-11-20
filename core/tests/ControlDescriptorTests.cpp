@@ -88,8 +88,8 @@ TEST_CASE("Layer descriptor tables cover the inventoried controls with unique ke
   registry.add("zones", zoneControlDescriptors());
   registry.add("app", appControlDescriptors());
 
-  // 4 video + 12 audio + 4 zones + 4 app -- bump alongside the tables.
-  REQUIRE(registry.descriptors().size() == 24);
+  // 4 video + 12 audio + 4 zones + 5 app -- bump alongside the tables.
+  REQUIRE(registry.descriptors().size() == 25);
   CHECK(registry.collisions().empty()); // no two layers claim one key
 
   // Spot-check every control family from TooltipsAnalysis.md's inventory.
@@ -103,6 +103,7 @@ TEST_CASE("Layer descriptor tables cover the inventoried controls with unique ke
   CHECK(registry.find("zones.active") != nullptr);
   CHECK(registry.find("zones.autoArrange") != nullptr);
   CHECK(registry.find("app.mode") != nullptr);
+  CHECK(registry.find("app.effect") != nullptr);
   CHECK(registry.find("app.pause") != nullptr);
   CHECK(registry.find("app.stop") != nullptr);
   CHECK(registry.find("app.brightness") != nullptr);

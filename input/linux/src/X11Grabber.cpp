@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <stdexcept>
 
 #include <Aurora/Input/Linux/PipewireFrameBuffer.hpp>
 #include <Aurora/Input/Linux/X11Damage.hpp>
+#include <Aurora/Input/Linux/X11MonitorKey.hpp>
 
 #include <X11/extensions/Xdamage.h>
 
@@ -32,6 +34,30 @@ namespace
   // when a driver under-reports root damage (NVIDIA fullscreen flipping
   // without a compositor is the known case).
   constexpr long long kMaxStaleMs = 1000;
+
+  // EDID hash of the output, empty when it has none. Duplicates are
+  // disambiguated later by assignMonitorKeys.
+  std::string outputEdidHash(Display* display, RROutput output)
+  {
+    Atom edidAtom = XInternAtom(display, "EDID", True);
+    if(edidAtom == None){
+      return {};
+    }
+
+    Atom type = None;
+    int format = 0;
+    unsigned long count = 0;
+    unsigned long remaining = 0;
+    unsigned char* data = nullptr;
+    if(XRRGetOutputProperty(display, output, edidAtom, 0, 128, False, False, AnyPropertyType,
+        &type, &format, &count, &remaining, &data) != Success || !data){
+      return {};
+    }
+
+    std::string hash = Aurora::Input::edidHashKey(data, count);
+    XFree(data);
+    return hash;
+  }
 
   long long steadyNowMs()
   {
@@ -212,6 +238,19 @@ namespace Aurora::Input::Linux
 
     m_screenId = XDefaultScreen(m_display.get());
 
+    // Plug and unplug reach us as RandR events on the root window, read in
+    // _pollMonitorChanges beside the damage events. No RandR, no events: the
+    // list stays read at build only.
+    int randrErrorBase = 0;
+    if(XRRQueryExtension(m_display.get(), &m_randrEventBase, &randrErrorBase)){
+      XRRSelectInput(
+        m_display.get(), RootWindow(m_display.get(), m_screenId),
+        RRScreenChangeNotifyMask | RROutputChangeNotifyMask);
+    }
+    else{
+      m_randrEventBase = 0;
+    }
+
     // Fail-soft: without the Damage extension every grab is full (the old
     // behavior), so exotic X servers keep working instead of throwing here.
     int damageErrorBase = 0;
@@ -295,10 +334,18 @@ namespace Aurora::Input::Linux
   }
 
 
+  bool X11Grabber::takeMonitorsChanged()
+  {
+    return m_monitorsChanged.exchange(false);
+  }
+
+
   void X11Grabber::grabFrameSubsample(
     Contracts::ImageData& imageData
   )
   {
+    _pollMonitorChanges();
+
     if(!_ensureXShmData()){
       return;
     }
@@ -400,6 +447,12 @@ namespace Aurora::Input::Linux
 
   void X11Grabber::_initMonitorsList()
   {
+    m_monitorSelectionData = _enumerateMonitors(true);
+  }
+
+
+  IVideoInput::MonitorSelectionData X11Grabber::_enumerateMonitors(bool probe)
+  {
     MonitorSelectionData monitorSelectionData;
 
     if(!m_display.get()){
@@ -407,7 +460,9 @@ namespace Aurora::Input::Linux
     }
 
     Window root = DefaultRootWindow(m_display.get());
-    UniqueScreenResources screenResources(XRRGetScreenResources(m_display.get(), root));
+    UniqueScreenResources screenResources(probe
+      ? XRRGetScreenResources(m_display.get(), root)
+      : XRRGetScreenResourcesCurrent(m_display.get(), root));
     auto monitorsQuantity = screenResources->noutput;
 
     if(monitorsQuantity <= 0){
@@ -415,6 +470,8 @@ namespace Aurora::Input::Linux
     }
 
     RROutput primaryId = XRRGetOutputPrimary(m_display.get(), root);
+    std::vector<std::string> edidHashes;
+    std::vector<std::string> connectors;
 
     for(int i = 0; i < monitorsQuantity; i++){
       UniqueOutputInfo outputInfo(XRRGetOutputInfo(m_display.get(), screenResources.get(), screenResources->outputs[i]));
@@ -443,7 +500,7 @@ namespace Aurora::Input::Linux
       int height = static_cast<int>(crtcInfo->height);
       bool isPrimary = (screenResources->outputs[i] == primaryId);
 
-      monitorSelectionData.monitors.push_back(std::make_shared<X11MonitorData>(
+      auto monitor = std::make_shared<X11MonitorData>(
         outputInfo->name,
         width,
         height,
@@ -452,7 +509,10 @@ namespace Aurora::Input::Linux
         x,
         y,
         screenResources->outputs[i]
-      ));
+      );
+      edidHashes.push_back(outputEdidHash(m_display.get(), screenResources->outputs[i]));
+      connectors.push_back(outputInfo->name);
+      monitorSelectionData.monitors.push_back(std::move(monitor));
 
       if(isPrimary){
         monitorSelectionData.selectedMonitorId = monitorSelectionData.monitors.size() - 1;
@@ -463,11 +523,60 @@ namespace Aurora::Input::Linux
       throw std::runtime_error("No monitor available");
     }
 
+    auto keys = assignMonitorKeys(edidHashes, connectors);
+    for(std::size_t i = 0; i < keys.size(); ++i){
+      monitorSelectionData.monitors[i]->key = std::move(keys[i]);
+    }
+
     if(!monitorSelectionData.selectedMonitorId.has_value()){
       monitorSelectionData.selectedMonitorId = 0;
     }
 
-    std::swap(m_monitorSelectionData, monitorSelectionData);
+    return monitorSelectionData;
+  }
+
+
+  void X11Grabber::_pollMonitorChanges()
+  {
+    if(m_randrEventBase == 0){
+      return;
+    }
+
+    const Window root = RootWindow(m_display.get(), m_screenId);
+    bool any = false;
+    XEvent event;
+    while(XCheckTypedWindowEvent(m_display.get(), root, m_randrEventBase + RRScreenChangeNotify, &event)){
+      // Keeps Xlib's own screen size in step with the server.
+      XRRUpdateConfiguration(&event);
+      any = true;
+    }
+    while(XCheckTypedWindowEvent(m_display.get(), root, m_randrEventBase + RRNotify, &event)){
+      any = true;
+    }
+    if(!any){
+      return;
+    }
+
+    // Mode, position and primary changes of the same outputs raise events too
+    // and must not rebuild: compare what identifies the outputs.
+    try{
+      const auto now = _enumerateMonitors(false);
+      auto identities = [](const MonitorSelectionData& data){
+        std::vector<std::string> keys;
+        std::vector<std::string> names;
+        for(const auto& monitor : data.monitors){
+          keys.push_back(monitor->key);
+          names.push_back(monitor->name);
+        }
+        return monitorIdentities(keys, names);
+      };
+      if(identities(now) != identities(m_monitorSelectionData)){
+        m_monitorsChanged = true;
+      }
+    }
+    catch(const std::exception&){
+      // Mid-replug with no usable output yet; the next event re-checks.
+    }
   }
 
 

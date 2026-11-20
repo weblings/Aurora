@@ -91,7 +91,7 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/api/0/config":
             self._send_json(fixtures.config_response())
         elif route == "/clip/v2/resource/entertainment_configuration":
-            self._send_json(fixtures.entertainment_configurations())
+            self._send_json(fixtures.entertainment_configurations(self.server.stream_status))
         elif route == "/clip/v2/resource":
             self._send_json(fixtures.resources())
         elif route.startswith("/clip/v2/resource/entertainment_configuration/"):

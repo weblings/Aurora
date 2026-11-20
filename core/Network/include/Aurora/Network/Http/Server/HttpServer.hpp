@@ -23,6 +23,15 @@ namespace Aurora::Network::Http::Server
   class Impl;
 
 
+  // One registered API route as the contract tests see it (Aurora-5ipy.36).
+  struct RouteInfo
+  {
+    HttpMethod method;
+    std::string path;
+    bool stream;
+  };
+
+
   class HttpServer
   {
   public:
@@ -66,6 +75,18 @@ namespace Aurora::Network::Http::Server
     // workers, growing to 4x under load, and half of the base for streams.
     // Call before bind().
     void setStreamLimits(size_t workerThreads, size_t maxStreams);
+
+    // Serves the route already added at `fromPath` for `method` also at
+    // `toPath`, sharing its handler state. False when no such route exists.
+    bool aliasRoute(
+      HttpMethod method,
+      const std::string& fromPath,
+      const std::string& toPath
+    );
+
+    // Every addRoute and addStreamRoute so far, in registration order. Static
+    // file and embedded-webroot routes are not listed.
+    std::vector<RouteInfo> routeList() const;
 
     // Serves plain files under `directory` at the request path they share a
     // suffix with (cpp-httplib's own mount-point semantics) -- e.g. a

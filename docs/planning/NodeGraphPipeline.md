@@ -148,6 +148,8 @@ on recorded features and checks outputs match within epsilon.
 - **Color:** `color.fromHSV`, `color.toHSV`, `color.brightness`,
   `color.mix`, `color.hueShift`, `color.complement` (+180°),
   `color.constant` and `angle.constant` (fixed-value sources).
+- **Angle/Float:** `angle.add`, `angle.fromFloat(scale)` (degrees = value × scale,
+  wraps), `angle.toFloat(scale)` (degrees ÷ scale).
 - **Palette:** `palette.randomAnchor` (the six complementary pairs),
   `palette.pick`.
 - **Frame ops** (these enable video × audio mixing, the headline
@@ -214,7 +216,8 @@ subgraphs instead.
   stereo L/R features (left zones vs. right zones), envelope follower
   with separate attack/release.
 - **Generators:** BPM-synced LFO (free-running LFO is Tier 2), noise,
-  clock; `trigger.flash` (hit-and-decay), gate/hold.
+  clock; `trigger.flash` (hit-and-decay) and gate/hold are now one node,
+  `trigger.envelope` (Aurora-q66y, attack, hold and decay).
 - **Spatial across zones:** chase, gradient along an axis, rotate
   colors between zones, per-zone hue spread. See "Spatial effects
   (decided)" below: these are Image generators, not Frame ops.
@@ -289,6 +292,23 @@ section wins.
   `onset` (Trigger). The `features` port is unchanged, so parity holds.
 - The runtime error value is outside the type system. The runtime carries it
   with the originating node id, and it propagates downstream.
+
+**Port type glossary.** One line per type. The text lives in
+`portTypeMeaning` (`GraphTypes.cpp`) and is served as `portTypes` by
+`GET /api/nodes`, in `list_nodes` and `describe_node` for agents, and as the
+hover tooltip on a port's type label in the editor. Change it there and here
+together (Aurora-z6kw).
+- `Image`: One video frame, or Absent while the source is unhealthy.
+- `AudioBuffer`: The latest block of raw audio samples.
+- `AudioFeatures`: All audio features for this tick, bundled.
+- `Color`: One RGB color.
+- `Frame`: One color per light zone, sent to the lights by an output node.
+- `Float`: A plain number, usually 0..1. Not an Angle.
+- `Angle`: A direction in degrees. Not a Float.
+- `Trigger`: True for one tick when an event happens, false otherwise.
+- Every node runs every tick, and a value is either present or Absent for that
+  tick. Wires carry values, not events: a `Trigger` is just a value that is
+  true for one tick.
 
 **Edges and bindings.**
 - Edge: `["node.port", "node.port"]`, output first.
@@ -372,13 +392,19 @@ re-handshake); since Aurora-c0g only structural fields still do (see
 
 - A custom graph can use both inputs (screen hue × beat brightness), so
   it can't live under either tab.
-- The segmented control becomes an Effect dropdown (existing
-  `Dropdown`): built-ins first, divider, customs. Small badges
-  (video / audio / both) replace hierarchy.
+- The segmented control becomes one Effect trigger with an attached
+  panel: a tree of Built-in, Custom and Hidden groups with per-row menus
+  and no input badges. Spec in `Aurora-kep2.2`, record in
+  [[kep22-effect-panel-mocks]]. Cut over in `Aurora-kep2.10`: the toggle
+  and the Dashboard Edit graph link are gone (Edit graph lives in the row
+  menus), the panel always shows, and its trigger tooltip is `app.effect`.
 - Dashboard sections derive from the active graph, not `mode`: monitor
   picker iff a capture source node, sink picker + permission banner iff
   an audio source, Zone Mapping iff a `SampleZones` node. A mixed effect
   shows both device pickers.
+- Both input names stay saved across switches, the effect id chooses the
+  mode, and a missing input is auto-picked (decided 2026-11-03, not built,
+  `Aurora-kep2.3`).
 - Onboarding (`ModeDeviceScreen`) still offers only the two built-ins.
 
 **Built-ins: read-only, tunable, resettable, duplicable — not
@@ -390,12 +416,15 @@ deletable.**
   today's `audio*` config values migrate into the built-in Audio overlay.
 - *Rewiring* a built-in forces "Duplicate → custom"; never in place.
 - Customs are fully editable and deletable; deleting the active one
-  confirms, then falls back to a built-in. "Hide built-in" deferred.
+  confirms, then falls back to a built-in. Any effect can be hidden from
+  the list, and a hidden effect can still run.
 - Data: config holds `activeEffectId` + `paramOverrides[effectId]
   ["node.param"]`; each custom is its own file under an `effects/` dir.
   Decided 2026-10-20 for Sequence C ([[sequence-c-planning]]): stored graphs
   name concrete outputs, and a custom that fails to load runs the built-in
-  with a banner warning.
+  with a banner warning. Revised 2026-11-03, built (`Aurora-kep2.4`): a
+  custom that fails to load leaves no effect running, with a banner row and
+  Retry ([[error-overlay]]).
 
 **Tuning is populated from exposed params, not every param.**
 
@@ -448,8 +477,8 @@ visible color output.
   [[webui-tooltips-analysis]].
 - **Effect picker:** built-in effects carry authored descriptions
   (replacing `app.mode`'s "Video or audio reactive mode"); customs get
-  a user-entered description in their effect metadata; badges get fixed
-  tooltips ("Uses screen capture" / "Uses audio").
+  a user-entered description in their effect metadata. `app.mode` stays
+  on onboarding only, and the Dashboard trigger uses `app.effect`.
 - **User-authored text is data:** rendered via `title`/text nodes only,
   never HTML. The editor shows a soft "≤ 6 words" hint for Dashboard
   tooltips; not enforced.

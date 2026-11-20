@@ -1,5 +1,6 @@
 #include <Aurora/Runtime/Graph/TimeNodes.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -170,6 +171,88 @@ namespace Aurora::Runtime::Graph
       float m_value = 0.f;
     };
 
+    // Trigger to Float: rise to peak over attack, hold, then fall to 0 over decay.
+    // The firing tick is time 0, so attack 0 shows peak on it. A retrigger rises from the level.
+    class EnvelopeNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float dt,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        float budget = dt;
+        if(ctx.input<Trigger>("trigger").fired){
+          const float* wired = ctx.optionalInput<float>("amount");
+          float amount = wired != nullptr ? *wired : ctx.param<float>("amount");
+          requireFinite(ctx, amount, "amount");
+          if(amount < 0.f){
+            ctx.fail("amount is below 0");
+          }
+          m_peak = std::max(amount, m_level);
+          m_phase = Phase::Attack;
+          m_holdLeft = ctx.param<float>("hold");
+          budget = 0.f;
+        }
+        advance(ctx.param<float>("attack"), ctx.param<float>("decay"), budget);
+        outputs.emplace("value", m_level);
+      }
+
+      bool checkStateInvariants() const override { return std::isfinite(m_level) && std::isfinite(m_peak); }
+      void resetState() override { *this = EnvelopeNode{}; }
+
+    private:
+      enum class Phase { Idle, Attack, Hold, Decay };
+
+      void advance(float attack, float decay, float budget)
+      {
+        if(m_peak <= 0.f){
+          m_level = 0.f;
+          m_phase = Phase::Idle;
+        }
+        while(m_phase != Phase::Idle){
+          if(m_phase == Phase::Attack){
+            float need = attack <= 0.f ? 0.f : (m_peak - m_level) / m_peak * attack;
+            if(budget < need){
+              m_level += m_peak / attack * budget;
+              return;
+            }
+            budget -= need;
+            m_level = m_peak;
+            m_phase = Phase::Hold;
+          }else if(m_phase == Phase::Hold){
+            if(budget < m_holdLeft){
+              m_holdLeft -= budget;
+              return;
+            }
+            budget -= m_holdLeft;
+            m_holdLeft = 0.f;
+            m_phase = Phase::Decay;
+          }else{
+            float need = decay <= 0.f ? 0.f : m_level / m_peak * decay;
+            if(budget < need){
+              m_level -= m_peak / decay * budget;
+              return;
+            }
+            m_level = 0.f;
+            m_phase = Phase::Idle;
+          }
+        }
+      }
+
+      std::vector<PortDecl> m_in{
+        {"trigger", PortType::Trigger, true, "Each pulse starts or restarts the envelope."},
+        {"amount", PortType::Float, false, "The peak level; param amount is used when unwired."}};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false, "The envelope level, 0 up to the peak."}};
+      Phase m_phase = Phase::Idle;
+      float m_level = 0.f;
+      float m_peak = 0.f;
+      float m_holdLeft = 0.f;
+    };
+
     // Free-running: phase advances by rateHz * dt from graph start and is
     // not reset by param edits.
     class LfoNode : public INode
@@ -261,34 +344,50 @@ namespace Aurora::Runtime::Graph
   void registerTimeNodes(NodeRegistry& registry)
   {
     addState<float, float>(registry, "smooth.exp",
-      {.purpose = "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
+      {.title = "Smooth",
+       .group = "Motion",
+       .summary = "Eases a number gently toward its new value.",
+       .tip = "Use to calm a jumpy signal before it drives something.",
+       .purpose = "Ease a Float toward its input; tau seconds to cover ~63% of a step at any tick rate.",
        .useWhen = "Damp a jumpy signal, e.g. rms into a brightness envelope.",
        .example = "{\"id\": \"damp\", \"type\": \"smooth.exp\", \"params\": {\"tau\": 0.15}}"},
-      {"value", PortType::Float, true}, {"value", PortType::Float, false},
+      {"value", PortType::Float, true, "The Float to ease."}, {"value", PortType::Float, false, "The eased Float."},
       {tauParam(0.15f, "Smoothing time constant in seconds, 0 is instant.")},
       smoothExp);
 
     addState<Angle, Angle>(registry, "smooth.angle",
-      {.purpose = "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
+      {.title = "Smooth angle",
+       .group = "Motion",
+       .summary = "Eases an angle toward its target the short way.",
+       .tip = "Use to calm a jumpy hue before it drives a color.",
+       .purpose = "Ease an Angle toward its input along the shortest arc, wrapping at 360.",
        .useWhen = "Damp a hue target, e.g. the beat swing in a bounce.",
        .example = "{\"id\": \"hue\", \"type\": \"smooth.angle\", \"params\": {\"tau\": 0.15}}"},
-      {"angle", PortType::Angle, true}, {"angle", PortType::Angle, false},
+      {"angle", PortType::Angle, true, "The Angle to ease."}, {"angle", PortType::Angle, false, "The eased Angle."},
       {tauParam(0.15f, "Smoothing time constant in seconds, 0 is instant.")},
       smoothAngle);
 
     addState<float, float>(registry, "rollingAverage",
-      {.purpose = "Running average of a Float over about tau seconds, independent of tick rate.",
+      {.title = "Rolling average",
+       .group = "Motion",
+       .summary = "The recent average of a number over time.",
+       .tip = "Use to get a slow baseline to compare a signal against.",
+       .purpose = "Running average of a Float over about tau seconds, independent of tick rate.",
        .useWhen = "Get a slow baseline to compare a signal against, e.g. centroid deviation.",
        .example = "{\"id\": \"base\", \"type\": \"rollingAverage\", \"params\": {\"tau\": 0.8}}"},
-      {"value", PortType::Float, true}, {"value", PortType::Float, false},
+      {"value", PortType::Float, true, "The Float to average."}, {"value", PortType::Float, false, "The running average."},
       {tauParam(0.8f, "Averaging time constant in seconds, 0 passes the input through.")},
       smoothExp);
 
     addState<float, Angle>(registry, "integrate",
-      {.purpose = "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
+      {.title = "Integrate",
+       .group = "Motion",
+       .summary = "Turns a speed into an angle that keeps turning.",
+       .tip = "Use to make a hue drift faster or slower with a signal.",
+       .purpose = "Accumulate a rate in degrees per second into an Angle that wraps at 360.",
        .useWhen = "Turn a speed signal into a hue position, e.g. drift's rate into its anchor.",
        .example = "{\"id\": \"anchor\", \"type\": \"integrate\", \"params\": {\"initial\": 0}}"},
-      {"rate", PortType::Float, true}, {"angle", PortType::Angle, false},
+      {"rate", PortType::Float, true, "Rate in degrees per second."}, {"angle", PortType::Angle, false, "The accumulated Angle."},
       {floatParam("initial", "Initial", 0.f, 360.f, 0.f, "deg", "Angle on the first tick.")},
       integrate);
 
@@ -296,15 +395,45 @@ namespace Aurora::Runtime::Graph
       "stepOnTrigger",
       NodeTypeInfo{
         .meta =
-          {.purpose = "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
+          {.title = "Step on trigger",
+           .group = "Motion",
+           .summary = "Jumps an angle by a fixed step on each trigger.",
+           .tip = "Use to jump the hue on each beat.",
+           .purpose = "Add a step to an Angle on each Trigger pulse and hold it between pulses.",
            .useWhen = "Swing a hue on each beat, e.g. onset strength times 180 degrees per onset.",
            .example = "{\"id\": \"swing\", \"type\": \"stepOnTrigger\", \"params\": {\"scale\": 1}}"},
-        .inputs = {{"trigger", PortType::Trigger, true}, {"amount", PortType::Float, false}},
-        .outputs = {{"angle", PortType::Angle, false}},
+        .inputs = {{"trigger", PortType::Trigger, true, "Each pulse adds one step."},
+                   {"amount", PortType::Float, false, "Scales the step; param scale alone is the step when unwired."}},
+        .outputs = {{"angle", PortType::Angle, false, "The accumulated Angle, held between pulses."}},
         .params = {floatParam(
           "scale", "Scale", -1.0e6f, 1.0e6f, 1.f, "",
           "Degrees per pulse: multiplies 'amount', or is the whole step when 'amount' is unconnected.")},
         .factory = [] { return std::make_unique<StepOnTriggerNode>(); },
+      });
+
+    registry.registerType(
+      "trigger.envelope",
+      NodeTypeInfo{
+        .meta =
+          {.title = "Envelope",
+           .group = "Motion",
+           .summary = "Turns each trigger into a flash that fades out.",
+           .tip = "Use for a beat flash with a sharp hit and slow fade.",
+           .purpose = "On each Trigger rise to the peak over attack seconds, hold it for hold seconds, "
+                      "then fall to 0 over decay seconds. A new trigger rises from the current level.",
+           .useWhen = "Flash on a beat, e.g. audio.features onset into frame.brightnessScale factor. "
+                      "Attack 0 hits at once, hold keeps it on.",
+           .example = "{\"id\": \"flash\", \"type\": \"trigger.envelope\", \"params\": {\"attack\": 0, "
+                      "\"hold\": 0.05, \"decay\": 0.4}}"},
+        .inputs = {{"trigger", PortType::Trigger, true, "Each pulse starts or restarts the envelope."},
+                   {"amount", PortType::Float, false, "The peak level; param amount is used when unwired."}},
+        .outputs = {{"value", PortType::Float, false, "The envelope level, 0 up to the peak."}},
+        .params =
+          {floatParam("attack", "Attack", 0.f, 60.f, 0.f, "s", "Seconds to rise to the peak, 0 is instant."),
+           floatParam("hold", "Hold", 0.f, 60.f, 0.f, "s", "Seconds to stay at the peak."),
+           floatParam("decay", "Decay", 0.f, 60.f, 0.5f, "s", "Seconds to fall from the peak to 0, 0 is instant."),
+           floatParam("amount", "Amount", 0.f, 1.0e6f, 1.f, "", "The peak level when input amount is not wired.")},
+        .factory = [] { return std::make_unique<EnvelopeNode>(); },
       });
 
     ParamDecl shape;
@@ -320,12 +449,16 @@ namespace Aurora::Runtime::Graph
       "lfo",
       NodeTypeInfo{
         .meta =
-          {.purpose = "Free-running oscillator between min and max at rateHz.",
+          {.title = "LFO",
+           .group = "Sources",
+           .summary = "A number that rises and falls steadily on its own.",
+           .tip = "Use for slow breathing movement when there is no music.",
+           .purpose = "Free-running oscillator between min and max at rateHz.",
            .useWhen = "Slow modulation with no audio, e.g. a breathing brightness.",
            .example =
              "{\"id\": \"breathe\", \"type\": \"lfo\", \"params\": {\"shape\": \"sine\", \"rateHz\": 0.2}}"},
         .inputs = {},
-        .outputs = {{"value", PortType::Float, false}},
+        .outputs = {{"value", PortType::Float, false, "The oscillator value between min and max."}},
         .params =
           {shape,
            floatParam("rateHz", "Rate", 0.f, 100.f, 1.f, "Hz", "Cycles per second."),
@@ -338,14 +471,18 @@ namespace Aurora::Runtime::Graph
       "noise",
       NodeTypeInfo{
         .meta =
-          {.purpose = "Smooth random wander between min and max, drifting to a new random target about "
+          {.title = "Noise",
+           .group = "Sources",
+           .summary = "A number that wanders randomly but smoothly.",
+           .tip = "Use for natural, unpredictable drift in color or brightness.",
+           .purpose = "Smooth random wander between min and max, drifting to a new random target about "
                       "rateHz times per second. Irregular where lfo is periodic.",
            .useWhen = "Flicker with no audio, e.g. a candle or fire brightness. Use image.noise for "
                       "independent flicker per light.",
            .example = "{\"id\": \"flicker\", \"type\": \"noise\", \"params\": {\"rateHz\": 6, \"min\": 0.6}}",
            .cost = "cheap"},
         .inputs = {},
-        .outputs = {{"value", PortType::Float, false}},
+        .outputs = {{"value", PortType::Float, false, "The random value between min and max."}},
         .params =
           {floatParam("rateHz", "Rate", 0.f, 100.f, 1.f, "Hz", "New random targets per second."),
            floatParam("min", "Min", -1.0e6f, 1.0e6f, 0.f, "", "Output at the bottom of the range."),

@@ -6,6 +6,8 @@
 // (include/Huenicorn/Imaging/UV.hpp). Already the right shape for a
 // normalized bounding box -- doubles as the type for a hand-authored zone
 // today and a detection bbox later (see OpenFormatsResearch.md).
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Contracts
 {
   using UV = glm::vec2;

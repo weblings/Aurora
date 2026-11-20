@@ -8,6 +8,8 @@
 // docs/LinuxCaptureAnalysis.md). Only X11 is wired to a real
 // implementation this pass -- the Pipewire outcomes are real decisions
 // today, with the grabber to construct for them still pending.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Input::Linux
 {
   enum class Backend

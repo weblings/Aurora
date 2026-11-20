@@ -1,0 +1,17 @@
+/* Stage 7.0g (Aurora-u8jx.6): Preview island. Controls are Grille (.ui-button and the mock's shared menu);
+   only the card and the cell grid are local. The card takes Grille's popup surface so its buttons (control-bg) show on it. */
+.pv-card { --pad: var(--ui-size-space-md); width: max-content; min-width: calc(8 * 16px - 2px + 2 * var(--pad)); padding: var(--pad); box-sizing: border-box; display: flex; flex-direction: column; gap: var(--ui-size-space-md); background: var(--ui-color-popup-bg); border: 1px solid var(--ui-color-popup-border); border-radius: var(--ui-size-radius-sm); box-shadow: var(--ui-shadow-popup); }
+.pv-card .ui-button { box-shadow: none; width: 100%; justify-content: space-between; }
+.pv-card .ge-zmap { margin: 0; }
+.pv-shell { position: relative; z-index: 2; }
+.pv-note { padding: 4px var(--ui-size-space-md); background: #000; border-bottom: 1px dashed var(--ui-color-text-muted); font-size: 11px; color: var(--ui-color-text-muted); }
+.pv-note p { margin: 1px 0; }
+.pv-note b { font-weight: var(--ui-font-weight-semibold); }
+/* Idle, the Preview row blends into the card (as the borderless ge-ghost variant does); fill only on hover. */
+.pv-card .pv-toggle { background: transparent; }
+.pv-card .pv-toggle:hover { background: var(--ui-color-control-bg-hover); }
+.pv-card .pv-toggle:active { background: var(--ui-color-control-bg-active); }
+.pv-lock { display: block; }
+/* The layout name follows the title button: the button caps at 28ch (.editor-title-menu) and its label ends in an ellipsis. */
+.pv-card .pv-layout { max-width: 28ch; }
+.pv-card .pv-layout .pv-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

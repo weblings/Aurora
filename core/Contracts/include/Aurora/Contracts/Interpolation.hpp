@@ -8,6 +8,8 @@
 // Processing: it's shared vocabulary consumed by config/UI (a dropdown of
 // available interpolation kinds) as well as by Processing's own rescale(),
 // not internal Processing logic.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Contracts
 {
   namespace Interpolation

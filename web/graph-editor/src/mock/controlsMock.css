@@ -1,0 +1,1180 @@
+/* Controls panel mock (Aurora-e4bi.1). Dev-only page, not in the build.
+   Unlayered, so it wins over Grille's @layer ui. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--ui-color-surface-page);
+  color: var(--ui-color-text-default);
+  font-family: var(--ui-font-family-sans);
+}
+
+/* Mock annotation: dashed, never editor UI. */
+.cp-strip {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--strip);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px dashed var(--ui-color-border-default);
+  font-size: 12px;
+  color: var(--ui-color-text-muted);
+  white-space: nowrap;
+}
+.cp-strip select,
+.cp-strip button {
+  font: inherit;
+  background: var(--ui-color-control-bg);
+  color: var(--ui-color-text-default);
+  border: 0;
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.cp-strip a {
+  color: var(--ui-color-text-link);
+}
+
+.cp-canvas {
+  position: fixed;
+  inset: var(--strip) 0 0 0;
+  background-color: #111;
+  background-image: radial-gradient(#2a2a2a 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.cp-note {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: 340px;
+  padding: 8px 10px;
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: 6px;
+  background: rgb(10 10 10 / 0.85);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ui-color-text-muted);
+}
+.cp-measure {
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The corner button, placed as the editor places it (editor.css, daaa.29.4). */
+.cp-corner {
+  position: fixed;
+  right: 15px;
+  bottom: 15px;
+}
+.cp-corner-count,
+.cp-title-count {
+  margin-left: var(--ui-size-space-sm);
+  color: var(--ui-color-text-muted);
+  font-weight: var(--ui-font-weight-regular);
+}
+.cp-root[data-drawer='right'] .cp-corner {
+  right: calc(var(--ui-size-drawer-width) + 15px);
+}
+.cp-root[data-drawer='bottom'] .cp-corner {
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--strip)) / 2) + 15px);
+}
+.cp-root[data-drawer='full'] .cp-corner {
+  display: none;
+}
+
+/* Head: content actions, a rule, then window controls. */
+.cp-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-xs);
+}
+.cp-head-rule {
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--ui-size-space-sm);
+  background: var(--ui-color-border-default);
+}
+
+/* Wide dock (portrait monitor): cap the list at the shell's 640 px column. */
+
+
+.cp-tree {
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.cp-item {
+  outline: none;
+}
+
+/* Section heading: the Dashboard accordion pill (dashboard.css .accordion-header), one fill step up
+   because the drawer is already --aurora-surface. Rows are flat siblings, so sticky headings stack
+   and the latest one covers the rest. */
+.cp-item-sec {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: var(--ui-size-space-lg);
+  background: var(--ui-color-popup-bg);
+}
+.cp-tree > .cp-item-sec:first-child,
+.cp-tree > .cp-drop:first-child + .cp-item-sec {
+  padding-top: 0;
+}
+.cp-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 36px;
+  box-sizing: border-box;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-xs) var(--ui-size-space-md);
+  border-radius: var(--aurora-radius-accordion);
+  background: var(--aurora-surface-hover);
+  font-size: 14px;
+  color: var(--aurora-text-primary);
+  cursor: pointer;
+}
+.cp-sec-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-count {
+  flex: 1;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-muted);
+}
+.cp-chev {
+  color: var(--aurora-text-secondary);
+}
+.cp-chev .ui-icon {
+  transition: rotate 0.1s;
+}
+.cp-item[data-expanded] .cp-chev .ui-icon {
+  rotate: 180deg;
+}
+.cp-empty {
+  margin: var(--ui-size-space-xs) 0 0 var(--ui-size-space-lg);
+  padding: var(--ui-size-space-md);
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+
+/* Card: outline, one text tier. */
+.cp-item-card {
+  margin-top: var(--ui-size-space-xs);
+}
+.cp-item-card[data-level='2'] {
+  padding-left: var(--ui-size-space-lg);
+}
+.cp-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 3px var(--ui-size-space-xs) 3px var(--ui-size-space-md);
+  border: 1px solid var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-default);
+}
+.cp-card:hover {
+  background: var(--aurora-surface-selected);
+}
+.cp-item[data-selected] .cp-card {
+  border-color: var(--ui-color-text-muted);
+}
+.cp-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-tip-sub {
+  color: var(--ui-color-text-muted);
+}
+
+.cp-item[data-focus-visible] .cp-card,
+.cp-item[data-focus-visible] .cp-pill {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: var(--ui-size-focus-ring-offset);
+}
+
+/* Grip: faint until its row is hovered. */
+.cp-grip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--ui-color-text-disabled);
+  cursor: grab;
+  outline: none;
+}
+.cp-pill:hover .cp-grip,
+.cp-card:hover .cp-grip {
+  color: var(--ui-color-text-muted);
+}
+.cp-grip[data-focus-visible] {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+}
+.cp-grip-space {
+  flex: none;
+  width: 12px;
+}
+
+/* Drag and drop states, from React Aria's data attributes. */
+.cp-item[data-dragging] {
+  opacity: 0.5;
+}
+.cp-item[data-drop-target] .cp-pill {
+  background: var(--ui-color-control-bg-hover);
+  outline: 1px solid var(--ui-color-control-accent);
+}
+.cp-drop {
+  height: 0;
+  outline: none;
+}
+.cp-drop-card {
+  margin-left: var(--ui-size-space-lg) !important;
+}
+.cp-drop[data-drop-target] {
+  position: relative;
+  z-index: 3;
+  height: 2px;
+  margin: -1px 0;
+  border-radius: 1px;
+  background: var(--ui-color-control-accent);
+}
+
+.cp-hint {
+  margin: 0;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-muted);
+}
+
+/* The editor centres its toast on the window, under any drawer (z 20 vs 30), so an open drawer hides Undo.
+   The mock centres it on the canvas left over. */
+.cp-root[data-drawer='right'] .editor-toast {
+  left: calc((100% - var(--ui-size-drawer-width)) / 2);
+}
+.cp-root[data-drawer='bottom'] .editor-toast {
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--strip)) / 2) + 15px);
+}
+
+/* Section name dialog, Grille only. */
+.cp-gdialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-xl);
+  /* StatusMessage inherits its size; Grille consumers set it on the page. */
+  font-size: var(--ui-size-font-sm);
+}
+.cp-gdialog .ui-text-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Message cards. The live region stays mounted, so a card draws only with text.
+   Error and notice share the treatment from the strip: tinted in their own Grille tone colour, or raised. */
+.cp-gdialog .ui-status-message {
+  margin: 0;
+}
+.cp-gdialog .ui-status-message:empty {
+  display: none;
+}
+.cp-gdialog .ui-status-message:not(:empty) {
+  --tone: var(--ui-color-text-error);
+  padding: var(--ui-size-callout-pad-y) var(--ui-size-callout-pad-x);
+  border-radius: var(--ui-size-radius-md);
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-gdialog .ui-status-message[data-tone='warning'] {
+  --tone: var(--ui-color-text-warning);
+}
+/* Notice: Grille's neutral tone, no colour to tint with, so always the raised card. */
+.cp-gdialog .ui-status-message[data-tone='neutral'] {
+  color: var(--ui-color-text-secondary);
+}
+/* Tinted: the tone colour mixed into the surface. Needs Grille error and warning surface tokens. */
+.cp-err-tint .ui-status-message:not(:empty):not([data-tone='neutral']),
+.cp-err-house .ui-status-message[data-tone='error'] {
+  background: color-mix(in srgb, var(--tone) 10%, var(--ui-color-popup-bg));
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--ui-color-popup-bg));
+}
+/* Centred icon: Grille sits it on the first line (baseline row plus a translate). */
+.cp-icon-centre .ui-status-message {
+  align-items: center;
+}
+.cp-icon-centre .ui-status-message > .ui-icon {
+  translate: none;
+}
+.cp-gdialog .ui-text-input::placeholder {
+  color: var(--ui-color-text-muted);
+}
+
+/* Dialog states board: every message the unified dialog can show, live and editable. */
+.cp-board {
+  position: fixed;
+  inset: var(--strip) 0 0 0;
+  z-index: 40;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--ui-size-space-2xl) var(--ui-size-space-xl);
+  align-items: start;
+  padding: var(--ui-size-space-2xl);
+  background: var(--ui-color-surface-page);
+}
+.cp-board-item {
+  margin: 0;
+}
+.cp-board-item figcaption {
+  margin-bottom: var(--ui-size-space-md);
+  padding: var(--ui-size-space-xs) var(--ui-size-space-md);
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: var(--ui-size-radius-sm);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+.cp-board-item figcaption b {
+  color: var(--ui-color-text-secondary);
+}
+.cp-board .ui-modal {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Project rules (stage 7 words, shell.css marks): two tones only. Colour sits on the mark, text stays default.
+   Error: red-tinted card, red circled exclamation. Notice: raised card, circled info in the text colour. */
+.cp-err-house .ui-status-message:not(:empty) {
+  color: var(--ui-color-text-default);
+}
+.cp-err-house .ui-status-message[data-tone='error'] > .ui-icon {
+  color: var(--ui-color-text-error);
+}
+/* The shell row box (shell.css .shell-banner-row): no fill, 2px border, panel radius, 10/16 padding.
+   Notices take it as is; the error keeps its red tint (owner's pick) in the same shape. */
+.cp-err-house .ui-status-message:not(:empty) {
+  padding: var(--aurora-space-4) var(--aurora-space-6);
+  border-radius: var(--aurora-radius-panel);
+  text-wrap: pretty;
+}
+.cp-err-house .ui-status-message[data-tone='neutral'] {
+  background: none;
+  border: 2px solid var(--aurora-border);
+}
+.cp-err-house .ui-status-message[data-tone='error'] {
+  border-width: 2px;
+}
+/* Tint dropped (owner, 2026-11-16): the error is the shell row too, told apart only by its red mark. */
+.cp-err-house .ui-status-message[data-tone='error'] {
+  background: none;
+  border: 2px solid var(--aurora-border);
+}
+
+.cp-tip-note {
+  margin-top: var(--ui-size-space-xs);
+  color: var(--ui-color-text-secondary);
+}
+
+/* ---- Tuning and Node tabs (Aurora-e4bi.8). Plain on purpose: the review is about structure first. ---- */
+
+.cp-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Hand-built tablist on Grille's .ui-tab look (see the comment at tabList). */
+.cp-tabs {
+  display: flex;
+  gap: var(--ui-size-space-xs);
+  min-width: 0;
+  overflow: hidden;
+}
+.cp-tab {
+  flex: none;
+  padding: var(--ui-size-space-xs) var(--ui-size-space-lg);
+  font-size: var(--ui-size-font-sm);
+  white-space: nowrap;
+}
+.cp-tab-count {
+  margin-left: var(--ui-size-space-sm);
+  opacity: 0.7;
+}
+.cp-tab-fresh {
+  margin-left: var(--ui-size-space-sm);
+  padding: 0 5px;
+  border-radius: var(--ui-size-radius-pill);
+  background: var(--ui-color-control-accent);
+  color: var(--ui-color-text-on-primary);
+  font-size: var(--ui-size-font-xs);
+  animation: cp-fresh 2.5s ease-out forwards;
+}
+@keyframes cp-fresh {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.cp-head-slim {
+  justify-content: flex-end;
+}
+/* Variant b, after RockyRoadImport's SongConverter: Grille's tab list and sizes unchanged, centred, then the
+   3 px surface-raised rule Grille draws over .ui-tab-panel, bled to the drawer's edges, then the panel's 2xl. */
+.cp-tabs-b {
+  flex: none;
+  gap: var(--ui-size-space-md);
+  padding: 0 var(--ui-size-space-2xl);
+  overflow: visible;
+}
+.cp-tab-rule {
+  flex: none;
+  height: 3px;
+  /* Grille's surface-raised is the drawer's own #1a1a1a. RockyRoadImport's rule sits one step above its page
+     (#0a0a0a to #1a1a1a), so here it takes the drawer's next step, #2a2a2a. */
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-body[data-tabs='row'] {
+  padding-top: var(--ui-size-space-2xl);
+}
+/* Grille keys hover and focus on React Aria's data attributes; these tabs are plain buttons. */
+.cp-tabs .ui-tab:hover:not([data-selected]) {
+  background: var(--ui-color-control-bg-hover);
+}
+.cp-tabs .ui-tab:focus-visible {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: var(--ui-size-focus-ring-offset);
+}
+.cp-count-line {
+  margin: 0 0 var(--ui-size-space-md);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+
+/* Show from the added toast. */
+.cp-card[data-flash] {
+  animation: cp-flash 1.6s ease-out;
+}
+@keyframes cp-flash {
+  0%,
+  40% {
+    outline: 2px solid var(--ui-color-control-accent);
+    outline-offset: 1px;
+  }
+  100% {
+    outline: 2px solid transparent;
+  }
+}
+
+/* Node tab. Plain rows are reference; outlined rows carry one action. */
+.cp-node-title {
+  margin: 0;
+  font-size: var(--ui-size-font-md);
+}
+.cp-node-purpose {
+  margin: var(--ui-size-space-xs) 0 0;
+  font-size: var(--ui-size-font-sm);
+  color: var(--ui-color-text-secondary);
+}
+.cp-node-h {
+  display: flex;
+  justify-content: space-between;
+  margin: var(--ui-size-space-xl) 0 var(--ui-size-space-sm);
+  font-size: var(--ui-size-font-xs);
+  font-weight: var(--ui-font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ui-color-text-muted);
+}
+.cp-node-col {
+  font-weight: var(--ui-font-weight-regular);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.cp-port {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--ui-size-space-sm);
+  min-height: 26px;
+  font-size: var(--ui-size-font-sm);
+  outline: none;
+}
+.cp-port:focus-visible {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+}
+.cp-port-dir,
+.cp-port-type {
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+.cp-port-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cp-row-sub {
+  margin: 0 0 var(--ui-size-space-sm);
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-muted);
+}
+.cp-port-wrap .cp-row-sub {
+  padding-left: calc(30px + var(--ui-size-space-sm));
+}
+.cp-prow-wrap {
+  margin-top: var(--ui-size-space-xs);
+}
+.cp-prow .cp-label {
+  user-select: none;
+}
+.cp-prow:has(:focus-visible) {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: var(--ui-size-focus-ring-offset);
+}
+.cp-prow-wrap .cp-row-sub {
+  margin-top: 2px;
+  padding-left: var(--ui-size-space-md);
+}
+.cp-check {
+  margin: 0 var(--ui-size-space-xs);
+}
+
+/* Edit control: two fields, labels visible. */
+.cp-dfield {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-size-space-xs);
+}
+.cp-dfield-label {
+  font-size: var(--ui-size-font-xs);
+  color: var(--ui-color-text-secondary);
+}
+.cp-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.4;
+}
+.cp-grow {
+  field-sizing: content;
+  min-height: 2.4em;
+  max-height: 8.5em;
+  resize: none;
+}
+.cp-gdialog > .cp-dfield + .ui-status-message:not(:empty) {
+  margin-top: calc(-1 * var(--ui-size-space-md));
+}
+
+/* Canvas stand-ins: dashed, never editor UI. */
+.cp-fnodes {
+  position: absolute;
+  top: 120px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.cp-fnode {
+  min-width: 150px;
+  padding: 10px 12px;
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: 6px;
+  background: #1b1b1b;
+  color: var(--ui-color-text-default);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.cp-fnode[data-selected] {
+  border: 1px solid var(--ui-color-control-accent);
+}
+.cp-fnode-menu {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.cp-fnode-menu button {
+  padding: 2px 6px;
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: 4px;
+  background: none;
+  color: var(--ui-color-text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.cp-topbar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 1px dashed var(--ui-color-border-default);
+  border-radius: 6px;
+}
+.cp-topbar-stub {
+  font-size: 12px;
+  color: var(--ui-color-text-muted);
+}
+.cp-viewmenu {
+  position: absolute;
+  left: 15px;
+  bottom: 15px;
+}
+/* The top-bar stand-in takes the canvas top, so the note moves under it. */
+.cp-canvas:has(.cp-topbar) .cp-note {
+  top: 56px;
+}
+.cp-canvas:has(.cp-topbar) .cp-fnodes {
+  top: 170px;
+}
+/* Variant b: Tuning's panel menu at the top right of its own panel, under the rule. */
+.cp-panel-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin: calc(-1 * var(--ui-size-space-lg)) 0 var(--ui-size-space-sm);
+}
+
+/* Variant d: traditional tabs from Grille tokens. The strip is a recessed band in the page colour with a border
+   line; the selected tab takes the drawer's colour and covers that line, so it joins its panel. */
+.cp-head-d {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ui-size-space-sm);
+  padding: var(--ui-size-space-md) var(--ui-size-space-md) 0;
+  background: var(--ui-color-surface-page);
+  border-bottom: 1px solid var(--ui-color-border-default);
+}
+.cp-head-d .cp-head-actions {
+  align-self: center;
+}
+.cp-tabs-d {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ui-size-space-xs);
+  min-width: 0;
+  margin-bottom: -1px;
+  /* Room for the outer tabs' flares. */
+  padding: 0 var(--cp-flare);
+}
+.cp-head-d .cp-head-actions:empty {
+  display: none;
+}
+.cp-head-d {
+  --cp-flare: 8px;
+}
+/* Each tab widens toward the bottom: rounded top corners, then a concave flare on each side drawn by a
+   radial gradient in the tab's own colour. Unselected tabs are filled one step above the band. */
+.cp-tab-d {
+  /* Halfway between the band (surface-page) and the panel (popup-bg): Grille has no token for this step. */
+  --cp-tab-bg: color-mix(in srgb, var(--ui-color-popup-bg) 50%, var(--ui-color-surface-page));
+  position: relative;
+  flex: none;
+  padding: var(--ui-size-space-sm) var(--ui-size-space-lg);
+  border: 0;
+  border-radius: var(--ui-size-radius-md) var(--ui-size-radius-md) 0 0;
+  background: var(--cp-tab-bg);
+  color: var(--ui-color-text-muted);
+  font: inherit;
+  font-size: var(--ui-size-font-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+}
+.cp-tab-d::before,
+.cp-tab-d::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  width: var(--cp-flare);
+  height: var(--cp-flare);
+  pointer-events: none;
+}
+.cp-tab-d::before {
+  left: calc(-1 * var(--cp-flare));
+  background: radial-gradient(circle at 0 0, transparent calc(var(--cp-flare) - 0.5px), var(--cp-tab-bg) var(--cp-flare));
+}
+.cp-tab-d::after {
+  right: calc(-1 * var(--cp-flare));
+  background: radial-gradient(circle at 100% 0, transparent calc(var(--cp-flare) - 0.5px), var(--cp-tab-bg) var(--cp-flare));
+}
+.cp-tab-d:not([data-selected]) {
+  margin-bottom: 1px;
+}
+.cp-tab-d:hover:not([data-selected]) {
+  --cp-tab-bg: color-mix(in srgb, var(--ui-color-popup-bg) 80%, var(--ui-color-surface-page));
+  color: var(--ui-color-text-default);
+}
+.cp-tab-d[data-selected] {
+  --cp-tab-bg: var(--ui-color-popup-bg);
+  z-index: 1;
+  /* One px taller than its neighbours, so it covers the strip's bottom line and joins the panel. */
+  padding-bottom: calc(var(--ui-size-space-sm) + 1px);
+  color: var(--ui-color-text-default);
+}
+.cp-tab-d:focus-visible {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: -2px;
+}
+.cp-tab-d .cp-tab-count {
+  margin-left: var(--ui-size-space-sm);
+  color: var(--ui-color-text-muted);
+}
+.cp-body[data-tabs='trad'] {
+  padding-top: var(--ui-size-space-xl);
+}
+
+/* Edge control (switch Close): close and full height leave the head for a tab on the drawer's inner edge. */
+.cp-edge {
+  position: fixed;
+  z-index: 31;
+  display: flex;
+  background: var(--ui-color-popup-bg);
+  border: 1px solid var(--ui-color-popup-border);
+  box-shadow: var(--ui-shadow-popup);
+}
+.cp-edge[data-place='right'] {
+  flex-direction: column;
+  top: calc(var(--strip) + (100dvh - var(--strip)) / 2);
+  /* Overlaps the drawer by 1 px and clips its shadow on that side, so the tab reads as part of the drawer. */
+  right: calc(var(--ui-size-drawer-width) - 1px);
+  clip-path: inset(-24px 0 -24px -24px);
+  translate: 0 -50%;
+  border-right: 0;
+  border-radius: var(--ui-size-radius-md) 0 0 var(--ui-size-radius-md);
+}
+.cp-edge[data-place='right'][data-state='closed'] {
+  right: -1px;
+}
+.cp-edge[data-place='bottom'] {
+  left: 50%;
+  /* Ends on the drawer's 1 px top border, covering it, so the tab runs straight into the head below. */
+  bottom: max(var(--ui-size-drawer-height-min), (100dvh - var(--strip)) / 2);
+  clip-path: inset(-24px -24px 0 -24px);
+  translate: -50% 0;
+  border-bottom: 0;
+  border-radius: var(--ui-size-radius-md) var(--ui-size-radius-md) 0 0;
+}
+.cp-edge[data-place='bottom'][data-state='closed'] {
+  bottom: -1px;
+}
+/* Full height: the drawer's top meets the strip, so the tab hangs inside the drawer from its top edge. */
+.cp-edge[data-place='bottom'][data-state='full'] {
+  top: var(--strip);
+  bottom: auto;
+  border-top: 0;
+  border-bottom: 1px solid var(--ui-color-popup-border);
+  border-radius: 0 0 var(--ui-size-radius-md) var(--ui-size-radius-md);
+  box-shadow: none;
+}
+.cp-edge .cp-edge-btn {
+  width: 22px;
+  height: 44px;
+}
+.cp-edge[data-place='bottom'] .cp-edge-btn {
+  width: 44px;
+  height: 22px;
+}
+.cp-flip {
+  rotate: 180deg;
+}
+.cp-edge-icon {
+  display: inline-flex;
+}
+/* The dock's edge tab sits where the corner button would, so the corner button moves up past it. */
+.cp-root[data-edge][data-drawer='bottom'] .cp-corner {
+  bottom: calc(max(var(--ui-size-drawer-height-min), (100dvh - var(--strip)) / 2) + 15px + 24px);
+}
+/* Traditional tabs dock with the recessed band on top, so the edge tab takes the band's colour to join it. */
+.cp-root[data-tabs='trad'] .cp-edge[data-place='bottom'] {
+  background: var(--ui-color-surface-page);
+}
+
+/* Variant e: d's tab shape (rounded top, flared foot) without d's lost pixels or black band. Tabs sit flush on the
+   drawer's left and top edges, the strip is a dark grey, and the first tab drops the flare that would hang off
+   the edge. Unselected tabs are outlined in the strip's own colour, so they stay darker than the selected one. */
+.cp-root[data-tabs='flush'],
+.cp-root[data-tabs='fill'] {
+  --cp-strip-bg: color-mix(in srgb, var(--ui-color-popup-bg) 50%, var(--ui-color-surface-page));
+}
+.cp-head-e {
+  padding: 0;
+  background: var(--cp-strip-bg);
+}
+/* No gap above: the tabs start at the drawer's top edge and fill the strip, which keeps d's 43 px height. */
+.cp-tabs-e .cp-tab-d {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.cp-tabs-e .cp-tab-d[data-selected] {
+  min-height: 43px;
+}
+.cp-head-e .cp-head-actions {
+  padding-right: var(--ui-size-space-sm);
+}
+.cp-tabs-e {
+  padding: 0 var(--cp-flare) 0 0;
+}
+.cp-tabs-e .cp-tab-d:first-child::before {
+  display: none;
+}
+.cp-tabs-e .cp-tab-d:first-child[data-selected] {
+  border-top-left-radius: 0;
+}
+.cp-tabs-e .cp-tab-d:not([data-selected]) {
+  --cp-tab-bg: var(--cp-strip-bg);
+  border: 1px solid var(--ui-color-border-default);
+  border-bottom: 0;
+}
+.cp-tabs-e .cp-tab-d:not([data-selected])::before,
+.cp-tabs-e .cp-tab-d:not([data-selected])::after {
+  display: none;
+}
+.cp-tabs-e .cp-tab-d:hover:not([data-selected]) {
+  --cp-tab-bg: color-mix(in srgb, var(--ui-color-popup-bg) 50%, var(--cp-strip-bg));
+}
+.cp-body[data-tabs='flush'],
+.cp-body[data-tabs='fill'] {
+  padding-top: var(--ui-size-space-xl);
+}
+.cp-root[data-tabs='flush'] .cp-edge[data-place='bottom'],
+.cp-root[data-tabs='fill'] .cp-edge[data-place='bottom'] {
+  background: var(--cp-strip-bg);
+}
+
+/* Variant f: e's tabs share the strip's whole width. The last tab drops its right flare at the edge, as the
+   first drops its left. */
+.cp-tabs-f {
+  flex: 1;
+  padding: 0;
+}
+.cp-tabs-f .cp-tab-d {
+  flex: 1;
+  justify-content: center;
+}
+.cp-tabs-f .cp-tab-d:last-child::after {
+  display: none;
+}
+.cp-tabs-f .cp-tab-d:last-child[data-selected] {
+  border-top-right-radius: 0;
+}
+
+/* Close switch, Grabber and panel icon. Docked: a pill handle on a 16 px band at the drawer's top, inside the
+   drawer, so it never overlaps the tabs at half or full height. The band takes the tab strip's colour. */
+.cp-grab-band {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  background: var(--cp-strip-bg, var(--ui-color-popup-bg));
+}
+.cp-root[data-tabs='trad'] .cp-grab-band {
+  background: var(--ui-color-surface-page);
+}
+.cp-grabber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+.cp-grabber:focus-visible {
+  outline: var(--ui-size-focus-ring-width) solid var(--ui-color-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--ui-size-radius-sm);
+}
+.cp-grabber-pill {
+  width: 32px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ui-color-text-muted);
+}
+.cp-grabber:hover .cp-grabber-pill {
+  background: var(--ui-color-text-default);
+}
+.cp-grab-closed .cp-grabber {
+  height: 20px;
+  cursor: pointer;
+}
+@media (max-width: 649px) {
+  .cp-root[data-close='grab'][data-drawer='closed'] .cp-corner {
+    bottom: 36px;
+  }
+}
+
+/* Close switch, Grab tab. The closed state's small tab stays in every state. Its border and the drawer edge it sits
+   on go to 2 px, so the tab reads as part of the drawer. Docked at full height the drawer starts one tab lower
+   (GRAB_TAB), so the tab sits in that gap instead of over the top bar or the tabs. */
+.cp-root[data-close='tab'] .cp-drawer[data-side='bottom'] {
+  border-top-width: 2px;
+}
+.cp-root[data-close='tab'] .cp-drawer[data-side='right'] {
+  border-left-width: 2px;
+}
+.cp-grabtab {
+  border-width: 2px;
+}
+.cp-grabtab[data-place='bottom'] .cp-grabber {
+  /* 22 px plus the 2 px top border: the 24 px WCAG 2.5.8 minimum target. */
+  height: 22px;
+}
+.cp-grabtab[data-place='bottom'][data-state='full'] {
+  top: calc(var(--strip) + 2px);
+  bottom: auto;
+  border-top: 2px solid var(--ui-color-popup-border);
+  border-bottom: 0;
+  border-radius: var(--ui-size-radius-md) var(--ui-size-radius-md) 0 0;
+  box-shadow: none;
+}
+.cp-grabtab[data-place='bottom'][data-state='closed'] {
+  bottom: 0;
+}
+.cp-grabtab[data-place='right'] {
+  /* The drawer is drawer-width plus its 2 px border, so this overlaps exactly that border. */
+  right: var(--ui-size-drawer-width);
+}
+.cp-grabtab[data-place='right'][data-state='closed'] {
+  right: -2px;
+}
+.cp-grabber-v {
+  width: 20px;
+  height: 64px;
+  cursor: ew-resize;
+}
+.cp-grabber-v .cp-grabber-pill {
+  width: 4px;
+  height: 32px;
+}
+.cp-grabtab .cp-grabber[aria-label='Show panels'] {
+  cursor: pointer;
+}
+@media (max-width: 649px) {
+  .cp-root[data-close='tab'][data-drawer='closed'] .cp-corner {
+    bottom: 36px;
+  }
+}
+
+/* Panel model b, Tuning only (e4bi.8, 2026-11-17): stand-ins on GenericNode's own classes. */
+.cp-snodes {
+  position: absolute;
+  top: 150px;
+  left: 24px;
+  right: 24px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 24px;
+  overflow: auto;
+  padding: 2px 8px;
+}
+.cp-root[data-model='one'][data-drawer='right'] .cp-snodes {
+  right: 380px;
+}
+.cp-snode {
+  position: relative;
+  cursor: default;
+}
+.cp-snode[data-selected] {
+  border-color: var(--aurora-text-secondary);
+}
+.cp-snode[data-selected] .aurora-node-more {
+  opacity: 1;
+}
+.cp-handle {
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ui-color-text-muted);
+  transform: translateY(-50%);
+}
+.aurora-port-out .cp-handle {
+  left: auto;
+  right: -5px;
+}
+.cp-taphint {
+  display: inline-flex;
+}
+.cp-taphint[data-open] .aurora-port-name,
+.cp-taphint[data-open] .param-label {
+  text-decoration: underline dotted;
+}
+.cp-taphint-pop {
+  max-width: 260px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cp-menu-desc {
+  max-width: 260px;
+  margin: 0;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--ui-color-popup-border);
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cp-pick {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px; /* Grille's ui-menu-item metrics: 13 px, 6 px by 8 px */
+  min-width: 220px;
+  max-width: 300px;
+}
+.cp-pick-title {
+  padding: 6px 8px;
+  color: var(--ui-color-text-muted);
+  font-size: 12px;
+}
+.cp-pick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: var(--ui-size-radius-sm);
+  cursor: pointer;
+}
+.cp-pick-row:hover {
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-pick-open:hover,
+.cp-pick-open:focus-visible {
+  background: var(--ui-color-popup-bg-hover);
+}
+.cp-pick-open {
+  border-radius: var(--ui-size-radius-sm);
+  margin: 4px 0 2px;
+  padding: 6px 8px;
+  border: 0;
+  border-top: 1px solid var(--ui-color-popup-border);
+  background: none;
+  color: var(--ui-color-control-accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cp-head-one {
+  align-items: center;
+}
+.cp-one-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+/* Card double-click pings the param on its node: a ring inset 4 px from the node's sides, so it never touches the
+   selection outline (owner, 2026-11-17). Timing from shell.css's shell-ping (not loaded here). */
+.param[data-ping] {
+  position: relative;
+}
+.param[data-ping]::after {
+  content: '';
+  position: absolute;
+  inset: 2px 4px;
+  border-radius: var(--aurora-radius-control);
+  pointer-events: none;
+  animation: cp-ping 1375ms ease-out 2;
+}
+@keyframes cp-ping {
+  0% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  100% { box-shadow: inset 0 0 0 2px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .param[data-ping]::after {
+    animation: cp-ping-hold 1375ms 1;
+  }
+  @keyframes cp-ping-hold {
+    0%, 100% { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--aurora-text-primary) 60%, transparent); }
+  }
+}
+.cp-root[data-model='one'][data-drawer='bottom'] .cp-snodes {
+  bottom: calc(var(--cp-dock, 0px) + 12px);
+}
+
+/* e4bi.8 critique 3: Grille's dot after the param label when the param is in Tuning. Neutral, never amber
+   (amber marks graph problems). */
+.cp-param-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.cp-tuning-mark {
+  flex: none;
+  display: inline-flex;
+  color: var(--aurora-text-primary);
+}
+.cp-tuning-mark[data-look='muted'] {
+  color: var(--aurora-text-secondary);
+}
+.cp-tuning-mark[data-look='dim'] {
+  color: var(--ui-color-text-muted);
+}
+.cp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* e4bi.14 Show hit areas, mock-only colours: blue opens the param menu, green keeps the browser's menu, the rest
+   of the node opens the node menu. */
+.cp-root[data-hits][data-hit='row'] .cp-snode .param,
+.cp-root[data-hits][data-hit='nofield'] .cp-snode .param,
+.cp-root[data-hits][data-hit='label'] .cp-snode .cp-param-line {
+  background: rgb(70 130 255 / 0.22);
+  box-shadow: inset 0 0 0 1px rgb(70 130 255 / 0.6);
+}
+.cp-root[data-hits][data-hit='nofield'] .cp-snode .param input[type='number'] {
+  outline: 2px solid rgb(60 200 90);
+  outline-offset: 1px;
+}
+
+/* e4bi.14 picker variant b: over the node (no room beside it), a gap under the header and a deeper shadow. */
+.ui-popover:has(.cp-pick-lift) {
+  margin-top: 8px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.65);
+}

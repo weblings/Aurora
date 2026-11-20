@@ -1,0 +1,4 @@
+# Spec tooling only (docs/api/). Install into a venv, never system-wide.
+openapi-spec-validator==0.9.0
+schemathesis==4.32.5
+PyYAML==6.0.3

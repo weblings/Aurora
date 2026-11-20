@@ -1,5 +1,7 @@
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 
+#include <Aurora/Contracts/PickIndex.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -83,8 +85,8 @@ namespace Aurora::Runtime::Graph
           const auto& seed = ctx.param<std::optional<float>>("seed");
           std::mt19937 rng{
             seed ? static_cast<std::mt19937::result_type>(*seed) : std::random_device{}()};
-          std::uniform_int_distribution<size_t> dist(0, kPairAnchors.size() - 1);
-          m_value = kPairAnchors[dist(rng)];
+          m_value = kPairAnchors[Aurora::Contracts::pickIndex(
+            rng, static_cast<std::uint32_t>(kPairAnchors.size()))];
           m_picked = true;
         }
         outputs.emplace("anchor", Angle{m_value});
@@ -168,14 +170,18 @@ namespace Aurora::Runtime::Graph
   void registerColorNodes(NodeRegistry& registry)
   {
     add(registry, "color.fromHSV",
-      {.purpose = "Build a Color from a hue Angle plus saturation and value (0..1).",
+      {.title = "Color from HSV",
+       .group = "Color",
+       .summary = "Builds a color from hue, saturation and brightness.",
+       .tip = "Use to turn signals into a color you can steer.",
+       .purpose = "Build a Color from a hue Angle plus saturation and value (0..1).",
        .useWhen = "Turn a hue and a brightness signal into a color, e.g. bounce's hue with rms as value.",
        .example =
          "{\"id\": \"col\", \"type\": \"color.fromHSV\", \"params\": {\"saturation\": 1, \"value\": 1}}"},
-      {{"hue", PortType::Angle, true},
-       {"saturation", PortType::Float, false},
-       {"value", PortType::Float, false}},
-      {{"color", PortType::Color, false}},
+      {{"hue", PortType::Angle, true, "Hue of the color."},
+       {"saturation", PortType::Float, false, "Saturation 0..1; param saturation is used when unwired."},
+       {"value", PortType::Float, false, "Brightness (HSV value) 0..1; param value is used when unwired."}},
+      {{"color", PortType::Color, false, "The built color."}},
       {floatParam("saturation", "Saturation", 0.f, 1.f, 1.f, "",
          "Used when the 'saturation' input is unconnected."),
        floatParam("value", "Value", 0.f, 1.f, 1.f, "", "Used when the 'value' input is unconnected.")},
@@ -188,13 +194,17 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "color.constant",
-      {.purpose = "A fixed Color from hue, saturation and value params, no inputs.",
+      {.title = "Color",
+       .group = "Sources",
+       .summary = "One fixed color you choose.",
+       .tip = "Use for a steady color, like a warm tint.",
+       .purpose = "A fixed Color from hue, saturation and value params, no inputs.",
        .useWhen = "Supply a fixed color, e.g. a warm tint for frame.tint or a mix target.",
        .example =
          "{\"id\": \"warm\", \"type\": \"color.constant\", \"params\": {\"hue\": 30, \"saturation\": 0.8, "
          "\"value\": 1}}"},
       {},
-      {{"color", PortType::Color, false}},
+      {{"color", PortType::Color, false, "The fixed color."}},
       {floatParam("hue", "Hue", 0.f, 360.f, 0.f, "deg", "Hue of the color in degrees."),
        floatParam("saturation", "Saturation", 0.f, 1.f, 1.f, "", "Saturation of the color."),
        floatParam("value", "Value", 0.f, 1.f, 1.f, "", "Brightness (HSV value) of the color.")},
@@ -207,11 +217,15 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "angle.constant",
-      {.purpose = "A fixed Angle from a degrees param, no inputs.",
+      {.title = "Angle",
+       .group = "Sources",
+       .summary = "One fixed angle you choose.",
+       .tip = "Use for a steady hue or offset on the color wheel.",
+       .purpose = "A fixed Angle from a degrees param, no inputs.",
        .useWhen = "Supply a fixed hue or offset, e.g. a color.fromHSV hue or an angle.add offset.",
        .example = "{\"id\": \"teal\", \"type\": \"angle.constant\", \"params\": {\"degrees\": 180}}"},
       {},
-      {{"angle", PortType::Angle, false}},
+      {{"angle", PortType::Angle, false, "The fixed angle."}},
       {floatParam("degrees", "Degrees", 0.f, 360.f, 0.f, "deg", "The angle in degrees, wrapped at 360.")},
       [](const EvalContext& c, Outputs& out) {
         float degrees = c.param<float>("degrees");
@@ -220,13 +234,17 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "color.toHSV",
-      {.purpose = "Split a Color into hue (Angle), saturation and value (Floats, 0..1).",
+      {.title = "Color to HSV",
+       .group = "Color",
+       .summary = "Splits a color into hue, saturation and brightness.",
+       .tip = "Use to read part of a color and drive something else.",
+       .purpose = "Split a Color into hue (Angle), saturation and value (Floats, 0..1).",
        .useWhen = "Read a video color's hue to drive another node.",
        .example = "{\"id\": \"split\", \"type\": \"color.toHSV\", \"params\": {}}"},
-      {{"color", PortType::Color, true}},
-      {{"hue", PortType::Angle, false},
-       {"saturation", PortType::Float, false},
-       {"value", PortType::Float, false}},
+      {{"color", PortType::Color, true, "The color to split."}},
+      {{"hue", PortType::Angle, false, "Hue of the color."},
+       {"saturation", PortType::Float, false, "Saturation 0..1."},
+       {"value", PortType::Float, false, "HSV value (brightness) 0..1."}},
       {},
       [](const EvalContext& c, Outputs& out) {
         glm::vec3 hsv = c.input<Color>("color").toHSV();
@@ -236,22 +254,32 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "color.brightness",
-      {.purpose = "Perceived brightness of a Color as a Float 0..1 (weighted RGB, not HSV value).",
+      {.title = "Color brightness",
+       .group = "Color",
+       .summary = "How bright a color looks, as a number.",
+       .tip = "Use to react to how bright a color appears.",
+       .purpose = "Perceived brightness of a Color as a Float 0..1 (weighted RGB, not HSV value).",
        .useWhen = "Gate or scale something by how bright a color looks.",
        .example = "{\"id\": \"luma\", \"type\": \"color.brightness\", \"params\": {}}"},
-      {{"color", PortType::Color, true}},
-      {{"value", PortType::Float, false}},
+      {{"color", PortType::Color, true, "The color to measure."}},
+      {{"value", PortType::Float, false, "Perceived brightness 0..1."}},
       {},
       [](const EvalContext& c, Outputs& out) {
         out.emplace("value", c.input<Color>("color").brightness());
       });
 
     add(registry, "color.mix",
-      {.purpose = "Blend Color a toward Color b by t (0 gives a, 1 gives b, clamped), in RGB.",
+      {.title = "Mix colors",
+       .group = "Color",
+       .summary = "Blends two colors into one.",
+       .tip = "Use to crossfade between two colors.",
+       .purpose = "Blend Color a toward Color b by t (0 gives a, 1 gives b, clamped), in RGB.",
        .useWhen = "Crossfade two colors, e.g. a video color with the audio color.",
        .example = "{\"id\": \"blend\", \"type\": \"color.mix\", \"params\": {\"t\": 0.5}}"},
-      {{"a", PortType::Color, true}, {"b", PortType::Color, true}, {"t", PortType::Float, false}},
-      {{"color", PortType::Color, false}},
+      {{"a", PortType::Color, true, "Color at t = 0."},
+       {"b", PortType::Color, true, "Color at t = 1."},
+       {"t", PortType::Float, false, "Blend amount 0..1; param t is used when unwired."}},
+      {{"color", PortType::Color, false, "The blended color."}},
       {floatParam("t", "Mix", 0.f, 1.f, 0.5f, "", "Blend amount when the 't' input is unconnected.")},
       [](const EvalContext& c, Outputs& out) {
         float t = std::clamp(inputOrParam(c, "t"), 0.f, 1.f);
@@ -261,11 +289,16 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "color.hueShift",
-      {.purpose = "Rotate a Color's hue by degrees, keeping saturation and value.",
+      {.title = "Hue shift",
+       .group = "Color",
+       .summary = "Turns a color around the color wheel.",
+       .tip = "Use to get a nearby color from one you have.",
+       .purpose = "Rotate a Color's hue by degrees, keeping saturation and value.",
        .useWhen = "Offset a color around the wheel, e.g. +30 for an analogous accent.",
        .example = "{\"id\": \"accent\", \"type\": \"color.hueShift\", \"params\": {\"degrees\": 30}}"},
-      {{"color", PortType::Color, true}, {"degrees", PortType::Float, false}},
-      {{"color", PortType::Color, false}},
+      {{"color", PortType::Color, true, "The color to rotate."},
+       {"degrees", PortType::Float, false, "Degrees to rotate the hue; param degrees is used when unwired."}},
+      {{"color", PortType::Color, false, "The color with its hue rotated."}},
       {floatParam("degrees", "Degrees", -360.f, 360.f, 0.f, "deg",
          "Hue rotation when the 'degrees' input is unconnected.")},
       [](const EvalContext& c, Outputs& out) {
@@ -273,11 +306,15 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "color.complement",
-      {.purpose = "The opposite color on the wheel: hue plus 180 degrees.",
+      {.title = "Complement",
+       .group = "Color",
+       .summary = "The color opposite on the color wheel.",
+       .tip = "Use to get a matching second color from the first.",
+       .purpose = "The opposite color on the wheel: hue plus 180 degrees.",
        .useWhen = "Get the second color of a complementary pair from the first.",
        .example = "{\"id\": \"pair\", \"type\": \"color.complement\", \"params\": {}}"},
-      {{"color", PortType::Color, true}},
-      {{"color", PortType::Color, false}},
+      {{"color", PortType::Color, true, "The color to flip."}},
+      {{"color", PortType::Color, false, "The opposite color on the wheel."}},
       {},
       [](const EvalContext& c, Outputs& out) {
         out.emplace("color", shiftHue(c.input<Color>("color"), 180.f));
@@ -291,13 +328,17 @@ namespace Aurora::Runtime::Graph
     gradient.description =
       "2 to 16 stops [{\"pos\": 0..1, \"color\": \"#rrggbb\"}] in ascending pos, blended in RGB.";
     add(registry, "color.fromGradient",
-      {.purpose = "Look up a Color on a gradient param at position t (0..1, clamped).",
+      {.title = "Gradient color",
+       .group = "Color",
+       .summary = "Picks a color along a gradient you design.",
+       .tip = "Use to map a signal onto a palette, like quiet to loud.",
+       .purpose = "Look up a Color on a gradient param at position t (0..1, clamped).",
        .useWhen = "Map a signal to a palette, e.g. loudness to a cool-to-hot ramp.",
        .example =
          "{\"id\": \"ramp\", \"type\": \"color.fromGradient\", \"params\": {\"gradient\": "
          "[{\"pos\": 0, \"color\": \"#0000ff\"}, {\"pos\": 1, \"color\": \"#ff0000\"}]}}"},
-      {{"t", PortType::Float, true}},
-      {{"color", PortType::Color, false}},
+      {{"t", PortType::Float, true, "Position on the gradient, 0..1."}},
+      {{"color", PortType::Color, false, "The gradient color at t."}},
       {gradient},
       [](const EvalContext& c, Outputs& out) {
         float t = c.input<float>("t");
@@ -319,29 +360,88 @@ namespace Aurora::Runtime::Graph
       "palette.randomAnchor",
       NodeTypeInfo{
         .meta =
-          {.purpose =
+          {.title = "Random anchor",
+           .group = "Sources",
+           .summary = "Picks a random starting color for the palette.",
+           .tip = "Use for a fresh look each time the effect starts.",
+           .purpose =
              "Pick one of the six vibrant complementary pair anchors (0, 30, 60, 90, 120, 150 degrees) "
              "on the first tick and hold it.",
            .useWhen = "Start a palette from a random but pleasant hue, e.g. feeding palette.pick.",
            .example =
              "{\"id\": \"anchor\", \"type\": \"palette.randomAnchor\", \"params\": {\"seed\": null}}"},
         .inputs = {},
-        .outputs = {{"anchor", PortType::Angle, false}},
+        .outputs = {{"anchor", PortType::Angle, false, "The picked anchor hue, held after the first tick."}},
         .params = {seed},
         .factory = [] { return std::make_unique<RandomAnchorNode>(); },
       });
 
     add(registry, "angle.add",
-      {.purpose = "Add two Angles, wrapping at 360.",
+      {.title = "Add angles",
+       .group = "Numbers",
+       .summary = "Adds two angles, wrapping around the color wheel.",
+       .tip = "Use to offset one hue by another.",
+       .purpose = "Add two Angles, wrapping at 360.",
        .useWhen = "Offset a hue by another, e.g. a drifting anchor plus a beat swing.",
        .example = "{\"id\": \"target\", \"type\": \"angle.add\", \"params\": {}}"},
-      {{"a", PortType::Angle, true}, {"b", PortType::Angle, true}},
-      {{"angle", PortType::Angle, false}},
+      {{"a", PortType::Angle, true, "The first angle."},
+       {"b", PortType::Angle, true, "The second angle."}},
+      {{"angle", PortType::Angle, false, "The sum, wrapped at 360."}},
       {},
       [](const EvalContext& c, Outputs& out) {
         float sum = c.input<Angle>("a").degrees + c.input<Angle>("b").degrees;
         requireFinite(c, sum, "angle");
         out.emplace("angle", Angle{wrapDegrees(sum)});
+      });
+
+    add(registry, "angle.fromFloat",
+      {.title = "Number to angle",
+       .group = "Numbers",
+       .summary = "Turns a number into an angle on the color wheel.",
+       .tip = "Use to let a wave or audio level set a hue directly.",
+       .purpose =
+         "Convert a Float to an Angle: degrees = value * scale, wrapped at 360. Default scale 360 makes 0..1 one "
+         "full turn.",
+       .useWhen =
+         "Drive a hue from a Float, e.g. an lfo or the audio centroid into palette.pick or color.fromHSV.",
+       .example = "{\"id\": \"hue\", \"type\": \"angle.fromFloat\", \"params\": {\"scale\": 360}}"},
+      {{"value", PortType::Float, true, "The number to convert; 0..1 is one turn at the default scale."}},
+      {{"angle", PortType::Angle, false, "The value times scale in degrees, wrapped at 360."}},
+      {floatParam("scale", "Scale", -3600.f, 3600.f, 360.f, "deg",
+         "Degrees per 1.0 of input. 360 makes 0..1 one full turn; negative reverses direction.")},
+      [](const EvalContext& c, Outputs& out) {
+        float scale = c.param<float>("scale");
+        requireFinite(c, scale, "scale");
+        float value = c.input<float>("value");
+        requireFinite(c, value, "value");
+        float degrees = value * scale;
+        requireFinite(c, degrees, "angle");
+        out.emplace("angle", Angle{wrapDegrees(degrees)});
+      });
+
+    add(registry, "angle.toFloat",
+      {.title = "Angle to number",
+       .group = "Numbers",
+       .summary = "Turns an angle into a plain number.",
+       .tip = "Use to let a hue drive brightness, speed or another number.",
+       .purpose =
+         "Convert an Angle to a Float: degrees / scale, in 0..1 at the default scale 360 (the Angle is already "
+         "wrapped to 0..360).",
+       .useWhen = "Use a hue or rotation as a number, e.g. an integrate angle into frame.mix or a gradient position.",
+       .example = "{\"id\": \"turn\", \"type\": \"angle.toFloat\", \"params\": {\"scale\": 360}}"},
+      {{"angle", PortType::Angle, true, "The angle to convert."}},
+      {{"value", PortType::Float, false, "The angle in degrees divided by scale."}},
+      {floatParam("scale", "Scale", -3600.f, 3600.f, 360.f, "deg",
+         "Degrees per 1.0 of output. 360 maps a full turn to 1; must not be 0.")},
+      [](const EvalContext& c, Outputs& out) {
+        float scale = c.param<float>("scale");
+        requireFinite(c, scale, "scale");
+        if(scale == 0.f){
+          c.fail("scale must not be 0");
+        }
+        float degrees = c.input<Angle>("angle").degrees;
+        requireFinite(c, degrees, "angle");
+        out.emplace("value", degrees / scale);
       });
 
     ParamDecl side;
@@ -352,11 +452,15 @@ namespace Aurora::Runtime::Graph
     side.defaultEnum = "anchor";
     side.description = "Which end of the pair to output: the anchor itself or anchor plus 180.";
     add(registry, "palette.pick",
-      {.purpose = "Pick one hue of a complementary pair: the anchor Angle or the anchor plus 180.",
+      {.title = "Pick palette hue",
+       .group = "Color",
+       .summary = "Chooses one color from a matching pair.",
+       .tip = "Use to split one starting color into two.",
+       .purpose = "Pick one hue of a complementary pair: the anchor Angle or the anchor plus 180.",
        .useWhen = "Split one anchor into the two colors of a pair, one pick node per color.",
        .example = "{\"id\": \"second\", \"type\": \"palette.pick\", \"params\": {\"side\": \"complement\"}}"},
-      {{"anchor", PortType::Angle, true}},
-      {{"hue", PortType::Angle, false}},
+      {{"anchor", PortType::Angle, true, "The anchor hue of the pair."}},
+      {{"hue", PortType::Angle, false, "The picked hue: the anchor or the anchor plus 180."}},
       {side},
       [](const EvalContext& c, Outputs& out) {
         float hue = c.input<Angle>("anchor").degrees;

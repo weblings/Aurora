@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -71,21 +72,14 @@ namespace Aurora::Runtime
       double change() const { return samples > 1 ? totalStep / (samples - 1) : 0.0; }
     };
 
-    nlohmann::json _snapshotJson(const std::string& session, const GraphPreview::Snapshot& snapshot)
+    // ?layout=lights|room|basic on the stream; absent means lights.
+    std::optional<PreviewLayout> _layoutParam(const Request& req)
     {
-      nlohmann::json outputs = nlohmann::json::array();
-      for(const auto& colors : snapshot.outputs){
-        nlohmann::json zones = nlohmann::json::array();
-        for(const auto& zone : colors.zones){
-          zones.push_back({{"id", zone.id}, {"r", zone.r}, {"g", zone.g}, {"b", zone.b}, {"error", zone.error}});
-        }
-        outputs.push_back({{"output", colors.output}, {"zones", std::move(zones)}});
-      }
-      nlohmann::json errors = nlohmann::json::array();
-      for(const auto& error : snapshot.errors){
-        errors.push_back({{"output", error.output}, {"node", error.node}, {"message", error.message}});
-      }
-      return {{"session", session}, {"tickMs", snapshot.tickMs}, {"outputs", std::move(outputs)}, {"errors", std::move(errors)}};
+      const auto asked = req.queryParams.find("layout");
+      if(asked == req.queryParams.end() || asked->second == "lights"){ return PreviewLayout::Lights; }
+      if(asked->second == "room"){ return PreviewLayout::Room; }
+      if(asked->second == "basic"){ return PreviewLayout::Basic; }
+      return std::nullopt;
     }
   }
 
@@ -190,11 +184,24 @@ namespace Aurora::Runtime
         }
         nlohmann::json errors = nlohmann::json::array();
         for(const auto& e : latest.errors){
-          errors.push_back({{"output", e.output}, {"node", e.node}, {"message", e.message}});
+          errors.push_back({{"output", e.output}, {"node", e.node}, {"message", e.message}, {"code", e.code}});
         }
         _reply(res, 200, {
           {"session", session}, {"seconds", seconds}, {"samples", samples},
           {"outputs", std::move(outputs)}, {"errors", std::move(errors)}
+        });
+      }
+    );
+
+    // What the editor's Preview layout menu can offer: Sim: your room needs a saved zone map.
+    server.addRoute(
+      Aurora::Network::Http::Server::HttpMethod::Get,
+      "/api/graph/preview/layouts",
+      [&pipelineHost](const Request&, Aurora::Network::Http::Server::Response& res){
+        _reply(res, 200, {
+          {"output", pipelineHost.listZones().outputName},
+          {"savedZones", pipelineHost.savedZoneCount()},
+          {"basicZones", basicRoomZoneMap().size()}
         });
       }
     );
@@ -208,6 +215,11 @@ namespace Aurora::Runtime
           _fail(stream, "invalid_session");
           return;
         }
+        const auto layout = _layoutParam(req);
+        if(!layout){
+          _fail(stream, "invalid_layout");
+          return;
+        }
         auto draft = drafts->get(session);
         if(!draft){
           _fail(stream, "no_draft");
@@ -216,7 +228,7 @@ namespace Aurora::Runtime
 
         const std::uint64_t epoch = pipelineHost.buildEpoch();
         std::string error;
-        std::shared_ptr<GraphPreview> preview = pipelineHost.openPreview(session, *draft, registry, error);
+        std::shared_ptr<GraphPreview> preview = pipelineHost.openPreview(session, *draft, registry, error, *layout);
         if(!preview){
           _fail(stream, "cannot_preview", error);
           return;
@@ -255,7 +267,7 @@ namespace Aurora::Runtime
             }
           }
 
-          const nlohmann::json data = _snapshotJson(session, preview->snapshot());
+          const nlohmann::json data = previewSnapshotJson(session, preview->snapshot());
           // tickMs wobbles every tick, so only the colors decide a send.
           nlohmann::json key = data;
           key.erase("tickMs");

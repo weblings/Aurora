@@ -1,0 +1,172 @@
+/* kep2 static mocks: mock-local rules only, built on the real web/ui styles. */
+
+/* Stand-in for a real muted text token (not in tokens.css yet). */
+:root { --mk-text-muted: #949494; }
+
+/* Focus ring tokens, same shape as RockyRoadImport's (width, offset, one color), so every
+   control in the page shares one ring. Proposed for tokens.css with one :focus-visible rule.
+   Inset inside anything that clips (list rows, headers, footer, menu items) so it is not cut off. */
+:root {
+  --aurora-focus-ring-width: 2px;
+  --aurora-focus-ring-offset: 2px;
+  --aurora-focus-ring: var(--aurora-button-light);
+}
+/* Proposed elevation token for tokens.css: floating surfaces (panel, row menu, tooltip). */
+:root { --aurora-shadow-popup: 0 4px 16px rgba(0, 0, 0, 0.5); }
+:focus-visible { outline: var(--aurora-focus-ring-width) solid var(--aurora-focus-ring); outline-offset: var(--aurora-focus-ring-offset); }
+.mk-opt:has(.mk-pick:focus-visible),
+.mk-group-toggle button:focus-visible,
+.mk-section:focus-visible > .mk-group,
+.mk-new:focus-visible,
+.mk-rowmenu [role="menuitem"]:focus-visible { outline: var(--aurora-focus-ring-width) solid var(--aurora-focus-ring); outline-offset: calc(-1 * var(--aurora-focus-ring-width)); }
+/* The row (or its wrapper) draws the ring, never the inner control. */
+.mk-pick:focus-visible, .mk-section:focus-visible { outline: none; }
+
+.mk-chev { width: 10px; height: 10px; display: block; flex-shrink: 0; }
+
+.mk-picker { margin-bottom: var(--aurora-space-5); }
+.mk-picker .dropdown { display: flex; position: relative; }
+.mk-trigger-main { display: flex; align-items: center; gap: var(--aurora-space-3); min-width: 0; flex: 1; }
+.mk-trigger-main .dropdown-label { flex: 0 1 auto; }
+/* Switch states: same outline as dashboard.css's .db-effect-picker rule, without its pill styling. */
+.mk-picker > .status-text { margin: var(--aurora-space-3) 0 0; }
+
+/* Popup panel: the .dropdown-menu surface, but a labeled dialog holding the effect tree. */
+.mk-panel-pop {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: calc(100% + var(--aurora-space-1));
+  left: 0;
+  right: 0;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  box-shadow: var(--aurora-shadow-popup);
+  z-index: 10;
+  max-height: calc(100vh - 150px);
+}
+/* The list scrolls and the footer stays pinned. Menu frames leave it unclipped. */
+.mk-scroll { flex: 1; min-height: 0; overscroll-behavior: contain; }
+.mk-scroll.mk-scrolling { overflow-y: auto; scroll-padding-top: 32px; }
+.mk-section + .mk-section { border-top: 1px solid var(--aurora-border); margin-top: var(--aurora-space-1); }
+h3.mk-group { margin: 0; position: sticky; top: 0; z-index: 2; background: var(--aurora-surface); }
+h3.mk-group-toggle { padding: 0; }
+.mk-group-toggle button { display: flex; text-align: left; align-items: center; gap: var(--aurora-space-3); width: 100%; height: 32px; padding: 0 var(--aurora-space-5); background: none; border: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.mk-group-toggle button[aria-expanded="false"] .mk-twisty { transform: rotate(-90deg); }
+.mk-group {
+  padding: var(--aurora-space-3) var(--aurora-space-5) var(--aurora-space-1);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--aurora-text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* A row: the pick (treeitem, or button in frame 8) + a separate ellipsis button. */
+.mk-opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-right: var(--aurora-space-2);
+  color: var(--aurora-text-secondary);
+  font-size: 13px;
+}
+.mk-opt:hover, .mk-opt.tip-on, .mk-opt.hov { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.mk-opt.selected { background: var(--aurora-surface-selected); color: var(--aurora-text-primary); }
+.mk-check { width: 12px; flex-shrink: 0; font-size: 12px; text-align: center; }
+.mk-opt-text { flex: 1; min-width: 0; padding: var(--aurora-space-2) 0; }
+.mk-opt-name { display: flex; align-items: center; gap: var(--aurora-space-3); }
+.mk-opt-secondary { display: block; }
+.mk-new { display: flex; align-items: center; width: 100%; min-height: 40px; padding: 0 var(--aurora-space-5); background: none; border: none; color: var(--aurora-text-secondary); font: inherit; font-size: 13px; font-weight: 400; text-align: left; cursor: pointer; }
+.mk-new:hover { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.mk-opt-secondary { font-size: 11px; margin-top: 1px; color: var(--mk-text-muted); }
+.mk-more {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  border-radius: var(--aurora-radius-control);
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.mk-more:hover { background: var(--aurora-button-dark-hover); }
+.mk-more.open { background: var(--aurora-button-dark-hover); }
+.mk-foot { flex-shrink: 0; border-top: 1px solid var(--aurora-border); }
+
+/* Row action menu: opens beside the row without closing the panel. */
+.mk-rowmenu {
+  position: absolute;
+  top: 100%;
+  right: var(--aurora-space-2);
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  overflow: hidden;
+  z-index: 20;
+  box-shadow: var(--aurora-shadow-popup);
+}
+
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.mk-cue { font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--aurora-text-primary); }
+
+/* Description tooltip: shown on hover or keyboard focus, below the row. */
+.mk-tip {
+  display: none;
+  position: absolute;
+  top: calc(100% - 4px);
+  left: var(--aurora-space-5);
+  max-width: 260px;
+  padding: var(--aurora-space-2) var(--aurora-space-3);
+  background: var(--aurora-surface);
+  border: 1px solid var(--aurora-border);
+  border-radius: var(--aurora-radius-control);
+  box-shadow: var(--aurora-shadow-popup);
+  color: var(--aurora-text-primary);
+  font-size: 12px;
+  z-index: 15;
+}
+.mk-opt:hover .mk-tip, .mk-opt.tip-on .mk-tip { display: block; }
+.mk-opt:has(.mk-rowmenu) .mk-tip { display: none; }
+
+button .mk-cue:last-child { margin-left: auto; }
+
+/* The pick fills the row: a treeitem div, or a button in frame 8. */
+.mk-opt .mk-pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--aurora-space-3); min-height: 40px; padding: 0 0 0 var(--aurora-space-5); background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mk-opt:has(.mk-pick:focus-visible) .mk-tip { display: block; }
+.mk-log { position: fixed; left: var(--aurora-space-5); right: var(--aurora-space-5); bottom: var(--aurora-space-5); margin: 0; }
+
+/* Frame 9: the panel as a tree. Headers are treeitems (not buttons), so restyle them here. */
+.mk-tree { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.mk-tree .mk-group { position: sticky; top: 0; z-index: 2; background: var(--aurora-surface); }
+.mk-tree .mk-group-toggle { padding: 0; }
+.mk-tree .mk-head { display: flex; align-items: center; gap: var(--aurora-space-3); height: 32px; padding: 0 var(--aurora-space-5); cursor: pointer; }
+.mk-tree .mk-head .mk-cue { margin-left: auto; }
+.mk-section[aria-expanded="false"] > .mk-group .mk-twisty { transform: rotate(-90deg); }
+.mk-opt.menu-open .mk-tip { display: none; }
+/* Tree tooltips sit in the panel (layers.js sets top). They never take the pointer, so hovering
+   a row's bottom edge does not flicker them. */
+.mk-panel-pop > .mk-tip:not([hidden]) { display: block; pointer-events: none; }
+
+/* kep2.6 follow-on flows. Static frames mark the focused control with .mk-focus. */
+.mk-new.hov { background: var(--aurora-surface-hover); color: var(--aurora-text-primary); }
+.mk-opt.mk-focus, .mk-confirm .mk-focus { outline: var(--aurora-focus-ring-width) solid var(--aurora-focus-ring); outline-offset: calc(-1 * var(--aurora-focus-ring-width)); }
+.mk-confirm .mk-focus { outline-offset: var(--aurora-focus-ring-offset); }
+.mk-renaming { padding: 0 var(--aurora-space-2) 0 var(--aurora-space-5); gap: var(--aurora-space-3); background: var(--aurora-surface-hover); }
+.mk-renaming .mk-opt-text { display: flex; flex-direction: column; gap: var(--aurora-space-1); padding: var(--aurora-space-1) 0; }
+.mk-rename { padding: var(--aurora-space-2) var(--aurora-space-3); }
+.mk-rename-err { font-size: 12px; color: var(--aurora-text-primary); }
+.mk-menu-desc { margin: 0; padding: var(--aurora-space-3) var(--aurora-space-5); font-size: 12px; color: var(--mk-text-muted); border-bottom: 1px solid var(--aurora-border); max-width: 220px; }
+/* Start from sits directly under the New effect text, not at the right edge like a row menu. */
+.mk-startmenu { left: var(--aurora-space-5); right: auto; }
+.mk-confirm { padding: var(--aurora-space-4) var(--aurora-space-5); gap: var(--aurora-space-2); max-width: 260px; }
+.mk-confirm p { margin: 0; font-size: 13px; }
+.mk-confirm-t { color: var(--aurora-text-primary); font-weight: 700; }
+.mk-confirm-b { color: var(--aurora-text-secondary); }
+.mk-confirm-actions { display: flex; justify-content: flex-end; gap: var(--aurora-space-3); margin-top: var(--aurora-space-3); }

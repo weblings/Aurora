@@ -13,6 +13,8 @@
 #include <dxgi1_5.h>
 #include <windows.h>
 
+#include <Aurora/Input/MonitorKey.hpp>
+#include <Aurora/Input/Windows/MonitorKey.hpp>
 #include <Aurora/Input/Windows/ScRgbConversion.hpp>
 
 
@@ -32,6 +34,67 @@ namespace
     std::string result(static_cast<size_t>(size - 1), '\0');
     WideCharToMultiByte(CP_UTF8, 0, wide, -1, result.data(), size, nullptr, nullptr);
     return result;
+  }
+
+
+  // The monitor's device path for a GDI name. It survives renumbering but not a
+  // move to another port (the instance part embeds the port). Empty on failure.
+  std::string monitorDevicePath(const wchar_t* gdiName)
+  {
+    UINT32 pathCount = 0;
+    UINT32 modeCount = 0;
+    if(GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &pathCount, &modeCount) != ERROR_SUCCESS){
+      return {};
+    }
+    std::vector<DISPLAYCONFIG_PATH_INFO> paths(pathCount);
+    std::vector<DISPLAYCONFIG_MODE_INFO> modes(modeCount);
+    if(QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, &pathCount, paths.data(), &modeCount, modes.data(), nullptr) != ERROR_SUCCESS){
+      return {};
+    }
+
+    for(UINT32 i = 0; i < pathCount; ++i){
+      DISPLAYCONFIG_SOURCE_DEVICE_NAME source{};
+      source.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+      source.header.size = sizeof(source);
+      source.header.adapterId = paths[i].sourceInfo.adapterId;
+      source.header.id = paths[i].sourceInfo.id;
+      if(DisplayConfigGetDeviceInfo(&source.header) != ERROR_SUCCESS || std::wcscmp(source.viewGdiDeviceName, gdiName) != 0){
+        continue;
+      }
+
+      DISPLAYCONFIG_TARGET_DEVICE_NAME target{};
+      target.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+      target.header.size = sizeof(target);
+      target.header.adapterId = paths[i].targetInfo.adapterId;
+      target.header.id = paths[i].targetInfo.id;
+      if(DisplayConfigGetDeviceInfo(&target.header) != ERROR_SUCCESS){
+        return {};
+      }
+      return narrow(target.monitorDevicePath);
+    }
+    return {};
+  }
+
+
+  // The monitor's EDID from the registry, empty when it has none. Unlike the
+  // device path it does not change when the cable moves to another port.
+  std::vector<unsigned char> readEdid(const std::string& devicePath)
+  {
+    const std::string subKey = Aurora::Input::Windows::edidRegistryKey(devicePath);
+    if(subKey.empty()){
+      return {};
+    }
+
+    DWORD size = 0;
+    if(RegGetValueA(HKEY_LOCAL_MACHINE, subKey.c_str(), "EDID", RRF_RT_REG_BINARY, nullptr, nullptr, &size) != ERROR_SUCCESS || size == 0){
+      return {};
+    }
+    std::vector<unsigned char> edid(size);
+    if(RegGetValueA(HKEY_LOCAL_MACHINE, subKey.c_str(), "EDID", RRF_RT_REG_BINARY, nullptr, edid.data(), &size) != ERROR_SUCCESS){
+      return {};
+    }
+    edid.resize(size);
+    return edid;
   }
 
 
@@ -110,11 +173,13 @@ namespace Aurora::Input::Windows
     if(FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&m_factory)))){
       throw std::runtime_error("Could not create DXGI factory");
     }
+    _startDisplayWatch();
   }
 
 
   WindowsGrabber::~WindowsGrabber()
   {
+    _stopDisplayWatch();
     _stopCapture();
   }
 
@@ -158,7 +223,23 @@ namespace Aurora::Input::Windows
 
   void WindowsGrabber::_initMonitorsList()
   {
+    m_monitorSelectionData = _enumerateMonitors();
+  }
+
+
+  WindowsGrabber::MonitorSelectionData WindowsGrabber::_enumerateMonitors()
+  {
+    // A factory made before a plug or unplug keeps listing the old outputs.
+    if(!m_factory->IsCurrent()){
+      ComPtr<IDXGIFactory1> fresh;
+      if(SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&fresh)))){
+        m_factory = fresh;
+      }
+    }
+
     MonitorSelectionData monitorSelectionData;
+    std::vector<std::string> edidHashes;
+    std::vector<std::string> devicePaths;
 
     ComPtr<IDXGIAdapter1> adapter;
     for(UINT adapterIndex = 0; m_factory->EnumAdapters1(adapterIndex, &adapter) != DXGI_ERROR_NOT_FOUND; ++adapterIndex){
@@ -191,7 +272,7 @@ namespace Aurora::Input::Windows
         unsigned width = static_cast<unsigned>(desc.DesktopCoordinates.right - desc.DesktopCoordinates.left);
         unsigned height = static_cast<unsigned>(desc.DesktopCoordinates.bottom - desc.DesktopCoordinates.top);
 
-        monitorSelectionData.monitors.push_back(std::make_shared<WindowsMonitorData>(
+        auto monitor = std::make_shared<WindowsMonitorData>(
           narrow(desc.DeviceName),
           width,
           height,
@@ -199,7 +280,12 @@ namespace Aurora::Input::Windows
           isPrimary,
           adapter,
           output1
-        ));
+        );
+        const std::string devicePath = monitorDevicePath(desc.DeviceName);
+        const auto edid = readEdid(devicePath);
+        edidHashes.push_back(Aurora::Input::edidHashKey(edid.data(), edid.size()));
+        devicePaths.push_back(devicePath);
+        monitorSelectionData.monitors.push_back(std::move(monitor));
 
         if(isPrimary){
           monitorSelectionData.selectedMonitorId = static_cast<unsigned>(monitorSelectionData.monitors.size() - 1);
@@ -211,11 +297,112 @@ namespace Aurora::Input::Windows
       throw std::runtime_error("No monitor available");
     }
 
+    // The EDID hash is the key, so a monitor moved to another port keeps it. The
+    // device path was the key before Aurora-5ipy.35 and stays an alias, and it is
+    // the key itself for a monitor with no EDID.
+    const auto keys = Aurora::Input::assignMonitorKeys(edidHashes, devicePaths);
+    for(std::size_t i = 0; i < keys.size(); ++i){
+      auto& monitor = monitorSelectionData.monitors[i];
+      monitor->key = keys[i].empty() ? devicePaths[i] : keys[i];
+      if(!devicePaths[i].empty() && devicePaths[i] != monitor->key){
+        monitor->altKeys.push_back(devicePaths[i]);
+      }
+    }
+
     if(!monitorSelectionData.selectedMonitorId.has_value()){
       monitorSelectionData.selectedMonitorId = 0;
     }
 
-    std::swap(m_monitorSelectionData, monitorSelectionData);
+    return monitorSelectionData;
+  }
+
+
+  bool WindowsGrabber::takeMonitorsChanged()
+  {
+    if(!m_displayChangePending.exchange(false)){
+      return false;
+    }
+
+    // Mode, position and resolution changes also send WM_DISPLAYCHANGE and must
+    // not rebuild: compare what identifies the outputs.
+    try{
+      const auto now = _enumerateMonitors();
+      auto identities = [](const MonitorSelectionData& data){
+        std::vector<std::string> keys;
+        std::vector<std::string> names;
+        for(const auto& monitor : data.monitors){
+          keys.push_back(monitor->key);
+          names.push_back(monitor->name);
+        }
+        return monitorIdentities(keys, names);
+      };
+      return identities(now) != identities(m_monitorSelectionData);
+    }
+    catch(const std::exception&){
+      // Mid-replug with no output yet: the next WM_DISPLAYCHANGE re-checks.
+      return false;
+    }
+  }
+
+
+  void WindowsGrabber::_startDisplayWatch()
+  {
+    m_displayWatchThread = std::thread([this]{ _displayWatchLoop(); });
+    std::unique_lock lock(m_displayWatchMutex);
+    m_displayWatchReady.wait(lock, [this]{ return m_displayWatchStarted; });
+  }
+
+
+  void WindowsGrabber::_stopDisplayWatch()
+  {
+    if(m_displayWatchThread.joinable()){
+      PostThreadMessageW(m_displayWatchThreadId.load(), WM_QUIT, 0, 0);
+      m_displayWatchThread.join();
+    }
+  }
+
+
+  void WindowsGrabber::_displayWatchLoop()
+  {
+    static const wchar_t* s_className = L"AuroraDisplayWatch";
+    WNDCLASSW windowClass{};
+    windowClass.lpfnWndProc = [](HWND window, UINT message, WPARAM wParam, LPARAM lParam) -> LRESULT {
+      if(message == WM_DISPLAYCHANGE){
+        if(auto* self = reinterpret_cast<WindowsGrabber*>(GetWindowLongPtrW(window, GWLP_USERDATA))){
+          self->m_displayChangePending = true;
+        }
+        return 0;
+      }
+      return DefWindowProcW(window, message, wParam, lParam);
+    };
+    windowClass.hInstance = GetModuleHandleW(nullptr);
+    windowClass.lpszClassName = s_className;
+    RegisterClassW(&windowClass); // already registered by an earlier grabber is fine
+
+    // Never shown. A message-only window would not receive the broadcast.
+    HWND window = CreateWindowExW(0, s_className, L"", WS_OVERLAPPED, 0, 0, 0, 0, nullptr, nullptr, windowClass.hInstance, nullptr);
+    if(window){
+      SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    }
+
+    // The queue exists after the first message-API call, so a quit posted at once is kept.
+    MSG message;
+    PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+    m_displayWatchThreadId = GetCurrentThreadId();
+    {
+      std::lock_guard lock(m_displayWatchMutex);
+      m_displayWatchStarted = true;
+    }
+    m_displayWatchReady.notify_all();
+
+    while(GetMessageW(&message, nullptr, 0, 0) > 0){
+      TranslateMessage(&message);
+      DispatchMessageW(&message);
+    }
+
+    if(window){
+      DestroyWindow(window);
+    }
   }
 
 

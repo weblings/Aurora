@@ -8,6 +8,7 @@
 #include <Aurora/Runtime/DraftRoutes.hpp>
 #include <Aurora/Runtime/DraftStore.hpp>
 #include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/EffectsRoutes.hpp>
 #include <Aurora/Runtime/Graph/AllNodes.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/ReloadCoalescer.hpp>
@@ -41,6 +42,7 @@ namespace Aurora::Runtime
   void addApplyAccessRules(AccessGuard& guard)
   {
     guard.addWriteRule("/api/graph/apply", Scope::Apply);
+    guard.addWriteRule("/api/graph/save", Scope::Apply);
   }
 
 
@@ -62,8 +64,10 @@ namespace Aurora::Runtime
     Graph::registerAllNodes(*nodes, true);
     auto coalescer = std::make_shared<ReloadCoalescer>(std::move(applyLive));
 
-    ApplyDraftFn apply = [&pipelineHost, &registry, configRoot, drafts, nodes, coalescer](
-      const std::string& session, const std::string& id, const std::string& client, nlohmann::json& body){
+    // Validate the session's draft and write it under `id`: the part of apply
+    // that save shares. Fills `body` on a refusal and returns the status, or 0.
+    auto saveDraft = [&pipelineHost, &registry, configRoot, drafts, nodes](
+      const std::string& session, const std::string& id, nlohmann::json& body){
       if(!DraftStore::validSession(session)){
         body = {{"succeeded", false}, {"error", "invalid_session"}};
         return 400;
@@ -89,7 +93,16 @@ namespace Aurora::Runtime
       std::string writeError;
       if(!EffectStore(configRoot).write(id, *draft, writeError)){
         body = {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}};
+        logEffectFault(pipelineHost, "POST /api/graph/apply|save", 500, body, id);
         return 500;
+      }
+      return 0;
+    };
+
+    ApplyDraftFn apply = [&pipelineHost, configRoot, coalescer, saveDraft](
+      const std::string& session, const std::string& id, const std::string& client, nlohmann::json& body){
+      if(const int refused = saveDraft(session, id, body)){
+        return refused;
       }
       ConfigStore(configRoot).update([&id, &client](Config& config){
         config.setActiveEffectId(id);
@@ -134,6 +147,44 @@ namespace Aurora::Runtime
         _reply(res, status, body);
       }
     );
+    // Save without going live: the same checks and write as apply, and
+    // activeEffectId stays put. Only when the saved id is the active effect does
+    // the pipeline reload, so the running graph never drifts from its file.
+    server.addRoute(
+      HttpMethod::Post,
+      "/api/graph/save",
+      [&pipelineHost, configRoot, coalescer, saveDraft](const Request& req, Response& res){
+        std::string session;
+        std::string id;
+        try{
+          const nlohmann::json parsed = nlohmann::json::parse(req.body);
+          session = parsed.at("session").get<std::string>();
+          id = parsed.at("id").get<std::string>();
+        }
+        catch(const nlohmann::json::exception&){
+          _reply(res, 400, {{"succeeded", false}, {"error", "invalid_body"}});
+          return;
+        }
+        nlohmann::json body;
+        if(const int refused = saveDraft(session, id, body)){
+          _reply(res, refused, body);
+          return;
+        }
+
+        const Config config = ConfigStore(configRoot).load();
+        body = {{"succeeded", true}, {"id", id}, {"activeEffectId", config.activeEffectId()}};
+        if(config.customEffectId() == id){
+          const std::string applyError = coalescer->submit();
+          if(!applyError.empty()){
+            body["reloadError"] = applyError;
+          }
+        }
+        const PipelineSummary summary = pipelineHost.summary();
+        body["effect"] = _idOrNull(summary.effect);
+        body["requestedEffect"] = _idOrNull(summary.requestedEffect);
+        _reply(res, 200, body);
+      }
+    );
     // Tuning on a custom effect: set node params in effects/<id>.json, then
     // apply through the same swap. Nothing is written unless every edit lands
     // and the edited graph still validates.
@@ -162,8 +213,10 @@ namespace Aurora::Runtime
         std::string readError;
         auto doc = store.read(id, readError);
         if(!doc){
-          _reply(res, store.exists(id) ? 422 : 404,
-            {{"succeeded", false}, {"error", store.exists(id) ? "unreadable_effect" : "unknown_effect"}});
+          const bool unreadable = store.exists(id);
+          const nlohmann::json fault{{"succeeded", false}, {"error", unreadable ? "unreadable_effect" : "unknown_effect"}};
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/params", unreadable ? 422 : 404, fault, id);
+          _reply(res, unreadable ? 422 : 404, fault);
           return;
         }
 
@@ -199,7 +252,9 @@ namespace Aurora::Runtime
 
         std::string writeError;
         if(!store.write(id, *doc, writeError)){
-          _reply(res, 500, {{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}});
+          const nlohmann::json fault{{"succeeded", false}, {"error", "write_failed"}, {"message", writeError}};
+          logEffectFault(pipelineHost, "PUT /api/effects/:id/params", 500, fault, id);
+          _reply(res, 500, fault);
           return;
         }
 

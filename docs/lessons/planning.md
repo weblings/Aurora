@@ -578,3 +578,176 @@ Applies-when: starting a bead whose description names another project as the ref
 Aurora-wqzp.12 cited Hyperion's DDAGrabber for FP16-to-8-bit conversion. Reading its source showed it calls plain `DuplicateOutput` and has no HDR handling at all. The real references (OBS, RustDesk, GStreamer) only turned up by searching, and they showed the bug was bigger than the bead assumed.
 
 **Fix:** open the cited file and confirm it does the thing before building on it. Record what the reference does and does not do in the bead, so the next reader does not repeat the trust.
+
+---
+
+## Static mocks agree on layout and content, not on the keyboard and focus model
+Tags: webui, design, prototyping, aria, keyboard
+Applies-when: signing off a static HTML mock as the shape to build
+
+Aurora-kep2.2's frames faked every interaction with state classes (`.hov`, `.tip-on`, `.open`, `.mk-scrolling`) and passed two design reviews. A later ARIA pass found the open gaps were all behavioural: radios committing on arrow keys, Esc order across tooltip, row menu and panel, Tab-out, focus after Hide, and the pending state during a switch. None can show in a still frame. This is the same limit as this file's ASCII-mock entry, one fidelity level up.
+
+**Fix:** pair static frames with a short keyboard and focus table (key, focus target, what commits, what closes), or a tiny working prototype of the one interaction that commits, before the build bead starts.
+
+---
+
+## Reviving a rejected option: say which rejection reasons the new shape answers and which still stand
+Tags: planning, design-process, beads
+Applies-when: a design direction brings back something a bead's notes rejected
+
+Aurora-kep2's 2026-10-30 notes rejected a per-row ⋯ inside the picker for three reasons: a listbox cannot hold buttons, fly-outs fail on touch, and per-row Delete invites mis-taps. Aurora-kep2.2 brought per-row menus back inside a dialog panel. That answers the listbox reason, but the mis-tap reason was left unaddressed while the delete confirm stayed out of scope.
+
+**Fix:** when reviving an option, list each original rejection reason with "answered by X" or "still open" in the new design note, and make any still-open one a prerequisite of the build bead.
+
+---
+
+## Name the decision axes first: a mock is one section per decision, not one frame per option
+Tags: planning, design-process, mocks, webui
+Applies-when: building a comparison mock for a design choice that has more than one moving part
+
+Aurora-u8jx.12's first mock drew options A, B and C at four window sizes with 1, 2 and 3 rows: 36 frames. The owner asked what the actual decisions were. There were two independent ones (is the open shell capped in height; do 2+ rows start open or collapsed at load) plus a value (the cap), and A, B and C were corners of that grid. The matrix hid that the cap barely mattered where three rows already fit.
+
+**Fix:** write the axes down before drawing. One section per decision, same content on both sides, only the thing under decision varying, and only the case where the options differ (a pair that looks identical is one line of text, not two frames). Say which options are combinations of axes.
+
+---
+
+## Draw windows at true height and measure the cost live; do not caption from memory
+Tags: planning, design-process, mocks, layout
+Applies-when: a mock argues that something takes too much room, or sets a max height
+
+Frames drawn at a fixed small canvas hide what a banner costs. The shell mock now draws each window at its real height and sets "shell N px = X% of window" from `getBoundingClientRect`. That corrected two claims written from memory: a caption said the third row was clipped at 650 px wide (it fits at 218 px), and the 220 px cap measured 224 until the region's padding was inside its box-sizing. It also showed the cap saves only about 26 px at the worst case, which moved the decision to the open-or-collapsed question.
+
+**Fix:** measure in the mock (a `setTimeout` pass is enough), print the numbers on the frame, and report numbers that weaken the option you lean toward.
+
+---
+
+## Behaviour over time needs a storyboard of A against B, not static frames or a bag of buttons
+Tags: planning, design-process, mocks, interaction
+Applies-when: the question is when something opens, closes, resets or re-opens (collapse rules, toasts, focus, persistence)
+
+Aurora-u8jx.12's first simulator had a sequence picker, a "Run next step" button and a dozen inject buttons. It opened empty, the frame did not show what had changed, and the owner could not follow it. What worked: one dropdown, one toggle, Back and Next; each step is one frame with A and B after it, a line under each saying what it did ("re-opened: the too-many-editors error is new", "already collapsed"), a same-or-differ badge, and a table of every step with the differing rows marked and clickable. Frames come from replaying the sequence from a clean page, so any step can be jumped to. It showed that A and B differ only at load and across navigation.
+
+**Fix:** model the rules as a small state machine, replay to build the frames, show the comparison in every frame, load with dummy data so first paint is never empty, and keep manual injectors out of the main view. Copy message arrays when recording a frame; a reference makes early frames show later steps.
+
+---
+
+## Take mock assets from the library's dist, and use its layout pattern, not a lookalike
+Tags: planning, design-process, mocks, grille, icons
+Applies-when: a mock draws a design-system icon or a pattern the design system already has
+
+The mock's error icon was a hand-copied path from an older Grille: the bar sat at y=8, and dev.16's `circled-exclamation.svg` starts it at 6.5, so the mark looked low. Wrapped row text also ran under the icon until the rows used Grille's inline-icon pattern (`.ui-status-message`, a baseline flex row). Grille's sizing rule keys on `.ui-status-message > .ui-icon`, so a wrapper span around the SVG silently turned it off and the icon drew at 24 px.
+
+**Fix:** copy icon markup from `node_modules/@weblings/grille/dist/icons` verbatim and recopy after a bump; build the same DOM shape Grille's CSS selects (direct child); check the real stylesheet for the pattern before drawing your own.
+
+---
+
+## A mock encodes assumptions about current behaviour: read the code and say where the mock differs
+Tags: planning, design-process, mocks, verification
+Applies-when: a mock shows ordering, grouping or defaults of something that already exists in code
+
+The shell mock stacked notices above errors and folded them into the collapse. The real `shell.js` renders pairings, then the light-test row, then conditions, then errors in daemon order, and keeps the first two outside the collapse and out of the "N problems" count. Host errors carry a monotonic `id`, so the daemon already knows which is newest. Answering "does a new error go above the old one?" needed the code, not the mock.
+
+Aurora-e4bi.8 repeated it the other way round: a session proposed a `...` button on nodes as new, from a grep of the context menu's right-click handler, and recorded "right-click is the only route" on the bead. `GenericNode.tsx` had shipped that button, faded until hover or selection, since Aurora-daaa.27.1. It surfaced only when the mock copied the node's markup.
+
+**Fix:** before explaining behaviour from a mock, read the render path; list in the frame or the bead where the mock departs from today (here: notices inside the collapse), so a design change is not mistaken for current behaviour. Before calling a control new, read the component that would hold it, not only the handler you found first.
+
+---
+
+## Verify a mock headless and read the screenshot; strip leftovers when an element is cut
+Tags: planning, design-process, mocks, verification, testing
+Applies-when: finishing a static or scripted mock frame before showing it to the owner
+
+`playwright-core` in `tools/browser-check` with the cached Chromium loads the file mock directly (no server) and gave a screenshot plus logged text per frame. It caught a stale shared array, a missing re-open message and an always-empty first paint. A separator dot the owner had cut survived in a helper until a grep for its class; the gap it left stayed one more round.
+
+**Fix:** after each edit, run the frame headless, print the measured and logged values, and look at one screenshot. When something is cut, grep the markup, CSS and captions for its class and wording.
+
+---
+
+## An overlay anchored to an edge control needs a measured placement and a narrow-width check, in the mock and the build
+Tags: planning, design-process, mocks, webui, tooltip, callout, narrow
+Applies-when: a mock or component draws its own tooltip, callout or popup next to a control near a window edge
+
+Aurora-u8jx.6's Preview island mock placed a truncation tooltip right of its row and flipped it left when it overflowed. At 360 px wide the flipped box still left the window, because the tooltip is wider than the room on either side. The same failure already shipped once: the refused-save callout (Aurora-h55g, `docs/log/2026-11-13-h55g-refused-callout-narrow.md`) was anchored left of the problems chip, started at x=-300 at 400 px, and passed because its mock and browser check were desktop only. That log filed no lesson. The real editor's Grille tooltips are placed by React Aria, which flips and clamps, so only hand-built overlays (mocks, `ProblemsChip.tsx`) hit this.
+
+**Fix:** place by measured room, not a breakpoint: preferred side if it fits between the anchor and the gutter, else the other side, else below, then clamp both axes inside the window and cap the width at the window width minus a margin. `ProblemsChip.tsx` `placeCallout` is the reference. Check each such overlay at 1100, 700, 400 and 360 px against `innerWidth` and `innerHeight`, and on the first show after a fresh load. The frame strip wraps tall at narrow widths and can push the control off screen, so judge narrow widths in the popup links.
+
+---
+
+## Baseline a mock to the plan of record (the built editor) before drawing anything new
+Tags: planning, design-process, mocks, webui, verification, grille
+Applies-when: starting a mock frame, or a new frame set, in a mock that has Decisions switches or older frames
+
+Aurora-u8jx.6's Preview mock was started from the bead's frame text and from a mock whose Decisions switches default to the old state (the Test split button switch defaulted to off, which draws "Test on lights" and a "Live preview" pill). The editor had shipped the split button (`SplitTestButton.tsx`, `Test (15s)`, `Stop 0:12`). Everything drawn on that base needed owner steering: the old Test button, a "Testing on Hue" shell row Stage 6 reserves for tests the user did not cause, an invented "Can't reach the Hue bridge." when core already raises `kUnreachableMessage`, quadrant and ring shapes where the live island draws plain cells, a Grille select where the Test caret uses the tick menu, and an icon-only chevron beside a title. Each is a difference between the mock's base and the built editor, found one review round at a time.
+
+The rule holds unless the mock is deliberately paving toward a new plan of record. Here it was not: the editor's decisions were settled and the mock had only gone stale on some screens, so its defaults and older frames were bugs. A mock that stays stale this way also gets harder to use, since every settled option stays on as a switch or frame. When a decision lands, set the mock to it. Hide the losing options rather than deleting them, and delete only when keeping them slows the work (owner, 2026-11-17): a dropped direction can come back, as the Tuning and Node tabs might if a second panel earns its place.
+
+**Fix, in order, before styling anything:**
+1. Set every Decisions switch to the shipped editor's state and screenshot the mock's rest frame next to the real editor at the same width. Differences are mock bugs, not design choices.
+2. For each element the new frames touch, name the built component and file, the existing message in core or the shell, and the existing drawing rule (cell shape, truncation, tooltip). Put them in the frame's caption.
+3. Treat frame text in a bead as a lean to check against that baseline, not a spec.
+4. List anything the mock adds beyond the design field as "new in the mock" so the owner can accept or cut it.
+5. Test new labels with a worst-case string and copy the neighbouring control's overflow rule, keep mock annotations off the editor canvas, and check overlays at 1100, 700, 400 and 360 px.
+
+---
+
+## Review the mock's controls against the design system, not just its colours
+Tags: planning, design-process, mocks, grille, webui
+Applies-when: a mock builds a new control (select, menu, header row) next to existing Grille dropdowns
+
+The first Preview island used a Grille select (bold selected row), an icon-only collapse chevron beside a title, and a hand-tuned card. Review asked why it did not use the tick menu the Test caret uses, and why it read as two dropdowns stacked. The fixes were reuse, not restyle: the shared tick menu, one whole-row button that is transparent when idle, and the popup surface the other open menus have. Measured in the browser, the open card already matched the other popups (`#1a1a1a`, `#333` border, same shadow). The difference people saw was against the closed button's `#333` face.
+
+**Fix:** before building a control, list the neighbouring controls that do the same job (here the zoom, title and Test caret menus) and copy their structure. Compare computed colours of the open states in the browser instead of arguing from tokens.
+
+---
+
+## Tabulate each control's width and what folding really saves before drawing a fold
+Tags: planning, design-process, mocks, webui, narrow-windows, measurement
+Applies-when: a bead proposes folding bar controls into menus to fit a narrow window
+
+Aurora-u8jx.9 started as "fold Undo and Redo into History and the title into its menu". Measuring the real bar first (one logged line per control, per width) changed the brief: nothing overflowed down to 360 px, because the title is the one flexible control and truncates first. The idea that sounded biggest saved the least: a History menu button keeps its own chevron (about 12 px back) and a split `[Undo | caret]` saves about nothing, since it is still two 31 px buttons. The widest fixed control was Test (a 77 px label plus a 31 px caret), and showing only its icon returned about 46 px with no new menu and no new ARIA. A title fallback (dots icon) was drawn and dropped once the title was shown to stay readable down to the smallest supported width.
+
+**Fix:**
+1. Log each control's width at every supported width on the built editor (the narrow browser check can print it) and find what is flexible and what is the widest fixed control.
+2. Compute what each fold saves, counting the trigger's own chevron, before drawing it. Prefer dropping a label to an icon over folding icon buttons into a menu.
+3. Print the live title width in each frame's caption so the mock's flex layout is checked against the measured editor, and ask whether the squeezed control is actually unreadable before adding a fallback for it.
+4. When a label becomes an icon, carry every state's meaning into the aria-label and tooltip, and note what the surrounding UI (here the shell row) already says.
+
+---
+
+## A difficulty or cost estimate is a claim: say what was traced, or call it a guess
+Tags: planning, scoping, estimates, verification
+Applies-when: answering "how complex would X be" or filing a bead that states a cost, risk or unknown
+
+Asked how complex Start from would be, the first answer called it low to medium with one unknown and later said it needed "a new path". Neither came from tracing the code. The owner's follow-up questions then found the cheaper design, and a trade-off (save at once vs a new path) had been invented that did not exist. An estimate in a bead or doc reads as a finding and steers decisions, the same way a described component does (see "A described existing component is a claim to verify").
+
+**Fix:** before giving an estimate, trace the nearest existing operation end to end. Report it as "traced X, Y, Z" or "not checked", and record unknowns as questions with the file that would answer them, not as difficulty.
+
+---
+
+## A row that joins fields hides which field supplied the text: read the data before designing around it
+Tags: planning, dashboard-controls, verification, data
+Applies-when: describing or redesigning a UI string that is built from several fields or a fallback
+
+The Dashboard controls drawer prints `[label, section].filter(Boolean).join(' · ')`, so a control with only a `section` showed as a name. The audio preset sets `section` ("Response speed") and no label, and the first design pass called that text the human name and the node and param line the technical one. It was caught only when a card sketch needed the label, by opening `builtin.audio.json`. The same drawer printed "No label" for controls that do have one on the Dashboard, because Tuning falls back to `decl.label ?? decl.name`.
+
+**Fix:** before saying what a displayed string is, find the field that fed it in a real preset and read the consumer's own fallback (here `TuningControls.js`). Design from what the user sees on the surface that consumes it, not from the editor's summary of it.
+
+---
+
+## Read the project's settled message words before adding a tone
+Tags: planning, design-process, mocks, copy, severity
+Applies-when: a mock or component adds an error, warning, notice or info message, or picks a colour or icon for one
+
+The Aurora-e4bi.1 naming dialog grew an amber "warning" tier with Grille's warning icon and coloured text. The project had already settled three words ([[graph-editor-cleanup]], Stage 7 "Words": error, notice, problem), with the amber triangle reserved for graph problems, "no severity tiers" with tone meaning "does this block you", colour on the mark only (`shell.css`), and a copy pattern the Dashboard already used ("Another effect is named X."). Several review rounds styled a tier that should not exist.
+
+**Fix:** before choosing a tone, grep the plan for the words list and read how the shell and the Dashboard already draw and word the same kind of message; map the new message onto those.
+
+---
+
+## A mock switch that forces a state the product cannot reach misleads the review
+Tags: planning, design-process, mocks, layout
+Applies-when: adding a mock control that overrides a media query, breakpoint or other condition to show a layout
+
+To show a wide bottom dock, the Aurora-e4bi.1 mock got a Force dock switch, which docked a landscape window the editor never docks. The owner read it as a design proposal. The popup link meant to show the real case (900x1400) was clamped to the screen's height, came out landscape, and showed the side drawer instead. The question itself ("cap the wide dock?") went away once the layouts were measured: the rule should not produce that state at all.
+
+**Fix:** reach states through the real condition (a popup or window at the true size, with the measured size printed in the frame), and say when a state needs an unusual screen. If a state looks wrong, first ask whether the rule should produce it.

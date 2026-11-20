@@ -19,6 +19,7 @@ add_executable(AuroraInputLinuxTests
   LinuxInputTests.cpp
   PipewireTests.cpp
   InputControlDescriptorTests.cpp
+  X11MonitorKeyTests.cpp
 )
 
 target_link_libraries(AuroraInputLinuxTests PRIVATE

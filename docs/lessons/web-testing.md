@@ -46,6 +46,8 @@ Playwright/Puppeteer-equivalent). Node itself also isn't on this machine's
 WSL2 `PATH` (only Windows' own install is), so the check runs from the
 Windows side.
 
+**Update (Aurora-pvxx.11):** a real browser is available now: `tools/browser-check` drives a cached Playwright Chromium with `playwright-core` (no browser download); use it for anything needing real layout or events, and keep jsdom for the no-browser case below.
+
 **Fix:** `npm install jsdom --no-save` in the session's scratchpad directory
 (never the repo -- it's a test-only dependency, same relationship Catch2 has
 to the C++ repos' shipped binaries) and load the real `index.html`/`.js`
@@ -309,6 +311,15 @@ route.
 **Fix:** leave `changeOrigin` off, or open the dev page at the same host
 the proxy targets.
 
+Aurora-pvxx.6 hit it again with `changeOrigin` off: with Vite 8.3.2 a draft
+`PUT` through the proxy got 403 even from `localhost:5199`, while the same
+request direct to Aurora with `Origin: http://localhost:8215` passed and
+`Origin: http://127.0.0.1:8215` failed (the gate compares host names, so
+`localhost` and `127.0.0.1` differ). Not isolated why the proxied request
+mismatched. `web/graph-editor/vite.config.ts` now sets `Origin` to
+`http://localhost:<aurora port>` in a `proxyReq` hook; the first thing to
+test when a proxied write 403s is `curl -X PUT` with each origin.
+
 ## Driving the banner live: API calls lag a beat, and a UI switch overwrites a bogus saved input
 Tags: live-test, playwright, banner, heartbeat, mode-switch, fake-bridge
 Applies-when: live-checking shell-banner behavior with Playwright against a running daemon, or trying to make a Dashboard mode switch fail on purpose
@@ -327,3 +338,106 @@ Applies-when: manually testing LAN pairing from a phone or private window, or wo
 Aurora-so1o: the same phone opened `192.168.0.224:8215` and `BeefyBoy.local:8215`, and a private window opened the same addresses. Each one went through the pairing screen and each was approved separately. The token is an HttpOnly cookie, and browsers scope cookies to the host, so another IP or hostname for the same machine is a new site with no token. This is by design, it is not a lost pairing.
 
 **Fix:** test from one address per device, or expect one approval and one Devices-list row per address. Use a private window as a stand-in phone, approve from `localhost` on the Aurora computer, and count the extra rows as separate devices. If cross-address re-use is ever wanted, it needs a design decision (a bearer token in storage, not a cookie), not a bug fix.
+
+
+---
+
+## A browser check that reads `document.activeElement` right after an element appears races any focus set in a later frame
+Tags: playwright, focus, race, graph-editor
+Applies-when: asserting focus after a menu, popover or dialog opens
+
+Aurora-daaa.13: the graph editor's edit-loop asserted the Name field had focus as soon as its label was visible. The editor focuses the field a few animation frames after the popover mounts, so the check failed on both the dev server and the embedded build, and an earlier run had passed by luck.
+
+**Fix:** wait for the focus with `page.waitForFunction(...)` and a short timeout instead of reading it once. A failure that reproduces on the dev server too is the check's timing, not the embedded build.
+
+
+---
+
+## A browser check that clicks a fixed canvas element breaks when a view change moves it off-screen, and one that waits for "zoom changed" races the animation
+Tags: playwright, react-flow, viewport, race, graph-editor
+Applies-when: a canvas check clicks `.first()` node or opens a menu right after a zoom or fit
+
+Aurora-daaa.25: Aurora-daaa.18 capped fit view at 60% zoom, so `builtin.video` overflowed 1470x900 and `.first()` node header sat outside the window (Playwright waits 30 s on "element is outside of the viewport"). In the view-menu step, waiting for zoom `> z0` resolved on the first animation frame, and the menu opened mid-animation was gone before the next click. Both checks passed unchanged with `minZoom` put back, so the editor was right.
+
+**Fix:** pick a node whose box is inside the window instead of `.first()`, and wait for the zoom to read the same for a few polls before opening a menu. When two checks time out together after an editor change, bisect by reverting that one option before touching either check.
+
+
+---
+
+## A dev stack launched with `--fresh` is a first setup, so the app opens the user's browser; stub the opener on PATH
+Tags: devstack, browser-check, focus, first-setup, mac
+Applies-when: an automated run starts the app (devstack `up`, a check, a script) on a machine where someone is working
+
+Aurora-my6z: every `devstack.py up` opened a tab in the user's default browser and stole focus, though the Playwright checks themselves run headless. `--fresh` leaves no `config.json`, so `isFirstSetup` is true and the Mac app runs `open <url>` (`openWebBrowser`). `restart` does not: it has no `--fresh` and `up` leaves a `config.json`.
+
+**Fix:** `devstack.py` puts a no-op `open` first on the app's PATH only (Mac); the app calls it through `sh`, so the stub wins. A logging stub proved the call arrives. Linux (`xdg-open`) is Aurora-5m0p; Windows `ShellExecuteA` ignores PATH and needs an app-side switch (Aurora-q5eb).
+
+## A browser check that needs "an input Aurora lacks" must name a broken one, not rely on none being configured
+Tags: browser-check, audio-input, auto-pick, devstack, environment, failed-save
+Applies-when: a check or test expects an effect to fail because an audio or video input is missing
+
+Aurora-bju0 (2026-11-13): `graph-editor:failed-save` expected an audio graph to fail on a stack whose audio input is unset. Since Aurora-kep2.3 Aurora picks a missing input itself from the registry (`_pickAudioBackend` in `Pipeline.cpp`), so on a Mac, where `mac-audio` is registered and opens, the graph simply ran: `/api/state` errors stayed empty and no row appeared. Whether the check passed depended on the machine's audio backend and permission, not on the code.
+
+**Fix:** name an input that does not exist (`PUT /api/config {activeAudioInputName: 'no-such-audio-input'}`). Aurora only auto-picks an unnamed input, so the open fails with `Unknown audio input` on every machine. Clear the name before the next step: while it is set every reload reports it.
+
+## A bead that renames visible text greps tools/browser-check for the old string
+Tags: browser-check, rename, menu, helpers, stale-check, baseline
+Applies-when: a change renames a menu item, button label or heading that browser checks may select by name
+
+Aurora-e4bi.16 and .17 (2026-11-17): e4bi.15 renamed the node menu item "Show on the Dashboard" to "Tuning controls…" and had no browser check of its own, so nothing ran the checks. The shared `tickFirst` in `lib/editorMenu.mjs` still clicked the old name, and six checks (`refused-save`, `kept-copy`, `drawers`, `undo-toast`, `delete`, `edit-loop`) timed out at that one step; `clipboard` listed the old name too. Separately, `title-menu` clicked "the second item of New" by position: after l8ua moved the built-ins under a Built-in sub-menu, that item was the sub-menu opener, so no copy was created and the check timed out 30 s later on the title.
+
+**Fix:** with any rename, `grep -rn "<old text>" tools/browser-check` and update the helpers and expected lists in the same commit. Select menu items by name, not by position.
+
+## A hover tooltip under the parked pointer takes the first Esc
+Tags: browser-check, playwright, tooltip, react-aria, escape, drawer
+Applies-when: a check presses Escape to close a drawer, dialog or menu after the mouse has hovered anything with a tooltip
+
+Aurora-e4bi.18 (2026-11-17): `graph-editor:narrow` failed at 700x900 with "Esc left the drawer open". The pointer was still over a tooltip trigger, so a Grille (React Aria) tooltip was open. `useTooltipTrigger` listens for keydown on `document` in the capture phase and calls `stopPropagation()` on Escape, so the Drawer's window listener never saw it. Closing the topmost layer first is intended. At 400x800 focus was in the drawer, so that size passed.
+
+**Fix:** move the mouse to an empty corner (`page.mouse.move(2, h - 2)`) and wait for the tooltip to close before pressing Escape. A count of `[role=tooltip]` is the quick tell.
+
+## After a keyboard step, React Aria shows a hover tooltip only after a pointer press
+Tags: browser-check, playwright, tooltip, react-aria, modality, hover
+Applies-when: a check hovers to open a Grille or React Aria tooltip after any keyboard input (Esc, Enter, typing)
+
+Aurora-e4bi.9 (2026-11-17): the drawers check closed the Tuning picker with Esc, then hovered a param label and waited 30 s for its tooltip. React Aria tracks the interaction modality, which keydown sets to keyboard and only a pointer press sets back. In keyboard modality `useTooltipTrigger` opens on focus, not hover, so `locator.hover()` alone showed nothing. The `graph-editor-tooltips` check never hit it because it presses no key before hovering.
+
+**Fix:** after a keyboard step, click an empty spot (`page.mouse.click(2, 300)` on the pane) before a hover that expects a tooltip. A real user sees the same thing: after typing, the first hover shows no tooltip until they click.
+
+## React Aria drag: the row starts a mouse drag, the grip is for keyboard, and synthetic touch starts none
+Tags: browser-check, playwright, react-aria, drag-and-drop, tree, touch, keyboard
+Applies-when: building or checking drag and drop on a React Aria Tree, GridList or Table (including Grille's TreeDragHandle)
+
+Aurora-e4bi.5 (2026-11-17): React Aria gives the drag handle (`Button slot="drag"`) `pointer-events: none`, so a mouse drag starts anywhere on the row and the grip serves keyboard and touch only; Grille's `cursor: grab` on it never shows. Calling `.focus()` on the grip bounces focus back to the row: reach it as a user does, Right arrow from a card row (two from an expandable row), then Enter. React Aria also does not refuse a drop "on" a collapsed row by itself: when `getDropOperation` cancels "on", the drop lands before or after by pointer half, so a mouse step aiming at a heading's middle can reorder instead. A CDP long-press and move with `hasTouch` started no drag in headless Chromium, so touch drag needs a device. Separately, a target type tested with `'section' in target` matched a Control, which has a `section` key: tag targets (`{ heading }`, `{ card }`) instead.
+
+**Fix:** drive mouse drags from the row, keyboard drags through the grip by arrow keys, test "drop on" rules by keyboard (whose targets are explicit) and in unit tests, and list touch drag as a device check.
+
+---
+
+## AURORA_EDITOR=embedded tests the editor compiled into the app, so rebuild the app after an editor change
+Tags: browser-check, graph-editor, embedded, app-build, stale-build
+Applies-when: running a graph-editor browser check with AURORA_EDITOR=embedded, or judging an embedded-mode failure after an editor edit
+
+Aurora-51nv.1 (2026-11-18): the back link changed from `/` to `../`, and `AURORA_EDITOR=embedded npm run graph-editor:back-link` still saw `/`. Copying the fresh `dist` over `build/windows-app/app/windows/graph-editor-dist` changed nothing, because the app compiles the bundle into a generated header (`aurora_graph_editor_embed`, `GraphEditorWebRoot.hpp`) and serves it from the binary. An incremental `cmake --build build/windows-app --config Release --target aurora-app-windows` (184 s) and the check passed.
+
+**Fix:** after an editor source change, rebuild the app before any embedded-mode check. An embedded failure on a stale app says nothing about the change. The dev-server mode (the default) serves the source tree.
+
+---
+
+## Playwright isVisible is true for a visually hidden element, and padding counts toward its width
+Tags: browser-check, playwright, visually-hidden, accessibility, recipes
+Applies-when: asserting that a screen-reader-only list is in the page but not shown (Aurora-4g4d.2, `checks/recipes-page.mjs`)
+
+An `ol` with `position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)` passed `isVisible()` (it has a box), and `boundingBox().width` was 19 px, because the list's 1.5em padding adds to a 1 px content width.
+
+**Fix:** assert the bounding box is at most 1 px wide, and give the hidden rule `margin: 0; padding: 0`. Do not use `isVisible()` to prove something is visually hidden.
+
+---
+
+## An empty graph opens no preview stream, so a paste check must warm one first
+Tags: browser-check, graph-editor, preview, paste, recipes
+Applies-when: reproducing a bug that needs a live preview stream when the user acts (Aurora-ookv, `checks/graph-editor-recipes-paste.mjs`)
+
+An empty graph is an invalid draft, so loading `?effect=@empty` and pasting opened the stream for the pasted graph and the bug never showed. The owner's case was a stream already live from an earlier graph, then cleared.
+
+**Fix:** paste a video recipe, wait for Live, select all and delete, then paste the recipe under test. Confirm a new check fails with the fix reverted before trusting it.

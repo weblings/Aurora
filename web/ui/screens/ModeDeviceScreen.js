@@ -32,14 +32,23 @@
 import { renderTopBar } from '../topBar.js';
 import { renderNavFooter } from '../NavFooter.js';
 import { DeviceField, AUTO_MONITOR_VALUE } from '../DeviceField.js';
-import { applyTooltip } from '../Tooltips.js';
+import { EffectPanel } from '../EffectPanel.js';
 import { renderReloadError } from '../MacPermissionRecovery.js';
 import {
-  audioDevicesUrlFrom, effectiveFlags, flagsForMode, isModeConfigValid, isSwitchConfirmed, loadPipelineState,
-  modeFromFlags, modeSwitchPatch,
+  audioDevicesUrlFrom, effectiveFlags, flagsForMode, isApplyConfirmed, isModeConfigValid, keepCustomEffect,
+  loadEffects, loadPipelineState, modeFromFlags, modeSwitchPatch,
 } from '../CaptureSource.js';
 
 export { pickVideoInputName, pickAudioInputName } from '../CaptureSource.js';
+
+export const EXPLAIN = '<strong>Screen colors</strong> syncs with your video. <strong>Music pulse</strong> syncs with your audio.';
+
+const builtinIdFor = (mode) => (mode === 'audio' ? 'builtin.audio' : 'builtin.video');
+
+// A new user is offered the two built-ins only: nothing hidden, nothing custom.
+export function onboardingEffects(effects) {
+  return effects.filter((e) => e.builtin && !e.hidden && (e.id === 'builtin.video' || e.id === 'builtin.audio'));
+}
 
 export class ModeDeviceScreen {
   constructor(app, { onComplete, onBack, showBack = true }) {
@@ -58,10 +67,13 @@ export class ModeDeviceScreen {
     this.sinkName = '';
     this.audioDevicesUrl = null;
     this.platform = '';
+    this.activeEffectId = '';
     this.pendingMode = null; // toggle choice with a switch in flight: outlined, not filled
     this.error = null;
     this.reloadFailed = false; // saved but not applied: the shell banner shows it, not this screen
     this.deviceField = null;
+    this.effects = [];
+    this.effectPanel = null; // onboarding EffectPanel in .md-effect-slot, patched in place
     this.applyPromise = null; // latest _applyMode run, if any -- Continue awaits it (see _onContinue)
   }
 
@@ -69,6 +81,8 @@ export class ModeDeviceScreen {
     this.container = container;
     container.innerHTML = `
       <div class="top-bar-slot"></div>
+      <p class="status-text md-explain" hidden></p>
+      <div class="md-effect-slot"></div>
       <div class="md-body"></div>
       <div class="nav-footer-slot"></div>
     `;
@@ -83,11 +97,13 @@ export class ModeDeviceScreen {
     let capabilities;
     let config;
     let state;
+    let effects;
     try {
-      [capabilities, config, state] = await Promise.all([
+      [capabilities, config, state, effects] = await Promise.all([
         fetch('/api/capabilities').then((r) => r.json()),
         fetch('/api/config').then((r) => r.json()),
         loadPipelineState(),
+        loadEffects(),
       ]);
     } catch {
       // Unreachable owns this (shell takeover, Aurora-ewyz): poke the beat,
@@ -96,6 +112,7 @@ export class ModeDeviceScreen {
       return;
     }
 
+    this.effects = effects ?? [];
     this.inputs = capabilities.inputs ?? [];
     this.audioInputs = capabilities.audioInputs ?? [];
     this.platform = capabilities.platform ?? '';
@@ -105,6 +122,7 @@ export class ModeDeviceScreen {
     this.hasAudio = this.audioInputs.length > 0;
     this.audioDevicesUrl = audioDevicesUrlFrom(state);
 
+    this.activeEffectId = config.activeEffectId ?? '';
     this.currentActiveInputName = config.activeInputName ?? '';
     this.currentActiveAudioInputName = config.activeAudioInputName ?? '';
     // Fill follows the running pipeline, never the saved config: after a
@@ -128,12 +146,14 @@ export class ModeDeviceScreen {
     // click, so nothing ever actually reacted until the *next* screen loaded
     // (see WebUI_Fixes.md Pass 2). Skipped if a valid mode is already
     // applied (e.g. navigating back here) to avoid an unnecessary reconnect.
-    if (!isModeConfigValid(config, this.inputs, this.audioInputs)) {
+    if (!isModeConfigValid(config, this.inputs, this.audioInputs, effects)) {
       await this._applyMode();
     }
   }
 
   unmount() {
+    this.effectPanel?.destroy();
+    this.effectPanel = null;
     this.deviceField?.destroy();
     this.deviceField = null;
   }
@@ -147,13 +167,7 @@ export class ModeDeviceScreen {
     // Fill follows the running pipeline (this.mode); the device section
     // follows the user's choice, including a pending one still in flight.
     const choice = this.pendingMode ?? this.mode;
-    const disabled = this.pendingMode ? ' disabled' : '';
-    const toggleHtml = this.hasAudio ? `
-      <div class="segmented" role="group" aria-label="Capture mode">
-        <button type="button" class="${this._toggleClasses('video')}" id="md-mode-video"${disabled}>Video</button>
-        <button type="button" class="${this._toggleClasses('audio')}" id="md-mode-audio"${disabled}>Audio</button>
-      </div>
-    ` : '';
+    this._renderEffectPanel();
 
     const flags = flagsForMode(choice);
 
@@ -168,19 +182,16 @@ export class ModeDeviceScreen {
 
     const errorHtml = renderReloadError(this.error, this.platform);
 
+    // Copy is a lean, settled in the mock (Aurora-hr92). It sits above the dropdown.
+    const explain = this.container.querySelector('.md-explain');
+    explain.innerHTML = EXPLAIN;
+    explain.hidden = !this.hasAudio;
+
     body.innerHTML = `
-      ${toggleHtml}
       ${audioNoteHtml}
       <div class="md-device"></div>
       ${errorHtml}
     `;
-
-    if (this.hasAudio) {
-      applyTooltip(body.querySelector('#md-mode-video'), 'app.mode');
-      applyTooltip(body.querySelector('#md-mode-audio'), 'app.mode');
-      body.querySelector('#md-mode-video').addEventListener('click', () => this._switchMode('video'));
-      body.querySelector('#md-mode-audio').addEventListener('click', () => this._switchMode('audio'));
-    }
 
     const deviceSlot = body.querySelector('.md-device');
     this.deviceField = new DeviceField(deviceSlot, {
@@ -227,11 +238,27 @@ export class ModeDeviceScreen {
     this.onComplete();
   }
 
-  _toggleClasses(mode) {
-    const classes = ['segmented-btn'];
-    if (this.mode === mode) classes.push('active');
-    if (this.pendingMode === mode) classes.push('pending');
-    return classes.join(' ');
+  // The first choice is the Dashboard's effect dropdown, cut down to the two built-ins. It shows
+  // what runs (this.mode), never the pick, so a refused switch does not read as chosen.
+  _renderEffectPanel() {
+    if (!this.hasAudio) return; // video only: nothing to choose
+    if (!this.effectPanel) {
+      this.effectPanel = new EffectPanel(this.container.querySelector('.md-effect-slot'), {
+        onboarding: true,
+        onSelect: (id) => this._switchMode(id === 'builtin.audio' ? 'audio' : 'video'),
+      });
+    }
+    const running = builtinIdFor(this.mode);
+    const pending = this.pendingMode ? builtinIdFor(this.pendingMode) : null;
+    const title = (id) => this.effects.find((e) => e.id === id)?.title ?? id;
+    this.effectPanel.update({
+      effects: onboardingEffects(this.effects),
+      state: { effect: running },
+      hasAudio: true,
+      canEdit: false,
+      busy: !!this.pendingMode,
+      pendingTitle: pending ? title(pending) : null,
+    });
   }
 
   async _switchMode(mode) {
@@ -272,7 +299,8 @@ export class ModeDeviceScreen {
     this.reloadFailed = false;
 
     const applying = this.pendingMode ?? this.mode;
-    const patch = modeSwitchPatch(applying, this);
+    const switched = modeSwitchPatch(applying, this);
+    const patch = this.pendingMode ? switched : keepCustomEffect(switched, this.activeEffectId);
 
     try {
       const result = await (await fetch('/api/config', {
@@ -296,10 +324,10 @@ export class ModeDeviceScreen {
         // so there is no failure to report.
         const stateAfter = await loadPipelineState();
         if (stateAfter) this.audioDevicesUrl = audioDevicesUrlFrom(stateAfter);
-        if (isSwitchConfirmed(result, stateAfter, applying)) {
-          this.mode = applying;
-          // An audio switch clears activeInputName but keeps the remembered
-          // video input, so switching back picks the same one.
+        if (isApplyConfirmed(result, stateAfter, applying, patch, this.activeEffectId)) {
+          // A kept custom effect's graph picks the mode, not the toggle.
+          this.mode = patch.activeEffectId ? applying : modeFromFlags(stateAfter);
+          // Both names stay saved across switches, so switching back keeps the input.
           if (patch.activeInputName) this.currentActiveInputName = patch.activeInputName;
           if (patch.activeAudioInputName) this.currentActiveAudioInputName = patch.activeAudioInputName;
           if (flagsForMode(this.mode).usesVideoInput) {

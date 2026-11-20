@@ -117,9 +117,9 @@ def lan_ip():
 
 def pair(lan, loop, scope):
     """Request a token over the LAN address and approve it from loopback, as the WebUI does."""
-    status, ticket = call(lan, "POST", "/api/pairing/request", {"name": f"gate-{scope}", "scope": scope})
+    status, ticket = call(lan, "POST", "/api/v1/pairing/request", {"name": f"gate-{scope}", "scope": scope})
     assert status == 202, (status, ticket)
-    poll = "/api/pairing/request/" + ticket["pollKey"]
+    poll = "/api/v1/pairing/request/" + ticket["pollKey"]
     assert call(lan, "GET", poll)[0] == 202
     pending = call(loop, "GET", "/api/pairing/pending")[1]["pending"]
     ref = next(p["ref"] for p in pending if p["code"] == ticket["code"])
@@ -133,6 +133,10 @@ def state(base):
     return call(base, "GET", "/api/state")[1]
 
 
+def v1(base):
+    return call(base, "GET", "/api/v1/state")[1]
+
+
 def run_phase(label, adapter, args, audio, body, lan=False):
     ds.up(SimpleNamespace(app=args.app, viz_port=8000, banner_errors=0, input="dummy",
                           audio_input="live" if audio else None))
@@ -141,7 +145,7 @@ def run_phase(label, adapter, args, audio, body, lan=False):
         base = f"http://127.0.0.1:{port}"
         frames = sc.Frames()
         frames.wait(sc.lit, "lit at start")
-        if audio and not call(base, "GET", "/api/capabilities")[1]["audioInputs"]:
+        if audio and not call(base, "GET", "/api/v1/capabilities")[1]["audioInputs"]:
             RESULTS.append((f"{label}: audio input", "SKIP", "no audio input on this box", 0.0))
             print(f"SKIP {label}: no audio input on this box", flush=True)
             return True
@@ -198,8 +202,8 @@ def lan_phase(c):
 
 @step("LAN: no token and a wrong token are refused")
 def lan_refusals(c, lan):
-    assert call(loop_of(c), "GET", "/api/state")[0] == 200
-    assert call(lan, "GET", "/api/state")[0] == 401, "the LAN address should need a token"
+    assert call(loop_of(c), "GET", "/api/v1/state")[0] == 200
+    assert call(lan, "GET", "/api/v1/state")[0] == 401, "the LAN address should need a token"
     for token in (None, "wrong-token"):
         client = Client(c["adapter"], lan, token)
         try:
@@ -277,6 +281,7 @@ def audio_phase(c):
         apply_lit(c, client, ctx)
         restart_check(c, client)
         revert_effect(c, client)
+        control_tools(c, client)
         killed_client(c)
     finally:
         tone.stop()
@@ -339,7 +344,7 @@ def try_and_keep(c, client, ctx):
     assert kept["applied"] and kept["effect"] == KEPT, kept
     s = state(base)
     assert s["effect"] == KEPT and s["mcpEffectId"] == KEPT, s
-    assert not call(base, "GET", "/api/graph/test")[1]["active"]
+    assert not call(base, "GET", "/api/v1/graph/test")[1]["active"]
     after = sc.bridge_counts()
     assert after == before, f"the test restarted the Hue stream: {before} -> {after}"
     return f"dark under test past revertAfterMs/2, kept as {KEPT}, mcpEffectId set, Hue starts held at {before['start']}"
@@ -383,6 +388,21 @@ def revert_effect(c, client):
     return f"back on {out['restored']}, toggle unfilled (mcpEffectId {s['mcpEffectId']})"
 
 
+@step("control tools")
+def control_tools(c, client):
+    before = v1(c["base"])["brightness"]
+    client.ok("set_brightness", brightness=35)
+    assert v1(c["base"])["brightness"] == 35, v1(c["base"])
+    client.ok("set_brightness", brightness=before)
+    assert client.ok("set_running", running=False)["state"] == "paused"
+    assert v1(c["base"])["state"] == "paused"
+    assert client.ok("set_running", running=True)["state"] == "running"
+    c["frames"].wait(sc.lit, "lit after resume")
+    err, bad = client.tool("set_brightness", brightness=150)
+    assert err, bad
+    return "brightness patched, pause and resume round-trip, bad brightness refused"
+
+
 @step("killed client reverts the test")
 def killed_client(c):
     base = c["base"]
@@ -397,7 +417,7 @@ def killed_client(c):
     victim.kill()
     t = time.time()
     c["frames"].wait(sc.lit, "reverted after the client was killed", started["revertAfterMs"] / 1000 + 20)
-    info = call(base, "GET", "/api/graph/test")[1]
+    info = call(base, "GET", "/api/v1/graph/test")[1]
     assert info["lastEnd"] == "heartbeat_lost" and not info["active"], info
     s = state(base)
     assert s["effect"] == "builtin.video" and not s["errors"], s

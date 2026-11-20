@@ -6,7 +6,7 @@
 Brings the stack up on the dummy video input (devstack.py), then walks: draft,
 validate, preview, test on lights, heartbeat loss and the revert, apply of a
 both-input custom graph, app restart, and an output that is gone at load (the
-fallback warning). Also covers Sequence D's D0 (Aurora-4xqt): the preview
+failed startup with an effect error). Also covers Sequence D's D0 (Aurora-4xqt): the preview
 summary tells a static draft from a reacting one, a both-input draft previews and
 tests on lights from a video-live state with no Hue restart (the fake bridge's
 stream counts hold still), and an apply marked as MCP sets mcpEffectId, which
@@ -220,10 +220,11 @@ def main():
     ap.add_argument("--app")
     ap.add_argument("--keep", action="store_true", help="leave the stack up afterwards")
     ap.add_argument("--allow-skip", action="store_true")
+    ap.add_argument("--viz-port", type=int, default=8000)
     args = ap.parse_args()
     app = Path(args.app) if args.app else ds.DEFAULT_APP
 
-    ds.up(SimpleNamespace(app=args.app, viz_port=8000, banner_errors=0, input="dummy"))
+    ds.up(SimpleNamespace(app=args.app, viz_port=args.viz_port, banner_errors=0, input="dummy", audio_input=None))
     ok = False
     try:
         ok = run(app)
@@ -409,14 +410,20 @@ def restart_and_check(c, app, port):
     c["frames"].level = None
     new_port = restart_app(app, port)
     base = f"http://127.0.0.1:{new_port}"
-    c["frames"].wait(lit, "lit after restart", 60)
+    # The graph follows audio, so it only lights with a tone playing.
+    tone = Tone()
+    tone.start()
+    try:
+        c["frames"].wait(lit, "lit after restart", 60)
+    finally:
+        tone.stop()
     s = call(base, "GET", "/api/state")[1]
     assert s["effect"] == EFFECT and s["usesAudioInput"] and not s["errors"], s
     assert s.get("mcpEffectId") == EFFECT, s
     return f"{EFFECT} running again, still the MCP effect, audio input {s['source']['audio']['input']}"
 
 
-@step("gone output falls back with a warning")
+@step("gone output fails the startup with an effect error")
 def fallback_warning(c, app):
     if not any(r[0] == "restart keeps the custom graph" and r[1] == "PASS" for r in RESULTS):
         raise Skip("needs the restart step")
@@ -433,12 +440,12 @@ def fallback_warning(c, app):
 
     port = restart_app(app, ds.find_webui(), rename_output)
     base = f"http://127.0.0.1:{port}"
-    s = ds.wait_for(lambda: (lambda x: x if x.get("state") == "running" else None)(call(base, "GET", "/api/state")[1]),
-                    "the fallback to run", 40)
-    held = [e for e in s["errors"] if e["source"] == "effect_fallback"]
-    assert s["effect"] == "builtin.video" and s["requestedEffect"] == EFFECT and held, s
-    c["frames"].wait(lit, "lit on the built-in")
-    return f"running builtin.video, asked for {EFFECT}: {held[0]['message'][:70]}"
+    s = ds.wait_for(lambda: (lambda x: x if x.get("state") == "failed" else None)(call(base, "GET", "/api/state")[1]),
+                    "the startup to fail", 40)
+    held = [e for e in s["errors"] if e["source"] == "effect"]
+    assert s["effect"] is None and s["requestedEffect"] == EFFECT and held and not held[0]["retry"], s
+    assert call(base, "GET", "/api/config")[1]["activeEffectId"] == EFFECT, "the failed pick stays saved"
+    return f"nothing running, asked for {EFFECT}: {held[0]['message'][:70]}"
 
 
 if __name__ == "__main__":

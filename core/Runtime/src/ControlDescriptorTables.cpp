@@ -86,6 +86,7 @@ namespace Aurora::Runtime
   {
     return {
       {"app.mode", "button", "Video or audio reactive mode"},
+      {"app.effect", "button", "Choose the light effect"},
       {"app.pause", "button", "Play/Pause"},
       {"app.stop", "button", "Stop and Quit"},
       slider("app.brightness", "Overall light brightness",

@@ -1,6 +1,7 @@
 // G2b Tier 1 audio nodes (Aurora-ra4o.5): per-node tests through the Graph.
 // Wraps existing functions unchanged: IAudioInput::readNextBuffer,
 // AudioFeatureExtractor, updateDrift, updateBounce.
+#include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
@@ -11,9 +12,11 @@
 
 #include <Aurora/Runtime/AudioFrameCompositor.hpp>
 #include <Aurora/Runtime/Graph/AudioNodes.hpp>
+#include <Aurora/Runtime/Graph/BlendNodes.hpp>
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
 #include <Aurora/Runtime/Graph/NodeRegistry.hpp>
+#include <Aurora/Runtime/Graph/TimeNodes.hpp>
 
 using namespace Aurora::Contracts;
 using namespace Aurora::Input;
@@ -516,4 +519,91 @@ TEST_CASE("audio.bands holds zero until a window fills and is Absent without dat
   graph.tick(1.f / 60.f, &host);
   REQUIRE(graph.portValue("bands", "bass") != nullptr);
   CHECK(isAbsent(*graph.portValue("bands", "bass")));
+}
+
+namespace
+{
+  // Constant one-zone white Frame, so frame.brightnessScale has something to scale.
+  class WhiteFrameNode : public INode
+  {
+  public:
+    const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+    const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+    void evaluate(const EvalContext&, float, std::unordered_map<std::string, GraphValue>& outputs) override
+    {
+      outputs.emplace("frame", Frame{{0, Color(255, 255, 255), 0.f}});
+    }
+
+  private:
+    std::vector<PortDecl> m_in{};
+    std::vector<PortDecl> m_out{{"frame", PortType::Frame, false}};
+  };
+} // namespace
+
+TEST_CASE("beat flash graph pulses the brightness factor on an onset", "[AudioNodes][TimeNodes]")
+{
+  NodeRegistry registry = makeAudioRegistry();
+  registerTimeNodes(registry);
+  registerBlendNodes(registry);
+  registry.registerType(
+    "test.white",
+    NodeTypeInfo{
+      .meta = {.purpose = "test", .useWhen = "test", .example = "{}", .cost = "cheap"},
+      .inputs = {},
+      .outputs = {{"frame", PortType::Frame, false}},
+      .params = {},
+      .factory = [] { return std::make_unique<WhiteFrameNode>(); },
+    });
+  Aurora::Runtime::Graph::Graph graph = requireGraph(
+    R"({"version": 1, "nodes": [
+      {"id": "cap", "type": "audio.capture", "params": {}},
+      {"id": "feat", "type": "audio.features", "params": {}},
+      {"id": "env", "type": "trigger.envelope", "params": {"attack": 0, "hold": 0.05, "decay": 0.4}},
+      {"id": "white", "type": "test.white", "params": {}},
+      {"id": "dim", "type": "frame.brightnessScale", "params": {}}
+    ], "edges": [
+      ["cap.buffer", "feat.buffer"],
+      ["feat.onset", "env.trigger"],
+      ["env.value", "dim.factor"],
+      ["white.frame", "dim.frame"]
+    ]})",
+    registry);
+
+  // Quiet bed, then one loud noise click at tick 30, 735 samples per 60 Hz tick.
+  FakeAudioInput input;
+  FakeHost host;
+  host.audio = &input;
+  unsigned seed = 12345;
+  std::vector<float> factor;
+  std::vector<float> lit;
+  for(int tick = 0; tick < 120; ++tick){
+    input.samples.assign(735, 0.f);
+    for(std::size_t i = 0; i < input.samples.size(); ++i){
+      seed = seed * 1664525u + 1013904223u;
+      float noise = static_cast<float>(seed >> 8) / static_cast<float>(1u << 24) * 2.f - 1.f;
+      input.samples[i] = tick == 30 ? 0.8f * noise : 0.002f * noise;
+    }
+    graph.tick(1.f / 60.f, &host);
+    factor.push_back(std::get<float>(*graph.portValue("env", "value")));
+    lit.push_back(std::get<Frame>(*graph.portValue("dim", "frame"))[0].color.toNormalized()[0]);
+  }
+
+  // The startup onset flash fades by tick 27, so look from tick 28.
+  std::size_t hit = 28;
+  while(hit < factor.size() && factor[hit] < 1.f - 1e-4f){
+    ++hit;
+  }
+  REQUIRE(hit < factor.size());
+  CHECK(hit >= 30);
+  CHECK(hit <= 33);
+  for(std::size_t i = 28; i < hit; ++i){
+    CHECK(factor[i] == 0.f);
+  }
+  CHECK(factor[hit + 2] == Catch::Approx(1.f)); // hold 0.05 s
+  CHECK(factor[hit + 10] < 1.f);
+  CHECK(factor[hit + 10] > 0.f);
+  CHECK(factor.back() == 0.f);
+  CHECK(lit[hit] == Catch::Approx(1.f));
+  CHECK(lit[hit - 1] == 0.f);
+  CHECK(lit.back() == 0.f);
 }

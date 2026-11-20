@@ -2,7 +2,18 @@
 
 #include <chrono>
 #include <filesystem>
+#include <functional>
 #include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include <nlohmann/json.hpp>
+
+#include <Aurora/Network/Http/Server/HttpDataStructs.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
+#include <Aurora/Runtime/LightTest.hpp>
+#include <Aurora/Runtime/Pipeline.hpp>
 
 namespace Aurora::Network::Http::Server { class HttpServer; }
 
@@ -13,6 +24,50 @@ namespace Aurora::Runtime
   class LightTest;
   class PipelineHost;
   class Registry;
+
+  // Everything GET /api/state reports, read once. stateToJson is the internal
+  // shape, so a v1 route can serialize the same snapshot its own way.
+  struct StateSnapshot
+  {
+    LightTest::Info test{};
+    PipelineCapabilities capabilities{};
+    std::string audioDevicesUrl;
+    HostStatus status{};
+    std::vector<HostCondition> conditions;
+    PipelineSummary summary{};
+    std::string audioSink;
+    std::string mcpEffectId;
+    std::optional<EffectInfo> effect;
+    float brightness{};
+    std::string activeInputName;
+    std::string activeAudioInputName;
+  };
+
+  StateSnapshot readStateSnapshot(
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    const std::shared_ptr<LightTest>& lightTest
+  );
+  nlohmann::json stateToJson(const StateSnapshot& snapshot);
+  nlohmann::json healthToJson(const StateSnapshot& snapshot);
+
+  // What the events loop sends per topic. Defaults are the internal shape.
+  struct EventPayloadBuilders
+  {
+    std::function<nlohmann::json(const StateSnapshot&)> state = [](const StateSnapshot& s){ return stateToJson(s); };
+    std::function<nlohmann::json(const StateSnapshot&)> health = [](const StateSnapshot& s){ return healthToJson(s); };
+  };
+
+  // The loop behind GET /api/events, for routes that send another payload shape.
+  void runEventsStream(
+    const Aurora::Network::Http::Server::Request& req,
+    Aurora::Network::Http::Server::EventStream& stream,
+    PipelineHost& pipelineHost,
+    const std::filesystem::path& configRoot,
+    std::chrono::milliseconds heartbeat,
+    const std::shared_ptr<LightTest>& lightTest,
+    const EventPayloadBuilders& builders
+  );
 
   // GET /api/monitors: the live video input's monitor list. Empty in audio
   // mode or with no pipeline -- not an error.
@@ -39,15 +94,18 @@ namespace Aurora::Runtime
   // host holds errors too (a reload that failed while the old pipeline kept
   // going, Aurora-ja76), so a non-empty list does not mean failed: read
   // state. A paused host holds only a failed resume.
+  // "effectTitle" and "effectDescription" (Aurora-mfud) are the running
+  // effect's picker text (title falls back to the id, description to null).
   // The flags describe what the running pipeline uses, kept through pause;
   // all false means nothing runs.
   // "mcpEffectId" (Aurora-4xqt.2) is the custom effect an MCP client applied
   // last, null until one has.
   // Aurora-5ipy.2 adds "effect" (the running graph id: "builtin.video",
   // "builtin.audio" or a custom effect's id, null when idle or failed),
+  // Aurora-kep2.4 adds "retry" to each error (false: Retry cannot fix it),
   // Aurora-52oz.1 adds "requestedEffect" (what Config asked for; it differs
-  // from "effect" while a custom effect that failed to load is replaced by
-  // the built-in, with an "effect_fallback" error held) and "source": {"video":
+  // from "effect" (null) after a failed effect switch, which also holds an
+  // "effect" error and reports the pick's "graphInputs") and "source": {"video":
   // {"input", "monitor" (string or null)} or null, "audio": {"input", "sink"
   // (string or null), "auto" (follows the default sink)} or null}. A null side
   // is unused. Kept through pause; "sink" is the platform-resolved sink while

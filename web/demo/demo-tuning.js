@@ -1,71 +1,49 @@
-// Config -> live pipeline mapping (Phase 4). Pure and tested
-// (demo-tuning.test.mjs); main.js applies the result to the running scene,
-// demo-boot feeds it from the shim's onConfigPatch hook + one initial apply.
-//
-// Audio keys land on the live 'midpoint' settings object in place (drift and
-// bounce state persist across edits, same as native editing the settings
-// struct). fixedAnchorHue follows the native rule: < 0 means unset/random
-// (Config.hpp), which the ported model spells `undefined`.
+// Config -> engine graph mapping. The built-in graph documents carry a `controls`
+// list (config key -> node param), so a tuning PUT becomes new param values in the
+// document handed to loadLive. Pure and tested (demo-tuning.test.mjs).
 
-export const AUDIO_KEYS = [
-  'audioFixedAnchorHue',
-  'audioBounceSmoothTime',
-  'audioDynamismFloor',
-  'audioCentroidStrength',
-  'audioDriftBaseRateDegPerSec',
-  'audioVibrancySaturation',
-  'audioVibrancyValue',
-  'audioReferenceRms',
-  'audioBrightnessFloor',
-  'audioCentroidRangeHz',
-  'audioBrightnessSmoothTime',
-];
+import { modeFromConfig } from './vendor/webui/CaptureSource.js';
+import { BUILTIN_GRAPHS } from './builtin-graphs.js';
+import { BUILTIN_INPUTS } from './engine-feeds.js';
+import { activeEffectId } from './demo-effects.js';
 
 // Keys that round-trip through the shim store (the Dashboard displays them
-// back) but have no demo effect. Each entry says why -- a slider that moves
+// back) but have no demo effect. Each entry says why: a slider that moves
 // yet changes nothing must be a listed decision, never an accident.
 export const NO_OP_KEYS = {
   refreshRate: 'daemon tick rate; the scene runs on rAF',
   activeMonitorName: 'no capture device in the demo (displayed back only)',
   audioTargetSinkName: 'no capture device in the demo (displayed back only)',
-  interpolation: 'native applies it in capture rescale; the demo downscales via drawImage',
 };
 
-const AUDIO_OUT_KEYS = [
-  'fixedAnchorHue',
-  'bounceSmoothTime',
-  'dynamismFloor',
-  'centroidStrength',
-  'driftBaseRateDegPerSec',
-  'vibrancySaturation',
-  'vibrancyValue',
-  'referenceRms',
-  'brightnessFloor',
-  'centroidRangeHz',
-  'brightnessSmoothTime',
-];
+// Config spells an unset optional float as a negative number, the graph as null.
+// subsampleWidth 0 means derive natively, so the document keeps its own default width.
+function controlValue(control, config) {
+  const value = config[control.config];
+  if (value === undefined) return undefined;
+  if (control.param === 'width' && value <= 0) return undefined;
+  if (control.param === 'fixedAnchorHue' && value < 0) return null;
+  return value;
+}
 
-export function configToPipeline(config) {
-  const audio = {};
-  for (let i = 0; i < AUDIO_KEYS.length; i++) {
-    const value = config[AUDIO_KEYS[i]];
-    audio[AUDIO_OUT_KEYS[i]] = value;
+export function buildGraphDoc(mode, config) {
+  const base = BUILTIN_GRAPHS[mode === 'audio' ? 'audio' : 'video'];
+  const doc = JSON.parse(JSON.stringify(base));
+  for (const control of doc.controls ?? []) {
+    const node = doc.nodes.find((n) => n.id === control.node);
+    const value = node && controlValue(control, config);
+    if (node && value !== undefined) node.params[control.param] = value;
   }
-  // The native optional spelled the ported model's way.
-  if (audio.fixedAnchorHue < 0) audio.fixedAnchorHue = undefined;
+  return doc;
+}
 
-  return {
-    audio,
-    // Same lerp-factor quantity as Smoother::smooth (0 = instant). Seeded 0
-    // natively, so a default config un-smooths the demo's old 0.85 -- that
-    // visual change IS parity with the app, not a regression.
-    transitionSmoothing: config.transitionSmoothing,
-    // 0 means "derive" natively; the demo's derive analogue is its built-in
-    // 160px sampling width. Nonzero widths apply live to the video path
-    // (test-pattern canvases stay at build width -- acceptable, those paths
-    // have no Dashboard-driven UI).
-    sampleWidth: config.subsampleWidth > 0 ? config.subsampleWidth : null,
-    // probeState's own rule (app.js): empty input + audio input = audio.
-    mode: (!config.activeInputName && config.activeAudioInputName) ? 'audio' : 'video',
-  };
+// The graph the room runs: the active custom effect as saved, else the built-in the config names.
+// `effects` is the shim's effects store. `inputs` is what the room must feed it.
+export function configToEngine(config, effects = null) {
+  const id = effects ? activeEffectId(config, effects) : null;
+  if (id && effects.isCustom(id)) {
+    return { mode: 'custom', id, doc: effects.getCustom(id), inputs: effects.getInputs(id) };
+  }
+  const mode = modeFromConfig(config);
+  return { mode, id: `builtin.${mode}`, doc: buildGraphDoc(mode, config), inputs: BUILTIN_INPUTS[mode] };
 }

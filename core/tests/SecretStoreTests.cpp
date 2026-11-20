@@ -1,3 +1,4 @@
+#include "TempDirSuffix.hpp"
 #include <chrono>
 #include <fstream>
 #include <string>
@@ -23,7 +24,7 @@ namespace
     std::filesystem::path path;
 
     explicit ScopedTempDir(const std::string& name):
-    path(std::filesystem::temp_directory_path() / ("aurora-secrets-tests-" + name))
+    path(std::filesystem::temp_directory_path() / ("aurora-secrets-tests-" + name + tempDirSuffix()))
     {
       std::filesystem::remove_all(path);
       std::filesystem::create_directories(path);

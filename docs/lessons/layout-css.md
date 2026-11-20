@@ -282,3 +282,63 @@ Applies-when: a short message wraps with one word alone on its last line
 Cutting a word fixed the Local Network banner at one width and not another: the break point moves with the window. `text-wrap: pretty` on `.shell-banner-content` makes supporting browsers rebalance the last lines at any width; browsers without it ignore the rule, so the specific line also joins its last two words with `&nbsp;` ("allow&nbsp;Aurora").
 
 **Fix:** put `text-wrap: pretty` on the container, not on one message, so every banner row benefits; use `&nbsp;` only where an orphan must never happen.
+
+---
+
+## Focus rings come from shared tokens and one :focus-visible rule in tokens.css, so new controls need no ring CSS of their own
+Tags: webui, css, focus, a11y, tokens
+Applies-when: styling keyboard focus on a new control inside a page that links the real `web/ui/styles`
+
+`tokens.css` (Aurora-oecx) defines `--aurora-focus-ring-width`, `-offset` and `--aurora-focus-ring` (the light button color) and one `:focus-visible` rule, an outer ring. Before it, only `.text-input` had a ring and everything else showed the browser `auto` ring, so new controls looked unrelated beside it. RockyRoadImport's own notes record that `outline: none` on focus fails WCAG 2.4.7.
+
+**Fix:** add no per-control ring. Inset it (`outline-offset: calc(-1 * width)`) on anything inside a clipping container (list rows, group headers, menu items, `.segmented-btn`, `.dropdown-option`), and put it on the row wrapper via `:has()` when the focusable control is the row's inner element. `.dropdown-menu` keeps `outline: none` because its active option is the indicator. `.text-input` moved from the accent ring to the shared one.
+
+---
+
+## React Flow's centred panels carry a built-in translateX(-15px) tied to the 15px panel margin
+Tags: webui, css, react-flow, graph-editor
+Applies-when: placing a React Flow panel or the attribution credit at top-centre or bottom-centre
+
+`.react-flow__panel.bottom.center` is `left: 50%` with `transform: translateX(-15px) translateX(-50%)` to offset its default margin. Setting only `margin` leaves the panel 15 px left of centre (found by a position check, `Aurora-s1t7.3`).
+
+**Fix:** zero the margin and set `transform: translateX(-50%)` together.
+
+---
+
+## A right-anchored popover "slides in" while its content wraps and re-measures
+Tags: webui, css, popover, react-aria, grille, graph-editor
+Applies-when: a Grille `Popover` or menu opens with `placement` ending in `end`, or near the right edge, and appears to animate
+
+Grille's popover has no animation (`ui.css` has no keyframes or transitions on `.ui-popover`). The Test caret menu (`bottom end`) still appeared to slide in from the right over about 5 frames (found by sampling its bounding box every frame, `Aurora-u8jx.4.3`): the popover is absolutely positioned, so its shrink-to-fit width is capped by the room to its right. React Aria first places it at the trigger's left, the items wrap at that narrow width (129 px), and each re-position, which anchors the right edge, lets it widen a little until it settles at 179 px with its left edge moved 62 px. Left-anchored menus never meet the cap.
+
+**Fix:** give the popup box `width: max-content` (or `white-space: nowrap`) so its width does not depend on where its left edge is (`.editor-test-popup`). Sample the box per frame to find this; computed `animation` and `transition` are `none` throughout.
+
+---
+
+## Judge a responsive layout switch by the room it leaves the content
+Tags: webui, layout, responsive, drawer, graph-editor
+Applies-when: choosing or reviewing a breakpoint that moves a panel (side drawer to bottom sheet, sidebar to drawer)
+
+The editor docked drawers at the bottom below 650 px or in portrait windows (aspect under 0.75). Tabulating canvas left per layout showed the portrait clause docked windows (900x1400, 1080x1920) that keep more canvas width beside a side drawer than 700x900, which was checked and kept on the side, and that the side drawer kept 20 to 51 percent more canvas area in every portrait case. The drawer body is one column of rows, so a 900 to 1440 px dock was mostly empty. Filed as Aurora-daaa.37 (width only).
+
+**Fix:** for each candidate size, compute the content area and the panel's shape under both layouts and compare against a size already accepted; prefer the width-based switch the prior art uses unless the numbers show otherwise.
+
+---
+
+## Lay a graph out from measured sizes, keep tops level, and give a wire that skips a column its own lane
+Tags: graph-editor, layout, layered, wires, measured, recipes
+Applies-when: laying out nodes for a viewer, a paste or generated graphs (Aurora-4g4d.2, `layered` in `graph/layout.ts`)
+
+The first layout used `estimateHeight` (40 px plus 22 per port and 44 per param) and put sources in one stacked column. Measured in the browser, 5 of 7 recipes had nodes touching, up to 14 px deep, and the editor's own `columnLayout` would do the same. A push-apart pass (`separate`) fixed overlap but made one node dip below its neighbours, and a wire from column 1 to column 3 still ran behind the node between them.
+
+**Fix:** (1) run once from estimates, then again from `node.measured` after React Flow measures. (2) Columns by longest path, with a source placed just before its first consumer. (3) Line up top edges, not centres: ports sit near the top, so a chain's wires run level. (4) For a wire that skips columns, add a thin dummy node in each column it crosses, place dummies first, and stack real nodes around them; a node fed by a dummy sits level with it. (5) For a narrow view, call the same function with uniform small sizes, then swap the axes. The widest layer sets the box width, so nothing needs a sideways scroll.
+
+---
+
+## A word-balloon popover needs the popover frame stripped and its pointer aimed from measured rects
+Tags: webui, popover, callout, react-aria, narrow, recipes
+Applies-when: showing a callout with a pointer next to a button on a page, and it must stay inside a 360 px window (Aurora-4g4d.2; extends the refused-save callout in Aurora-h55g)
+
+The refused-save callout is hand-placed and overflowed at 400 px. A Grille `Popover` (`isNonModal`, `triggerRef`) is placed by React Aria, which flips and clamps, so the box measured 55 to 339 px at 360 px wide. Grille's `.ui-popover` adds its own background, border and padding, so a balloon inside it showed a double frame. The pointer cannot sit at a fixed offset, because a clamped box no longer centres on the button.
+
+**Fix:** strip the frame with `.ui-popover:has(.balloon) { background: transparent; border: 0; padding: 0; box-shadow: none }`, draw the box with `.ui-tooltip`, and set the pointer's x from the anchor's and the box's `getBoundingClientRect` on each animation frame. Use the `offset` prop to clear anything under the button (the Outline switch).

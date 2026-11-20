@@ -7,7 +7,10 @@ import { ROOM_ZONE_MAP, createRoomRig } from './room-rig.js';
 export { ROOM_ZONE_MAP };
 import { zoneMap } from './zonemap.js';
 import { getDemoStore } from './demo-state.js';
-import { configToPipeline } from './demo-tuning.js';
+import { configToEngine } from './demo-tuning.js';
+import { spawnEngineClient } from './engine-client.js';
+import { createEngineRoom } from './engine-room.js';
+import { setStatusLine } from './room-status.js';
 
 // Live zone view (Phase 3): the shim owns zone state once demo-boot runs;
 // per-frame and rebuild reads go through it so PUTs apply live. Falls back
@@ -23,11 +26,11 @@ function roomZones() {
 }
 import {
   video, videoTexture, testPatterns, getTvScreenTexture, invalidateScreenTexture,
-  loadImagePattern, setSampleWidth, setSmoothing, sampleFrame as sampleVideoFrame,
+  loadImagePattern, readFrame as readVideoFrame,
 } from './video-source.js';
 import { applyFrameToTargets } from './frame-apply.js';
 import {
-  setColorModel, applyAudioTuning, setPlaying, sampleFrame as sampleAudioFrame,
+  setPlaying, readAudioBlock,
 } from './audio-source.js';
 
 const PLANE_WIDTH = 16;
@@ -42,9 +45,8 @@ const BACKDROP_MARGIN = 1.3 * (2 / 3); // lowered by a third
 // Fraction of the margin's own width used as the mask's blur radius -- higher = softer/more
 // gradual fade, lower = sharper edge. 1.0 would blur across the entire margin band.
 const MASK_FEATHER = 0.45;
-// Sample width + smoothing live in video-source.js (setSampleWidth /
-// setSmoothing); tuned live via applyLiveTuning below.
-// native default is 0, so a default config un-smooths this (parity, not regression -- see tuning-ledger.md)
+// Sample width, smoothing and the audio model all run in the engine's graph now;
+// applyLiveTuning below rebuilds that graph from the config.
 
 // Rig tuning lives with its rig module now (point-rig.js, rectarea-rig.js,
 // room-rig.js); the flat rigs' shared frame constants stay here.
@@ -68,16 +70,14 @@ const { scene, camera, renderer, controls, scenePane, scenePaneSize, applySpawnP
 // audio-source.js. What stays here is page wiring (metadata rebuilds, autoplay
 // fallback) further below.
 
-// Audio color models, analyser graph, and playback live in audio-source.js;
-// the render loop below consumes them through sampleAudioFrame().
+// Audio playback and the analyser live in audio-source.js; the engine room
+// (below) reads blocks from it each tick.
 
 // Read from the DOM, not hardcoded -- browsers restore a <select>'s displayed value across a
 // reload on their own, independent of any JS/HTML default; reading it back keeps state in sync
 // with what's actually shown instead of needing a manual re-click to take effect.
 const lightRigSelect = document.getElementById('light-rig');
 const sourceModeSelect = document.getElementById('source-mode');
-const audioColorModelSelect = document.getElementById('audio-color-model');
-setColorModel(audioColorModelSelect.value); // 'placeholder' | 'ported' | 'tuned' | 'midpoint' | 'attack' (see audio-source.js)
 
 // Test patterns (rainbow/white/audio placeholder) live in video-source.js;
 // this only swaps in the real jpg once loaded.
@@ -174,6 +174,7 @@ function buildLights() {
 // zone PUT lands in the shim (wired via onZonesChanged in demo-boot.js).
 export function rebuildZoneLights() {
   buildLights();
+  engineRoom.setZones(roomZones());
 }
 
 // Room model loading, zone assignment, and shade tinting live in
@@ -327,6 +328,54 @@ export function setPaused(next) {
   paused = next === true;
 }
 
+// Room colors come from the WASM engine in a Worker (Aurora-51nv.11). A missing or failed
+// module leaves the lights dark and says so on #room-status.
+const engineClient = spawnEngineClient();
+const engineRoom = createEngineRoom({
+  client: engineClient,
+  readVideo: () => readVideoFrame('video'),
+  readAudio: readAudioBlock,
+  onState: ({ error }) => { if (error) setStatusLine('engine', `Light engine error: ${error}`); },
+});
+let engineGraphMode = null;
+let engineUp = false;
+let roomTest = false; // a Test on lights graph holds the room
+function sourceModeOf({ mode, inputs }) {
+  if (mode !== 'custom') return mode;
+  return inputs.audio && !inputs.video ? 'audio' : 'video';
+}
+function syncEngineGraph(config) {
+  if (roomTest) return;
+  const plan = configToEngine(config, getDemoStore()?.effects);
+  engineGraphMode = sourceModeOf(plan);
+  engineRoom.setGraph(plan.doc, plan.inputs);
+}
+setStatusLine('engine', 'Loading light engine...');
+// The shim's engine routes wait on this, then call the same client the room uses.
+export const engine = { client: engineClient, ready: engineRoom.start(roomZones()) };
+engine.ready.then(
+  () => { engineUp = true; setStatusLine('engine', ''); },
+  (error) => setStatusLine('engine', `Light engine unavailable: ${error.message}`),
+);
+// The editor's previews ride the room's per-frame batch (demo-preview.js).
+export function attachRoomExtras(extras) {
+  engineRoom.setExtras(extras);
+}
+// Test on lights: the draft runs on the room until endRoomTest. Returns '' or why it cannot.
+export function startRoomTest(doc, inputs) {
+  if (!engineUp) return 'The light engine is not ready.';
+  roomTest = true;
+  engineGraphMode = sourceModeOf({ mode: 'custom', inputs });
+  engineRoom.setGraph(doc, inputs);
+  setSourceMode(engineGraphMode);
+  return '';
+}
+export function endRoomTest() {
+  roomTest = false;
+  const store = getDemoStore();
+  if (store) applyLiveTuning(store.getConfig());
+}
+
 // Orchestrator: the render loop consumes color-provider implementations and
 // applies their frames to the rig targets (see frame-apply.js). Video takes
 // (zones, mode); audio takes ({zones, targets}); the 'live' SSE provider
@@ -334,15 +383,12 @@ export function setPaused(next) {
 function animate() {
   if (paused) {
     // Frozen: lamps keep the last frame's colors until resume.
-  } else if (sourceMode === 'audio') {
+  } else {
     // Room mode drives its 4 quadrant zones live from the shim (same array
     // the Dashboard edits), not the flat rigs' 8-zone zonemap.js.
-    const zones = roomZones();
-    applyFrameToTargets(sampleAudioFrame({ zones, targets: zoneLights }), zones, zoneLights);
-  } else {
-    const activeZoneMap = currentRigType === 'room' ? roomZones() : demoZones();
-    const frame = sampleVideoFrame(activeZoneMap, sourceMode);
-    if (frame) applyFrameToTargets(frame, activeZoneMap, zoneLights);
+    engineRoom.tick(performance.now() / 1000);
+    const frame = engineRoom.frame();
+    if (frame) applyFrameToTargets(frame, roomZones(), zoneLights);
   }
 
   roomRig.syncLampShades();
@@ -433,16 +479,10 @@ if (sourceModeSelect) {
 }
 
 // Phase 4 live-apply entry, wired to the shim's onConfigPatch hook in
-// demo-boot.js (+ one initial call there). Audio lands in place on the live
-// midpoint object (state persists across edits, as natively); smoothing,
-// sample width and mode land on the running scene.
+// demo-boot.js (+ one initial call there). Every tuning key lands as a param of the
+// engine's graph, so a change reloads it (and restarts its smoothing state).
 export function applyLiveTuning(config) {
-  const mapped = configToPipeline(config);
-  applyAudioTuning(mapped.audio);
-  setSmoothing(mapped.transitionSmoothing);
-  if (mapped.sampleWidth !== null) setSampleWidth(mapped.sampleWidth);
-  setSourceMode(mapped.mode);
+  syncEngineGraph(config);
+  if (!roomTest) setSourceMode(engineGraphMode);
 }
 setPlaying(sourceMode === 'audio', () => sourceMode === 'audio'); // in case the browser restored 'audio' on reload
-
-audioColorModelSelect.addEventListener('change', (event) => { setColorModel(event.target.value); });

@@ -411,3 +411,22 @@ so Linux CI never sees it.
 **Fix:** return the rename result from the save and surface it (`RevokeResult::
 NotPersisted`, route 500 `store_write_failed`), keep the in-memory change, and
 close test streams before the code under test writes.
+
+
+---
+
+## A running aurora-mcp.exe locks the Windows app build (LNK1104), so Aurora.exe silently stays stale
+Tags: windows, build, mcp, linker, stale-binary
+Applies-when: `cmake --build build/windows-app` fails with LNK1104 on `bin\Release\aurora-mcp.exe`, or a gate/devstack run behaves like an old app after a "build"
+
+Aurora-5ipy.34: an agent session's Aurora MCP server runs `build\windows-app\bin\Release\aurora-mcp.exe`, so the linker cannot overwrite it. `aurora-app-windows` depends on that target, so `Aurora.exe` is never relinked either. Building only `AuroraApp` succeeds but produces a `.lib`, not the exe. The devstack then launched the Oct 23 binary and failed a contract that landed the next day.
+
+**Fix:** check `ls -la build/windows-app/bin/Release/Aurora.exe` against the latest commit time. If the link is blocked, ask the user, then `taskkill //F //IM aurora-mcp.exe` and build target `aurora-app-windows`. The MCP tools in the session stay down until the client restarts the server.
+
+## `git worktree remove --force` deletes through an NTFS junction in the worktree
+Tags: windows, git, worktree, junction, data-loss
+Applies-when: a worktree contains a junction or symlink to a directory outside it, such as a linked `build/`
+
+Aurora-t2hz: a junction from a worktree's `build/` to the main checkout's `build/` let `git worktree remove --force` recurse into the target. It deleted part of the main build tree before failing with "Invalid argument".
+
+**Fix:** remove the link first with `cmd /c rmdir <link>` (removes only the link), then remove the worktree. Better, pass `--app` to devstack instead of linking a build dir.

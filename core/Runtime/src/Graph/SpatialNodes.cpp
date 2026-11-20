@@ -199,7 +199,7 @@ namespace Aurora::Runtime::Graph
         NodeTypeInfo{
           .meta = std::move(meta),
           .inputs = std::move(inputs),
-          .outputs = {{"image", PortType::Image, false}},
+          .outputs = {{"image", PortType::Image, false, "The generated Image."}},
           .params = std::move(all),
           .factory = [in, planner] { return std::make_unique<GeneratorNode>(in, planner); },
         });
@@ -318,7 +318,11 @@ namespace Aurora::Runtime::Graph
       "2 to 16 stops [{\"pos\": 0..1, \"color\": \"#rrggbb\"}] in ascending pos, blended in RGB.";
 
     add(registry, "image.gradient",
-      {.purpose =
+      {.title = "Gradient image",
+       .group = "Image",
+       .summary = "A smooth blend of colors across the room.",
+       .tip = "Use as a colorful backdrop that can slowly scroll.",
+       .purpose =
          "Render a gradient param across a small RGB image along an angle. phase scrolls it, wrapping "
          "past 1. Pair with zones.sample so zones read colors by their position in the ZoneMap.",
        .useWhen = "Color zones by where they sit, e.g. a palette spread across a room.",
@@ -326,7 +330,7 @@ namespace Aurora::Runtime::Graph
          "{\"id\": \"ramp\", \"type\": \"image.gradient\", \"params\": {\"angle\": 0, \"gradient\": "
          "[{\"pos\": 0, \"color\": \"#ff0000\"}, {\"pos\": 1, \"color\": \"#0000ff\"}]}}",
        .cost = "cheap"},
-      {{"phase", PortType::Float, false}},
+      {{"phase", PortType::Float, false, "Scroll along the gradient (1 is a full loop); param phase is used when unwired."}},
       {gradient, floatParam("phase", "Phase", -1.f, 1.f, 0.f,
          "Scroll along the gradient (1 is a full loop) when the 'phase' input is unconnected.")},
       [](const EvalContext& c) {
@@ -346,7 +350,11 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "image.bar",
-      {.purpose =
+      {.title = "Bar image",
+       .group = "Image",
+       .summary = "A band of color that sweeps across the room.",
+       .tip = "Chases and sweeps. Drive Position with an LFO to move it.",
+       .purpose =
          "Render a bar of color on a background along an angle, for chase effects. position moves the "
          "bar center (0..1 across the image). Drive position with an lfo or integrate for motion.",
        .useWhen = "A light that sweeps across the room, sampled per zone by zones.sample.",
@@ -354,8 +362,9 @@ namespace Aurora::Runtime::Graph
          "{\"id\": \"chase\", \"type\": \"image.bar\", \"params\": {\"size\": 0.2, \"softness\": 0.1, "
          "\"wrap\": true}}",
        .cost = "cheap"},
-      {{"position", PortType::Float, false}, {"color", PortType::Color, false},
-        {"background", PortType::Color, false}},
+      {{"position", PortType::Float, false, "Bar center 0..1 across the image; param position is used when unwired."},
+       {"color", PortType::Color, false, "Color of the bar."},
+       {"background", PortType::Color, false, "Color behind the bar."}},
       {floatParam("position", "Position", 0.f, 1.f, 0.5f,
          "Bar center when the 'position' input is unconnected."),
         floatParam("size", "Size", 0.f, 1.f, 0.2f, "Bar width as a fraction of the image."),
@@ -407,7 +416,11 @@ namespace Aurora::Runtime::Graph
         "image.noise",
         NodeTypeInfo{
           .meta =
-            {.purpose =
+            {.title = "Noise image",
+             .group = "Image",
+             .summary = "Patches of color that flicker softly and independently.",
+             .tip = "Use for a shimmering, organic, starry look.",
+             .purpose =
                "Render a grid of cells that each flicker on their own smooth random wander between "
                "background and color. Neighbouring cells are uncorrelated, unlike scrolling gradients.",
              .useWhen = "Independent per-light flicker, e.g. a bank of candles or a fire, sampled per zone "
@@ -415,21 +428,26 @@ namespace Aurora::Runtime::Graph
              .example = "{\"id\": \"candles\", \"type\": \"image.noise\", \"params\": {\"cells\": 16, "
                         "\"rateHz\": 6}}",
              .cost = "cheap"},
-          .inputs = {{"color", PortType::Color, false}, {"background", PortType::Color, false}},
-          .outputs = {{"image", PortType::Image, false}},
+          .inputs = {{"color", PortType::Color, false, "Color of a fully lit cell."},
+                     {"background", PortType::Color, false, "Color of a dark cell."}},
+          .outputs = {{"image", PortType::Image, false, "The grid of flickering cells."}},
           .params = {width, height, cells, rate, seed},
           .factory = [] { return std::make_unique<NoiseImageNode>(); },
         });
     }
 
     add(registry, "image.hueRamp",
-      {.purpose =
+      {.title = "Hue ramp image",
+       .group = "Image",
+       .summary = "A rainbow spread across the room.",
+       .tip = "Use for a rainbow that can shift or scroll.",
+       .purpose =
          "Render a rainbow along an angle: hue runs span degrees across the image starting at phase. "
          "Fixed saturation and value.",
        .useWhen = "Quick rainbow across zones, cycling by driving phase with integrate.",
        .example = "{\"id\": \"rainbow\", \"type\": \"image.hueRamp\", \"params\": {\"span\": 360}}",
        .cost = "cheap"},
-      {{"phase", PortType::Float, false}},
+      {{"phase", PortType::Float, false, "Hue in degrees at the start of the ramp; param phase is used when unwired."}},
       {floatParam("phase", "Phase", -360.f, 360.f, 0.f,
          "Hue in degrees at the start of the ramp when the 'phase' input is unconnected."),
         floatParam("span", "Span", -720.f, 720.f, 360.f, "Degrees of hue across the image."),

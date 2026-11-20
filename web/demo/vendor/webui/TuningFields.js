@@ -11,7 +11,7 @@
 import { Dropdown } from './Dropdown.js';
 import { applyTooltip } from './Tooltips.js';
 import { sliderGroupHtml, sliderTooltipKey, wireSliderGroup } from './TuningSliderGroup.js';
-import { fetchTuningGraph, groupBySection, isCustomEffect, resolveControls } from './TuningControls.js';
+import { fetchTuningGraph, deriveSections, isCustomEffect, resolveControls } from './TuningControls.js';
 import { AUTO_MONITOR_VALUE } from './DeviceField.js';
 import { subsampleCandidates } from './SubsampleCandidates.js';
 import { DAEMON_UNREACHABLE } from './messages.js';
@@ -31,10 +31,14 @@ function _closestRefreshRate(value) {
   ));
 }
 
-function _resolveMonitor(monitors, selectedMonitorName) {
+// Key first, then name, like the backend's MonitorSelector, so a pre-key
+// saved name still resolves.
+export function resolveMonitor(monitors, selectedMonitorName) {
   if (!monitors.length) return null;
   if (selectedMonitorName === AUTO_MONITOR_VALUE) return monitors.find((m) => m.isPrimary) ?? monitors[0];
-  return monitors.find((m) => m.name === selectedMonitorName) ?? monitors[0];
+  return monitors.find((m) => m.key && m.key === selectedMonitorName)
+    ?? monitors.find((m) => m.name === selectedMonitorName)
+    ?? monitors[0];
 }
 
 // The key a control's value lives under: its PUT /api/config key, else its
@@ -141,15 +145,17 @@ export class TuningFields {
     if (!this.controls) return;
 
     const fields = this.container.querySelector('.tn-fields');
-    const groups = groupBySection(this.controls);
+    const groups = deriveSections(this.controls);
     if (groups.length === 0 && this.showsRefreshRate) groups.push({ section: '', controls: [] });
     groups.forEach((group, index) => this._renderGroup(fields, group, index));
   }
 
   _renderGroup(container, group, index) {
+    // General sits last, so a headless group after the first is headed.
+    const heading = group.section || (index > 0 ? 'General' : '');
     const section = document.createElement('div');
     section.innerHTML = `
-      ${group.section ? `<h2 class="section-heading">${escapeHtml(group.section)}</h2>` : ''}
+      ${heading ? `<h2 class="section-heading">${escapeHtml(heading)}</h2>` : ''}
       <div class="tuning-grid"></div>
     `;
     const grid = section.querySelector('.tuning-grid');
@@ -194,7 +200,7 @@ export class TuningFields {
     if (control.configKey === 'subsampleWidth') {
       // Candidates depend on the selected monitor's real resolution; "Auto" (0)
       // leads the list, matching the backend's sentinel for "pick one at init".
-      const monitor = _resolveMonitor(this.monitors, this.selectedMonitorName);
+      const monitor = resolveMonitor(this.monitors, this.selectedMonitorName);
       const candidates = monitor ? subsampleCandidates(monitor.width, monitor.height) : [];
       options = [
         { label: 'Auto', value: '0' },

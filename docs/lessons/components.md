@@ -6,6 +6,16 @@ Component behavior, callbacks, data shapes, and side effects. See [README.md](RE
 
 ---
 
+## A mock's hand-drawn popover is not a Grille spec
+Tags: webui, grille, popover, mock
+Applies-when: building a custom list or panel inside a Grille Popover from a Grille mock
+
+The problems dropdown was built to the mock's `.ge-probpop` (320 px, square full-bleed rows), but the real one sits in Grille's `Popover`, which already pads 4 px, so the rows floated in a gap and the hover had square corners. The mock draws its popovers by hand (`.ge-pop`).
+
+**Fix:** inside a Grille Popover, style custom rows with the `ui-menu-item` metrics (6 px by 12 px padding, `radius-sm`, `popup-bg-hover`), add no list padding, and size to content with a max width. Prefer `Menu` and `MenuItem` when rows are one line with no action button.
+
+---
+
 ## An ARIA pattern that commits a value on every interaction needs adapting when the commit callback has real side effects
 Tags: webui, aria, dropdown
 Applies-when: reusing an ARIA pattern with side-effecting commit callbacks
@@ -389,3 +399,244 @@ Applies-when: changing user-facing wording for an error or condition the daemon 
 Aurora-o1qt reworded the audio banner in `AudioPermissionPublisher.hpp` (`kMessage`). The screen never changed: the shell renders `audio_permission` through `renderAudioPermissionBanner` and ignores `error.message`, so the daemon string only appears in `/api/state`. The old text had also named the exact permission ("System Audio Recording Only"), which the reword dropped.
 
 **Fix:** before editing copy, grep the web for the old string and for the error's `source`; if a renderer table keys on the source (`shell.js`), the wording lives there. Change the renderer, update the tests that assert the old text (`MacPermissionRecovery`, `shell`, `DashboardScreen`), and keep the daemon string only if something else reads it. The reworded line keeps the permission name: "allow Aurora under "System Audio Recording Only" in System Settings".
+
+---
+
+## Deriving React Flow nodes in an effect makes controlled inputs revert for a render
+Tags: react, react-flow, controlled-input, derived-state, graph-editor
+Applies-when: a widget inside a React Flow node edits a document that the nodes are built from
+
+Aurora-pvxx.4: the editor kept `nodes` in state and rebuilt them from the graph document in a `useEffect`. An edit therefore rendered once with the old node data, then again with the new. A controlled checkbox snapped back (Playwright: "clicking the checkbox did not change its state"), and a number box read its old value right after `fill`. Typing would drop keystrokes the same way.
+
+**Fix:** keep only what React Flow owns (selection, measured size, a drag in progress) in state and derive the node list from the document in the same render (`useMemo`, merged by id with `carryViewState`). The document change and the redraw then land together.
+
+---
+
+## Native radios commit on every arrow key, and one shared `name` groups them across every radiogroup wrapper
+Tags: webui, aria, radio, keyboard, side-effects
+Applies-when: building a picker from native radios whose change handler does real work
+
+Aurora-kep2.2's effect panel used visually hidden radios, one `name="effect"`, split into Built-in, Custom and Hidden `role=radiogroup` blocks. In headless Chromium, four ArrowDown presses from Music pulse fired three `change` events: into Custom, onto the `aria-disabled` Candle row, then a wrap back to Screen colors. Collapsed (`hidden`) rows were skipped. Each change would start a ~4.5s switch on the real lights, the same trap as this file's select-follows-focus entry. `aria-disabled` does not stop a radio being checked, and a click checks it before the switch is confirmed, which breaks a controlled picker.
+
+**Fix:** for side-effecting picks use row buttons with `aria-current` and your own Up/Down focus handling, committing on Enter, Space or click. If radios stay, intercept arrows and reset `checked` from the running state after every change.
+
+---
+
+## Disabling the focused control drops focus to body, and focus() on a disabled control does nothing
+Tags: webui, focus, disabled, aria, keyboard, dropdown
+Applies-when: a control is disabled while busy and the design also returns focus to it
+
+Aurora-kep2.2's effect panel returns focus to the trigger after a pick, and `Dropdown.setBusy` disables that trigger during the switch. In Chromium on the frame 10 mock, disabling the focused trigger moved `activeElement` to `body`, and calling `focus()` on the disabled trigger left focus where it was. Keyboard and screen-reader users lose their place until they Tab back in. Focus does not return by itself when the control is enabled again.
+
+**Fix:** accept the loss for short waits, or use `aria-disabled="true"` and ignore clicks and keys in the handlers. That keeps focus, but the control stays in the tab order and every input path must be blocked by hand. Kept `disabled` for kep2, since a switch is short.
+
+## VoiceOver on iOS drops role=tree and treeitem semantics, so use buttons with aria-expanded
+Tags: webui, aria, tree, voiceover, ios, mobile
+Applies-when: choosing an ARIA widget role for a list that mobile screen-reader users must operate
+
+On a real iPhone (VoiceOver, iOS 27.2, Safari) the effect panel as `role="tree"` read a header as only "Built-in" and a row as only its name and description. There was no tree item role, no expanded or selected state, and no has-popup hint. An `aria-hidden` Actions button was unreachable. This matches WebKit ignoring `treeitem` on iOS since 2016 (bugs.webkit.org 164936). Headless Chromium and desktop keyboard checks cannot show it.
+
+**Fix:** use `<button aria-expanded>` inside a heading for groups, `<button aria-current>` rows and a visible, non-hidden Actions button per row (frame 8). VoiceOver read all of these correctly. Group names are not announced when swiping into a `role="group"`, so structure comes from headings.
+
+## Re-inserting a focused element drops its focus, so refocus after the row moves
+Tags: webui, focus, dom, tree, live-region
+Applies-when: a list patches rows in place and an action moves the focused row to another list (Hide, Unhide, Move)
+
+In Aurora-kep2.9, `insertBefore` of the focused effect row into the Hidden group blurred it with no `relatedTarget`, so focus fell to `body` and a screen-reader user lost their place. The panel's patch code only avoids this for rows that stay put.
+
+**Fix:** work out the destination before the call (`focusAfterRemoval` for Hide, Unhide and Delete, the row itself for Move), await the action and the list refresh, then focus the destination. Let the panel's focusout handler ignore a null `relatedTarget`, or the blur closes the panel.
+
+## A "press must start on the confirm" guard does not stop a double tap
+Tags: webui, touch, confirm, delete, pointer
+Applies-when: a destructive confirm opens in the same spot as the control that opened it
+
+The design for the Delete confirm (Aurora-kep2.6) acted only on a press whose `pointerdown` landed on the confirm. A real double tap defeats that, since the second tap's `pointerdown` lands on the freshly opened confirm and deletes. Keyboard activation has `click.detail === 0` and no pointer press.
+
+**Fix:** also ignore pointer presses for 400 ms after the confirm opens. The browser check clicks Delete at once (nothing happens), waits 450 ms and clicks again (deletes).
+
+## iOS Safari ignores unprefixed `user-select`
+Tags: webui, touch, ios, css
+Applies-when: text in a control must not be selectable on an iPhone
+
+In Aurora-kep2.24, rows set `user-select: none` and `-webkit-touch-callout: none`, and passed in headless Chromium, but holding a row on an iPhone still selected its text.
+
+**Fix:** add `-webkit-user-select: none` beside the unprefixed property. Chromium cannot show this, so check it on a device.
+
+## React Aria popups on the React Flow canvas need five workarounds
+Tags: webui, graph-editor, react-aria, react-flow, focus, keyboard
+Applies-when: a Menu, Popover or Autocomplete opens over the graph editor canvas (Aurora-t2hz)
+
+A pointer-anchored Popover (a 0x0 fixed div as `triggerRef`) works on canvas, node and wire right-click, with these gaps:
+
+- React Flow reads Delete and Backspace at the document, so they delete the selected node under an open menu. Stop propagation for those two keys only, since stopping all keys also swallows Esc.
+- The anchor is not focusable, so focus ends on `body` after close. Refocus the element that was active on open.
+- The Popover does not follow a moved anchor, so key it on the pointer coordinates.
+- Modal popovers (the default) need two clicks to select a node and block wheel zoom. Use `isNonModal`, which then leaves a pane drag not dismissing the menu.
+- An `A` shortcut that opens a search field must call `preventDefault`, or the keypress is typed into the field.
+
+**Fix:** see the Aurora-t2hz notes and [[graph-editor-cleanup]]. Grille itself was not tested.
+
+---
+
+## React Flow reports a node delete as separate node and edge removals, so per-change handlers make two undo steps
+Tags: webui, react-flow, undo
+Applies-when: turning React Flow's `onNodesChange` / `onEdgesChange` `remove` changes into document edits with undo history
+
+- A key delete emits `remove` for the node and for each wire on it. Editing the document from each handler pushes two history entries, so one undo brings back the node but not its wires.
+- Use `onDelete({ nodes, edges })` for the document edit (one entry) and keep the change handlers for view state only. A menu delete that calls the same edit function stays one step.
+
+**Fix:** Aurora-daaa.27.2; `graph-editor:delete` checks undo and redo.
+
+---
+
+## React Flow's Delete and Backspace fire from a drawer, and Grille's Drawer hears Esc only with focus inside
+Tags: webui, react-flow, grille, drawer, keyboard
+Applies-when: putting a non-modal panel (Grille Drawer) beside a React Flow canvas that has `deleteKeyCode`
+
+- React Flow's delete key listens on `document` and skips only inputs and contenteditable. Grille's Drawer takes focus on its own non-input container when it opens, so Backspace there deleted the selected node.
+- Set `deleteKeyCode` to `null` while focus is inside the drawer (React `onFocus`/`onBlur` on a wrapper around it).
+- Drawer closes on Esc only through its own `onKeyDown`. After a canvas click focus is outside, so Esc does nothing; Aurora adds a window Esc handler that yields to open menus and popups. Upstream question: `Aurora-daaa.27.5`.
+
+**Fix:** Aurora-daaa.27.3; browser-checked on the fake-hue stack.
+
+## The editor's Toast is already a live region; announcing the same text through the Announcer speaks it twice
+Tags: graph-editor, toast, announcer, aria-live, screen-reader
+Applies-when: a message becomes both a toast and an announcement, or a toast is added for something already announced
+
+Aurora-u8jx.4.2: a lost heartbeat gained a toast while the `testOutcome` effect kept announcing every outcome. `Toast.tsx` renders its text in a `role="status" aria-live="polite"` span, so a screen reader heard the sentence twice. Unit tests on the strings passed; only reading the Toast markup showed it.
+
+**Fix:** one path per message. The announce effect skips any outcome `quietEndToast` toasts; the browser check asserts `[data-announcer]` does not also hold the toast text.
+
+---
+
+## The Dashboard and the graph editor share web/ui modules by import, never by copy
+Tags: graph-editor, dashboard, web-ui, shared-module, duplication, pairing, parity
+Applies-when: the graph editor needs behaviour, wording or an API call the Dashboard/NUX already has (or the reverse)
+
+Aurora-9hqa.4 (2026-11-13): the editor gained pairing rows and wrote its own copies of the "can this browser approve" rule and of the pending-list and approve/deny calls, although `web/ui/Pairing.js` already held the rule and `shell.js` the calls. The markup matched (parity test), but the logic was two implementations, and the owner asked for one on every surface. The editor already imports plain-JS modules from `web/ui` (`messages.js`, `testHolder.js`, `shellRows.js`), so nothing stopped an import.
+
+**Fix:** move the logic into a plain-JS module in `web/ui` (no DOM at module level) and import it from both `shell.js` and the editor. In review, grep for the same endpoint string in `web/ui` and `web/graph-editor/src`.
+
+---
+
+## User copy names only things the person can find in the editor, not the server's phrases
+Tags: graph-editor, copy, wording, catalog, problems, agent-text
+Applies-when: writing editor or shell copy that names a node, control, setting or action
+
+Aurora-u8jx.1 (2026-11-13): the copy for `output_multiple_senders` told people to "combine them with a pick-or-mix node". That phrase came from the server's agent-facing message in `GraphLoader.cpp`; no node has that title. The node that does it is "Mix frames" (`BlendNodes.cpp` `.title`). The agent's tests and checks all passed; review against the catalog caught it.
+
+**Fix:** every node, control or button a piece of copy names must match a catalog `.title` or a visible label. Grep the catalog for the name before using it, and treat the server message as a source of facts, not of words.
+
+---
+
+## A memoized data shape that gains a field needs its equality function updated too
+Tags: graph-editor, memo, equality, re-render, problems, data-shape
+Applies-when: adding a field to a type that has a hand-written `same*`/equality function used to keep the previous object
+
+Aurora-u8jx.2 (2026-11-13): `Problems` gained `graphActions` (the button a Whole graph row offers), but `sameProblems` in `graph/problems.ts` still compared only `graph` text and node messages. A change that kept the row's text but changed its action would have returned the old object, and the popover would have kept the old button. Unit tests and checks passed; review caught it.
+
+**Fix:** when adding a field to a type, grep for its `same*`/equality helper and compare the new field there, with a test where only that field changes.
+
+
+---
+
+## React Aria's standalone Tooltip crashes without a TooltipTrigger
+Tags: webui, react-aria, tooltip, grille
+Applies-when: showing a tooltip on an element that is not its own focusable trigger (a Tree or GridList row, a card)
+
+In react-aria-components 1.22.1, `<Tooltip triggerRef isOpen>` outside a `TooltipTrigger` throws "Cannot read properties of null (reading 'isOpen')" on open. The outer `Tooltip` builds local state, but `TooltipInner` reads only `TooltipTriggerStateContext`. Found in the Aurora-e4bi.1 controls panel mock, where the card row is focused by the Tree, not by a trigger.
+
+**Fix:** wrap it in `TooltipTriggerStateContext.Provider` with `{ isOpen, open, close }` (see `web/graph-editor/src/mock/ControlsPanelMock.tsx`), or put the tooltip on a real focusable trigger.
+
+---
+
+## Text fields inside a React Aria Tree row lose their keys to the row
+Tags: webui, react-aria, tree, keyboard, input
+Applies-when: putting a text field, select or other editable control inside a Tree or GridList row (an expanding card, inline edit)
+
+In the Aurora-e4bi.1 mock's expanding card, ArrowLeft in the Label field moved focus to the row's chevron, Home went to the first section row, and ArrowDown and Space left the field. React Aria handles row keys in the capture phase, so a `stopPropagation` on the field's own `onKeyDown` runs too late. Saving the label on every keystroke also renamed the row while typing, which re-rendered it and threw the caret to the end ("Very " typed at the start came out as "VVividery ").
+
+**Fix:** stop the keys in `onKeyDownCapture` on an element above the collection when the target is inside the fields, letting Tab, Escape and Enter through; save on blur or Enter, as the editor's `CommitInput` does. Weigh both costs before choosing in-row editing over a dialog or a separate drawer.
+
+---
+
+## React Aria's replace selection is what makes double-click an action, and it selects on click and arrows
+Tags: webui, react-aria, tree, selection, keyboard
+Applies-when: a collection row should act on double-click or Enter (open, frame, select elsewhere) and do nothing on a single click
+
+`selectionMode="single"` with `selectionBehavior="replace"` gives double-click and Enter as `onAction`, but a single click and every arrow key also select the row and announce "selected". Without selection, `onAction` fires on a single click instead. In the Aurora-e4bi.1 mock, mirroring that selection to the canvas would have selected off-screen nodes while arrowing and on a drag press.
+
+**Fix:** no selection mode, `onDoubleClick` on the `TreeItem`, and Enter caught on an element above the Tree (neither `Tree` nor `TreeItem` takes `onKeyDown`), acting only when the event target is the row itself so an Enter that drops a keyboard drag is not caught.
+
+---
+
+## React Aria closes a popover on a scroll around it, so a popover that focuses inside itself must use preventScroll
+Tags: webui, react-aria, popover, focus, grille, narrow
+Applies-when: a Popover or Dialog moves focus to a field or switch inside itself when it opens
+
+In the Aurora-e4bi.8 mock, the Show in Tuning picker opened "right top" of a node and focused its first switch. At 400 px wide there was no room on either side, so the popover first rendered past the window's right edge. The focus scrolled the document to reach the switch, and React Aria closed the popover on that scroll before it painted. A console stack showed `onOpenChange(false)` from Grille's Popover. At 1100 px, where it fit, nothing happened, so the bug only showed in narrow windows.
+
+**Fix:** focus with `{ preventScroll: true }` in any popover that moves focus on open, and choose the placement by measured room so the popover never starts outside the window. React Aria does not flip `right` to `left` when neither side fits.
+
+---
+
+## A React Aria Tree renders a removed item for one more frame, so row components must not assume it still exists
+Tags: webui, react-aria, tree, state
+Applies-when: an item can leave a Tree's items because of an action outside the Tree (a popover, another panel, an undo)
+
+In the Aurora-e4bi.8 mock, switching a param off in the node's Show in Tuning picker removed its card from the section list. The Tree rendered the card's row once more, its section lookup returned `undefined`, and `sec.ids` threw. The page error unmounted the picker, which first looked like the picker closing by design. Removes from the card's own menu had never hit it.
+
+**Fix:** row components read their item defensively (a fallback section here) and never use a non-null assertion on a lookup into the Tree's data. Test removes that start outside the Tree.
+
+---
+
+## React Aria tooltips never open from a tap, so touch needs its own path to tooltip text
+Tags: webui, react-aria, tooltip, touch, grille
+Applies-when: a tooltip or Hint carries text a touch user needs (port or param descriptions, a node's purpose)
+
+React Aria's `useTooltipTrigger` (react-aria 3.53.1) opens on hover only when the input is a mouse or pen, opens on focus only when focus is keyboard-visible, and closes on any pointer down on the trigger. A tap therefore closes the tooltip and never opens it, and Grille's `TooltipTrigger` has no `isOpen` to open it from code (Grille-83g.7). React Aria's own touch answer is long-press (`PreviewTrigger`), which Aurora-kep2.24 cut from the Dashboard because iPhone selects text and shows nothing.
+
+**Fix:** keep the `Hint` for mouse and keyboard, and add a touch path: a touch tap (`pointerType === 'touch'` from the pointer down) toggles the same text in a non-modal popover, or put the text where touch already goes, as the Dashboard's effect menu does with its description line on a touch press.
+
+---
+
+## Shift+F10 and the Menu key raise a native contextmenu on key release, after a popup has taken focus
+Tags: webui, keyboard, context-menu, windows, focus
+Applies-when: a keydown handler opens a menu for Shift+F10 or the Menu key and moves focus into it (Aurora-e4bi.14, `App.tsx` onKey)
+
+In the Aurora-e4bi.14 mock, `preventDefault` on the keydown opened the menu and focused its first item, then the browser's own context menu opened on top. Windows fires `contextmenu` when the key is released, so the event lands on the focused menu item, outside any handler that opened the menu. Right-click does not have this: its `contextmenu` event is the trigger.
+
+**Fix:** after opening from the key, add a capture-phase `contextmenu` listener that calls `preventDefault`, and remove it 150 ms after `keyup` (hard cap 3 s). See `swallowKeyContextMenu` in `ControlsPanelMock.tsx`. Headless Chromium cannot raise the Windows event, so confirm on Windows.
+
+---
+
+## A controlled React Flow never learns node sizes unless it handles onNodesChange
+Tags: graph-editor, react-flow, layout, measured, recipes
+Applies-when: a React Flow canvas gets `nodes` as a prop and needs `node.measured`, `useNodesInitialized` or a second layout pass from real sizes (Aurora-4g4d.2, `RecipeViewer.tsx`)
+
+The recipes viewer passed `nodes` with no `onNodesChange` and ran a layout pass once `useNodesInitialized()` was true. The effect never ran: React Flow reports each node's measured size as a `dimensions` change, which a controlled canvas must apply itself, so `measured` stayed empty and the hook stayed false. `useReactFlow().setNodes` did nothing either while `nodes` was controlled. Measured by logging inside the effect, which printed nothing.
+
+**Fix:** keep the nodes in state, pass `onNodesChange={(c) => setNodes((ns) => applyNodeChanges(c, ns))}`, and write the second pass's positions into that state. Then `useNodesInitialized` goes true and `n.measured` holds the real width and height.
+
+---
+
+## React Flow marks every handle connectable whatever nodesConnectable says
+Tags: graph-editor, react-flow, read-only, handles, recipes
+Applies-when: building a read-only React Flow canvas that reuses the editor's `GenericNode` (Aurora-4g4d.2)
+
+With `nodesConnectable={false}`, `nodesDraggable={false}` and `connectable: false` on each node, a browser check still found every handle carrying the `connectable`, `connectablestart` and `connectableend` classes. The flags stop a connection from completing, but the handles keep their crosshair cursor and start a drag line. Dragging is gated properly: the `draggable` class does go away.
+
+**Fix:** `.recipe-viewer .react-flow__handle { pointer-events: none }`, and assert in the check that no handle takes the pointer. Disable the param inputs too (a `ReadOnlyContext` read by `ParamWidget`), since a disabled-looking slider is not enough for assistive tech.
+
+---
+
+## Grille Tabs mount hidden panels, and Select marks the current option only in bold
+Tags: webui, grille, select, tabs, menu, recipes
+Applies-when: choosing a Grille component to pick one item from several, or putting a canvas inside a Grille Tab (Aurora-4g4d.2)
+
+- `Select` marks the current option only in bold (`.ui-option[data-selected]`). The editor's checkmark comes from `Menu` with `selectionMode="single"` and `selectedKey` inside `EditorPopup` (as `SplitTestButton`), so the phone recipe picker uses that with a trigger styled `.ui-select-trigger`.
+- `Select` options are plain strings, so the display name must be the value.
+- `Tabs` mounts every panel (`shouldForceMount`) and hides the inactive ones, so a React Flow canvas in a hidden panel measures 0 by 0. Pass `null` as `content` for every tab but the selected one so the canvas mounts when it is shown.
+- `Header` bolds whatever it wraps. Set `font-weight` on a subtitle.
+
+**Fix:** use `Menu` single selection for a checkmark, and mount a canvas only in the selected tab.

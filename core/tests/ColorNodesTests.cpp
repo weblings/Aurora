@@ -4,7 +4,9 @@
 
 #include <cmath>
 #include <limits>
+#include <cstdint>
 #include <memory>
+#include <random>
 #include <set>
 #include <string>
 #include <tuple>
@@ -12,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include <Aurora/Contracts/PickIndex.hpp>
 #include <Aurora/Runtime/Graph/ColorNodes.hpp>
 #include <Aurora/Runtime/Graph/Graph.hpp>
 #include <Aurora/Runtime/Graph/GraphLoader.hpp>
@@ -254,6 +257,70 @@ TEST_CASE("angle.add sums two Angles and wraps at 360", "[ColorNodes]")
   CHECK(outAngle(graph, "angle") == Approx(40.f));
 }
 
+TEST_CASE("angle.fromFloat scales a Float to degrees and wraps", "[ColorNodes]")
+{
+  const Feed kValue{"test.float", "f", "value"};
+  g_float = 0.25f;
+  Graph graph = load("angle.fromFloat", "{}", {kValue});
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(90.f)); // default scale 360
+  g_float = 1.25f;
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(90.f)); // wraps
+  g_float = -0.25f;
+  graph.tick(1.f / 60.f);
+  CHECK(outAngle(graph, "angle") == Approx(270.f)); // negative wraps up
+
+  Graph custom = load("angle.fromFloat", R"({"scale": 180})", {kValue});
+  g_float = 0.5f;
+  custom.tick(1.f / 60.f);
+  CHECK(outAngle(custom, "angle") == Approx(90.f));
+}
+
+TEST_CASE("angle.fromFloat fails the node on non-finite input or scale", "[ColorNodes]")
+{
+  const Feed kValue{"test.float", "f", "value"};
+  g_float = std::numeric_limits<float>::infinity();
+  Graph graph = load("angle.fromFloat", "{}", {kValue});
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph, "angle")) != nullptr);
+  g_float = std::numeric_limits<float>::quiet_NaN();
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph, "angle")) != nullptr);
+  g_float = 1e37f; // finite input, but value * scale overflows
+  Graph huge = load("angle.fromFloat", R"({"scale": 3600})", {kValue});
+  huge.tick(1.f / 60.f);
+  CHECK(asError(out(huge, "angle")) != nullptr);
+}
+
+TEST_CASE("angle.toFloat divides degrees by scale", "[ColorNodes]")
+{
+  g_angle = Angle{90.f};
+  Graph graph = load("angle.toFloat", "{}", {{"test.angle", "a", "angle"}});
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph, "value") == Approx(0.25f)); // default scale 360
+  g_angle = Angle{359.f};
+  graph.tick(1.f / 60.f);
+  CHECK(outFloat(graph, "value") == Approx(359.f / 360.f));
+
+  Graph custom = load("angle.toFloat", R"({"scale": 180})", {{"test.angle", "a", "angle"}});
+  g_angle = Angle{90.f};
+  custom.tick(1.f / 60.f);
+  CHECK(outFloat(custom, "value") == Approx(0.5f));
+}
+
+TEST_CASE("angle.toFloat fails the node on non-finite input or zero scale", "[ColorNodes]")
+{
+  g_angle = Angle{std::numeric_limits<float>::quiet_NaN()};
+  Graph graph = load("angle.toFloat", "{}", {{"test.angle", "a", "angle"}});
+  graph.tick(1.f / 60.f);
+  CHECK(asError(out(graph, "value")) != nullptr);
+  g_angle = Angle{10.f};
+  Graph zero = load("angle.toFloat", R"({"scale": 0})", {{"test.angle", "a", "angle"}});
+  zero.tick(1.f / 60.f);
+  CHECK(asError(out(zero, "value")) != nullptr);
+}
+
 TEST_CASE("color.constant emits a fixed color from its HSV params", "[ColorNodes]")
 {
   Graph graph = load("color.constant", R"({"hue": 120, "saturation": 1, "value": 1})", {});
@@ -365,6 +432,47 @@ TEST_CASE("palette.randomAnchor with a seed is deterministic and lands on a pair
     seen.insert(value);
   }
   CHECK(seen.size() > 1);
+}
+
+TEST_CASE("palette.randomAnchor pins exact anchors for fixed seeds", "[ColorNodes][randomAnchor]")
+{
+  // Portable by construction (raw mt19937 plus Lemire mapping), same on every platform.
+  const float expected[10] = {90.f, 60.f, 60.f, 90.f, 150.f, 30.f, 150.f, 0.f, 150.f, 0.f};
+  for(int seed = 0; seed < 10; ++seed){
+    INFO(seed);
+    Graph graph = load("palette.randomAnchor", "{\"seed\": " + std::to_string(seed) + "}", {});
+    graph.tick(1.f / 60.f);
+    CHECK(outAngle(graph, "anchor") == expected[seed]);
+  }
+}
+
+TEST_CASE("pickIndex pins exact outputs for fixed seeds", "[pickIndex]")
+{
+  using Aurora::Contracts::pickIndex;
+  const std::uint32_t seeds[5] = {0, 1, 2, 3, 42};
+  const std::uint32_t n6[5] = {3, 2, 2, 3, 2};
+  const std::uint32_t n1000[5] = {548, 417, 435, 550, 374};
+  for(int i = 0; i < 5; ++i){
+    std::mt19937 a{seeds[i]};
+    std::mt19937 b{seeds[i]};
+    CHECK(pickIndex(a, 6) == n6[i]);
+    CHECK(pickIndex(b, 1000) == n1000[i]);
+  }
+
+  std::mt19937 seq{7};
+  const std::uint32_t expectedSeq[8] = {0, 1, 4, 1, 2, 5, 4, 2};
+  for(std::uint32_t value : expectedSeq){
+    CHECK(pickIndex(seq, 6) == value);
+  }
+
+  std::mt19937 big{7};
+  const std::uint32_t expectedBig[4] = {245806211u, 2512294290u, 1027481464u, 1412214962u};
+  for(std::uint32_t value : expectedBig){
+    CHECK(pickIndex(big, 0xC0000000u) == value);
+  }
+
+  std::mt19937 one{7};
+  CHECK(pickIndex(one, 1) == 0);
 }
 
 TEST_CASE("palette.randomAnchor holds its pick across ticks", "[ColorNodes]")

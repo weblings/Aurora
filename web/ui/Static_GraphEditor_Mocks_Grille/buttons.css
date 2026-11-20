@@ -1,0 +1,68 @@
+/* Aurora-u8jx.7: button styling candidates. Scoped to .bs-a / .bs-b / .bs-c so nothing else in the mock changes. */
+.bs-cols { display: grid; grid-template-columns: repeat(4, minmax(560px, 1fr)); gap: var(--ui-size-space-2xl); align-items: start; margin-top: var(--ui-size-space-xl); }
+.bs { margin: 0; min-width: 0; }
+.bs > figcaption { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--ui-size-space-lg); font-size: 12px; color: var(--ui-color-text-secondary); line-height: 1.4; }
+.bs > figcaption b { font-size: 14px; color: var(--ui-color-text-default); }
+.bs-ctx { margin: 0 0 var(--ui-size-space-2xl); }
+.bs-ctx h3 { margin: 0 0 var(--ui-size-space-md); font-size: 12px; font-weight: 600; color: var(--ui-color-text-secondary); display: flex; flex-direction: column; gap: 2px; }
+.bs-ctx h3 small { font-weight: 400; color: var(--ui-color-text-muted); }
+.bs-measure { border-collapse: collapse; font-size: 12px; margin-top: var(--ui-size-space-lg); }
+.bs-measure th, .bs-measure td { padding: 4px 16px 4px 0; text-align: left; font-weight: 400; color: var(--ui-color-text-secondary); }
+.bs-measure thead th { color: var(--ui-color-text-default); font-weight: 600; }
+.bs-measure td { font-variant-numeric: tabular-nums; color: var(--ui-color-text-default); }
+
+/* Shared furniture, no button rules */
+.bs-bar { display: flex; align-items: center; gap: 6px; height: 52px; padding: 0 10px; overflow: hidden; background: var(--ui-color-surface-page); border: 1px solid var(--ui-color-border-subtle); }
+.bs-sep { width: 1px; height: 20px; background: var(--ui-color-border-default); }
+.bs-grow { flex: 1; }
+.bs-split { display: inline-flex; gap: 2px; }
+.bs-canvas { position: relative; height: 150px; background: var(--ui-color-surface-page); border: 1px solid var(--ui-color-border-subtle); }
+.bs-corner { position: absolute; top: var(--ui-size-space-lg); left: var(--ui-size-space-lg); }
+.bs-corner.bs-right { left: auto; right: var(--ui-size-space-lg); }
+.bs-corner.bs-bottom { top: auto; bottom: var(--ui-size-space-lg); }
+.bs-corner .ui-button { box-shadow: var(--ui-shadow-popup); }
+.bs-muted { color: var(--ui-color-text-muted); }
+.bs-drawer, .bs-node, .bs-row, .bs-toast, .bs-dialog { background: var(--ui-color-surface-raised); border: 1px solid var(--ui-color-border-default); padding: var(--ui-size-space-lg); font-size: 13px; }
+.bs-drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ui-size-space-md); }
+.bs-drow { display: flex; align-items: center; gap: var(--ui-size-space-md); padding: 3px 0; }
+.bs-drow > span:first-child, .bs-drow > span:nth-child(2) { flex: 1; }
+.bs-node { border-radius: 8px; max-width: 340px; }
+.bs-node-title { font-weight: 600; margin-bottom: var(--ui-size-space-sm); }
+.bs-sw { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.bs-stack { display: flex; flex-direction: column; gap: var(--ui-size-space-lg); }
+.bs-row { display: flex; align-items: center; gap: var(--ui-size-space-md); border-radius: 12px; border-width: 2px; }
+.bs-row p { flex: 1; margin: 0; display: flex; align-items: center; gap: 6px; }
+.bs-toast { display: flex; align-items: center; justify-content: space-between; gap: var(--ui-size-space-xl); border-radius: var(--ui-size-radius-sm); box-shadow: var(--ui-shadow-popup); }
+.bs-dialog { display: flex; flex-direction: column; align-items: center; gap: var(--ui-size-space-md); border-radius: 12px; padding: var(--ui-size-space-2xl); text-align: center; }
+.bs-dialog p { margin: 0; color: var(--ui-color-text-secondary); }
+.bs-dialog-actions { display: flex; gap: var(--ui-size-space-md); margin-top: var(--ui-size-space-md); }
+.bs-matrix { border-collapse: separate; border-spacing: 6px; font-size: 11px; }
+.bs-matrix th { font-weight: 400; color: var(--ui-color-text-muted); text-align: left; white-space: nowrap; }
+.bs-matrix td { text-align: left; }
+.bs .ui-icon, .bs .ge-icon { flex: none; }
+
+/* A: Grille's small button as shipped (data-size="sm"). Only the primary keeps its small size here, as the bar's mock already does. */
+.bs-a .ui-button { box-sizing: border-box; }
+
+/* B: the bar rule everywhere */
+.bs-b .ui-button { box-sizing: border-box; height: 32px; padding-block: 0; padding-inline: 10px; gap: 6px; }
+.bs-b .ui-button[data-icon] { padding-inline: 8px; min-width: 32px; }
+
+/* C: Rocky Road (XR panel.css). Default = primary-dark, emphasised = primary-light, strong = secondary-dark. */
+.bs-c.bs-c .ui-button { box-sizing: border-box; border-radius: 5px; padding: 8px; gap: 2px; font-size: 12px; font-weight: 400; background: #333333; color: #ffffff; }
+.bs-c.bs-c .ui-button:hover:not(:disabled), .bs-c.bs-c .ui-button[data-hovered] { background: #515151; }
+.bs-c.bs-c .ui-button:active:not(:disabled), .bs-c.bs-c .ui-button[data-pressed] { background: #7c7c7c; }
+.bs-c.bs-c .ui-button[data-variant="primary"] { background: #dadada; color: #111111; font-weight: 400; }
+.bs-c.bs-c .ui-button[data-variant="primary"]:hover:not(:disabled), .bs-c.bs-c .ui-button[data-variant="primary"][data-hovered] { background: #bebebe; }
+.bs-c.bs-c .ui-button[data-variant="primary"]:active:not(:disabled), .bs-c.bs-c .ui-button[data-variant="primary"][data-pressed] { background: #9c9c9c; }
+.bs-c.bs-c .ui-button.bs-strong { background: #8b8b8b; color: #111111; font-weight: 700; }
+.bs-c.bs-c .ui-button.bs-strong:hover:not(:disabled), .bs-c.bs-c .ui-button.bs-strong[data-hovered] { background: #7c7c7c; }
+.bs-c.bs-c .ui-button.bs-strong:active:not(:disabled), .bs-c.bs-c .ui-button.bs-strong[data-pressed] { background: #6c6c6c; }
+.bs-c.bs-c .ui-button[data-disabled], .bs-c.bs-c .ui-button:disabled { background: #333333; color: var(--ui-color-text-disabled); font-weight: 400; }
+.bs-c.bs-c .ui-button.bs-action { width: 150px; height: 36px; font-size: 13px; }
+.bs-matrix-wrap { overflow-x: auto; padding-bottom: 4px; }
+.bs-c.bs-cp .ui-button { gap: 6px; }
+/* The Test split button is one joined control: shared edge, a 1px seam, outer corners only. */
+.bs .bs-split { gap: 1px; }
+.bs .bs-split .ui-button:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.bs .bs-split .ui-button:last-child { border-top-left-radius: 0; border-bottom-left-radius: 0; }

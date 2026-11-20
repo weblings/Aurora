@@ -1,20 +1,17 @@
 # Aurora core — agent notes
 
 Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
-`Runtime`, and `web-processing/` JS mirrors. Concrete plugins live in
+`Runtime`, and the `core/Wasm` engine build. Concrete plugins live in
 `input/`, `output/`, `app/`, `web/` directories in this repo — keep that layout.
 
 - Build/test: `cmake -S . -B build`, `cmake --build build`,
   `ctest --test-dir build --output-on-failure` (`BUILD_TESTS` defaults ON).
   Full-app builds: `cmake --preset <linux-app|windows-app>` (per-slice
   presets in `CMakePresets.json`); core tests alone via `cmake -S core`.
-- `web-processing/` JS mirrors are hand-ports of C++ (`processing.js`/
-  `smoother.js` <- `ImageProcessing.cpp` crop/mean, `Smoother.cpp` easing;
-  see [[browser-analysis]] for why hand-ported, not WASM): editing
-  either side means checking the other, updating golden values in
-  `web-processing/*.test.mjs` (`node web-processing/<name>.test.mjs`, no
-  build step), and recopying into `web/demo/` (verbatim copies, no npm
-  package — else the demo silently drifts).
+- The web demo runs the real graph engine compiled to WASM (`core/Wasm`,
+  `web/engine/`, Aurora-51nv.11), not JS copies. `web-processing/` is no
+  longer copied into `web/demo/` and is kept only with its own parity tests
+  (`node web-processing/<name>.test.mjs`).
 ## Where things go
 
 - Tasks (open, blocked, deferred): `bd` (`bd ready`, `bd list`), not markdown
@@ -24,7 +21,9 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   `bd import` to upsert the tracked export into your live DB — never `--reinit-local`.
 - Non-obvious gotchas worth saving future time: `docs/lessons/`, with `Tags:`/`Applies-when:`,
   routed by the matching `.claude/skills/` skill — check it before changing
-  that area, file per `docs/lessons/README.md`.
+  that area, file per `docs/lessons/README.md`. Before splitting beads
+  across agents or coordinating a bead sequence, read
+  `agent-coordination-lessons` (`docs/lessons/agent-coordination.md`).
 - Milestone detail (closed or paused): dated file in `docs/log/` + `INDEX.md`
   row on close — every material fact, stated once and tightly; paused work logs
   state + resume pointer. Findings over narration.

@@ -81,18 +81,25 @@ add_executable(AuroraRuntimeTests
   BlendNodesTests.cpp
   SpatialNodesTests.cpp
   BuiltInGraphsTests.cpp
+  ApiSpecTests.cpp
 )
 
 target_link_libraries(AuroraRuntimeTests PRIVATE
   AuroraRuntime
+  AuroraNetwork
+  nlohmann_json::nlohmann_json
   Catch2::Catch2WithMain
 )
+target_compile_definitions(AuroraRuntimeTests PRIVATE AURORA_OPENAPI_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../../docs/api/openapi.json")
 
 target_compile_features(AuroraRuntimeTests PUBLIC cxx_std_20)
 
 add_executable(AuroraPipelineTests
   PipelineTests.cpp
   TrayLabelTests.cpp
+  OutputLinkMonitorTests.cpp
+  MonitorChangeWatcherTests.cpp
+  GraphRunnerZoneMapPersistTests.cpp
 )
 
 target_link_libraries(AuroraPipelineTests PRIVATE
@@ -101,6 +108,7 @@ target_link_libraries(AuroraPipelineTests PRIVATE
   Catch2::Catch2WithMain
 )
 
+target_compile_definitions(AuroraPipelineTests PRIVATE AURORA_ROOM_4ZONE_JSON="${CMAKE_CURRENT_SOURCE_DIR}/../../tools/fake-hue-bridge/room-4zone-zonemap.json")
 target_compile_features(AuroraPipelineTests PUBLIC cxx_std_20)
 
 add_executable(AuroraGraphRunnerVideoTests
@@ -124,6 +132,17 @@ target_link_libraries(AuroraGraphPreviewTests PRIVATE
 )
 
 target_compile_features(AuroraGraphPreviewTests PUBLIC cxx_std_20)
+
+add_executable(AuroraBrowserEngineTests
+  BrowserEngineTests.cpp
+)
+
+target_link_libraries(AuroraBrowserEngineTests PRIVATE
+  AuroraBrowserEngine
+  Catch2::Catch2WithMain
+)
+
+target_compile_features(AuroraBrowserEngineTests PUBLIC cxx_std_20)
 
 add_executable(AuroraDevFrameDumpTests
   DevFrameDumpTests.cpp
@@ -245,6 +264,7 @@ catch_discover_tests(AuroraSecretsTests)
 catch_discover_tests(AuroraRuntimeTests)
 catch_discover_tests(AuroraGraphRunnerVideoTests)
 catch_discover_tests(AuroraGraphPreviewTests)
+catch_discover_tests(AuroraBrowserEngineTests)
 catch_discover_tests(AuroraPipelineTests)
 catch_discover_tests(AuroraDevFrameDumpTests)
 catch_discover_tests(AuroraVideoParityTests)

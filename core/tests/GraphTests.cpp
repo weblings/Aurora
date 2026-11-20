@@ -1071,6 +1071,39 @@ TEST_CASE("Graph tickHz is optional, Audio-rate graphs declare it", "[Graph]")
   CHECK(!without.tickHz().has_value());
 }
 
+TEST_CASE("Graph accepts optional title, description and minorVersion", "[Graph]")
+{
+  auto probes = std::make_shared<Probes>();
+  NodeRegistry registry = makeTestRegistry(probes);
+  const std::string nodes = R"("nodes": [{"id": "n", "type": "test.counter"}])";
+  auto load = [&](const std::string& extra){
+    return loadGraphFromString(R"({"version": 1, )" + extra + nodes + "}", registry);
+  };
+
+  CHECK(load(R"("minorVersion": 1, "title": "Sweep", "description": "Colors drift.", )").ok);
+  CHECK(load(R"("minorVersion": 7, )").ok);
+
+  for(const char* extra : {
+    R"("title": "", )", R"("title": 5, )", R"("description": "", )",
+    R"("minorVersion": "1", )", R"("minorVersion": -1, )"}){
+    INFO(extra);
+    CHECK_FALSE(load(extra).ok);
+  }
+  CHECK_FALSE(load(R"("title": ")" + std::string(kMaxTitleLength + 1, 'x') + R"(", )").ok);
+  CHECK(load(R"("title": ")" + std::string(kMaxTitleLength, 'x') + R"(", )").ok);
+  CHECK_FALSE(load(R"("description": ")" + std::string(kMaxDescriptionLength + 1, 'x') + R"(", )").ok);
+  CHECK(load(R"("title": 5, )").issues.front().code == "title_invalid");
+
+  // Limits count characters, so a multibyte title gets the same room (Aurora-kep2.28).
+  std::string accented;
+  for(std::size_t i = 0; i < kMaxTitleLength; i++){
+    accented += "\xC3\xA9";
+  }
+  CHECK(textLength(accented) == kMaxTitleLength);
+  CHECK(load(R"("title": ")" + accented + R"(", )").ok);
+  CHECK_FALSE(load(R"("title": ")" + accented + R"(x", )").ok);
+}
+
 TEST_CASE("Graph sink receives values and binds its output param", "[Graph]")
 {
   auto probes = std::make_shared<Probes>();

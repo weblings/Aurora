@@ -1,0 +1,49 @@
+{
+  "name": "aurora-browser-check",
+  "private": true,
+  "type": "module",
+  "description": "Playwright checks that drive Aurora's web screens against the fake-Hue stack. Developer and gate tool, not part of any build.",
+  "scripts": {
+    "graph-editor": "node checks/graph-editor-edit-loop.mjs",
+    "graph-editor:set": "node checks/run-set.mjs",
+    "graph-editor:add-node": "node checks/graph-editor-add-node.mjs",
+    "graph-editor:add-menu": "node checks/graph-editor-add-menu.mjs",
+    "graph-editor:popover-toggle": "node checks/graph-editor-popover-toggle.mjs",
+    "graph-editor:tooltips": "node checks/graph-editor-tooltips.mjs",
+    "graph-editor:context-menus": "node checks/graph-editor-context-menus.mjs",
+    "graph-editor:clipboard": "node checks/graph-editor-clipboard.mjs",
+    "graph-editor:recipes-paste": "node checks/graph-editor-recipes-paste.mjs",
+    "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
+    "graph-editor:converter": "node checks/graph-editor-converter.mjs",
+    "graph-editor:port-types": "node checks/graph-editor-port-types.mjs",
+    "graph-editor:drawers": "node checks/graph-editor-drawers.mjs",
+    "graph-editor:drawer-chrome": "node checks/graph-editor-drawer-chrome.mjs",
+    "graph-editor:narrow": "node checks/graph-editor-narrow.mjs",
+    "graph-editor:preview": "node checks/graph-editor-preview.mjs",
+    "graph-editor:corners": "node checks/graph-editor-corners.mjs",
+    "graph-editor:delete": "node checks/graph-editor-delete.mjs",
+    "graph-editor:title-menu": "node checks/graph-editor-title-menu.mjs",
+    "graph-editor:top-bar": "node checks/graph-editor-top-bar.mjs",
+    "graph-editor:kept-copy": "node checks/graph-editor-kept-copy.mjs",
+    "graph-editor:refused-save": "node checks/graph-editor-refused-save.mjs",
+    "graph-editor:failed-save": "node checks/graph-editor-failed-save.mjs",
+    "graph-editor:error-shell": "node checks/graph-editor-error-shell.mjs",
+    "graph-editor:test-outcome": "node checks/graph-editor-test-outcome.mjs",
+    "graph-editor:back-link": "node checks/graph-editor-back-link.mjs",
+    "graph-editor:control-count": "node checks/graph-editor-control-count.mjs",
+    "graph-editor:undo-toast": "node checks/graph-editor-undo-toast.mjs",
+    "graph-editor:tuning-sections": "node checks/graph-editor-tuning-sections.mjs",
+    "graph-editor:tuning-drag": "node checks/graph-editor-tuning-drag.mjs",
+    "graph-editor:gate": "node checks/graph-editor-gate.mjs",
+    "dashboard-shell": "node checks/dashboard-shell.mjs",
+    "shell-cap": "node checks/shell-cap.mjs",
+    "effect-panel": "node checks/effect-panel.mjs",
+    "graph-editor:slow": "SLOW=1 node checks/graph-editor-edit-loop.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "1.54.2"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}

@@ -41,7 +41,7 @@ namespace Aurora::Runtime::Graph
 
     private:
       std::vector<PortDecl> m_in;
-      std::vector<PortDecl> m_out{{"value", PortType::Float, false}};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false, "The computed value."}};
       Compute m_compute;
     };
 
@@ -87,7 +87,7 @@ namespace Aurora::Runtime::Graph
         NodeTypeInfo{
           .meta = std::move(meta),
           .inputs = std::move(inputs),
-          .outputs = {{"value", PortType::Float, false}},
+          .outputs = {{"value", PortType::Float, false, "The computed value."}},
           .params = std::move(params),
           .factory =
             [declared, compute] { return std::make_unique<ScalarMathNode>(declared, compute); },
@@ -103,23 +103,70 @@ namespace Aurora::Runtime::Graph
       const float* value = ctx.optionalInput<float>(name);
       return value != nullptr ? *value : ctx.param<float>(name);
     }
+    // math.step: 0 below the edge, 1 at or above it. Holds the last side so
+    // a value inside the hysteresis band does not flip it.
+    class StepNode : public INode
+    {
+    public:
+      const std::vector<PortDecl>& inputPorts() const override { return m_in; }
+      const std::vector<PortDecl>& outputPorts() const override { return m_out; }
+
+      void evaluate(
+        const EvalContext& ctx,
+        float,
+        std::unordered_map<std::string, GraphValue>& outputs) override
+      {
+        float hysteresis = ctx.param<float>("hysteresis");
+        if(hysteresis < 0.f){
+          ctx.fail("param 'hysteresis' is below 0");
+        }
+        float value = ctx.input<float>("value");
+        float edge = inputOrParam(ctx, "edge");
+        if(!std::isfinite(value) || !std::isfinite(edge)){
+          ctx.fail("got a non-finite value or edge");
+        }
+        if(value >= edge){
+          m_high = true;
+        }else if(value < edge - hysteresis){
+          m_high = false;
+        }
+        outputs.emplace("value", m_high != ctx.param<bool>("invert") ? 1.f : 0.f);
+      }
+
+      void resetState() override { m_high = false; }
+
+    private:
+      std::vector<PortDecl> m_in{
+        {"value", PortType::Float, true, "The Float to compare against the edge."},
+        {"edge", PortType::Float, false, "The threshold; param edge is used when unwired."}};
+      std::vector<PortDecl> m_out{{"value", PortType::Float, false, "1 at or above the edge, else 0."}};
+      bool m_high = false;
+    };
   } // namespace
 
   void registerMathNodes(NodeRegistry& registry)
   {
     add(registry, "math.scale",
-      {.purpose = "Multiply a Float by a constant factor.",
+      {.title = "Scale",
+       .group = "Numbers",
+       .summary = "Multiplies a number by a fixed amount.",
+       .tip = "Use to convert units or strengthen a signal.",
+       .purpose = "Multiply a Float by a constant factor.",
        .useWhen = "Convert units or set a gain, e.g. onset strength times 180 degrees.",
        .example = "{\"id\": \"gain\", \"type\": \"math.scale\", \"params\": {\"factor\": 180}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to multiply."}},
       {floatParam("factor", "Factor", 1.f, "Constant the input is multiplied by.")},
       [](const EvalContext& c) { return in(c, "value") * param(c, "factor"); });
 
     add(registry, "math.divide",
-      {.purpose = "Divide a Float by a constant divisor. A zero divisor fails the node.",
+      {.title = "Divide",
+       .group = "Numbers",
+       .summary = "Divides a number by a fixed amount.",
+       .tip = "Use to compare a signal against a reference value.",
+       .purpose = "Divide a Float by a constant divisor. A zero divisor fails the node.",
        .useWhen = "Normalize against a reference, e.g. rms divided by a reference loudness.",
        .example = "{\"id\": \"norm\", \"type\": \"math.divide\", \"params\": {\"divisor\": 0.3}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to divide."}},
       {floatParam("divisor", "Divisor", 1.f, "Constant the input is divided by, must not be 0.")},
       [](const EvalContext& c) {
         float divisor = param(c, "divisor");
@@ -130,10 +177,14 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.clamp",
-      {.purpose = "Limit a Float to the range min..max.",
+      {.title = "Clamp",
+       .group = "Numbers",
+       .summary = "Keeps a number between a lowest and highest value.",
+       .tip = "Use to stop a signal going out of range.",
+       .purpose = "Limit a Float to the range min..max.",
        .useWhen = "Keep a signal in a safe range before scaling or mixing.",
        .example = "{\"id\": \"cap\", \"type\": \"math.clamp\", \"params\": {\"min\": 0, \"max\": 1}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to limit."}},
       {floatParam("min", "Min", 0.f, "Lower bound."),
        floatParam("max", "Max", 1.f, "Upper bound, must be at least min.")},
       [](const EvalContext& c) {
@@ -146,12 +197,16 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.mapRange",
-      {.purpose = "Linearly remap a Float from one range to another, optionally clamped to the output range.",
+      {.title = "Map range",
+       .group = "Numbers",
+       .summary = "Converts a number from one range to another.",
+       .tip = "Use to fit a signal into the range you need.",
+       .purpose = "Linearly remap a Float from one range to another, optionally clamped to the output range.",
        .useWhen = "Turn a signal in known bounds into another range, e.g. 0..1 loudness into 0.2..1 brightness.",
        .example =
          "{\"id\": \"remap\", \"type\": \"math.mapRange\", \"params\": {\"inMin\": 0, \"inMax\": 1, "
          "\"outMin\": 0.2, \"outMax\": 1, \"clamp\": true}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "The Float to remap."}},
       {floatParam("inMin", "In min", 0.f, "Input value that maps to outMin."),
        floatParam("inMax", "In max", 1.f, "Input value that maps to outMax, must differ from inMin."),
        floatParam("outMin", "Out min", 0.f, "Output at inMin."),
@@ -173,10 +228,14 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.lerp",
-      {.purpose = "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
+      {.title = "Lerp",
+       .group = "Numbers",
+       .summary = "Slides between two values using a signal.",
+       .tip = "Use to move smoothly between a low and high setting.",
+       .purpose = "Blend from 'from' to 'to' by a Float t (0 gives from, 1 gives to, not clamped).",
        .useWhen = "Interpolate between two constants with a signal, e.g. lerp(floor, 1) driven by onset strength.",
        .example = "{\"id\": \"swing\", \"type\": \"math.lerp\", \"params\": {\"from\": 0.3, \"to\": 1}}"},
-      {{"t", PortType::Float, true}},
+      {{"t", PortType::Float, true, "Blend amount: 0 gives from, 1 gives to."}},
       {floatParam("from", "From", 0.f, "Output when t is 0."),
        floatParam("to", "To", 1.f, "Output when t is 1.")},
       [](const EvalContext& c) {
@@ -185,35 +244,78 @@ namespace Aurora::Runtime::Graph
       });
 
     add(registry, "math.add",
-      {.purpose = "Add two Floats. Input b is optional and falls back to param b.",
+      {.title = "Add",
+       .group = "Numbers",
+       .summary = "Adds two numbers together.",
+       .tip = "Combine two signals, or shift one by a fixed amount.",
+       .purpose = "Add two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Combine two signals, or offset one by a constant (leave b unwired, set param b).",
        .example = "{\"id\": \"sum\", \"type\": \"math.add\", \"params\": {\"b\": 0.5}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {{"a", PortType::Float, true, "The first Float."},
+       {"b", PortType::Float, false, "The second Float; param b is used when unwired."}},
       {floatParam("b", "B", 0.f, "Used when input b is not wired.")},
       [](const EvalContext& c) { return in(c, "a") + inputOrParam(c, "b"); });
 
     add(registry, "math.multiply",
-      {.purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
+      {.title = "Multiply",
+       .group = "Numbers",
+       .summary = "Multiplies two numbers together.",
+       .tip = "Use to make one signal control the strength of another.",
+       .purpose = "Multiply two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Modulate one signal by another, e.g. brightness times a loudness envelope, or by a constant via param b.",
        .example = "{\"id\": \"mod\", \"type\": \"math.multiply\", \"params\": {\"b\": 0.5}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {{"a", PortType::Float, true, "The first Float."},
+       {"b", PortType::Float, false, "The second Float; param b is used when unwired."}},
       {floatParam("b", "B", 1.f, "Used when input b is not wired.")},
       [](const EvalContext& c) { return in(c, "a") * inputOrParam(c, "b"); });
 
     add(registry, "math.max",
-      {.purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
+      {.title = "Max",
+       .group = "Numbers",
+       .summary = "Picks the larger of two numbers.",
+       .tip = "Use to stop a signal falling below a floor.",
+       .purpose = "The larger of two Floats. Input b is optional and falls back to param b.",
        .useWhen = "Floor one signal with another or a constant, e.g. keep a rate from going negative (param b 0).",
        .example = "{\"id\": \"floor\", \"type\": \"math.max\", \"params\": {\"b\": 0}}"},
-      {{"a", PortType::Float, true}, {"b", PortType::Float, false}},
+      {{"a", PortType::Float, true, "The first Float."},
+       {"b", PortType::Float, false, "The second Float; param b is used when unwired."}},
       {floatParam("b", "B", 0.f, "Used when input b is not wired.")},
       [](const EvalContext& c) { return std::max(in(c, "a"), inputOrParam(c, "b")); });
 
     add(registry, "math.invert",
-      {.purpose = "Flip a 0..1 Float to 1 minus the value.",
+      {.title = "Invert",
+       .group = "Numbers",
+       .summary = "Flips a number so high becomes low.",
+       .tip = "Use to make quiet moments bright instead of loud ones.",
+       .purpose = "Flip a 0..1 Float to 1 minus the value.",
        .useWhen = "Reverse a normalized signal, e.g. quiet becomes bright.",
        .example = "{\"id\": \"flip\", \"type\": \"math.invert\", \"params\": {}}"},
-      {{"value", PortType::Float, true}},
+      {{"value", PortType::Float, true, "A 0..1 Float to flip."}},
       {},
       [](const EvalContext& c) { return 1.f - in(c, "value"); });
+    registry.registerType(
+      "math.step",
+      NodeTypeInfo{
+        .meta =
+          {.title = "Step",
+           .group = "Numbers",
+           .summary = "Switches between 0 and 1 at a threshold without flickering.",
+           .tip = "Use hysteresis so a level near the threshold does not chatter.",
+           .purpose =
+             "Output the Float 0 below the edge and 1 at or above it. Once flipped, it flips back "
+             "only after the input crosses edge minus hysteresis. Holds state between ticks.",
+           .useWhen =
+             "Switch on a level without flicker, e.g. loudness into frame.mix t. Set invert for 1 below the edge.",
+           .example =
+             "{\"id\": \"gate\", \"type\": \"math.step\", \"params\": {\"edge\": 0.4, \"hysteresis\": 0.05}}"},
+        .inputs = {{"value", PortType::Float, true, "The Float to compare against the edge."},
+                   {"edge", PortType::Float, false, "The threshold; param edge is used when unwired."}},
+        .outputs = {{"value", PortType::Float, false, "1 at or above the edge, else 0."}},
+        .params = {floatParam("edge", "Edge", 0.5f, "Threshold used when input edge is not wired."),
+                   floatParam("hysteresis", "Hysteresis", 0.f,
+                     "Width of the band below the edge that holds a 1, must be at least 0."),
+                   boolParam("invert", "Invert", false, "Output 1 below the edge and 0 at or above it.")},
+        .factory = [] { return std::make_unique<StepNode>(); },
+      });
   }
 } // namespace Aurora::Runtime::Graph

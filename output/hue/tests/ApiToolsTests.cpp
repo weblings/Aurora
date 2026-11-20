@@ -166,3 +166,25 @@ TEST_CASE("lightPutBody shapes on/dimming/color/dynamics as sibling fields", "[A
   CHECK(body.at("color").at("xy").at("y") == 0.5f);
   CHECK(body.at("dynamics").at("duration") == 400);
 }
+
+
+TEST_CASE("parseStreamState reads the whole area list", "[ApiTools][linkprobe]")
+{
+  using Aurora::Output::Hue::ApiTools::parseStreamState;
+  using Aurora::Output::Hue::ApiTools::StreamState;
+  const auto list = [](const char* officeStatus, const char* roomStatus){
+    return nlohmann::json{{"data", {{{"id", "office"}, {"status", officeStatus}}, {{"id", "room"}, {"status", roomStatus}}}}};
+  };
+
+  CHECK(parseStreamState(list("inactive", "active"), "room") == StreamState::Active);
+  CHECK(parseStreamState(list("inactive", "inactive"), "room") == StreamState::Stopped);
+  CHECK(parseStreamState(list("active", "inactive"), "room") == StreamState::OtherActive);
+
+  // Never selected or deleted: not listed, so never Active, and another area still counts.
+  CHECK(parseStreamState(list("active", "inactive"), "") == StreamState::OtherActive);
+  CHECK(parseStreamState(list("inactive", "inactive"), "gone") == StreamState::Stopped);
+
+  // A bridge error body: empty data must not crash, and no data at all is left to the caller.
+  CHECK(parseStreamState(nlohmann::json::parse(R"({"errors":[{"description":"x"}],"data":[]})"), "room") == StreamState::Stopped);
+  CHECK_THROWS_AS(parseStreamState(nlohmann::json::parse(R"({"errors":[]})"), "room"), nlohmann::json::exception);
+}

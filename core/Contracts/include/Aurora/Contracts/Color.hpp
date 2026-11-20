@@ -17,6 +17,8 @@
 // toXYB() becomes a free function in Output/Hue/ instead, taking a
 // Contracts::Color -- Color itself no longer needs to know Hue exists at
 // all. See docs/ProcessingAnalysis.md.
+//
+// Upstream huenicorn is GPL-3.0-only; see THIRD_PARTY_NOTICES.md.
 namespace Aurora::Contracts
 {
   /**

@@ -20,8 +20,8 @@ checklist to run when doing a periodic organization/reorg pass.
   it hasn't been sent upstream yet — see `Aurora-h45`) and
   **`planning/WebUI/`** — WebUI-specific design passes and their
   supporting docs (tooltip content/plumbing, etc.), kept together rather
-  than flattened, since both remaining docs ([[webui-fixes]],
-  [[webui-design-2-5-pass]]) are genuinely active work. Distinct from
+  than flattened, since the docs there ([[webui-fixes]],
+  [[webui-design-2-5-pass]], [[graph-editor-cleanup]]) are genuinely active work. Distinct from
   `archive/`: nothing here should be treated as settled just because it's
   written down.
 - **[`lessons/`](lessons/README.md)** — non-obvious gotchas, tagged and

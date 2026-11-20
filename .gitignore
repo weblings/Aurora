@@ -85,3 +85,11 @@ local/
 
 # Local MCP client config (absolute paths to this machine's build)
 /.mcp.json
+
+# WASM engine module for the web demo (copied by web/demo/vendor/fetch-engine.py)
+web/demo/vendor/engine/
+
+# Graph editor build for the web demo (built by web/demo/vendor/build-editor.py)
+web/demo/graph-editor/
+web/demo/recipes/
+web/graph-editor/dist-recipes/

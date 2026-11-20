@@ -48,6 +48,11 @@ namespace Aurora::Network::Http::Server
   };
 
 
+  // Poll pacing and request lifetime, echoed to clients as interval/expiresIn.
+  constexpr std::int64_t kPairingPollIntervalSeconds = 2;
+  constexpr std::int64_t kPairingLifetimeSeconds = 300;
+
+
   struct PairingTicket
   {
     std::string pollKey;
@@ -61,7 +66,10 @@ namespace Aurora::Network::Http::Server
     {
       Pending,
       Approved,
-      Unknown // denied, expired, already collected or never issued
+      Denied, // briefly remembered after deny
+      Expired, // briefly remembered after the request lapses
+      SlowDown, // pending, but polled faster than the interval
+      Unknown // already collected, forgotten or never issued
     };
 
     State state{State::Unknown};
@@ -87,7 +95,8 @@ namespace Aurora::Network::Http::Server
     bool approve(const std::string& ref, std::optional<Scope> grant = std::nullopt);
     bool deny(const std::string& ref);
 
-    // The token is handed out once; later polls report Unknown.
+    // The token is handed out once; later polls report Unknown. A denied or
+    // expired key reports that for a minute (tombstone), then Unknown.
     PairingPoll poll(const std::string& pollKey);
 
     std::optional<PairedDevice> authenticate(const std::string& token);
@@ -114,6 +123,13 @@ namespace Aurora::Network::Http::Server
       bool decided{false};
       bool approved{false};
       std::string token;
+      std::int64_t lastPoll{0};
+    };
+
+    struct Tombstone
+    {
+      PairingPoll::State state{PairingPoll::State::Unknown};
+      std::int64_t at{0};
     };
 
     std::string mintLocked(const std::string& name, Scope scope);
@@ -125,6 +141,7 @@ namespace Aurora::Network::Http::Server
     std::filesystem::path m_storePath;
     Clock m_clock;
     std::unordered_map<std::string, Entry> m_pending; // keyed by pollKey
+    std::unordered_map<std::string, Tombstone> m_tombstones; // keyed by pollKey
     std::unordered_map<std::string, PairedDevice> m_devices; // keyed by id
     std::unordered_map<std::string, std::string> m_hashToId;
     std::unordered_map<std::string, std::string> m_idToHash;
@@ -176,6 +193,10 @@ namespace Aurora::Network::Http::Server
     // prefix keep the default Read requirement (Aurora-52oz.1).
     void addWriteRule(const std::string& pathPrefix, Scope required);
 
+    // Like addRule, but only for one method, so a verb can need more than its
+    // siblings under the same prefix (DELETE /api/effects/ vs PUT .../params).
+    void addMethodRule(HttpMethod method, const std::string& pathPrefix, Scope required);
+
     AccessDecision decide(const AccessRequest& request) const;
 
     static bool isLoopback(const std::string& remoteAddr);
@@ -188,6 +209,7 @@ namespace Aurora::Network::Http::Server
       std::string prefix;
       Scope scope;
       bool writesOnly;
+      std::optional<HttpMethod> method;
     };
     std::vector<Rule> m_rules;
   };

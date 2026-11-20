@@ -1,0 +1,175 @@
+{
+ "builtin": true,
+ "graph": {
+  "controls": [
+   {
+    "config": "audioBounceSmoothTime",
+    "node": "beat",
+    "param": "bounceSmoothTime",
+    "section": "Response speed"
+   },
+   {
+    "config": "audioBrightnessSmoothTime",
+    "node": "beat",
+    "param": "brightnessSmoothTime",
+    "section": "Response speed"
+   },
+   {
+    "config": "audioDriftBaseRateDegPerSec",
+    "node": "drift",
+    "param": "driftBaseRateDegPerSec",
+    "section": "Response speed"
+   },
+   {
+    "config": "audioVibrancySaturation",
+    "node": "beat",
+    "param": "vibrancySaturation",
+    "section": "Color character"
+   },
+   {
+    "config": "audioVibrancyValue",
+    "node": "beat",
+    "param": "vibrancyValue",
+    "section": "Color character"
+   },
+   {
+    "config": "audioFixedAnchorHue",
+    "node": "drift",
+    "param": "fixedAnchorHue",
+    "section": "Color character"
+   },
+   {
+    "config": "audioDynamismFloor",
+    "node": "beat",
+    "param": "dynamismFloor",
+    "section": "Sensitivity"
+   },
+   {
+    "config": "audioCentroidStrength",
+    "node": "drift",
+    "param": "centroidStrength",
+    "section": "Sensitivity"
+   },
+   {
+    "config": "audioReferenceRms",
+    "node": "beat",
+    "param": "referenceRms",
+    "section": "Sensitivity"
+   },
+   {
+    "config": "audioBrightnessFloor",
+    "node": "beat",
+    "param": "brightnessFloor",
+    "section": "Sensitivity"
+   },
+   {
+    "config": "audioCentroidRangeHz",
+    "node": "drift",
+    "param": "centroidRangeHz",
+    "section": "Sensitivity"
+   }
+  ],
+  "edges": [
+   [
+    "cap.buffer",
+    "feat.buffer"
+   ],
+   [
+    "feat.features",
+    "drift.features"
+   ],
+   [
+    "feat.features",
+    "beat.features"
+   ],
+   [
+    "drift.anchor",
+    "beat.anchor"
+   ],
+   [
+    "beat.color",
+    "all_hue.color"
+   ],
+   [
+    "all_hue.frame",
+    "gain_hue.frame"
+   ],
+   [
+    "gain_hue.frame",
+    "floor_hue.frame"
+   ],
+   [
+    "floor_hue.frame",
+    "send_hue.frame"
+   ]
+  ],
+  "nodes": [
+   {
+    "id": "cap",
+    "params": {},
+    "type": "audio.capture"
+   },
+   {
+    "id": "feat",
+    "params": {},
+    "type": "audio.features"
+   },
+   {
+    "id": "drift",
+    "params": {
+     "centroidRangeHz": 2250.0,
+     "centroidStrength": 0.30000001192092896,
+     "driftBaseRateDegPerSec": 10.0,
+     "fixedAnchorHue": null
+    },
+    "type": "audio.drift"
+   },
+   {
+    "id": "beat",
+    "params": {
+     "bounceSmoothTime": 0.2849999964237213,
+     "brightnessFloor": 0.4000000059604645,
+     "brightnessSmoothTime": 0.26499998569488525,
+     "dynamismFloor": 0.25999999046325684,
+     "referenceRms": 0.5,
+     "vibrancySaturation": 0.949999988079071,
+     "vibrancyValue": 0.949999988079071
+    },
+    "type": "audio.bounce"
+   },
+   {
+    "id": "all_hue",
+    "params": {
+     "output": "hue"
+    },
+    "type": "frame.broadcast"
+   },
+   {
+    "id": "gain_hue",
+    "params": {
+     "gain": 1.0
+    },
+    "type": "frame.gain"
+   },
+   {
+    "id": "floor_hue",
+    "params": {
+     "floor": 0.05000000074505806,
+     "holdSeconds": 2.0,
+     "policy": "off"
+    },
+    "type": "frame.floor"
+   },
+   {
+    "id": "send_hue",
+    "params": {
+     "output": "hue"
+    },
+    "type": "output.send"
+   }
+  ],
+  "tickHz": 60,
+  "version": 1
+ },
+ "id": "builtin.audio"
+}

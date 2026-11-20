@@ -3,6 +3,7 @@
 #include <array>
 
 #include <Aurora/Runtime/ConfigStore.hpp>
+#include <Aurora/Runtime/EffectStore.hpp>
 
 namespace Aurora::Runtime
 {
@@ -53,6 +54,8 @@ namespace Aurora::Runtime
       FieldApply{"audioBrightnessSmoothTime", Hot, Audio},
 
       FieldApply{"mcpEffectId", NoEffect, Video},
+      FieldApply{"hiddenEffectIds", NoEffect, Video},
+      FieldApply{"effectOrder", NoEffect, Video},
       FieldApply{"nuxCompleted", NoEffect, Video},
     };
   }
@@ -69,6 +72,19 @@ namespace Aurora::Runtime
   }
 
 
+  bool runsAudioMode(const Config& config)
+  {
+    const std::string& id = config.activeEffectId();
+    if(id == kBuiltInAudioEffectId){
+      return true;
+    }
+    if(id == kBuiltInVideoEffectId){
+      return false;
+    }
+    return config.activeInputName().empty();
+  }
+
+
   ChangeAction planConfigChange(const Config& applied, const Config& next, bool audioMode)
   {
     ChangeAction action = ChangeAction::None;
@@ -76,9 +92,10 @@ namespace Aurora::Runtime
     for(const auto& key : changedConfigKeys(applied, next)){
       const FieldApply* field = classifyConfigField(key);
 
-      // "" and the built-in ids all run the mode's built-in, so moving
-      // between them rebuilds nothing.
-      if(key == "activeEffectId" && applied.customEffectId() == next.customEffectId()){
+      // "" and the built-in ids of one mode all run that mode's built-in, so
+      // moving between them rebuilds nothing.
+      if(key == "activeEffectId" && applied.customEffectId() == next.customEffectId()
+        && runsAudioMode(applied) == runsAudioMode(next)){
         continue;
       }
 

@@ -105,3 +105,27 @@ if [ "$_docs_touched" -eq 1 ]; then
   git add "$_repo_root/docs/_ids.md"
 fi
 # --- END PROJECT DOC-LINT HOOKS ---
+
+# --- BEGIN PROJECT API SPEC HOOK (Aurora-5ipy.37) ---
+# Validates docs/api/openapi.yaml and checks openapi.json is current. Needs
+# the docs/api/requirements.txt deps: set AURORA_API_PYTHON to a venv python.
+_repo_root=$(git rev-parse --show-toplevel)
+_api_touched=0
+for _f in $(git diff --cached --name-only); do
+  case "$_f" in
+    docs/api/*) _api_touched=1; break ;;
+  esac
+done
+if [ "$_api_touched" -eq 1 ]; then
+  _py=${AURORA_API_PYTHON:-python3}
+  command -v "$_py" >/dev/null 2>&1 || _py=python
+  if ! "$_py" -c 'import yaml, openapi_spec_validator' >/dev/null 2>&1; then
+    echo >&2 "API spec hook: $_py lacks docs/api/requirements.txt deps. Install them in a venv and set AURORA_API_PYTHON to its python, or 'git commit --no-verify' to bypass."
+    exit 1
+  fi
+  if ! "$_py" "$_repo_root/docs/api/gen-openapi.py" --check; then
+    echo >&2 "docs/api/gen-openapi.py --check failed -- fix the spec or regenerate openapi.json, or 'git commit --no-verify' to bypass."
+    exit 1
+  fi
+fi
+# --- END PROJECT API SPEC HOOK ---

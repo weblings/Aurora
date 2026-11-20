@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -224,14 +225,17 @@ namespace
     info.factory = []{ return std::make_unique<FramePipeNode>(); };
     CHECK(registry.registerType("test.framepipe", std::move(info)));
 
-    for(PortType type : {PortType::Float, PortType::Trigger}){
+    for(PortType type : {PortType::Float, PortType::Trigger, PortType::Angle}){
       info = {};
       info.meta = meta(std::string(portTypeName(type)) + " passthrough");
       info.inputs = {{"in", type, true}};
       info.outputs = {{"out", type, false}};
       info.factory = [type]{ return std::make_unique<TypedPipeNode>(type); };
       CHECK(registry.registerType(
-        type == PortType::Float ? "test.floatpipe" : "test.triggerpipe", std::move(info)));
+        type == PortType::Float     ? "test.floatpipe"
+        : type == PortType::Trigger ? "test.triggerpipe"
+                                    : "test.anglepipe",
+        std::move(info)));
     }
 
     info = {};
@@ -332,6 +336,8 @@ namespace
       {"node-not-object", R"({"version": 1, "nodes": [7]})", {"nodes[0]", "object"}},
       {"node-empty-id", R"({"version": 1, "nodes": [{"id": "", "type": "test.counter"}]})",
        {"nodes[0]", "'id'"}},
+      {"node-hash-id", R"({"version": 1, "nodes": [{"id": "#sections", "type": "test.counter"}]})",
+       {"nodes[0]", "'id'", "'#'"}},
       {"duplicate-id", R"({"version": 1, "nodes": [{"id": "a", "type": "test.counter"}, {"id": "a", "type": "test.counter"}]})",
        {"duplicate node id 'a'"}},
       {"node-missing-type",
@@ -392,6 +398,12 @@ namespace
       {"float-into-color",
        R"({"version": 1, "nodes": [{"id": "a", "type": "test.floatpipe"}, {"id": "p", "type": "test.passthrough"}], "edges": [["a.out", "p.in"]]})",
        {"port-type mismatch", "a.out", "Float", "p.in", "Color"}},
+      {"float-into-angle-names-converter",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.floatpipe"}, {"id": "b", "type": "test.anglepipe"}], "edges": [["a.out", "b.in"]]})",
+       {"port-type mismatch", "a.out", "Float", "b.in", "Angle", "angle.fromFloat"}},
+      {"angle-into-float-names-converter",
+       R"({"version": 1, "nodes": [{"id": "a", "type": "test.anglepipe"}, {"id": "b", "type": "test.floatpipe"}], "edges": [["a.out", "b.in"]]})",
+       {"port-type mismatch", "a.out", "Angle", "b.in", "Float", "angle.toFloat"}},
       {"missing-required-float-input", R"({"version": 1, "nodes": [{"id": "f", "type": "test.floatpipe"}]})",
        {"'f'", "missing required input 'in'", "Float"}},
       {"two-edges-one-input",
@@ -757,5 +769,31 @@ TEST_CASE("Graph loader issues carry a code, the field and valid options (Aurora
     for(std::size_t i = 0; i < expected.options.size(); i++){
       CHECK(match->options[i] == expected.options[i]);
     }
+  }
+}
+
+TEST_CASE("Graph loader names a node that cannot be constructed by its title (Aurora-th7f)", "[Graph]")
+{
+  NodeRegistry registry = makeCorpusRegistry();
+  auto addBroken = [&](const std::string& type, const std::string& title, NodeFactory factory){
+    NodeTypeInfo info;
+    info.meta = NodeTypeMeta{title, "test-only", "{}", "cheap"};
+    info.outputs = {{"out", PortType::Color, false}};
+    info.factory = std::move(factory);
+    CHECK(registry.registerType(type, std::move(info)));
+  };
+  addBroken("test.throws", "Gradient", []() -> std::unique_ptr<INode> { throw std::runtime_error("boom"); });
+  addBroken("test.null", "", []() -> std::unique_ptr<INode> { return nullptr; });
+
+  const std::vector<std::pair<std::string, std::string>> cases = {{"test.throws", "Gradient"}, {"test.null", "test.null"}};
+  for(const auto& [type, expectedTitle] : cases){
+    CAPTURE(type);
+    LoadResult result = loadGraphFromString(
+      R"({"version": 1, "nodes": [{"id": "grad", "type": ")" + type + R"("}]})", registry);
+    REQUIRE_FALSE(result.ok);
+    REQUIRE(result.issues.size() == 1);
+    CHECK(result.issues[0].code == "node_construct_failed");
+    CHECK(result.issues[0].node == "grad");
+    CHECK(result.issues[0].nodeTitle == expectedTitle);
   }
 }

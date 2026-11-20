@@ -293,6 +293,23 @@ namespace Aurora::Runtime::Graph
       return fail("version_unsupported", message.str());
     }
 
+    // Additive metadata (minorVersion 1): readers accept any minor and ignore unknown ones.
+    auto minorIt = doc.find("minorVersion");
+    if(minorIt != doc.end() && (!minorIt->is_number_integer() || minorIt->get<long long>() < 0)){
+      report("", "minor_version_invalid", "top-level 'minorVersion' must be a non-negative integer when present");
+    }
+    for(const auto& [key, limit] : {std::pair<const char*, std::size_t>{"title", kMaxTitleLength},
+                                    std::pair<const char*, std::size_t>{"description", kMaxDescriptionLength}}){
+      auto textIt = doc.find(key);
+      if(textIt == doc.end()){
+        continue;
+      }
+      if(!textIt->is_string() || textIt->get<std::string>().empty() || textLength(textIt->get<std::string>()) > limit){
+        report("", std::string(key) + "_invalid", "top-level '" + std::string(key) +
+          "' must be a non-empty string of at most " + std::to_string(limit) + " characters when present");
+      }
+    }
+
     Graph graph;
 
     auto tickIt = doc.find("tickHz");
@@ -333,8 +350,9 @@ namespace Aurora::Runtime::Graph
         continue;
       }
       auto idIt = raw.find("id");
-      if(idIt == raw.end() || !idIt->is_string() || idIt->get<std::string>().empty()){
-        report("", "node_id_invalid", where.str() + " needs a non-empty string 'id' (stable: state survives edits by id)");
+      if(idIt == raw.end() || !idIt->is_string() || idIt->get<std::string>().empty() || idIt->get<std::string>().front() == '#'){
+        // '#' ids are reserved: ui keys starting with '#' hold editor data.
+        report("", "node_id_invalid", where.str() + " needs a non-empty string 'id' that does not start with '#' (stable: state survives edits by id, '#' is reserved for editor ui keys)");
         continue;
       }
       std::string id = idIt->get<std::string>();
@@ -493,6 +511,11 @@ namespace Aurora::Runtime::Graph
             message << where.str() << ": port-type mismatch: '" << fromNode << "." << fromPort
                     << "' carries " << portTypeName(out->type) << " but '" << toNode << "." << toPort
                     << "' expects " << portTypeName(in->type) << ")";
+            if(out->type == PortType::Float && in->type == PortType::Angle){
+              message << "; convert it with an angle.fromFloat node";
+            } else if(out->type == PortType::Angle && in->type == PortType::Float){
+              message << "; convert it with an angle.toFloat node";
+            }
             report(toNode, "port_type_mismatch", message.str(), toPort);
             continue;
           }
@@ -615,17 +638,21 @@ namespace Aurora::Runtime::Graph
     // a node bug: fail the load rather than evaluating blind.
     for(auto& node : pending){
       std::unique_ptr<INode> instance;
+      // Shells word the failure by title (Aurora-th7f), so the issue carries it.
+      auto constructFailed = [&](const std::string& why){
+        report(node.id, "node_construct_failed", why);
+        const std::string& title = node.info->meta.title;
+        result.issues.back().nodeTitle = title.empty() ? node.type : title;
+      };
       try{
         instance = node.info->factory();
       } catch(const std::exception& e){
-        report(node.id, "node_construct_failed",
-          "node '" + node.id + "': constructing type '" + node.type +
+        constructFailed("node '" + node.id + "': constructing type '" + node.type +
           "' threw: " + e.what());
         continue;
       }
       if(instance == nullptr){
-        report(node.id, "node_construct_failed",
-          "node '" + node.id + "': constructing type '" + node.type + "' returned null");
+        constructFailed("node '" + node.id + "': constructing type '" + node.type + "' returned null");
         continue;
       }
       std::string mismatch;

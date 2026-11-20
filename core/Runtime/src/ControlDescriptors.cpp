@@ -4,21 +4,8 @@
 #include <cstddef>
 #include <cstdlib>
 
-#include <Aurora/Network/Http/Server/HttpServer.hpp>
-
 namespace Aurora::Runtime
 {
-  namespace
-  {
-    using Aurora::Network::Http::Server::HttpMethod;
-    using Aurora::Network::Http::Server::HttpServer;
-    using Aurora::Network::Http::Server::Request;
-    using Aurora::Network::Http::Server::Response;
-
-
-  }
-
-
   // nlohmann writes a float widened to double, so 0.01f goes out as
   // 0.009999999776482582 -- and the WebUI derives a slider's displayed
   // decimals from its step's digits. Round-trip through the float's own
@@ -30,6 +17,8 @@ namespace Aurora::Runtime
     *result.ptr = '\0';
     return std::strtod(buffer, nullptr);
   }
+
+
   void DescriptorRegistry::add(
     std::string owner,
     std::vector<ControlDescriptor> descriptors
@@ -85,6 +74,18 @@ namespace Aurora::Runtime
         {"kind", descriptor.kind},
         {"description", descriptor.description},
       };
+      if(!descriptor.title.empty()){
+        entry["title"] = descriptor.title;
+      }
+      if(!descriptor.group.empty()){
+        entry["group"] = descriptor.group;
+      }
+      if(!descriptor.summary.empty()){
+        entry["summary"] = descriptor.summary;
+      }
+      if(!descriptor.tip.empty()){
+        entry["tip"] = descriptor.tip;
+      }
       if(!descriptor.useWhen.empty()){
         entry["useWhen"] = descriptor.useWhen;
       }
@@ -109,19 +110,5 @@ namespace Aurora::Runtime
       entries.push_back(std::move(entry));
     }
     return {{"descriptors", entries}};
-  }
-
-
-  void registerDescriptorRoutes(
-    HttpServer& server,
-    const DescriptorRegistry& registry
-  )
-  {
-    const nlohmann::json payload = registry.toJson();
-    server.addRoute(HttpMethod::Get, "/api/descriptors", [payload](const Request&, Response& res){
-      res.status = 200;
-      res.contentType = "application/json";
-      res.body = payload.dump();
-    });
   }
 }

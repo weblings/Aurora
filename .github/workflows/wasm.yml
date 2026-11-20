@@ -1,0 +1,129 @@
+# WASM graph engine: builds the module from pinned emsdk, OpenCV and aubio, checks it
+# against a native build of the same sources, and uploads it as aurora-engine-wasm.
+# Also called by the Pages deploy (workflow_call) so the site ships this commit's module.
+# NOTE: written without a runner. Expect the first live run to need tweaks.
+name: wasm
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - core/**
+      - web/engine/**
+      - web/graph-editor/src/graph/server-samples/**
+      - .github/workflows/wasm.yml
+  pull_request:
+    paths:
+      - core/**
+      - web/engine/**
+      - web/graph-editor/src/graph/server-samples/**
+      - .github/workflows/wasm.yml
+
+jobs:
+  build-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DEPS: ${{ github.workspace }}/.deps
+      EMSDK_DIR: ${{ github.workspace }}/.emsdk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load pins
+        run: grep -E '^[A-Z0-9_]+=' core/Wasm/versions.env >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: Cache emsdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.EMSDK_DIR }}
+          key: emsdk-${{ env.EMSDK_VERSION }}
+      - name: Install emsdk
+        run: |
+          [ -d "$EMSDK_DIR/.git" ] || git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+          "$EMSDK_DIR/emsdk" install "$EMSDK_VERSION"
+          "$EMSDK_DIR/emsdk" activate "$EMSDK_VERSION"
+
+      - name: Cache WASM OpenCV
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DEPS }}/opencv-wasm
+          key: opencv-wasm-${{ env.EMSDK_VERSION }}-${{ env.OPENCV_VERSION }}-${{ hashFiles('core/Wasm/build-deps.sh') }}
+      - name: Cache native OpenCV
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DEPS }}/opencv-native
+          key: opencv-native-${{ runner.os }}-${{ env.OPENCV_VERSION }}-${{ hashFiles('core/Wasm/build-deps.sh') }}
+      - name: Build dependencies (skipped for a warm cache)
+        run: |
+          source "$EMSDK_DIR/emsdk_env.sh"
+          bash core/Wasm/build-deps.sh "$DEPS" all
+
+      - name: Build WASM
+        run: |
+          source "$EMSDK_DIR/emsdk_env.sh"
+          emcmake cmake -S core -B build/wasm -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DAURORA_CORE_GRAPH_ONLY=ON \
+            -DAURORA_OPENCV_PREFIX="$DEPS/opencv-wasm" -DAURORA_AUBIO_SRC="$DEPS/aubio-src"
+          cmake --build build/wasm
+      - name: Build native reference
+        run: |
+          cmake -S core -B build/native -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DAURORA_CORE_GRAPH_ONLY=ON -DAURORA_AUBIO_FROM_SOURCE=ON \
+            -DAURORA_AUBIO_SRC="$DEPS/aubio-src" -DCMAKE_PREFIX_PATH="$DEPS/opencv-native"
+          cmake --build build/native
+
+      - name: Parity (native vs WASM)
+        run: |
+          python3 core/Wasm/parity/gen_fixtures.py build/fixtures
+          echo "### WASM parity" >> "$GITHUB_STEP_SUMMARY"
+          rc=0
+          for mode in video audio audio-seeded; do
+            build/native/Wasm/parity/graph_parity "$mode" build/fixtures > "build/native-$mode.jsonl"
+            node build/wasm/Wasm/graph_parity.js "$mode" build/fixtures > "build/wasm-$mode.jsonl"
+            python3 core/Wasm/parity/compare.py "build/native-$mode.jsonl" "build/wasm-$mode.jsonl" \
+              --label "$mode" --summary "$GITHUB_STEP_SUMMARY" || rc=1
+          done
+          exit $rc
+      - name: Engine test (node)
+        run: node web/engine/engine.test.mjs build/wasm/Wasm/aurora-engine.mjs build/fixtures
+      - name: Server samples are current
+        run: build/native/tools/GenServerSamples --check --fixtures build/fixtures
+
+      - name: Package artifact
+        run: |
+          mkdir -p dist
+          cp build/wasm/Wasm/aurora-engine.mjs build/wasm/Wasm/aurora-engine.wasm dist/
+          gz=$(gzip -9 -c dist/aurora-engine.wasm | wc -c)
+          raw=$(wc -c < dist/aurora-engine.wasm)
+          glue=$(gzip -9 -c dist/aurora-engine.mjs | wc -c)
+          # Tripwire, not a feature limit (Aurora-51nv.11): 1 MB gzip.
+          if [ "$gz" -gt 1048576 ]; then echo "wasm gzip $gz bytes exceeds 1048576"; exit 1; fi
+          cat > dist/build-info.json <<JSON
+          {
+            "commit": "${GITHUB_SHA}",
+            "emsdk": "${EMSDK_VERSION}",
+            "opencv": "${OPENCV_VERSION}",
+            "aubio": "${AUBIO_COMMIT}",
+            "wasmBytes": ${raw},
+            "wasmGzipBytes": ${gz},
+            "glueGzipBytes": ${glue}
+          }
+          JSON
+          python3 -c "import json; json.load(open('dist/build-info.json'))"
+          {
+            echo "### WASM payload"
+            echo "- aurora-engine.wasm: $raw bytes, $gz gzip -9"
+            echo "- aurora-engine.mjs: $glue gzip -9"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aurora-engine-wasm
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error

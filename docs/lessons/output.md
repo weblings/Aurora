@@ -393,7 +393,7 @@ Applies-when: testing a failure path that needs `Pipeline::build` to throw, or i
 
 Aurora-n5ly's plan was "pause, kill the bridge, resume must fail". Live on Windows with the Ethernet unplugged, resume returned 200 `succeeded:true` in 6.3s (timeouts, then success): `loadEntertainmentConfigurations` returns an empty map without throwing when REST is unreachable, `HueOutput::init` ignores the selector's `false`, and the `Streamer` constructor swallows the DTLS failure per this file's `isConnected()` entry — while `PipelineHost::resume` only fails on a `Pipeline::build` throw. Complement, not duplicate, of the two existing entries: those cover a failure being invisible and success signals lying; this one covers a failure being *unproducable* through the output at all.
 
-**Fix:** break the input side instead — set `activeInputName` to a bogus value on disk (`setRunning` reloads from disk on every resume) and restore after. Note the config has separate video/audio input keys, so breaking one leaves the other mode's resume green. Separate product gap, still open: a resume against a dead bridge reports running with no tray/log/Dashboard signal.
+**Fix:** break the input side instead — set `activeInputName` to a bogus value on disk (`setRunning` reloads from disk on every resume) and restore after. Note the config has separate video/audio input keys, so breaking one leaves the other mode's resume green. Separate product gap, still open (`Aurora-lt66`): a resume against a dead bridge reports running with no tray/log/Dashboard signal.
 
 ---
 
@@ -468,3 +468,14 @@ Applies-when: adding a long-lived response (SSE, chunked) to HttpServer or debug
 A chunked content provider runs on the connection's worker for as long as the handler loops, so each open stream costs one of the pool's threads and a dead peer holds it until a write fails. Aurora-5ipy.3 sizes the pool explicitly (`max(8, cores-1)`, growing to 4x), caps streams at half the base (503 `too_many_streams` past it), and sends a `: ping` comment so a vanished client's write fails. `Server::stop()` alone does not end a running provider and the server must not be destroyed under one: handlers poll a stop flag and `Impl::stop()` waits (5 s bound) for the open-stream count to reach 0. The count is released from the response's resource releaser, which cpp-httplib runs when the Response is destroyed.
 
 **Fix:** write stream handlers as `while(stream.open())` loops with short waits (250 ms slices), never an unbounded block. Test with a stream held open across `stop()`.
+
+
+---
+
+## A dead bridge and a stopped stream both read false from `streamingActive`: probe with a tri-state, and treat Active as never ours to reconnect over
+Tags: output, hue, rest, connection, monitor, reconnect
+Applies-when: detecting a dead or dropped Hue bridge, or deciding when to rebuild an output by itself
+
+`ApiTools::streamingActive` folds "no HTTP answer" into `false`, the same as "answered, not active", so it cannot tell a dead bridge from a stopped stream, and a reconnect only makes sense in the second case. Aurora-lt66 probes with `ApiTools::streamState` (Unreachable / Stopped / Active / OtherActive) off the tick loop. It reads the whole `entertainment_configuration` list, not one id: a stream on another area makes ours read inactive, and a reconnect would go over it. `.front()` on an empty `data` array crashes the app, so a per-id read needs a guard for a 404 body. `isConnected()` is not used: it reads the local socket only. Active on our own area is treated as Ok even when Hue Sync owns it, because the status does not say whose it is, so the cost is no banner there. OtherActive raises a row and never reconnects.
+
+**Fix:** a Stopped output is rebuilt only when the previous poll was not Ok (recovery after Unreachable acts at once, a stream stopped while online on the second poll). A deleted area or a bridge with zero entertainment configs reads Stopped forever, so attempts back off to one a minute. Test the Unreachable branch against `127.0.0.1:1`, which refuses at once.
