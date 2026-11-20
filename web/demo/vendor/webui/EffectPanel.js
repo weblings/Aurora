@@ -40,17 +40,19 @@ function saveExpanded(set) {
 export class EffectPanel {
   // onSelect(id): a row was committed. onAction(action, effect, extra): a row menu item. Edit
   // graph navigates, the others resolve { ok, id?, message? } once the list has refreshed.
-  // onNewEffect(builtinId): the footer, with the chosen start point.
-  constructor(container, { onSelect, onAction = async () => ({ ok: false }), onNewEffect = () => {} } = {}) {
+  // onNewEffect(builtinId): the footer, with the chosen start point. onboarding: a first-run
+  // picker with no row menus and no New effect (a new user has nothing to edit yet).
+  constructor(container, { onSelect, onAction = async () => ({ ok: false }), onNewEffect = () => {}, onboarding = false } = {}) {
     const uid = `effects-${_nextId++}`;
     this._uid = uid;
     this._onSelect = onSelect;
     this._onAction = onAction;
     this._onNewEffect = onNewEffect;
+    this._onboarding = onboarding;
     this._effects = [];
     this._groups = [];
     this._state = null;
-    this._opts = { hasAudio: true, canEdit: true, canDelete: true };
+    this._opts = { hasAudio: true, canEdit: !onboarding, canDelete: true };
     this._fallbackTitle = '';
     this._renaming = null; // { id, input, error, busy, ending }
     this._confirmAt = 0;
@@ -66,7 +68,7 @@ export class EffectPanel {
     this._label = 'No effect running';
     this._busy = false;
 
-    this.root = el('div', 'field ef-field');
+    this.root = el('div', 'field ef-field' + (onboarding ? ' ef-onboarding' : ''));
     this.labelEl = el('label', 'field-label', 'Effect');
     this.labelEl.id = `${uid}-label`;
 
@@ -142,7 +144,7 @@ export class EffectPanel {
     this._effects = effects;
     this._state = state;
     if (hasAudio !== undefined) this._opts.hasAudio = hasAudio;
-    if (canEdit !== undefined) this._opts.canEdit = canEdit;
+    if (canEdit !== undefined) this._opts.canEdit = canEdit && !this._onboarding;
     if (canDelete !== undefined) this._opts.canDelete = canDelete;
     if (fallbackTitle !== undefined) this._fallbackTitle = fallbackTitle;
 
@@ -385,6 +387,7 @@ export class EffectPanel {
     const more = el('button', 'ef-more', '⋯');
     more.type = 'button';
     more.tabIndex = -1;
+    if (this._onboarding) more.disabled = true;
     more.dataset.key = `m:${effect.id}`;
     more.setAttribute('aria-haspopup', 'menu');
     more.setAttribute('aria-expanded', 'false');
@@ -480,7 +483,7 @@ export class EffectPanel {
   _openMenu(id, { pointer = false, opener = null } = {}) {
     const row = this._rows.get(id);
     const effect = this._effects.find((e) => e.id === id);
-    if (!row || !effect) return;
+    if (!row || !effect || this._onboarding) return;
     this._closeMenu(false);
     const group = this._groups.find((g) => g.effects.some((e) => e.id === id));
     if (this._renaming) return;
