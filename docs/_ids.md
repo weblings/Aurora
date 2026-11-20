@@ -348,6 +348,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |
 | `pmg5-generated-demo-graph` | [log/2026-10-16-pmg5-generated-demo-graph.md](log/2026-10-16-pmg5-generated-demo-graph.md) | Generated demo-graph.js and --check drift guards (Aurora-pmg5) |
+| `ppqo-audio-recipes-tuned` | [log/2026-11-20-ppqo-audio-recipes-tuned.md](log/2026-11-20-ppqo-audio-recipes-tuned.md) | Audio recipes retuned for real loudness and smoothed |
 | `processing-analysis` | [archive/ProcessingAnalysis.md](archive/ProcessingAnalysis.md) | ImageProcessing / Color / Interpolation / ImageData / UV — Conversion analysis |
 | `pvxx1-save-and-duplicate` | [log/2026-10-29-pvxx1-save-and-duplicate.md](log/2026-10-29-pvxx1-save-and-duplicate.md) | E0b: save without going live, and duplicate an effect |
 | `pvxx11-browser-check` | [log/2026-10-29-pvxx11-browser-check.md](log/2026-10-29-pvxx11-browser-check.md) | Browser-check tooling for the web screens |

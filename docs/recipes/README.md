@@ -17,6 +17,10 @@ description, Needs, paste target, layout note). Tuning controls and the card's
   `parseClip` and `pasteSelection` against the catalog sample and checks ports, types,
   params and Tuning targets, so a renamed node or port fails the build.
 - All seven are whole graphs ending in `output.send` and paste into an empty graph. A second `output.send` is skipped on paste.
+- Audio levels are small and jumpy: `rms` and the band levels run about 0.01 to 0.15 on real
+  music (treble well below bass). Remap them with `math.mapRange` before they drive brightness, a
+  mix or a threshold, and ease them (`smooth.exp`, then `frame.smoothTime` on the output) or the
+  lights strobe. Tuned in [[ppqo-audio-recipes-tuned]].
 - Output binding: a graph with an `output.send` names its output (`hue`, the one
   registered output). The loader fails an empty binding when the node runs, so the
   clips keep `hue` rather than leaving it unset.

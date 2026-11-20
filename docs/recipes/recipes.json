@@ -9,19 +9,19 @@
     {
       "file": "loudness-switch",
       "name": "Loudness switch",
-      "description": "Two looks that swap when the music gets loud. A small band around the threshold stops the lights flickering between them.",
+      "description": "Two looks that swap when the music gets loud. A small band around the threshold stops the lights flickering between them. It is set for music at a normal volume, so move Loudness threshold if it stays on one look.",
       "needs": "audio"
     },
     {
       "file": "bands-as-rgb",
       "name": "Bass, mids and treble as RGB",
-      "description": "Bass drives red, mids green and treble blue, added together, so the room's color follows the balance of the music.",
+      "description": "Bass drives red, mids green and treble blue, added together, so the room's color follows the balance of the music. Treble is quieter than bass, so blue is always the dimmest. Raise Color smoothing if the lights flicker.",
       "needs": "audio"
     },
     {
       "file": "vu-meter",
       "name": "VU meter fill",
-      "description": "A bar of color fills across the room with the music's level. Turn the bar size down for a single dot that slides along instead.",
+      "description": "A bar of color fills across the room with the music's level. Turn the bar size down for a single dot that slides along instead. It is set for music at a normal volume, so lower Loudness for a full bar if the bar never fills.",
       "needs": "audio",
       "layout": "Fills along your zone layout, so the result depends on where your lights sit"
     },
@@ -42,7 +42,7 @@
     {
       "file": "audio-over-screen",
       "name": "Audio color over the screen",
-      "description": "The screen's colors with a drifting audio color layered on top. The louder the music, the more of it shows.",
+      "description": "The screen's colors with a drifting audio color layered on top. The louder the music, the more of it shows. It is set for music at a normal volume, so lower Loudness for full audio color if the audio color stays faint.",
       "needs": "audio and the screen"
     }
   ]
