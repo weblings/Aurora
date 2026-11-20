@@ -122,7 +122,7 @@ function RecipeDetail({ recipe, phone, outline, onOutline }: { recipe: Recipe; p
       </div>
       {/* Always mounted, so a screen reader hears the confirmation; the popout below is the visible one. */}
       <span role="status" className="recipes-sr">{state === 'copied' ? `Copied. Paste into graph editor with ${hints.paste}.` : ''}</span>
-      <Popover isOpen={state === 'copied'} onOpenChange={(open) => !open && setState('idle')} triggerRef={copyAt} isNonModal placement={phone ? 'bottom' : 'left'} offset={8} aria-label="Copied">
+      <Popover isOpen={state === 'copied'} onOpenChange={(open) => !open && setState('idle')} triggerRef={copyAt} isNonModal placement={phone ? 'bottom' : 'left top'} offset={8} aria-label="Copied">
         <Balloon anchor={copyAt} side={phone ? 'bottom' : 'left'}>Paste into graph editor with {hints.paste}</Balloon>
       </Popover>
       {state === 'manual' ? (
