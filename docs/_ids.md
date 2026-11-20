@@ -13,6 +13,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
 | `1n1u-browser-check-set` | [log/2026-11-17-1n1u-browser-check-set.md](log/2026-11-17-1n1u-browser-check-set.md) | Browser checks: the editor regression set on one stack |
+| `1na1-grille-0-2-0` | [log/2026-11-20-1na1-grille-0-2-0.md](log/2026-11-20-1na1-grille-0-2-0.md) | Graph editor moves to stable Grille 0.2.0 |
 | `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |
 | `23wu-problems-chip-dropdown-node-border` | [log/2026-11-16-23wu-problems-chip-dropdown-node-border.md](log/2026-11-16-23wu-problems-chip-dropdown-node-border.md) | Graph editor: problems chip, dropdown and node border match the mock |
 | `2dz-secret-store` | [log/2026-10-02-2dz-secret-store.md](log/2026-10-02-2dz-secret-store.md) | Aurora-2dz: OS secret store — verified on Linux, Mac and Windows |
@@ -214,6 +215,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ha-prep-d9v` | [log/2026-10-01-ha-prep-d9v.md](log/2026-10-01-ha-prep-d9v.md) | Aurora-d9v: httplib WebSocket client smoke test |
 | `ha-prep-pp8-dwo` | [log/2026-10-01-ha-prep-pp8-dwo.md](log/2026-10-01-ha-prep-pp8-dwo.md) | Aurora-pp8, Aurora-dwo: first two HA prep items implemented |
 | `home-assistant-output` | [planning/HomeAssistantOutput.md](planning/HomeAssistantOutput.md) | Home Assistant output module |
+| `hr92-nux-effect-dropdown` | [log/2026-11-20-hr92-nux-effect-dropdown.md](log/2026-11-20-hr92-nux-effect-dropdown.md) | NUX capture source picks from the effect dropdown |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
 | `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |

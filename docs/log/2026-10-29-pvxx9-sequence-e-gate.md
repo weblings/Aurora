@@ -38,4 +38,5 @@ Id: pvxx9-sequence-e-gate
 ## Results
 
 - macOS (2026-10-29): dev server and embedded both exit 0 with the .15 script (embedded after rebuilding `mac-app`; the older binary lacked the palette).
-- Windows and Linux: not run yet, so the bead stays open for them.
+- Windows 11 (2026-11-18): dev server and embedded (Release, `AURORA_ENABLE_GRAPH_EDITOR=ON`) both exit 0, 17 steps each.
+- Linux: not run. Owner closed `Aurora-pvxx.9`, `Aurora-pvxx.18` and the epic `Aurora-pvxx` on 2026-11-20 with Mac and Windows evidence. The editor is the same web code on every OS, and Aurora has run on Wayland and X11 since.

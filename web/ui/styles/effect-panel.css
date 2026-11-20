@@ -299,3 +299,6 @@
 }
 
 .ef-confirm-yes { border-color: #e5484d; color: #ff8a8e; }
+
+/* Onboarding picker (Aurora-hr92): nothing to edit yet, so no row menus. */
+.ef-onboarding .ef-more { display: none; }

@@ -2,7 +2,7 @@
 
 Id: ge1i21-clipboard
 
-`Aurora-ge1i.2.1` (P3), built from the `Aurora-ge1i.2` mock decisions.
+`Aurora-ge1i.2.1` (P3), built from the `Aurora-ge1i.2` mock decisions. `Aurora-ge1i.2` (the design mock, owner-approved 2026-11-16) and the stage 8 epic `Aurora-ge1i` closed 2026-11-20: all four children were done and GraphEditorCleanup.md already lists stage 8 with its status.
 
 ## What changed
 

@@ -2,7 +2,7 @@
 
 Id: e4bi6-controls-panel-wrapup
 
-`Aurora-e4bi.6`. Closes Stage 10. An audit of the epic's checks found nearly all of the bead's list already covered by the beads that built it, so only the param-row menu's keyboard and slider routes were added. No new `graph-editor:controls-drawer` check was made: the Tuning panel is covered between the checks below.
+`Aurora-e4bi.6`. Closes Stage 10. The epic `Aurora-e4bi` closed 2026-11-20 after `Aurora-e4bi.21` (iOS VoiceOver device check) was split out of it and moved to 1.2.1. An audit of the epic's checks found nearly all of the bead's list already covered by the beads that built it, so only the param-row menu's keyboard and slider routes were added. No new `graph-editor:controls-drawer` check was made: the Tuning panel is covered between the checks below.
 
 - In-Tuning dot and no Details: `graph-editor:drawers` (dot per control, follows a switch, no Details), plus the Edit control dialog and card menu.
 - Node item "Tuning controls...", picker at 1100, 700, 400 and 360 px: `graph-editor:context-menus`.

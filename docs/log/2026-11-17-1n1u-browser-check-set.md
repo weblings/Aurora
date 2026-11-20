@@ -32,5 +32,8 @@ Editor drafts outlive their tabs: up to 16, kept for an hour. On a shared stack 
 - Baseline for the table: the 15 single-check scripts run one after another from a clean checkout of `5ab40689`. 14 of 15 pass, gate fails.
 - `npm run graph-editor:control-count` alone still brings up and tears down its own stack (13 s).
 
+## Follow-up
+- `Aurora-1n1u.1` (further timer cuts toward 214 s) was filed without the owner asking and closed unworked on 2026-11-20. `Aurora-1n1u` stands as done.
+
 ## Lessons
 - none
