@@ -517,3 +517,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-20 | Pasting an audio recipe reopens the preview instead of showing an input problem (`Aurora-ookv`). [[ookv-paste-reopens-preview]] | `bd show Aurora-ookv` |
 | 2026-11-20 | The Problems list fits its panel with no sideways scroll (`Aurora-eu0r`). [[eu0r-problems-list-fit]] | `bd show Aurora-eu0r` |
 | 2026-11-20 | Audio recipes retuned for real loudness and smoothed (`Aurora-ppqo`). [[ppqo-audio-recipes-tuned]] | `bd show Aurora-ppqo` |
+| 2026-11-20 | View recipes item in the Add node menu (`Aurora-hzjf`). [[hzjf-view-recipes-menu-item]] | `bd show Aurora-hzjf` |
