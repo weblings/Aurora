@@ -515,3 +515,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-19 | Effect recipes page: read-only editor viewer, seven canon clips, Copy, layered layout, turned outline (`Aurora-4g4d.2`). [[4g4d2-recipes-page]] | `bd show Aurora-4g4d.2`, `bd show Aurora-4g4d.3` |
 | 2026-11-20 | Tidy action, layered layout for content without positions, WebMCP out of 1.2.0 (`Aurora-y8ku`). [[y8ku-tidy-action]] | `bd show Aurora-y8ku` |
 | 2026-11-20 | Pasting an audio recipe reopens the preview instead of showing an input problem (`Aurora-ookv`). [[ookv-paste-reopens-preview]] | `bd show Aurora-ookv` |
+| 2026-11-20 | The Problems list fits its panel with no sideways scroll (`Aurora-eu0r`). [[eu0r-problems-list-fit]] | `bd show Aurora-eu0r` |

@@ -349,8 +349,9 @@ select {
   padding: 0;
   list-style: none;
   width: max-content;
-  max-width: 320px;
+  max-width: min(320px, calc(100vw - 32px));
   max-height: 280px;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -360,6 +361,7 @@ select {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  box-sizing: border-box;
   padding: var(--ui-size-space-sm) var(--ui-size-control-pad-x);
   border-radius: var(--ui-size-radius-sm);
   text-align: left;
@@ -385,6 +387,7 @@ select {
   align-items: flex-start;
   gap: var(--aurora-space-1);
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .editor-problem-row.editor-problem-text {

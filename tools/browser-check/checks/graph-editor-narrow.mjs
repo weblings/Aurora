@@ -261,6 +261,19 @@ await withEditorStack(async ({ editorUrl }) => {
       await page.keyboard.press('Control+Shift+z')
       await page.locator('.editor-problems-chip').waitFor()
     }
+    // Aurora-eu0r: the Problems list fits its panel at each width, so it never scrolls sideways.
+    for (const width of [1100, 700, 400, 360]) {
+      await page.setViewportSize({ width, height: 800 })
+      await settle(page)
+      await page.locator('.editor-problems-chip').click()
+      const list = page.locator('.editor-problem-list')
+      await list.waitFor()
+      await settle(page)
+      const fit = await list.evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth, right: el.getBoundingClientRect().right, vw: innerWidth }))
+      assert.ok(fit.sw <= fit.cw && fit.right <= fit.vw + 1, `${width} px: Problems list scrolls sideways or leaves the window: ${JSON.stringify(fit)}`)
+      await page.keyboard.press('Escape')
+      await list.waitFor({ state: 'detached' })
+    }
   } finally {
     await browser.close()
   }
