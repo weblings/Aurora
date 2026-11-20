@@ -1,6 +1,6 @@
-// Module Worker around web/engine/engine.js. The wasm module is copied in by
-// vendor/fetch-engine.py (gitignored), so a missing file reports {type:'fatal'}.
-import { wrapEngine } from '../engine/engine.js';
+// Module Worker around web/engine/engine.js. The wasm module and engine.js are copied into
+// vendor/engine/ by vendor/fetch-engine.py (gitignored), so a missing file reports {type:'fatal'}.
+import { wrapEngine } from './vendor/engine/engine.js';
 import { createEngineHost } from './engine-host.js';
 
 let handle = null;

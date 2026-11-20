@@ -14,16 +14,25 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILES = ('aurora-engine.mjs', 'aurora-engine.wasm')
+WRAPPER = os.path.join(HERE, '..', '..', 'engine', 'engine.js')
 
 
 def build_editor():
     subprocess.run([sys.executable, os.path.join(HERE, 'build-editor.py')], check=True)
 
 
+def copy_wrapper():
+    dest = os.path.join(HERE, 'engine')
+    os.makedirs(dest, exist_ok=True)
+    shutil.copyfile(WRAPPER, os.path.join(dest, 'engine.js'))
+    print(f'copied engine.js -> {dest}')
+
+
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
     if sys.argv[1] == '--editor-only':
+        copy_wrapper()
         build_editor()
         return
     src = sys.argv[1]
@@ -35,6 +44,7 @@ def main():
     for f in FILES:
         shutil.copyfile(os.path.join(src, f), os.path.join(dest, f))
         print(f'copied {f} -> {dest}')
+    copy_wrapper()
     build_editor()
 
 
