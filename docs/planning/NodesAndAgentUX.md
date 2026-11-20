@@ -160,7 +160,9 @@ stays hidden until the first one.
 
 ## Sequence E: graph editor
 
-Status: filed 2026-10-28. Epic `Aurora-pvxx`. Research in
+Status: done 2026-11-20 (epic closed, gate passes on Mac and Windows, Linux run
+not done, closed by the owner). Filed 2026-10-28. Beyond the plan: the node
+palette, Save as new, thumbnail regions. Epic `Aurora-pvxx`. Research in
 [[sequence-e-research]], decisions in [[sequence-e-planning]]: a working edit
 loop in the app is the razor. Per-node previews (`Aurora-h6yz`), the effect
 picker (`Aurora-kep2`), the web demo and WASM (`Aurora-51nv`), subgraphs and
