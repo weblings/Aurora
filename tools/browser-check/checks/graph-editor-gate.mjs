@@ -241,30 +241,21 @@ await withEditorStack(async ({ editorUrl, restart }) => {
     await waitStatus(/Live/)
     step('a second preview of the same session shows taken over, Reconnect restores it')
 
-    // A draft that needs an input the preview did not open: draft_invalid.
+    // A draft that needs an input none is configured for: the editor reopens the preview, which
+    // the server refuses, so it shows paused (Aurora-ookv). With an input it would just go live.
     const audio = (await api('GET', '/api/effects/builtin.audio')).json.graph
-    // Aurora-gujj: the editor's own debounced draft PUT (from the Undo above) can land after this one;
-    // its verdict clears the problem and the chip unmounts. Let it settle, then put again until the
-    // chip has stayed for a moment. A missed status (the editor's PUT won) also retries.
+    // Aurora-gujj: the editor's own debounced draft PUT (from the Undo above) can land after this one,
+    // so put again until the paused status has been seen.
     await settle()
-    const chip = page.locator('.editor-problems-chip', { hasText: /1 problem/ })
     for (let tries = 0; ; tries++) {
       assert.equal((await api('PUT', `/api/graph/drafts/${mine}`, { graph: audio })).status, 200)
-      const seen = await waitStatus(/would not load/, 3_000).then(() => true, () => false)
-      await chip.waitFor({ timeout: 5_000 }).catch(() => {})
-      await page.waitForTimeout(700)
-      if (seen && (await chip.isVisible())) break
-      assert.ok(tries < 4, 'the problems chip never stayed after the audio draft')
+      if (await waitStatus(/paused/i, 3_000).then(() => true, () => false)) break
+      assert.ok(tries < 4, 'the preview never showed paused for an audio draft with no audio input')
     }
-    // Aurora-u68h.5: it is a Whole graph problem in the chip's popover, not a banner.
-    await chip.click()
-    const wholeRow = page.locator('.editor-problem-list li', { hasText: 'Whole graph' })
-    await wholeRow.waitFor()
-    assert.ok((await wholeRow.innerText()).replace(/\s+/g, ' ').length > 'Whole graph'.length, 'Whole graph row has no server text')
-    await page.keyboard.press('Escape')
+    assert.equal(await page.locator('.editor-problems-chip').count(), 0, 'a refused reopen is a paused preview, not a problem')
     await editAction(page, 'Redo')
     await waitStatus(/Live/)
-    step('a draft needing an unopened input shows draft would not load, and the next edit recovers')
+    step('a draft needing an input none is configured for shows a paused preview, and the next edit recovers')
 
     // Fill the draft slots, then open the editor on a new session: too many drafts.
     const filled = []

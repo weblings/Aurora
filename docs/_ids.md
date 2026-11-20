@@ -342,6 +342,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `o13-dual-capture` | [log/2026-10-11-o13-dual-capture.md](log/2026-10-11-o13-dual-capture.md) | Aurora-o13: video and audio capture at the same time (Linux, Mac, Windows capture run) |
 | `o1qt-local-network-probe` | [log/2026-10-08-o1qt-local-network-probe.md](log/2026-10-08-o1qt-local-network-probe.md) | Aurora-o1qt: Mac Local Network permission detection (closed) |
 | `oecx-focus-ring-tokens` | [log/2026-11-05-oecx-focus-ring-tokens.md](log/2026-11-05-oecx-focus-ring-tokens.md) | Shared focus-ring tokens |
+| `ookv-paste-reopens-preview` | [log/2026-11-20-ookv-paste-reopens-preview.md](log/2026-11-20-ookv-paste-reopens-preview.md) | Pasting an audio recipe reopens the preview instead of showing an input problem |
 | `open-formats-research` | [archive/OpenFormatsResearch.md](archive/OpenFormatsResearch.md) | Existing open formats for video/audio-reactive lighting |
 | `p91-portal-settle` | [log/2026-10-03-p91-portal-settle.md](log/2026-10-03-p91-portal-settle.md) | Aurora-p91: portal denial and call errors settle the fd promise |
 | `pause-tooltips` | [log/2026-10-04-pause-tooltips.md](log/2026-10-04-pause-tooltips.md) | Aurora-5ipy.13.1: Pause/Stop button tooltips (closed) |

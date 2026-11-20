@@ -514,3 +514,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-19 | Linux X11 rebuilds the pipeline when the monitor set changes, X11 and Wayland hardware passes (`Aurora-9fn3`). [[9fn3-x11-monitors-changed]] | `bd show Aurora-9fn3` |
 | 2026-11-19 | Effect recipes page: read-only editor viewer, seven canon clips, Copy, layered layout, turned outline (`Aurora-4g4d.2`). [[4g4d2-recipes-page]] | `bd show Aurora-4g4d.2`, `bd show Aurora-4g4d.3` |
 | 2026-11-20 | Tidy action, layered layout for content without positions, WebMCP out of 1.2.0 (`Aurora-y8ku`). [[y8ku-tidy-action]] | `bd show Aurora-y8ku` |
+| 2026-11-20 | Pasting an audio recipe reopens the preview instead of showing an input problem (`Aurora-ookv`). [[ookv-paste-reopens-preview]] | `bd show Aurora-ookv` |

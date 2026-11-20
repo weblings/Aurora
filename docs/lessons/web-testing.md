@@ -431,3 +431,13 @@ Applies-when: asserting that a screen-reader-only list is in the page but not sh
 An `ol` with `position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)` passed `isVisible()` (it has a box), and `boundingBox().width` was 19 px, because the list's 1.5em padding adds to a 1 px content width.
 
 **Fix:** assert the bounding box is at most 1 px wide, and give the hidden rule `margin: 0; padding: 0`. Do not use `isVisible()` to prove something is visually hidden.
+
+---
+
+## An empty graph opens no preview stream, so a paste check must warm one first
+Tags: browser-check, graph-editor, preview, paste, recipes
+Applies-when: reproducing a bug that needs a live preview stream when the user acts (Aurora-ookv, `checks/graph-editor-recipes-paste.mjs`)
+
+An empty graph is an invalid draft, so loading `?effect=@empty` and pasting opened the stream for the pasted graph and the bug never showed. The owner's case was a stream already live from an earlier graph, then cleared.
+
+**Fix:** paste a video recipe, wait for Live, select all and delete, then paste the recipe under test. Confirm a new check fails with the fix reverted before trusting it.
