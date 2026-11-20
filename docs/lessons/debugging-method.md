@@ -1263,3 +1263,13 @@ Applies-when: about to tell the owner that a value or name is not available anyw
 Asked whether the Hue entertainment area's name could label the Preview layout, a search of `core/Output`, `core/Runtime` and `web/graph-editor/src` found only `entertainmentConfigurationId`, and the answer given was that no API exposes the name. A repo-wide search then found `output/hue` (`ApiTools::loadEntertainmentConfigurations`, `PUT /api/hue/entertainment-configurations`) and the Dashboard's `EntertainmentConfigSelect.js`, which already show `{id, name}` from the bridge. The earlier answer was wrong.
 
 **Fix:** search from the repo root with several spellings (snake, camel, route and UI wording) before claiming absence, and say which paths were searched. Output modules live outside `core/`.
+
+---
+
+## A file written from a Bash heredoc can end mid-line, so check its tail
+Tags: agent, shell, heredoc, windows, verification
+Applies-when: an agent writes source files through `cat <<'EOF'` in the Bash tool on Windows (Aurora-4g4d.2)
+
+Four times in one session a heredoc write was cut off or rejected: `RecipesApp.tsx` ended at `{state === 'copied' ? 'Copied. Paste it in the graph editor with Ctrl+V.' : '`, `main.tsx` was never created, and `unexpected EOF while looking for matching` appeared with no obvious unbalanced quote. A batch of edits sent as one call applied none of them, and the next build failed on a file the call had reported nothing about.
+
+**Fix:** write source files with the Write tool, or write a script file first and run it. After any heredoc write, read the tail or run the typecheck before building on it.

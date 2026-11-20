@@ -607,3 +607,36 @@ Applies-when: a keydown handler opens a menu for Shift+F10 or the Menu key and m
 In the Aurora-e4bi.14 mock, `preventDefault` on the keydown opened the menu and focused its first item, then the browser's own context menu opened on top. Windows fires `contextmenu` when the key is released, so the event lands on the focused menu item, outside any handler that opened the menu. Right-click does not have this: its `contextmenu` event is the trigger.
 
 **Fix:** after opening from the key, add a capture-phase `contextmenu` listener that calls `preventDefault`, and remove it 150 ms after `keyup` (hard cap 3 s). See `swallowKeyContextMenu` in `ControlsPanelMock.tsx`. Headless Chromium cannot raise the Windows event, so confirm on Windows.
+
+---
+
+## A controlled React Flow never learns node sizes unless it handles onNodesChange
+Tags: graph-editor, react-flow, layout, measured, recipes
+Applies-when: a React Flow canvas gets `nodes` as a prop and needs `node.measured`, `useNodesInitialized` or a second layout pass from real sizes (Aurora-4g4d.2, `RecipeViewer.tsx`)
+
+The recipes viewer passed `nodes` with no `onNodesChange` and ran a layout pass once `useNodesInitialized()` was true. The effect never ran: React Flow reports each node's measured size as a `dimensions` change, which a controlled canvas must apply itself, so `measured` stayed empty and the hook stayed false. `useReactFlow().setNodes` did nothing either while `nodes` was controlled. Measured by logging inside the effect, which printed nothing.
+
+**Fix:** keep the nodes in state, pass `onNodesChange={(c) => setNodes((ns) => applyNodeChanges(c, ns))}`, and write the second pass's positions into that state. Then `useNodesInitialized` goes true and `n.measured` holds the real width and height.
+
+---
+
+## React Flow marks every handle connectable whatever nodesConnectable says
+Tags: graph-editor, react-flow, read-only, handles, recipes
+Applies-when: building a read-only React Flow canvas that reuses the editor's `GenericNode` (Aurora-4g4d.2)
+
+With `nodesConnectable={false}`, `nodesDraggable={false}` and `connectable: false` on each node, a browser check still found every handle carrying the `connectable`, `connectablestart` and `connectableend` classes. The flags stop a connection from completing, but the handles keep their crosshair cursor and start a drag line. Dragging is gated properly: the `draggable` class does go away.
+
+**Fix:** `.recipe-viewer .react-flow__handle { pointer-events: none }`, and assert in the check that no handle takes the pointer. Disable the param inputs too (a `ReadOnlyContext` read by `ParamWidget`), since a disabled-looking slider is not enough for assistive tech.
+
+---
+
+## Grille Tabs mount hidden panels, and Select marks the current option only in bold
+Tags: webui, grille, select, tabs, menu, recipes
+Applies-when: choosing a Grille component to pick one item from several, or putting a canvas inside a Grille Tab (Aurora-4g4d.2)
+
+- `Select` marks the current option only in bold (`.ui-option[data-selected]`). The editor's checkmark comes from `Menu` with `selectionMode="single"` and `selectedKey` inside `EditorPopup` (as `SplitTestButton`), so the phone recipe picker uses that with a trigger styled `.ui-select-trigger`.
+- `Select` options are plain strings, so the display name must be the value.
+- `Tabs` mounts every panel (`shouldForceMount`) and hides the inactive ones, so a React Flow canvas in a hidden panel measures 0 by 0. Pass `null` as `content` for every tab but the selected one so the canvas mounts when it is shown.
+- `Header` bolds whatever it wraps. Set `font-weight` on a subtitle.
+
+**Fix:** use `Menu` single selection for a checkmark, and mount a canvas only in the selected tab.

@@ -23,6 +23,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
 | `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
+| `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |

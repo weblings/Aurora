@@ -4,13 +4,12 @@ import { catalog, type Recipe } from './recipes'
 
 // The generated static view: an SVG on wide screens, the text list under 650 px (CSS picks). The list is
 // always in the page, so it doubles as the viewer's text alternative; the SVG is a picture of it.
-export function RecipeOutline({ recipe, heading = true, picture = true, shown, tall = false }: { recipe: Recipe; heading?: boolean; picture?: boolean; shown?: boolean; tall?: boolean }) {
+export function RecipeOutline({ recipe, picture = true, tall = false }: { recipe: Recipe; picture?: boolean; tall?: boolean }) {
   const steps = useMemo(() => outlineSteps(recipe.doc, catalog), [recipe])
   const pic = useMemo(() => diagram(recipe.doc, catalog), [recipe])
   const col = useMemo(() => (tall ? turnedDiagram(recipe.doc, catalog) : null), [recipe, tall])
   return (
-    <section className="recipe-outline" data-shown={shown ? 'true' : undefined} aria-label={`${recipe.name}, outline`}>
-      {heading ? <h3>Outline</h3> : null}
+    <section className="recipe-outline" aria-label={`${recipe.name}, outline`}>
       {picture ? (
       <svg className="recipe-outline-svg" viewBox={`-2 -2 ${pic.width + 4} ${pic.height + 4}`} aria-hidden="true" focusable="false">
         {pic.wires.map((w) => (

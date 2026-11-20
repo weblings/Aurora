@@ -166,7 +166,7 @@ Frame-level recipe above covers the main effect people want from them.
 
 ### Publishing the recipes
 
-Decision proposed 2026-11-19 for Aurora-4g4d (not yet accepted by the owner).
+Decision proposed 2026-11-19 for Aurora-4g4d, accepted and built the same day as Aurora-4g4d.2 ([[4g4d2-recipes-page]]); MCP and Start from stay deferred.
 
 **Existing mechanism.** The editor's clipboard (Aurora-ge1i.2.1) already reads
 and writes marked JSON: `CLIP_MARK` (`aurora-graph-clip`), `parseClip` and
@@ -254,12 +254,7 @@ meter fill, beat-stepped chase, Twinkle (Candle), audio layered over the screen.
 
 #### Page layout
 
-Being settled in Aurora-4g4d.1 (mock chain diagrams as generated SVG, a live
-read-only viewer, or screenshots; then the layout). Agreed so far: Grille
-`Header` and `Button` only, one flat list with a single how-to line at the top,
-each row showing name, description, In and Out lines and the chain, with Copy.
-No search, tabs, disclosure or Open the editor button. Grille gaps to record
-there: card, tag, copy feedback, code-style chain.
+Status: shipped 2026-11-19 (Aurora-4g4d.2, [[4g4d2-recipes-page]]). The page is a read-only editor viewer (option B), with a generated outline as the text alternative (option A) and no screenshots (option C). Grille `Tabs` pick the recipe, an Outline switch swaps the graph for the outline, and Copy puts the clip on the clipboard. The earlier "Header and Button only" arrangement was replaced. Details: [[effect-recipes]].
 
 ## How other editors handle it
 
