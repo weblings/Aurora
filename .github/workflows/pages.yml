@@ -1,0 +1,72 @@
+# Demo, graph editor and recipes page: built and deployed to GitHub Pages on release tags.
+# Replaces the gh-pages subtree push (Aurora-51nv.3). NOTE: written without a runner.
+name: pages
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  wasm:
+    uses: ./.github/workflows/wasm.yml
+
+  build:
+    needs: wasm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: aurora-engine-wasm
+          path: wasm-module
+
+      - name: Demo unit tests
+        run: for t in web/demo/*.test.mjs; do node "$t"; done
+
+      - name: Build engine copy, editor and recipes
+        run: |
+          python3 web/demo/vendor/fetch-engine.py wasm-module
+          python3 web/demo/vendor/build-recipes.py
+
+      - name: Assemble site
+        run: |
+          mkdir _site
+          rsync -a \
+            --exclude='*.test.mjs' --exclude='*.py' --exclude='closure-check.mjs' \
+            --exclude='CLAUDE.md' --exclude='README.md' \
+            web/demo/ _site/
+          cp wasm-module/build-info.json _site/build-info.json
+          test -f _site/index.html
+          test -f _site/graph-editor/index.html
+          test -f _site/recipes/index.html
+          test -f _site/vendor/engine/aurora-engine.wasm
+          test -f _site/vendor/engine/engine.js
+          test -f _site/graph-editor/THIRD-PARTY-NOTICES.md
+          touch _site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

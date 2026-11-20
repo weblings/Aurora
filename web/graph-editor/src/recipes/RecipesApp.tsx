@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { Button, Dialog, Header, Icon, Menu, MenuItem, Popover, Tabs, chevronDownIcon } from '@weblings/grille'
 import { EditorPopup } from '../EditorPopup'
 import { hints } from '../graph/keys'
@@ -31,6 +31,9 @@ function viewerHeight(recipe: Recipe): number {
   const extent = Math.max(...recipe.doc.nodes.map((n) => at[n.id].y + estimateHeight(recipe.doc, catalog, n.id)))
   return Math.round(Math.min(640, Math.max(300, extent * 0.62 + 96)))
 }
+
+// Every recipe gets the smallest fitted height (audio-over-screen's), so switching tabs never resizes the view.
+const sharedHeight = Math.min(...recipes.map(viewerHeight))
 
 export function RecipesApp() {
   const [current, setCurrent] = useState<Recipe>(fromHash)
@@ -78,7 +81,6 @@ function RecipeDetail({ recipe, phone, outline, onOutline }: { recipe: Recipe; p
   const box = useRef<HTMLTextAreaElement>(null)
   const timer = useRef(0)
   const copyAt = useRef<HTMLSpanElement>(null)
-  const height = useMemo(() => viewerHeight(recipe), [recipe])
   useEffect(() => {
     setState('idle')
     return () => window.clearTimeout(timer.current)
@@ -120,8 +122,8 @@ function RecipeDetail({ recipe, phone, outline, onOutline }: { recipe: Recipe; p
       </div>
       {/* Always mounted, so a screen reader hears the confirmation; the popout below is the visible one. */}
       <span role="status" className="recipes-sr">{state === 'copied' ? `Copied. Paste into graph editor with ${hints.paste}.` : ''}</span>
-      <Popover isOpen={state === 'copied'} onOpenChange={(open) => !open && setState('idle')} triggerRef={copyAt} isNonModal placement="bottom" offset={phone ? 8 : 48} aria-label="Copied">
-        <Balloon anchor={copyAt}>Paste into graph editor with {hints.paste}</Balloon>
+      <Popover isOpen={state === 'copied'} onOpenChange={(open) => !open && setState('idle')} triggerRef={copyAt} isNonModal placement={phone ? 'bottom' : 'left top'} offset={8} aria-label="Copied">
+        <Balloon anchor={copyAt} side={phone ? 'bottom' : 'left'}>Paste into graph editor with {hints.paste}</Balloon>
       </Popover>
       {state === 'manual' ? (
         <label className="recipes-manual">
@@ -129,7 +131,7 @@ function RecipeDetail({ recipe, phone, outline, onOutline }: { recipe: Recipe; p
           <textarea ref={box} readOnly value={recipe.text} rows={4} onFocus={(e) => e.currentTarget.select()} />
         </label>
       ) : null}
-      {outline ? null : <RecipeViewer recipe={recipe} height={phone ? undefined : height} />}
+      {outline ? null : <RecipeViewer recipe={recipe} height={phone ? undefined : sharedHeight} />}
       <RecipeOutline recipe={recipe} picture={outline} tall />
     </article>
   )
@@ -137,7 +139,7 @@ function RecipeDetail({ recipe, phone, outline, onOutline }: { recipe: Recipe; p
 
 // The word balloon (as the refused-save callout in the problems chip). React Aria places the popover, which
 // flips and clamps to the window, and the pointer is aimed at the anchor from where the box actually landed.
-function Balloon({ anchor, children }: { anchor: RefObject<HTMLElement | null>; children: ReactNode }) {
+function Balloon({ anchor, side, children }: { anchor: RefObject<HTMLElement | null>; side: 'bottom' | 'left'; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null)
   const [arrow, setArrow] = useState<number | null>(null)
   useLayoutEffect(() => {
@@ -145,14 +147,17 @@ function Balloon({ anchor, children }: { anchor: RefObject<HTMLElement | null>; 
     const aim = () => {
       const b = box.current?.getBoundingClientRect()
       const a = anchor.current?.getBoundingClientRect()
-      if (b && a) setArrow(Math.round(Math.min(b.width - 14, Math.max(14, a.left + a.width / 2 - b.left))))
+      if (b && a) {
+        const at = side === 'left' ? a.top + a.height / 2 - b.top : a.left + a.width / 2 - b.left
+        setArrow(Math.round(Math.min((side === 'left' ? b.height : b.width) - 14, Math.max(14, at))))
+      }
       frame = requestAnimationFrame(aim)
     }
     aim()
     return () => cancelAnimationFrame(frame)
-  }, [anchor])
+  }, [anchor, side])
   return (
-    <div ref={box} className="ui-tooltip recipes-balloon" style={arrow === null ? undefined : ({ '--balloon-arrow': `${arrow}px` } as CSSProperties)}>
+    <div ref={box} className={`ui-tooltip recipes-balloon${side === 'left' ? ' recipes-balloon-left' : ''}`} style={arrow === null ? undefined : ({ '--balloon-arrow': `${arrow}px` } as CSSProperties)}>
       {children}
     </div>
   )

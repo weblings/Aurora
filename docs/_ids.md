@@ -47,6 +47,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `51nv11-room-on-engine` | [log/2026-11-18-51nv11-room-on-engine.md](log/2026-11-18-51nv11-room-on-engine.md) | Demo room colors come from the WASM engine |
 | `51nv13-loadlive-keeps-state` | [log/2026-11-18-51nv13-loadlive-keeps-state.md](log/2026-11-18-51nv13-loadlive-keeps-state.md) | WASM engine loadLive keeps node state |
 | `51nv2-demo-eventsource` | [log/2026-11-18-51nv2-demo-eventsource.md](log/2026-11-18-51nv2-demo-eventsource.md) | EventSource stand-in for the demo editor |
+| `51nv3-pages-deploy` | [log/2026-11-20-51nv3-pages-deploy.md](log/2026-11-20-51nv3-pages-deploy.md) | Demo, editor and recipes deploy to Pages from a tag workflow |
 | `51nv4-wasm-spike` | [log/2026-11-17-51nv4-wasm-spike.md](log/2026-11-17-51nv4-wasm-spike.md) | WASM spike: built-in graphs match native under Emscripten |
 | `51nv5-graph-engine-target` | [log/2026-11-17-51nv5-graph-engine-target.md](log/2026-11-17-51nv5-graph-engine-target.md) | Graph engine split out of AuroraRuntime as AuroraGraphEngine |
 | `51nv6-browser-engine` | [log/2026-11-17-51nv6-browser-engine.md](log/2026-11-17-51nv6-browser-engine.md) | Browser interface for the WASM graph engine |
@@ -62,6 +63,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `52oz7-tuning-custom-effects` | [log/2026-10-20-52oz7-tuning-custom-effects.md](log/2026-10-20-52oz7-tuning-custom-effects.md) | Aurora-52oz.7: Tuning edits on custom effects (closed) |
 | `52oz8-linux-verification` | [log/2026-10-20-52oz8-linux-verification.md](log/2026-10-20-52oz8-linux-verification.md) | Sequence C Linux verification: core, gate 7/7, web tuning tests |
 | `52oz8-sequence-c-gate` | [log/2026-10-20-52oz8-sequence-c-gate.md](log/2026-10-20-52oz8-sequence-c-gate.md) | Aurora-52oz.8: Sequence C gate on the fake-Hue stack (8/8 with the audio step on Windows, Mac and Linux) |
+| `5duz-demo-landscape-split` | [log/2026-11-20-5duz-demo-landscape-split.md](log/2026-11-20-5duz-demo-landscape-split.md) | Web demo landscape split is 2/3 room, 1/3 Dashboard |
 | `5i3-local-api-hardening` | [log/2026-10-02-5i3-local-api-hardening.md](log/2026-10-02-5i3-local-api-hardening.md) | Aurora-5i3: local API hardening before any HA credential exists |
 | `5ipy1-ec0-decisions` | [log/2026-10-16-5ipy1-ec0-decisions.md](log/2026-10-16-5ipy1-ec0-decisions.md) | EC 0: open questions and cross-references (Aurora-5ipy.1) |
 | `5ipy19-lan-reads-paired` | [log/2026-10-16-5ipy19-lan-reads-paired.md](log/2026-10-16-5ipy19-lan-reads-paired.md) | LAN GETs require the read scope (Aurora-5ipy.19) |
@@ -481,6 +483,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `windows-input-analysis` | [archive/WindowsInputAnalysis.md](archive/WindowsInputAnalysis.md) | Windows Input plugin — analysis pass |
 | `windows-pause-verification` | [log/2026-10-04-windows-pause-verification.md](log/2026-10-04-windows-pause-verification.md) | Windows verification of pause/resume and kea; Aurora.exe has no --help/--version (Aurora-v3in) |
 | `windows-stale-bead-triage` | [log/2026-11-18-windows-stale-bead-triage.md](log/2026-11-18-windows-stale-bead-triage.md) | Windows stale bead triage before 1.2.0 |
+| `wlj3-recipes-callout-height` | [log/2026-11-20-wlj3-recipes-callout-height.md](log/2026-11-20-wlj3-recipes-callout-height.md) | Recipes page: shared graph height and Copy callout on the left |
 | `wqzp1-x11-perf-verify` | [log/2026-10-12-wqzp1-x11-perf-verify.md](log/2026-10-12-wqzp1-x11-perf-verify.md) | Aurora-wqzp.1: Linux X11 perf-harness run |
 | `wqzp11-firefox-mover-retry` | [log/2026-10-13-wqzp11-firefox-mover-retry.md](log/2026-10-13-wqzp11-firefox-mover-retry.md) | Aurora-wqzp.11: kiosk-Firefox mover poll-check + retry/hard-fail |
 | `wqzp12-windows-hdr-capture` | [log/2026-10-13-wqzp12-windows-hdr-capture.md](log/2026-10-13-wqzp12-windows-hdr-capture.md) | Aurora-wqzp.12: Windows HDR desktops capture at the right colour |
