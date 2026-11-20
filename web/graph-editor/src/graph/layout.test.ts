@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NODE_GAP, NODE_WIDTH, estimateHeight, separate } from './layout'
+import { NODE_GAP, NODE_WIDTH, estimateHeight, separate, tidyPositions } from './layout'
 import { catalog } from './fixtures'
 import type { GraphDoc, Position } from './types'
 
@@ -93,5 +93,35 @@ describe('layered long wires', () => {
     const t = (out.b.x + 120 - out.a.x) / (out.c.x - out.a.x)
     const lineY = out.a.y + 48 + t * (out.c.y - out.a.y)
     expect(lineY < out.b.y || lineY > out.b.y + bH).toBe(true)
+  })
+})
+
+describe('tidyPositions', () => {
+  const wired: GraphDoc = {
+    nodes: [
+      { id: 'src', type: 'video.capture' },
+      { id: 'a', type: 'image.rescale' },
+      { id: 'b', type: 'image.rescale' },
+    ],
+    edges: [['src.image', 'a.image'], ['a.image', 'b.image']],
+    ui: { src: { x: 500, y: 300 }, a: { x: 0, y: 0 }, b: { x: 0, y: 0 } },
+  }
+
+  it('lays out every node when none are named, keeping the top-left', () => {
+    const out = tidyPositions(wired, catalog, null)
+    expect(out.a.x).toBeGreaterThan(out.src.x)
+    expect(out.b.x).toBeGreaterThan(out.a.x)
+    expect(Math.min(...Object.values(out).map((p) => p.x))).toBe(0)
+    expect(Math.min(...Object.values(out).map((p) => p.y))).toBe(0)
+  })
+
+  it('moves only the named nodes, and keeps them clear of the rest', () => {
+    const out = tidyPositions(wired, catalog, new Set(['a', 'b']))
+    expect(Object.keys(out).sort()).toEqual(['a', 'b'])
+    expect(out.b.x).toBeGreaterThan(out.a.x)
+  })
+
+  it('returns nothing for an empty graph', () => {
+    expect(tidyPositions({ nodes: [], edges: [] }, catalog, null)).toEqual({})
   })
 })

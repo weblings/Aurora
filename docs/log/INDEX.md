@@ -513,3 +513,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-18 | Windows stale bead triage: tray balloon superseded by notifications, install layout and reload timing already shipped, TLS verification moved to 1.2.1 (`Aurora-x2o`, `Aurora-x2o.3`, `Aurora-4mk`, `Aurora-vf1.1`). [[windows-stale-bead-triage]] | `bd show Aurora-x2o`, `bd show Aurora-4mk`, `bd show Aurora-vf1.1` |
 | 2026-11-19 | Linux X11 rebuilds the pipeline when the monitor set changes, X11 and Wayland hardware passes (`Aurora-9fn3`). [[9fn3-x11-monitors-changed]] | `bd show Aurora-9fn3` |
 | 2026-11-19 | Effect recipes page: read-only editor viewer, seven canon clips, Copy, layered layout, turned outline (`Aurora-4g4d.2`). [[4g4d2-recipes-page]] | `bd show Aurora-4g4d.2`, `bd show Aurora-4g4d.3` |
+| 2026-11-20 | Tidy action, layered layout for content without positions, WebMCP out of 1.2.0 (`Aurora-y8ku`). [[y8ku-tidy-action]] | `bd show Aurora-y8ku` |

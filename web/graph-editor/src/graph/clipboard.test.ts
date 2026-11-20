@@ -69,6 +69,17 @@ describe('pasteSelection', () => {
     expect(d.nodes).toHaveLength(3)
   })
 
+  it('lays out a clip with no positions by its wiring, from the point', () => {
+    const d = doc()
+    const clip = copySelection(d, new Set(['cap', 'rescale']))
+    clip.ui = {}
+    const r = pasteSelection(d, clip, { x: 1000, y: 400 }, catalog)
+    const cap = r.doc.ui!['capture'] as { x: number; y: number }
+    const rescale = r.doc.ui!['rescale-2'] as { x: number; y: number }
+    expect(cap).toEqual({ x: 1000, y: 400 })
+    expect(rescale.x).toBeGreaterThan(cap.x)
+  })
+
   it('does not share params with the clip', () => {
     const d = doc()
     const clip = copySelection(d, new Set(['rescale']))

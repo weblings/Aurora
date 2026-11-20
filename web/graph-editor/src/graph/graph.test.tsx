@@ -5,7 +5,7 @@ import { addEdge, addNode, moveNodes, removeEdge, removeNodes, setParam, splitEn
 import { carryViewState, toFlowEdges, toFlowNodes } from './flow'
 import { PORT_TYPES, portStyle } from './portStyle'
 import { editorReducer, emptyEditor } from './history'
-import { columnLayout, positionsFor } from './layout'
+import { columnLayout, layered, positionsFor } from './layout'
 import { ControlsDrawer } from '../ControlsDrawer'
 import { ParamWidget,addStop, clampStopPos, displayNumber, effectiveValue } from '../ParamWidget'
 import { builtinLike, catalog, customLike } from './fixtures'
@@ -151,12 +151,18 @@ describe('layout', () => {
     expect(Object.keys(columnLayout(doc, catalog))).toHaveLength(5)
   })
 
-  it('prefers saved positions and lays out the rest', () => {
+  it('prefers saved positions and lays out the rest by the layered layout', () => {
     const doc = customLike()
     delete doc.ui!.zones
     const pos = positionsFor(doc, catalog)
     expect(pos.cap).toEqual({ x: 40, y: 80 })
-    expect(pos.zones).toEqual(columnLayout(doc, catalog).zones)
+    expect(pos.zones).toBeDefined()
+    expect(pos.zones).not.toEqual(pos.cap)
+  })
+
+  it('lays out a doc with no saved positions the way layered does', () => {
+    const doc = builtinLike()
+    expect(positionsFor(doc, catalog)).toEqual(layered(doc, catalog))
   })
 })
 

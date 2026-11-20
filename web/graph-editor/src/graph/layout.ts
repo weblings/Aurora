@@ -54,13 +54,36 @@ export function columnLayout(doc: GraphDoc, catalog: Catalog): Record<string, Po
   return out
 }
 
-// Saved positions win; nodes without one (built-ins have no ui) get the column
-// layout.
+// Saved positions win. Nodes without one (built-ins, MCP drafts) get the layered layout. It runs on every
+// rebuild, so it never reacts to user edits: only Tidy, paste and new content move nodes.
 export function positionsFor(doc: GraphDoc, catalog: Catalog): Record<string, Position> {
-  const auto = columnLayout(doc, catalog)
+  const auto = layered(doc, catalog)
   const out: Record<string, Position> = {}
   for (const node of doc.nodes) out[node.id] = positionIn(doc.ui, node.id) ?? auto[node.id]
   return out
+}
+
+// New positions for the Tidy action: `ids` (all nodes when null) laid out by `layered` from their wiring,
+// keeping their current top-left, then pushed clear of the nodes left alone.
+export function tidyPositions(
+  doc: GraphDoc,
+  catalog: Catalog,
+  ids: ReadonlySet<string> | null,
+  measured: Record<string, { width: number; height: number }> = {},
+): Record<string, Position> {
+  const now = positionsFor(doc, catalog)
+  const nodes = doc.nodes.filter((n) => !ids || ids.has(n.id))
+  if (nodes.length === 0) return {}
+  const inside = new Set(nodes.map((n) => n.id))
+  const edges = doc.edges.filter(([a, b]) => inside.has(splitEndpoint(a).node) && inside.has(splitEndpoint(b).node))
+  const fresh = layered({ ...doc, nodes, edges }, catalog, measured)
+  const left = Math.min(...nodes.map((n) => now[n.id].x))
+  const top = Math.min(...nodes.map((n) => now[n.id].y))
+  const placed: Record<string, Position> = { ...now }
+  for (const n of nodes) placed[n.id] = { x: Math.round(left + fresh[n.id].x), y: Math.round(top + fresh[n.id].y) }
+  const pinned = new Set(doc.nodes.filter((n) => !inside.has(n.id)).map((n) => n.id))
+  const spaced = pinned.size === 0 ? placed : separate(doc, catalog, placed, pinned, measured)
+  return Object.fromEntries(nodes.map((n) => [n.id, spaced[n.id]]))
 }
 
 export const NODE_WIDTH = 240
