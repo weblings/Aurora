@@ -524,3 +524,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-20 | Web demo landscape split is 2/3 room, 1/3 Dashboard, 50:50 with the editor open. [[5duz-demo-landscape-split]] | `bd show Aurora-5duz` |
 | 2026-11-20 | Recipes page uses one shared graph height and the desktop Copy callout sits left of the button. [[wlj3-recipes-callout-height]] | `bd show Aurora-wlj3` |
 | 2026-11-20 | Demo, editor and recipes deploy to Pages from a `v*` tag workflow, 51nv.14 and the 51nv epic closed (`Aurora-51nv.3`). [[51nv3-pages-deploy]] | `bd show Aurora-51nv.3`, `bd show Aurora-51nv.14`, `bd show Aurora-51nv` |
+| 2026-11-22 | Aurora builds and captures on a Steam Deck in an Arch Distrobox in Desktop Mode (`Aurora-uai1`); Game Mode, Flatpak, Decky and slow color cadence split out. [[uai1-steamos-arch-distrobox]] | `bd show Aurora-uai1` |
