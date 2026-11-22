@@ -15,12 +15,13 @@ Id: uai1-steamos-arch-distrobox
 
 ## Dead ends and surprises
 - The graph editor depended on `@weblings/grille` as a GitHub release tarball. npm 12 refused it (`EALLOWREMOTE`). `npm ci --allow-remote=all` installed it, but CMake's own `npm ci` step still failed, and touching the Ninja stamp did not help. Fixed at the source: Grille is published as `@weblings_things/grille` 0.2.1 on npm (commit `e495195d`: 25 imports, lockfile, two READMEs). Plain `npm ci`, `tsc --noEmit` and `vite build` pass. `npm test` and `npm audit` (3 vulnerabilities: 2 moderate, 1 high) were not run or looked at, and CI workflows were not checked for the old tarball URL.
-- Aurora segfaulted two seconds after the first portal approval. Cause pinned by experiment, not a backtrace: the `pipewire` package was missing, so `client.conf` could not load. Installing it fixed the run. Why a missing config crashes instead of reporting an error is not investigated and no bead is filed.
+- Aurora segfaulted two seconds after the first portal approval. Cause pinned by experiment, not a backtrace: the `pipewire` package was missing, so `client.conf` could not load. Installing it fixed the run. Why a missing config crashes instead of reporting an error is not investigated; tracked as `Aurora-j0w4`.
 - Three background build notices said "exit code 0" over a failed ninja build, and one `pkill -f` killed its own wrapper. A first tone test never played because the file sat in the Flatpak's private `/tmp`.
 - The shell Claude used ran inside the VS Code Flatpak, so host work went through `flatpak-spawn --host`.
 
 ## Open
 - `Aurora-vijc` (P2): color updates reach the lights only about every 1 to 2 s on this setup, not specific to the NVIDIA source. Not measured.
+- `Aurora-j0w4` (P2): Aurora segfaults when PipeWire cannot load `client.conf`.
 - `Aurora-i0sz`: Game Mode capture and audio, and whether the audio effect reacts to sound.
 - `Aurora-pena` (Flatpak manifest) and `Aurora-l3mp` (Decky plugin), both P4.
 - Not tested: a real Hue bridge with the Grille/editor flow, X11 session, the exported launcher.
@@ -34,3 +35,8 @@ Id: uai1-steamos-arch-distrobox
 - A background build wrapper reports exit 0 when its own last command succeeds, so read the log's EXIT and FAILED lines (`debugging-method`).
 - `pkill -f <pattern>` inside a wrapper shell can match its own command line (`debugging-method`).
 - A bead or doc saying a bug is open can be stale, so check the bead status and the source first (`debugging-method`).
+
+## Beads filed after the close
+- `Aurora-vijc` (P2 bug, `linux`, `steamos`): slow color cadence, filed first as a general Linux problem and rescoped the same day to this Deck plus Arch Distrobox setup, because the owner has had decent framerate on other Linux devices. Candidates: Deck CPU load with a GeForce stream running, the container capture path and DMA-BUF negotiation, build type, the container itself. Control: the same build on a known-good device.
+- `Aurora-j0w4` (P2 bug, `linux`, `steamos`): the SIGSEGV when PipeWire's `client.conf` is missing. Needs a backtrace and a capture error in `/api/v1/state` instead of a crash.
+- Both are `discovered-from` `Aurora-uai1`, alongside `Aurora-i0sz`, `Aurora-pena` and `Aurora-l3mp` filed before the close.
