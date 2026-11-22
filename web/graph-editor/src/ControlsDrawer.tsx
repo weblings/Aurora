@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Drawer } from '@weblings/grille'
+import { Drawer } from '@weblings_things/grille'
 import { TUNING_KEY } from './GrabTab'
 import { NameDialog } from './NameDialog'
 import { PanelMenu, TuningPanel, type PanelMenuItem } from './TuningPanel'

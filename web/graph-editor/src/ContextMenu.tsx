@@ -1,4 +1,4 @@
-import { Dialog, Menu, MenuItem, MenuSeparator, SubmenuItem } from '@weblings/grille'
+import { Dialog, Menu, MenuItem, MenuSeparator, SubmenuItem } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 import { Row } from './AddNodeMenu'
 import { Keyed } from './EditMenu'

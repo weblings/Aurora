@@ -1,5 +1,5 @@
 import { useMemo, type MutableRefObject, type ReactNode, type RefObject } from 'react'
-import { Dialog, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem } from '@weblings/grille'
+import { Dialog, Menu, MenuItem, MenuSection, MenuSeparator, SubmenuItem } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 import { keptCopies } from './graph/autosave'
 import { openGroups, startGroups, startPoints } from './graph/titleMenu'

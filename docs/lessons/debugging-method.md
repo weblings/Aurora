@@ -1273,3 +1273,27 @@ Applies-when: an agent writes source files through `cat <<'EOF'` in the Bash too
 Four times in one session a heredoc write was cut off or rejected: `RecipesApp.tsx` ended at `{state === 'copied' ? 'Copied. Paste it in the graph editor with Ctrl+V.' : '`, `main.tsx` was never created, and `unexpected EOF while looking for matching` appeared with no obvious unbalanced quote. A batch of edits sent as one call applied none of them, and the next build failed on a file the call had reported nothing about.
 
 **Fix:** write source files with the Write tool, or write a script file first and run it. After any heredoc write, read the tail or run the typecheck before building on it.
+
+## A background build wrapper reports exit 0 when its own last command succeeds, so read the log's EXIT and FAILED lines
+Tags: agent, shell, background, exit-code, verification, ninja
+Applies-when: an agent runs a long build in the background as `sh -c "build > log; echo EXIT=$? >> log"`, or ends the wrapper with `tail` or `grep`, and trusts the "completed (exit code 0)" notice
+
+Aurora-uai1: three completion notices read "exit code 0" while `ninja` had stopped at a `FAILED` step and the log ended `EXIT=1`. The wrapper's last command (`echo`, `tail`) is what the notice reports, and it always succeeded.
+
+**Fix:** after any completion notice, `tail` the log for `EXIT=` and grep it for `FAILED` before saying the build passed. Or end the wrapper with `exit $rc` so the notice carries the build's status.
+
+## `pkill -f <pattern>` inside a wrapper shell can match its own command line
+Tags: agent, shell, pkill, process, verification
+Applies-when: stopping a process by pattern in a command whose own text contains the pattern, such as `flatpak-spawn --host sh -c 'pkill -f "bin/Aurora --fresh"; ...'`
+
+Aurora-uai1: `pkill -f "bin/Aurora --fresh"` matched the `sh -c` wrapper that carried that string and killed the launcher itself (exit 144) before the dev stack started. Nothing ran, and the output never named `pkill`.
+
+**Fix:** match the exact process name (`pkill -x Aurora`), or list pids with `pgrep -af` and kill those.
+
+## A bead or doc saying a bug is open can be stale, so check the bead status and the source first
+Tags: beads, verification, stale-docs, planning, linux
+Applies-when: a plan or research note repeats a bug from a bead description or planning doc (Aurora-uai1 repeating Aurora-w6no)
+
+Aurora-uai1's research described Aurora-w6no as "portal restore token is never stored", citing `main.cpp` registering the grabber with no `IRestoreTokenStore`. `bd show Aurora-w6no` said CLOSED since 2026-10-21, `main.cpp:114-119` created a `FileRestoreTokenStore`, and a live run wrote `portal-restore-token` and replayed it silently. The bead text described the code as of its filing date, and FutureSteamOSSupport.md already disagreed with it.
+
+**Fix:** before relying on a bead's claim, run `bd show <id>` for the status and updated date, grep the source for the current state, and where a real run is cheap, run it.

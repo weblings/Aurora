@@ -1,4 +1,4 @@
-import { Button, Dialog, DialogActions, Modal } from '@weblings/grille'
+import { Button, Dialog, DialogActions, Modal } from '@weblings_things/grille'
 
 // Shown when an effect opens whose kept copy was made from an older saved
 // version (an MCP apply, a Save in another tab): nothing loads until the

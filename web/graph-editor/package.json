@@ -16,7 +16,7 @@
     "dev:recipes": "vite --config vite.recipes.config.ts --open /recipes.html"
   },
   "dependencies": {
-    "@weblings/grille": "https://github.com/weblings/GrilleDS/releases/download/v0.2.0/weblings-grille-0.2.0.tgz",
+    "@weblings_things/grille": "0.2.1",
     "@xyflow/react": "12.12.0",
     "react": "19.3.0",
     "react-aria-components": "1.22.1",

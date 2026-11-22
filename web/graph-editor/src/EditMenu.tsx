@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react'
-import { Dialog, Icon, Menu, MenuItem, MenuSeparator, chevronDownIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, MenuSeparator, chevronDownIcon } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 
 export type EditAction = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'select-all' | 'tidy' | 'delete'

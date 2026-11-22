@@ -5,7 +5,7 @@ so the layout can be judged with real Grille styling before the editor changes. 
 Open `index.html` directly. Frames work as in the original (`#rest`, `#problems`, `#testing`, `#changed`, `#reconnect`, ...).
 
 `grille/` holds `tokens.css`, `ui.css`, `fonts.css` and the Inter files copied from
-`web/graph-editor/node_modules/@weblings/grille/dist`. Copy them again after a Grille bump. `gen.py` is as before.
+`web/graph-editor/node_modules/@weblings_things/grille/dist`. Copy them again after a Grille bump. `gen.py` is as before.
 
 ## What differs from the original mock
 

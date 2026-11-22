@@ -935,3 +935,35 @@ With `CPU_BASELINE` and `CPU_DISPATCH` empty, OpenCV 4.12 still compiles `intrin
 **Fix:** link `libopencv_imgproc.a`, `libopencv_core.a` and `opencv4/3rdparty/libzlib.a` from the install prefix directly, as `core/Wasm/WasmDeps.cmake` does.
 
 Confirmed natively (Aurora-51nv.7, 2026-11-18): the gcc build of the same core+imgproc install for the parity reference failed `find_package(OpenCV)` on the CI runner the same way (`liblibtiff.a`). Turning the codec and IO backends off (`WITH_TIFF`, `WITH_PNG`, `WITH_JPEG`, `WITH_WEBP` and the rest, see `core/Wasm/build-deps.sh`) leaves only core, imgproc and zlib in the install, and `find_package` works. On Windows that build also needs `BUILD_WITH_STATIC_CRT=OFF` to link with the project's `/MD` runtime, and consumers need `-DOpenCV_STATIC=ON`.
+
+## Arch ships Mbed TLS 4.x as `mbedtls`, so build against `mbedtls3` with a `PKG_CONFIG_PATH`
+Tags: arch, steamos, mbedtls, pkg-config, linux, distrobox
+Applies-when: configuring on Arch, Manjaro or an Arch Distrobox (SteamOS) and the Hue plugin cannot find or compile against Mbed TLS
+
+Aurora-uai1: Arch's `mbedtls` is 4.2.0, whose API `output/hue/src/MbedTlsImpl.hpp` (ctr_drbg, entropy, net_sockets, timing) does not match, and `mbedtls2` no longer exists. The `mbedtls3` package (3.6.7) keeps the 3.x headers under `/usr/include/mbedtls3` and its `.pc` files under `/usr/lib/mbedtls3/pkgconfig`, so a default pkg-config search does not see it. With the path set, `pkg_check_modules(MBEDTLS ...)` in `output/hue/CMakeLists.txt` resolves and the full `linux-app` build passed 204 of 204 tests.
+
+**Fix:** install `mbedtls3`, not `mbedtls`, and `export PKG_CONFIG_PATH=/usr/lib/mbedtls3/pkgconfig` before `cmake --preset linux-app`. The package list is in `docs/Building.md`.
+
+## npm 12 refuses URL tarball dependencies by default (`EALLOWREMOTE`)
+Tags: npm, node, cmake, lockfile, arch, graph-editor
+Applies-when: `npm ci` fails with `EALLOWREMOTE` ("Fetching packages of type remote have been disabled"), or the CMake graph-editor step fails on a distro that ships npm 12
+
+Aurora-uai1: Arch's npm 12.2.3 defaults `allow-remote` to `none`, so `npm ci` in `web/graph-editor` refused `@weblings/grille` pinned to a GitHub release tarball, even with the lockfile's integrity hash. `npm ci --allow-remote=all` installs, but the CMake target runs its own plain `npm ci` and fails again (a hand install does not help, see the Ninja stamp entry). Debian and Ubuntu's older npm never enforced this.
+
+**Fix:** keep dependencies on a registry. The editor now uses `@weblings_things/grille` from public npm, and plain `npm ci` works. Do not put `allow-remote` in `~/.npmrc` when the home directory is shared with a host, such as a Distrobox.
+
+## Touching a custom command's stamp file does not stop Ninja from rerunning it
+Tags: ninja, cmake, stamp, custom-command, build
+Applies-when: a CMake `add_custom_command` stamp (for example `graph-editor-npm-ci.stamp`) keeps rerunning after you did its work by hand and touched the file
+
+Aurora-uai1: after installing `node_modules` by hand, `touch build/linux-app/app/linux/graph-editor-npm-ci.stamp` still reran `npm ci` on the next build. Ninja treats an output with no `.ninja_log` entry as dirty however new its mtime, and a command that has never succeeded under Ninja has no entry (`grep -c graph-editor-npm-ci.stamp .ninja_log` printed 0).
+
+**Fix:** make the command succeed once under Ninja by fixing its cause, or configure the feature off (`-DAURORA_ENABLE_GRAPH_EDITOR=OFF`). Do not hand-satisfy the stamp.
+
+## An agent in the VS Code Flatpak reaches the host through `flatpak-spawn --host`, and `/tmp` is not shared
+Tags: flatpak, vscode, steamos, agent, shell, paths
+Applies-when: Claude Code runs in the VS Code Flatpak on a Steam Deck or another Flatpak desktop and needs host tools (distrobox, podman, pacman, bd), or hands a file to a host command
+
+Aurora-uai1: the Bash tool ran in the Freedesktop SDK runtime, with no pacman, npm or distrobox (`os-release` said "Freedesktop SDK"). `flatpak-spawn --host sh -c '...'` runs on SteamOS itself. The sandbox's `/tmp`, including the session scratchpad, is private: `paplay` on the host answered "No such file" for a wav written there, so the test tone never played and the first audio check proved nothing. The home directory is shared by both.
+
+**Fix:** run host tools as `flatpak-spawn --host sh -c '...'`, and put any file a host command must read under `$HOME/.cache`, deleting it afterwards.

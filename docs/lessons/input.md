@@ -997,3 +997,11 @@ Applies-when: DuplicateOutput/DuplicateOutput1 fails on every retry on one machi
 Aurora-8u3p: on a multi-GPU desktop (Intel UHD 770 + RTX 3080 Ti + Meta Virtual Monitor) `DuplicateOutput1` returned 0x887A0004 on every retry while `D3D11CreateDevice` on the output's adapter succeeded. The grabber treated it as transient, so `/api/state` showed running with no errors and nothing streamed.
 
 **Fix:** `app/windows/app.manifest` (and `input/windows/tests/tests.manifest`) declares PerMonitorV2. Any new host of `WindowsGrabber` needs the same manifest. A failure that persists past 3 s now surfaces as a `video_capture` state error via `IVideoInput::captureError()`.
+
+## Arch's `libpipewire` has no `client.conf`, and Aurora segfaulted two seconds after the portal picker was approved
+Tags: input, linux, pipewire, arch, steamos, distrobox, crash
+Applies-when: Aurora starts Linux capture in an Arch container or minimal image, logs `can't load config client.conf`, and exits with SIGSEGV
+
+Aurora-uai1: in an Arch Distrobox with `libpipewire` only, `devstack.py up --input live` showed the screen-share picker, the approval wrote `portal-restore-token`, and Aurora logged `pw.conf ... can't load config client.conf: No such file or directory` twice. `coredumpctl` then listed a SIGSEGV two seconds later, and the dev stack died with `RemoteDisconnected`. After `pacman -S pipewire` (which owns `/usr/share/pipewire/client.conf`) the same run stayed up and reached `running`. No backtrace was taken, so why the missing config becomes a crash instead of an error is not investigated and is tracked as `Aurora-j0w4`.
+
+**Fix:** install `pipewire` as well as `libpipewire` on Arch. When capture dies right after approval, read the first `pw.conf` lines of the log before suspecting the portal.

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DOMAttributes, type MutableRefObject, type ReactElement, type RefObject } from 'react'
 import type { FocusableElement } from '@react-types/shared'
 import { Focusable } from 'react-aria-components'
-import { Dialog, Icon, Menu, MenuItem, Tooltip, TooltipTrigger, chevronDownIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, Tooltip, TooltipTrigger, chevronDownIcon } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 import { Hint } from './Hint'
 import { fetchZoneRegions } from './api'

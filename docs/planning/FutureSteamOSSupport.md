@@ -149,9 +149,19 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
   `--socket=pipewire` granted (expected to work per Flatpak's permission
   model, matches how OBS Studio's Flatpak does Gamescope capture, but
   unconfirmed on real hardware).
-- Distrobox path is untested end-to-end on a real Deck; assumed low-risk
-  since it doesn't sandbox capture at all, but worth a real run before
-  documenting it as a supported path.
+- Distrobox path: **verified in Desktop Mode on a real Deck** (2026-11-22,
+  Aurora-uai1, SteamOS 3.9.5, KDE Plasma Wayland, Arch container). Build, 204
+  of 204 tests, portal capture and token replay all work; the exact package
+  list is in [Building.md](../Building.md). Findings that differ from the
+  earlier assumptions:
+  - Arch's `mbedtls` is 4.x and `mbedtls2` no longer exists; `mbedtls3`
+    (3.6.x) works with `PKG_CONFIG_PATH=/usr/lib/mbedtls3/pkgconfig`.
+  - `aubio` ships its `.pc` file, so there is no gap there.
+  - PipeWire does work from the container (host PipeWire 1.6.8 behind the
+    PulseAudio shim), contrary to the old Distrobox guide. The container does
+    need the `pipewire` package for `client.conf`, or Aurora crashes.
+  - Still unverified: **Game Mode** (gamescope node, and audio there) and
+    whether the audio effect visibly reacts to sound.
 - Decky plugin path is unverified on two fronts: whether Steam's embedded
   CEF panel can iframe a localhost server without CSP/CORS issues, and
   whether Decky Store review would accept a root-privileged plugin bundling

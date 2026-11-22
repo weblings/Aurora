@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MutableRefObject, type RefObject } from 'react'
-import { Button, Dialog, Icon, chevronDownIcon, warningIcon } from '@weblings/grille'
+import { Button, Dialog, Icon, chevronDownIcon, warningIcon } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 import type { Problems } from './graph/problems'
 import type { GraphRowAction } from './graph/problemActions'

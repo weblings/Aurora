@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Dialog } from '@weblings/grille'
+import { Dialog } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 import { controlIndex } from './graph/controls'
 import type { GraphDoc, NodeTypeInfo } from './graph/types'
