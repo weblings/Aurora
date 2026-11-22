@@ -23,8 +23,13 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   Pipewire node. Gamescope-node matching and raw-buffer-to-`ImageData`
   conversion are pure, tested helpers; the rest needs a real Wayland session
   and portal backend. Verified end to end on Ubuntu GNOME Wayland
-  (PipeWire via the `linux` input, Aurora-gj0.3/gj0.7, re-run 2026-10-04);
-  not verified on KDE, SteamOS/gamescope, or X11 sessions.
+  (PipeWire via the `linux` input, Aurora-gj0.3/gj0.7, re-run 2026-10-04),
+  and on KDE Plasma Wayland on a Steam Deck in Desktop Mode (SteamOS 3.9.5,
+  Aurora running in an Arch Distrobox, 2026-11-22, Aurora-uai1): portal
+  capture reaches `running`, and the restore token replays with no second
+  picker after a restart. Not verified on SteamOS Game Mode (gamescope), or
+  X11 sessions. Audio on the Deck binds to the speaker sink, but a response
+  to sound was not demonstrated.
   Buffers: LINEAR DMA-BUF is offered first, plain shared memory second
   (GNOME 46 sends a fullscreen memfd stream only empty buffers, Aurora-1t1).
   If DMA-BUF reads keep failing, the grabber renegotiates shared memory on
