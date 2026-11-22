@@ -1,5 +1,5 @@
 import { memo, useContext, useRef } from 'react'
-import { Icon, menuHorizontalIcon } from '@weblings/grille'
+import { Icon, menuHorizontalIcon } from '@weblings_things/grille'
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import { Hint } from './Hint'
 import { ReadOnlyContext, TuningMarksContext, tuningKey, useEditorActions, useShowNodeIds } from './EditorContext'

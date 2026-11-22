@@ -1,7 +1,7 @@
 import type { DOMAttributes, ReactElement, ReactNode } from 'react'
 import type { FocusableElement } from '@react-types/shared'
 import { Focusable } from 'react-aria-components'
-import { Tooltip, TooltipTrigger } from '@weblings/grille'
+import { Tooltip, TooltipTrigger } from '@weblings_things/grille'
 
 // Grille's Tooltip around any element (Aurora-w6zq.8). The element becomes a
 // tab stop, because a tooltip on something that cannot take focus is never

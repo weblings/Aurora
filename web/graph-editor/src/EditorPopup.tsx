@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MutableRefObject, type ReactNode, type RefObject } from 'react'
-import { Popover, type PopoverPoint, type PopoverProps } from '@weblings/grille'
+import { Popover, type PopoverPoint, type PopoverProps } from '@weblings_things/grille'
 
 // The editor's popup layer, over Grille's Popover. Every editor menu (title,
 // view, context) goes through it, so the React Flow cases live in one place

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, playIcon, stopIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, chevronDownIcon, playIcon, stopIcon } from '@weblings_things/grille'
 import { Hint } from './Hint'
 import { EditorPopup } from './EditorPopup'
 import type { TestMode } from './graph/lightTest'

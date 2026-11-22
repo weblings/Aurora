@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react'
-import { Autocomplete, Dialog, ListBox, ListBoxItem, Menu, MenuItem, MenuSeparator, Section, SubmenuItem } from '@weblings/grille'
+import { Autocomplete, Dialog, ListBox, ListBoxItem, Menu, MenuItem, MenuSeparator, Section, SubmenuItem } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 import { addGroups, searchNodes, summaryOf } from './graph/addMenu'
 import { RECIPES_URL } from './recipesLink'

@@ -1,4 +1,4 @@
-import { Button } from '@weblings/grille'
+import { Button } from '@weblings_things/grille'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const TOAST_MS = 3000

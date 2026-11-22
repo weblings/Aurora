@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
-import { Button, Dialog, Header, Icon, Menu, MenuItem, Popover, Tabs, chevronDownIcon } from '@weblings/grille'
+import { Button, Dialog, Header, Icon, Menu, MenuItem, Popover, Tabs, chevronDownIcon } from '@weblings_things/grille'
 import { EditorPopup } from '../EditorPopup'
 import { hints } from '../graph/keys'
 import { Hint } from '../Hint'

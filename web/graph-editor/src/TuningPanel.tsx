@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button as AriaButton, Collection, Tree, TreeItem, TreeItemContent, useDragAndDrop, type DropTarget } from 'react-aria-components'
-import { Dialog, Icon, Menu, MenuItem, MenuSeparator, SubmenuItem, Tooltip, TreeDragHandle, TreeDropIndicator, chevronDownIcon, menuHorizontalIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, MenuSeparator, SubmenuItem, Tooltip, TreeDragHandle, TreeDropIndicator, chevronDownIcon, menuHorizontalIcon } from '@weblings_things/grille'
 import { deriveSections } from '../../ui/TuningControls.js'
 import { EditorPopup } from './EditorPopup'
 import { Keyed } from './EditMenu'

@@ -36,7 +36,7 @@ import {
   fullscreenArrowIcon,
   menuHorizontalIcon,
   xMarkIcon,
-} from '@weblings/grille'
+} from '@weblings_things/grille'
 import { EditorPopup } from '../EditorPopup'
 import { Hint } from '../Hint'
 import { Toast, useToast } from '../Toast'

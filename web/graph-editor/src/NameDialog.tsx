@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Dialog, DialogActions, MessageRow, Modal, TextField } from '@weblings/grille'
+import { Button, Dialog, DialogActions, MessageRow, Modal, TextField } from '@weblings_things/grille'
 import { clipName, controlLabelCheck, nameBlocked, type NameMsg, type NameSpec } from './graph/naming'
 
 // The one naming dialog (Aurora-daaa.19, Aurora-e4bi.13): Save as new, Rename effect and section names take a
