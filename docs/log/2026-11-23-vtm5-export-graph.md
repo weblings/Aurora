@@ -7,7 +7,7 @@ Id: vtm5-export-graph
 - Format: the clip JSON that paste already accepts (`copySelection` over every node), so an export pastes back as the same graph. It carries nodes, wires, layout and Tuning controls only, not the title or other document fields. Nodes with no saved layout take the canvas positions.
 - Download: a Blob and an anchor with `download`, with no permission prompt (the `showSaveFilePicker` route is Chromium-only). The item is disabled when no effect is open, and App announces "Exported N nodes".
 - Icon: the bead asked for a download icon, and Grille v0.2.2-dev.1 ships `downloadIcon`. The owner had it removed because no other title menu row has an icon, so the menu stays uniform.
-- Not built: Import. The menu has none, and paste is the only way back in. Drag-drop import is `Aurora-dzsd`.
+- Import was not part of this change. It came later in `Aurora-dzsd`: New and Open > From file, and a file dropped on the window ([[dzsd-import-from-file]]).
 - The editor now pins Grille v0.2.2-dev.1 from GitHub, through the `tools/grille` switch (`Aurora-bnpx`, still open). Nothing in this change needs that version once the icon is gone, so the pin can return to npm with `npm run grille -- release`.
 
 ## Verification
