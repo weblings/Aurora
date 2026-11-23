@@ -14,6 +14,11 @@ Id: i0sz-game-mode-probes
 ## Light test (passed)
 `aurora-watcher.sh` (a `systemd-run --user` service started in Desktop Mode) waited for `gamescope-wl`, read `gamescope-0` from the env file and ran `./Aurora` in `aurora-dev` with `GAMESCOPE_WAYLAND_DISPLAY` exported. The owner switched to Game Mode and the real Hue lights followed the screen, including during the boot video before the Steam UI finished loading. Log: gamescope up 17:28:14, `input='linux', 1 output(s)`, capture and graph init 34 ms, outputs init 609 ms, LINEAR DMA-BUF negotiated in Game Mode, gamescope gone 17:29:23 and the watcher stopped Aurora cleanly. The run was about 70 s; steady-state frame rate and whether `SlowReadWatch` fell back were not measured.
 
+## Audio test (Aurora-ch0g, passed)
+`aurora-audio-watcher.sh`: same launch as the light test, then, once `:8215` answered, `PATCH /api/v1/state {"effect":"builtin.audio"}` and a restore of the previous effect when gamescope exited. Run 17:52:54 to 17:55:34 (2 min 40 s) in Game Mode with a game playing sound: the owner saw the lights move with the audio ("Music pulse"). The log agrees: state `effect: builtin.audio`, `source.audio.sink` the Deck speaker sink (`auto: true`, input `linux-audio`), and a PipeWire link `alsa_output...Speaker__sink -> AuroraAudioStream` in state `active` in every sample (12 samples, 15 s apart). The graph reports `graphInputs {audio: true, video: false}`, so no video capture ran in this test, and the DMA-BUF rate and `SlowReadWatch` question is still open.
+- The restore PATCH ran after gamescope had exited, so its reply showed `effect: null` with a screen-capture error; `config.json` was written correctly (`activeEffectId = builtin.video`).
+- Side effect: the first PATCH to `builtin.audio` also set `activeAudioInputName = "linux-audio"` in `~/.config/aurora/config.json` (state showed `configuredInputs.audio: null` before). It stays set after the restore.
+
 ## Filed after the close
 - `Aurora-mjk0` (P3): permanent Game Mode launcher, a persistent `systemd --user` unit replacing the throwaway watcher (no browser window over the game, install steps, where it ships).
 - `Aurora-ch0g` (P3): audio capture and audio-effect reaction in Game Mode, a 2-minute frame-rate and `SlowReadWatch` check, and Remote Play interference.
