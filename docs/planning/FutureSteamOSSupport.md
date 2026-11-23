@@ -164,9 +164,9 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
     (`Video/Source`) is visible from a `systemd --user` service and from
     inside the box; a service must read `GAMESCOPE_WAYLAND_DISPLAY` from
     `/run/user/<uid>/gamescope-environment` because it does not inherit it.
-    See [[i0sz-game-mode-probes]]. Still unverified: frames flowing from the
-    node, lights following the game, audio there, and whether the audio effect
-    visibly reacts to sound.
+    See [[i0sz-game-mode-probes]]. Lights follow the game (including the boot
+    video) with Aurora run from such a service. Still unverified: audio there,
+    and whether the audio effect visibly reacts to sound.
 - Decky plugin path is unverified on two fronts: whether Steam's embedded
   CEF panel can iframe a localhost server without CSP/CORS issues, and
   whether Decky Store review would accept a root-privileged plugin bundling

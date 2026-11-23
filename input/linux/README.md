@@ -27,9 +27,13 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   and on KDE Plasma Wayland on a Steam Deck in Desktop Mode (SteamOS 3.9.5,
   Aurora running in an Arch Distrobox, 2026-11-22, Aurora-uai1): portal
   capture reaches `running`, and the restore token replays with no second
-  picker after a restart. Not verified on SteamOS Game Mode (gamescope), or
+  picker after a restart. Also verified on the same Deck in Game Mode
+  (2026-11-22, Aurora-i0sz): the real Aurora in the Distrobox, launched from a
+  `systemd --user` service with `GAMESCOPE_WAYLAND_DISPLAY` exported from
+  `/run/user/<uid>/gamescope-environment`, captures the gamescope node and
+  the lights follow the screen, including the boot video. Not verified on
   X11 sessions. Audio on the Deck binds to the speaker sink, but a response
-  to sound was not demonstrated.
+  to sound was not demonstrated, and audio in Game Mode is untested.
   Buffers: LINEAR DMA-BUF is offered first, plain shared memory second
   (GNOME 46 sends a fullscreen memfd stream only empty buffers, Aurora-1t1).
   If DMA-BUF reads keep failing, or take over 100 ms three times in a row
