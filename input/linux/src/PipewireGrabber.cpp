@@ -401,6 +401,14 @@ namespace Aurora::Input::Linux
       pw_stream_queue_buffer(pw->stream, pwBuffer);
     };
 
+    // Shared by both triggers: stop offering DMA-BUF and renegotiate memfd.
+    auto giveUpOnDmabuf = [&](){
+      pw->dmabufOffered = false;
+      if(pw->renegotiateEvent){
+        pw_loop_signal_event(pw_main_loop_get_loop(pw->loop), pw->renegotiateEvent);
+      }
+    };
+
     // Counts toward giving up on DMA-BUF; the caller still skips the buffer.
     auto dmabufReadFailed = [&](const char* why){
       if(!pw->dmabufFallback.disabled()){
@@ -411,10 +419,7 @@ namespace Aurora::Input::Linux
           stderr, "[pw-dmabuf] %d DMA-BUF reads failed in a row; renegotiating shared memory\n",
           DmabufReadFallback::kMaxConsecutiveFailures
         );
-        pw->dmabufOffered = false;
-        if(pw->renegotiateEvent){
-          pw_loop_signal_event(pw_main_loop_get_loop(pw->loop), pw->renegotiateEvent);
-        }
+        giveUpOnDmabuf();
       }
     };
 
@@ -500,6 +505,7 @@ namespace Aurora::Input::Linux
     // down by the consumer's hint when there is one, else a full-size clone),
     // since Pipewire's memory becomes invalid after queue_buffer() below.
     const uint8_t* pixels = static_cast<const uint8_t*>(readPtr) + chunk->offset;
+    const auto readStart = std::chrono::steady_clock::now();
     Contracts::ImageData capturedFrame = toOwnedImage(
       pixels, width, height, step, pixelFormat,
       captureDecimation(pw->captureWidthHint.load(), width)
@@ -517,6 +523,17 @@ namespace Aurora::Input::Linux
         return;
       }
       pw->dmabufFallback.onReadOk();
+      // The frame is valid, so keep it; only later frames move to memfd.
+      const double readMs = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - readStart
+      ).count();
+      if(pw->slowReadWatch.onReadTimed(readMs)){
+        std::fprintf(
+          stderr, "[pw-dmabuf] DMA-BUF reads too slow (%.0f ms, budget %.0f ms); renegotiating shared memory\n",
+          readMs, pw->slowReadWatch.budgetMs()
+        );
+        giveUpOnDmabuf();
+      }
     }
 
     if(pw->trace.enabled){

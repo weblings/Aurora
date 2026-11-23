@@ -32,8 +32,9 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   to sound was not demonstrated.
   Buffers: LINEAR DMA-BUF is offered first, plain shared memory second
   (GNOME 46 sends a fullscreen memfd stream only empty buffers, Aurora-1t1).
-  If DMA-BUF reads keep failing, the grabber renegotiates shared memory on
-  its own. `AURORA_PW_DMABUF=0` forces shared memory from the start.
+  If DMA-BUF reads keep failing, or take over 100 ms three times in a row
+  (`SlowReadWatch`, Aurora-vijc: ~700 ms on the Steam Deck), the grabber
+  renegotiates shared memory on its own, once per stream. `AURORA_PW_DMABUF=0` forces shared memory from the start.
   Dev-only: `AURORA_DEV_PW_TRACE=1` (per-second buffer stats),
   `AURORA_DEV_PW_DMABUF_FAIL=1` (fail every DMA-BUF map). See
   [`docs/archive/LinuxCaptureAnalysis.md`](../../docs/archive/LinuxCaptureAnalysis.md).
