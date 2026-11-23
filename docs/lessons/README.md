@@ -19,11 +19,11 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 66 | build/tooling specific |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 67 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 31 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 32 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 98 | debugging/verification method |
-| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 85 | architecture or process decision |
+| [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 86 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 27 | web testing specific |
 | [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 19 | coordinating several agents on beads |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 26 | C++ language gotcha |

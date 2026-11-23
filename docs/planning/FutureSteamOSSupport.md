@@ -130,6 +130,22 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
 (Flatpak's node generator or an AUR npm cache can feed it), and
 `AURORA_GRAPH_EDITOR_DIST` accepts a prebuilt bundle.
 
+## Decision for 1.2.1 (2026-11-22)
+
+Ship a scripted Distrobox path with a Game Mode launcher unit, controlled from a
+paired phone. Flatpak stays the end-user target and Decky the Deck-only control
+option, both in 1.2.2. See [[i0sz-game-mode-probes]].
+
+1. Desktop Mode: one script creates `aurora-dev`, installs the packages, builds
+   Aurora and installs the launcher unit (`Aurora-hvxd`).
+2. Desktop Mode: launch Aurora once, set up Hue and capture, pair the phone from
+   the local UI at `127.0.0.1:8215` (pairing needs a trusted local UI), quit Aurora.
+3. Game Mode: the `systemd --user` unit waits for `gamescope-wl`, exports
+   `GAMESCOPE_WAYLAND_DISPLAY` from `/run/user/<uid>/gamescope-environment`, runs
+   Aurora, stops it when gamescope exits (`Aurora-mjk0`).
+4. Control from the phone at `http://<deck-ip>:8215/` on the same Wi-Fi
+   (`Aurora-dl5b` for a stable address).
+
 ## Open questions / next steps
 
 - No Flatpak manifest exists yet — next concrete step if this is pursued is

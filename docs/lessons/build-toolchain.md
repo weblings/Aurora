@@ -967,3 +967,14 @@ Applies-when: Claude Code runs in the VS Code Flatpak on a Steam Deck or another
 Aurora-uai1: the Bash tool ran in the Freedesktop SDK runtime, with no pacman, npm or distrobox (`os-release` said "Freedesktop SDK"). `flatpak-spawn --host sh -c '...'` runs on SteamOS itself. The sandbox's `/tmp`, including the session scratchpad, is private: `paplay` on the host answered "No such file" for a wav written there, so the test tone never played and the first audio check proved nothing. The home directory is shared by both.
 
 **Fix:** run host tools as `flatpak-spawn --host sh -c '...'`, and put any file a host command must read under `$HOME/.cache`, deleting it afterwards.
+
+---
+
+## Decky's installer fails as `sh install_release.sh` and a store plugin can crash on a newer loader
+Tags: decky, steamos, sudo, plugins, journalctl
+Applies-when: updating Decky Loader from a terminal on a Steam Deck, or a Decky plugin panel shows only a spinner
+
+Aurora-wsyo: the script starts with `[ "$UID" -eq 0 ] || exec sudo "$0" "$@"`. Run as `sh install_release.sh`, `$0` is a bare name, so `sudo` reports "command not found". The Deck had Decky v3.1.6 while v3.3.1 was current. After the update the store plugin Web Browser 1.4.3 installed and showed a spinner forever: `journalctl -u plugin_loader` had `ModuleNotFoundError: No module named 'injector'`, the plugin backend importing a Decky internal that v3.x does not provide.
+
+**Fix:** run `sudo sh install_release.sh` (it needs a password, so a person types it), read the loader version in `~/homebrew/services/.loader.version`, and for a spinner read `journalctl -u plugin_loader` before blaming Steam or the page. A crashed third-party plugin says nothing about the question it was meant to test.
+

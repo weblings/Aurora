@@ -19,16 +19,25 @@ Id: i0sz-game-mode-probes
 - The restore PATCH ran after gamescope had exited, so its reply showed `effect: null` with a screen-capture error; `config.json` was written correctly (`activeEffectId = builtin.video`).
 - Side effect: the first PATCH to `builtin.audio` also set `activeAudioInputName = "linux-audio"` in `~/.config/aurora/config.json` (state showed `configuredInputs.audio: null` before). It stays set after the restore.
 
+## Control and install route (Aurora-wsyo, Aurora-lnjl, closed)
+- No built-in browser exists in Game Mode (the Steam overlay browser and pinned windows are PC features; a browser is added as a non-Steam app and switched to full screen, so it is not an in-game overlay). Steam's Chrome shortcut is a fallback only.
+- Decky on the Deck was v3.1.6 (Dec 2024) with the loader healthy but an empty plugin list. Updated to v3.3.1 with `sudo sh install_release.sh`; plain `sh install_release.sh` fails because the script runs `exec sudo "$0"` with a bare name. `~/homebrew/plugins` is root-owned. An agent attempt to read Decky's local `/auth/token` endpoint was blocked and not retried.
+- The store plugin Web Browser 1.4.3 installed but its backend crashes on Decky 3.x (`ModuleNotFoundError: No module named 'injector'`, `main.py` line 9), so the sidebar spinner never ends. This says nothing about iframing localhost in a Decky panel.
+- LAN pairing is shipped (`Aurora-5ipy.5` backend, `Aurora-5ipy.6` pairing screen, closed 2026-10-16); the line "no auth" in [[external-control]] is an older planning note. The owner paired a phone in Desktop Mode (the trusted local UI at `127.0.0.1:8215`) and then controlled the Game Mode Aurora from it. Tokens live in `~/.config/aurora`, so pairing carries across modes. The Deck's `public` firewall zone allows TCP 1024 to 65535, so 8215 needed no change; the Deck was at `192.168.0.172` on `wlan0`.
+- A copy of Aurora left running from Desktop Mode holds `~/.config/aurora/aurora.lock` and uses portal capture; a Game Mode launch would hit "already running". Whether it survives the mode switch is unverified (the process sits in the `aurora-dev` podman scope under `user@1000.service`).
+- Decision for 1.2.1: scripted Arch Distrobox, launcher unit, paired phone. Flatpak and Decky move to 1.2.2.
+
 ## Filed after the close
-- `Aurora-mjk0` (P3): permanent Game Mode launcher, a persistent `systemd --user` unit replacing the throwaway watcher (no browser window over the game, install steps, where it ships).
+- `Aurora-hvxd` (P2, 1.2.1): setup script and user guide for the whole path, `Aurora-dl5b` (P3, 1.2.1): stable phone address. `Aurora-mjk0` (P3, 1.2.1): permanent Game Mode launcher, a persistent `systemd --user` unit replacing the throwaway watcher (no browser window over the game, install steps, where it ships).
 - `Aurora-ch0g` (P3, closed the same day): audio capture and audio-effect reaction in Game Mode (passed). Its 2-minute video frame-rate and `SlowReadWatch` check and the Remote Play interference check were skipped by the owner and not done.
 - The watcher service was stopped after the test. `Aurora-l3mp` (Decky) stays P4.
 
 ## Open
 - Not checked (skipped): Game Mode video frame rate and the `SlowReadWatch` fallback over a long run, and whether a second PipeWire consumer disturbs Steam Remote Play or recording (pipewire issue 3157).
-- A permanent launcher (a persistent user unit that starts at boot, instead of the test script) and where it would ship: `Aurora-mjk0`.
-- Decky is only needed for an in-Game-Mode panel if the light test passes.
+- The permanent launcher unit with a stale-instance eviction: `Aurora-mjk0`; the setup script and guide: `Aurora-hvxd`.
+- A native Decky panel for Deck-only control (`Aurora-l3mp`) and the Flatpak (`Aurora-pena`) are 1.2.2.
 - Not verified that a game was focused during the sampler window.
 
 ## Lessons
+- A paired phone controls the Game Mode Aurora and a store Decky plugin can crash on a newer loader (`build-toolchain`, `architecture-process`).
 - A `systemd-run --user` service started in Desktop Mode survives the switch to Game Mode and can see the gamescope node, while a Steam non-Steam shortcut is a foreground app Steam stops and reaps (`input`).
