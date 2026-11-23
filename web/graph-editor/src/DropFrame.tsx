@@ -1,11 +1,11 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { halfDashes, halfPath } from './dashFit'
 
-const RADIUS = 16
+const RADIUS = 10
 const DASH = 22
 const GAP = 14
-// How far a corner's dash runs onto each side past its arc.
-const TAIL = DASH / 2
+// How far a corner's dash runs onto each side past its arc: enough to make it as long as any other dash.
+const TAIL = Math.max(0, (DASH - (Math.PI * RADIUS) / 2) / 2)
 
 // The dashed outline of the graph file drop hint (Aurora-dzsd): two SVG paths, the right half of a rounded rect and its mirror,
 // with dashes fitted to the measured size: one dash wraps each corner, so all four corners match.
