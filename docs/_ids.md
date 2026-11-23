@@ -465,6 +465,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `v1-source-selection-gate` | [log/2026-10-26-v1-source-selection-gate.md](log/2026-10-26-v1-source-selection-gate.md) | 5ipy.44: source selection gate missed, B8 moved to C1 (Aurora-5ipy.44) |
 | `v1-spec-harness` | [log/2026-10-26-v1-spec-harness.md](log/2026-10-26-v1-spec-harness.md) | 5ipy.36: v1 spec harness (Aurora-5ipy.36) |
 | `v1-spec-hook` | [log/2026-10-27-v1-spec-hook.md](log/2026-10-27-v1-spec-hook.md) | 5ipy.37: pre-commit hook for the API spec (Aurora-5ipy.37, Aurora-pa6c) |
+| `vijc-deck-dmabuf-slow-capture` | [log/2026-11-22-vijc-deck-dmabuf-slow-capture.md](log/2026-11-22-vijc-deck-dmabuf-slow-capture.md) | Steam Deck: the DMA-BUF capture read is the 1 to 2 s light lag (paused, fix pending) |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
 | `w6zq-ux-notes-first-fixes` | [log/2026-11-11-w6zq-ux-notes-first-fixes.md](log/2026-11-11-w6zq-ux-notes-first-fixes.md) | Graph editor UX notes: first fixes |

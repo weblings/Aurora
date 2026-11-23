@@ -1297,3 +1297,13 @@ Applies-when: a plan or research note repeats a bug from a bead description or p
 Aurora-uai1's research described Aurora-w6no as "portal restore token is never stored", citing `main.cpp` registering the grabber with no `IRestoreTokenStore`. `bd show Aurora-w6no` said CLOSED since 2026-10-21, `main.cpp:114-119` created a `FileRestoreTokenStore`, and a live run wrote `portal-restore-token` and replayed it silently. The bead text described the code as of its filing date, and FutureSteamOSSupport.md already disagreed with it.
 
 **Fix:** before relying on a bead's claim, run `bd show <id>` for the status and updated date, grep the source for the current state, and where a real run is cheap, run it.
+
+---
+
+## A `timeout`-ed `distrobox enter` leaves the app running inside the container, and the next launch only says it is already running
+Tags: debugging, linux, distrobox, process, timeout
+Applies-when: a repeat run of a containerized app prints "already running" or an empty log, or a measurement loop launches the app more than once
+
+Aurora-vijc: two trace runs of `Aurora` in the Distrobox used `timeout 40 distrobox enter aurora-dev -- ./Aurora`. `timeout` killed the wrapper but not the container child, so the next run logged only `Aurora is already running -- opening http://127.0.0.1:8215/ instead` and the grep for trace lines counted 0. The first run's callbacks were still printing into the old log.
+
+**Fix:** between runs, `pkill -x Aurora` (exact name, so it cannot match its own wrapper) and check `pgrep -x Aurora` is empty before relaunching; an empty trace or a one-line log is a launch problem first, a result second.

@@ -1005,3 +1005,13 @@ Applies-when: Aurora starts Linux capture in an Arch container or minimal image,
 Aurora-uai1: in an Arch Distrobox with `libpipewire` only, `devstack.py up --input live` showed the screen-share picker, the approval wrote `portal-restore-token`, and Aurora logged `pw.conf ... can't load config client.conf: No such file or directory` twice. `coredumpctl` then listed a SIGSEGV two seconds later, and the dev stack died with `RemoteDisconnected`. After `pacman -S pipewire` (which owns `/usr/share/pipewire/client.conf`) the same run stayed up and reached `running`. No backtrace was taken, so why the missing config becomes a crash instead of an error is not investigated and is tracked as `Aurora-j0w4`.
 
 **Fix:** install `pipewire` as well as `libpipewire` on Arch. When capture dies right after approval, read the first `pw.conf` lines of the log before suspecting the portal.
+
+---
+
+## On the Steam Deck the mmapped LINEAR DMA-BUF read cost about 200x the memfd copy, with the sync ioctls near zero
+Tags: input, linux, pipewire, dmabuf, steamos, amd, kde, performance
+Applies-when: Linux capture on a PipeWire stream delivers only 1 to 2 buffers per second, or the app is on a non-Intel GPU with DMA-BUF on by default
+
+Aurora-vijc: on the Deck (KDE Wayland, AMD APU, Arch Distrobox) the default DMA-BUF stream gave 1 to 2 callbacks per second, every one a changed frame on a moving fullscreen source, and the lights changed about every 1 to 2 s. `AURORA_PW_DMABUF=0` gave 18 to 19 per second. Per-stage timing in `_onStreamProcess` put it on the copy out of the mmapped buffer: 677 ms average vs 3.3 ms for memfd, while `DMA_BUF_IOCTL_SYNC` cost 0.25 ms and a bulk hash 2.7 ms. About 6 MB/s fits a CPU read of an uncached or write-combined GPU mapping; the memory heap was not measured. PipeWire's docs warn about exactly this and WebRTC moved to EGL import for it. The 1t1 default (DMA-BUF) was verified on one Intel GNOME laptop, where it was not costlier, and memfd's fullscreen freeze did not appear under `ffplay` fullscreen on KDE. See `docs/log/2026-11-22-vijc-deck-dmabuf-slow-capture.md`.
+
+**Fix:** none shipped yet. Workaround `AURORA_PW_DMABUF=0`. Planned: time the copy and renegotiate shared memory after a few slow reads (`Aurora-vijc`), then EGL import with a GPU downscale (`Aurora-x0tw`). When a capture rate is low, time each stage of the callback before blaming the container, the CPU or the portal.
