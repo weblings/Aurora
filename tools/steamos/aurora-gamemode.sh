@@ -6,12 +6,16 @@
 # Overrides (optional): ~/.config/aurora/gamemode.env
 #   AURORA_BIN_DIR   dir holding the Aurora binary (default ~/Documents/Aurora/build/linux-app/bin)
 #   AURORA_BOX       distrobox name (default aurora-dev)
+# Aurora-xg8z: "gameModeAutostart": false in ~/.config/aurora/config.json (the
+# Settings toggle) leaves Aurora stopped; read before each start.
 unset LD_PRELOAD
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:$PATH"
 BIN="${AURORA_BIN_DIR:-$HOME/Documents/Aurora/build/linux-app/bin}"
 BOX="${AURORA_BOX:-aurora-dev}"
 ENVF="/run/user/$(id -u)/gamescope-environment"
+CFG="${AURORA_CONFIG_DIR:-$HOME/.config/aurora}/config.json"
 log() { echo "$(date +%T) $*"; }
+autostart_off() { grep -Eq '"gameModeAutostart"[[:space:]]*:[[:space:]]*false' "$CFG" 2>/dev/null; }
 
 stop_aurora() {   # SIGTERM, then SIGKILL after 10 s; returns when gone
   pgrep -x Aurora >/dev/null || return 0
@@ -26,6 +30,12 @@ trap cleanup TERM INT
 log "launcher start pid=$$"
 while true; do
   if pgrep -x gamescope-wl >/dev/null; then
+    if autostart_off; then
+      # Stay idle until gamescope goes; a toggle flipped on mid-session starts Aurora at the next Game Mode start.
+      log "Launch Automatically in Game Mode is off, leaving Aurora stopped"
+      while pgrep -x gamescope-wl >/dev/null; do sleep 3; done
+      continue
+    fi
     sleep 8   # gamescope is still writing its env file and publishing its node
     gwd=$(grep -m1 '^GAMESCOPE_WAYLAND_DISPLAY=' "$ENVF" 2>/dev/null | cut -d= -f2)
     if [ -z "$gwd" ]; then log "no GAMESCOPE_WAYLAND_DISPLAY in $ENVF, retrying"; sleep 3; continue; fi

@@ -504,6 +504,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
+| `xg8z-game-mode-autostart-setting` | [log/2026-11-23-xg8z-game-mode-autostart-setting.md](log/2026-11-23-xg8z-game-mode-autostart-setting.md) | Settings accordion and the Launch Automatically in Game Mode toggle |
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `y8ku-tidy-action` | [log/2026-11-20-y8ku-tidy-action.md](log/2026-11-20-y8ku-tidy-action.md) | Tidy: the recipes page's layered layout in the editor |

@@ -393,6 +393,7 @@ TEST_CASE("planConfigChange sorts a change into None, Hot or Reload (Aurora-c0g)
 
   // Fields nothing in the pipeline reads.
   CHECK(plan([](Config& c){ c.setNuxCompleted(true); }) == ChangeAction::None);
+  CHECK(plan([](Config& c){ c.setGameModeAutostart(false); }) == ChangeAction::None); // Aurora-xg8z
 
   // Structural fields.
   CHECK(plan([](Config& c){ c.setActiveInputName("x11"); }) == ChangeAction::Reload);
@@ -778,4 +779,15 @@ TEST_CASE("PendingRunRequest posts the clicked target, last click wins (Aurora-q
   pending.requestToggle(/*isPausedNow*/ true);
   REQUIRE(pending.take() == std::optional<bool>(true));
   CHECK_FALSE(pending.take().has_value());
+}
+
+
+TEST_CASE("gameModeAutostart defaults on and persists (Aurora-xg8z)", "[ConfigStore]")
+{
+  ScopedTempDir dir("game-mode-autostart");
+  ConfigStore store(dir.path);
+  CHECK(store.load().gameModeAutostart());
+
+  store.update([](Config& config){ config.setGameModeAutostart(false); return true; });
+  CHECK_FALSE(ConfigStore(dir.path).load().gameModeAutostart());
 }

@@ -32,6 +32,9 @@ namespace Aurora::Runtime
   // credentials register it. `platform` is a literal per host binary.
   // `canSelectMonitor` is static per host: false only where a portal picks the
   // output (Wayland), regardless of run state or permissions.
+  // `gameModeLauncher` (Aurora-xg8z, default false) adds "gameModeLauncher":
+  // the SteamOS Game Mode unit is installed, so Settings shows its toggle. Not
+  // part of /api/v1/capabilities.
   // Reads only lock-free state, so it can be registered before Config loads.
   void registerCapabilitiesRoute(
     Aurora::Network::Http::Server::HttpServer& server,
@@ -39,7 +42,8 @@ namespace Aurora::Runtime
     const PipelineHost& pipelineHost,
     std::string platform,
     bool hueCompiledIn,
-    bool canSelectMonitor
+    bool canSelectMonitor,
+    bool gameModeLauncher = false
   );
 
   // GET /api/version: {"version", "apiVersion", "buildType"}, the superbuild VERSION baked in as

@@ -47,16 +47,18 @@ namespace Aurora::Runtime
     const PipelineHost& pipelineHost,
     std::string platform,
     bool hueCompiledIn,
-    bool canSelectMonitor
+    bool canSelectMonitor,
+    bool gameModeLauncher
   )
   {
     server.addRoute(
       HttpMethod::Get,
       "/api/capabilities",
-      [&registry, &pipelineHost, platform = std::move(platform), hueCompiledIn, canSelectMonitor](const Request&, Response& res){
+      [&registry, &pipelineHost, platform = std::move(platform), hueCompiledIn, canSelectMonitor, gameModeLauncher](const Request&, Response& res){
         nlohmann::json json = capabilitiesToJson(registry, platform, hueCompiledIn, canSelectMonitor);
         // In-memory pause (Aurora-3ddb); read lock-free like the rest.
         json["paused"] = pipelineHost.isPaused();
+        json["gameModeLauncher"] = gameModeLauncher;
 
         res.contentType = "application/json";
         res.body = json.dump();

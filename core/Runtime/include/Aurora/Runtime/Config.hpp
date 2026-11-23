@@ -105,6 +105,10 @@ namespace Aurora::Runtime
     // toggles), so a later gap doesn't strand anyone -- see
     // docs/WebUI/WebUI_Fixes.md's Pass 2 section.
     bool nuxCompleted{false};
+
+    // Aurora-xg8z: read by tools/steamos/aurora-gamemode.sh before each Game
+    // Mode start; false leaves Aurora stopped. Nothing in the app acts on it.
+    bool gameModeAutostart{true};
   };
 
 
@@ -216,6 +220,9 @@ namespace Aurora::Runtime
 
     bool nuxCompleted() const;
     void setNuxCompleted(bool completed);
+
+    bool gameModeAutostart() const;
+    void setGameModeAutostart(bool autostart);
 
   private:
     ConfigData m_data;
