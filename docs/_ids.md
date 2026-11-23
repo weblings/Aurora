@@ -287,6 +287,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep28-effect-panel` | [log/2026-11-05-kep28-effect-panel.md](log/2026-11-05-kep28-effect-panel.md) | Effect panel: rows, layers and switch states |
 | `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
+| `kp8y-multi-selection-context-menu` | [log/2026-11-23-kp8y-multi-selection-context-menu.md](log/2026-11-23-kp8y-multi-selection-context-menu.md) | Graph editor node menu on a multi-node selection |
 | `kuee-portable-anchor-pick` | [log/2026-11-17-kuee-portable-anchor-pick.md](log/2026-11-17-kuee-portable-anchor-pick.md) | Seeded palette anchor pick is portable across platforms |
 | `l3mp-pena-decky-flatpak-cut` | [log/2026-11-23-l3mp-pena-decky-flatpak-cut.md](log/2026-11-23-l3mp-pena-decky-flatpak-cut.md) | Decky plugin and Flatpak manifest cut from the SteamOS plan |
 | `l8ua-start-from-built-in-submenu` | [log/2026-11-16-l8ua-start-from-built-in-submenu.md](log/2026-11-16-l8ua-start-from-built-in-submenu.md) | Graph editor: New menu lists Built-in as its first sub-menu |

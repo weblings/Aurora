@@ -512,7 +512,8 @@ export function App() {
       if (target.kind === 'node') {
         const id = target.id
         const info = nodes.find((n) => n.id === id)?.data.info
-        target = { ...target, tip: info?.tip, params: (info?.params.length ?? 0) > 0 }
+        // Tuning controls is a single-node action, so a multi-selection menu omits it.
+        target = { ...target, tip: info?.tip, params: (target.count ?? 1) === 1 && (info?.params.length ?? 0) > 0 }
       }
       if (target.kind === 'node' || target.kind === 'param') {
         setNodeView((view) => {
@@ -1178,6 +1179,11 @@ export function App() {
             onNodeContextMenu={(e, node) => {
               e.preventDefault()
               openMenu({ kind: 'node', id: node.id, x: e.clientX, y: e.clientY })
+            }}
+            onSelectionContextMenu={(e, picked) => {
+              e.preventDefault()
+              if (picked.length === 0) return
+              openMenu({ kind: 'node', id: picked[0].id, count: picked.length, x: e.clientX, y: e.clientY })
             }}
             onEdgeContextMenu={(e, edge) => {
               e.preventDefault()
