@@ -24,6 +24,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
 | `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
+| `4g4d-x2om-51nv12-recipes-demo-live` | [log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md](log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md) | Recipes page and demo editor live on Pages: three beads closed on the owner's word |
 | `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
@@ -287,6 +288,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
 | `kuee-portable-anchor-pick` | [log/2026-11-17-kuee-portable-anchor-pick.md](log/2026-11-17-kuee-portable-anchor-pick.md) | Seeded palette anchor pick is portable across platforms |
+| `l3mp-pena-decky-flatpak-cut` | [log/2026-11-23-l3mp-pena-decky-flatpak-cut.md](log/2026-11-23-l3mp-pena-decky-flatpak-cut.md) | Decky plugin and Flatpak manifest cut from the SteamOS plan |
 | `l8ua-start-from-built-in-submenu` | [log/2026-11-16-l8ua-start-from-built-in-submenu.md](log/2026-11-16-l8ua-start-from-built-in-submenu.md) | Graph editor: New menu lists Built-in as its first sub-menu |
 | `l9gc-t8nd-test-edit-resend` | [log/2026-11-18-l9gc-t8nd-test-edit-resend.md](log/2026-11-18-l9gc-t8nd-test-edit-resend.md) | Test edits reach the lights and the demo room |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
