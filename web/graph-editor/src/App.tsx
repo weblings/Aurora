@@ -54,6 +54,7 @@ import { positionsFor, tidyPositions } from './graph/layout'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
 import { downloadText, exportFile } from './graph/exportGraph'
+import { importFile } from './graph/importGraph'
 import { hints, mod } from './graph/keys'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
@@ -983,6 +984,24 @@ export function App() {
     fetchEffectGraph(id).then((graph) => openCopy(graph, listed)).catch((e: Error) => loadFailed(e, id))
   }
 
+  // New or Open > From file (Aurora-dzsd): the file opens as a new unsaved effect, the open graph is untouched.
+  const fileInput = useRef<HTMLInputElement>(null)
+  const openFile = (file: File) => {
+    if (!catalog) return showToast('Still loading, try again in a moment')
+    file.text().then(
+      (text) => {
+        const got = importFile(text, file.name, catalog, effects.map((e) => e.title || e.id))
+        if (!got.ok) return showToast(got.error)
+        const id = newEffectId()
+        seeds.current.set(id, got.doc)
+        setEffectId(id)
+        if (got.note) showToast(got.note)
+        else announce(`Imported ${countOf(got.added)}`)
+      },
+      () => showToast("Couldn't read that file"),
+    )
+  }
+
   // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
   // the kept copy goes with it.
   const revertToSaved = () => {
@@ -1092,6 +1111,19 @@ export function App() {
           }}
           onOpenEffect={(id) => openEffect(id, 'here')}
           onNewEffect={startFrom}
+          onFromFile={() => fileInput.current?.click()}
+        />
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          aria-label="Graph file to import"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) openFile(file)
+          }}
         />
         <EditMenu
           isOpen={editOpen}

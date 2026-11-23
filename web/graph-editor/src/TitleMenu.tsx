@@ -9,6 +9,8 @@ import type { EffectListEntry } from './graph/types'
 // The screen-reader text of every unsaved asterisk: MenuItem `description` on an item, hidden text on a heading.
 export const UNSAVED_TEXT = 'unsaved changes'
 
+const FROM_FILE = '@from-file'
+
 export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'duplicate' | 'revert' | 'export'
 
 // The title menu (Aurora-daaa.11): a Dialog in a Popover with the file actions, then New and Open
@@ -30,6 +32,7 @@ export function TitleMenu({
   onAction,
   onOpenEffect,
   onNewEffect,
+  onFromFile,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -51,6 +54,8 @@ export function TitleMenu({
   onOpenEffect: (id: string) => void
   // A New pick: Empty opens blank, anything else opens an unsaved copy of that effect.
   onNewEffect: (id: string) => void
+  // New > From file and Open > From file (Aurora-dzsd): pick a graph file, open it as a new unsaved effect.
+  onFromFile: () => void
 }) {
   // Save, Save as new and Save and apply are never disabled for problems (Aurora-u68h.4): React Aria skips
   // disabled items on arrow keys, so a reason on one would never reach a keyboard user. With problems
@@ -61,13 +66,16 @@ export function TitleMenu({
   const kept = useMemo(() => (isOpen ? keptCopies() : new Map()), [isOpen, effects])
   const groups = openGroups(effects, currentId, kept)
   const starts = startGroups(effects, hasAudio)
+  // A draft id never names a stored effect, so it cannot collide with one.
   const pick = (id: string) => {
     onClose()
-    onOpenEffect(id)
+    if (id === FROM_FILE) onFromFile()
+    else onOpenEffect(id)
   }
   const pickNew = (id: string) => {
     onClose()
-    onNewEffect(id)
+    if (id === FROM_FILE) onFromFile()
+    else onNewEffect(id)
   }
   return (
     <EditorPopup isOpen={isOpen} onClose={onClose} label="Effect menu" triggerRef={triggerRef} focusAfter={focusAfter}>
@@ -105,29 +113,33 @@ export function TitleMenu({
                   </SubmenuItem>
                 ))}
               </MenuSection>
+              <MenuSection title="File">
+                <MenuItem id={FROM_FILE}>From file...</MenuItem>
+              </MenuSection>
             </SubmenuItem>
-            {groups.length > 0 ? (
-              <SubmenuItem id="open" label="Open" aria-label="Open another effect" onAction={pick}>
-                {groups.map((g) => (
-                  <MenuSection key={g.name} title={headingOf(g.name, g.unsaved)}>
-                    {g.items.map((e) => (
-                      <MenuItem
-                        key={e.id}
-                        id={e.id}
-                        description={e.unsaved ? UNSAVED_TEXT : undefined}
-                        tooltip={e.title}
-                        tooltipOnlyWhenTruncated
-                      >
-                        <span className="editor-menu-line">
-                          <span className="editor-menu-title">{e.title}</span>
-                          {e.unsaved ? <span className="editor-unsaved-mark" aria-hidden="true">*</span> : null}
-                        </span>
-                      </MenuItem>
-                    ))}
-                  </MenuSection>
-                ))}
-              </SubmenuItem>
-            ) : null}
+            <SubmenuItem id="open" label="Open" aria-label="Open another effect" onAction={pick}>
+              {groups.map((g) => (
+                <MenuSection key={g.name} title={headingOf(g.name, g.unsaved)}>
+                  {g.items.map((e) => (
+                    <MenuItem
+                      key={e.id}
+                      id={e.id}
+                      description={e.unsaved ? UNSAVED_TEXT : undefined}
+                      tooltip={e.title}
+                      tooltipOnlyWhenTruncated
+                    >
+                      <span className="editor-menu-line">
+                        <span className="editor-menu-title">{e.title}</span>
+                        {e.unsaved ? <span className="editor-unsaved-mark" aria-hidden="true">*</span> : null}
+                      </span>
+                    </MenuItem>
+                  ))}
+                </MenuSection>
+              ))}
+              <MenuSection title="File">
+                <MenuItem id={FROM_FILE}>From file...</MenuItem>
+              </MenuSection>
+            </SubmenuItem>
           </Menu>
         </div>
       </Dialog>
