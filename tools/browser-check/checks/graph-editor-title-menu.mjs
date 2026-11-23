@@ -16,7 +16,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
   page.on('request', (r) => /\/api\/graph\/(save|apply)$/.test(r.url()) && saves.push(r.url()))
   const isOpen = async () => (await titleMenu(page).count()) > 0
   const closed = () => titleMenu(page).waitFor({ state: 'detached' })
-  const focusInTrigger = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Effect menu')
+  const focusInTrigger = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label')?.startsWith('Effect menu'))
   const nodes = () => page.locator('.react-flow__node').count()
   // Fit view stops at 60% zoom (Aurora-daaa.18) and the pane drag pans further, so
   // the first node can sit outside the window: click the first header in view.

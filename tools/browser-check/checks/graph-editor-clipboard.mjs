@@ -35,14 +35,16 @@ await withEditorStack(async ({ editorUrl }) => {
     // The menu, in the decided order, with nothing selected.
     await openEditMenu(page)
     const names = await editMenu(page).getByRole('menuitem').evaluateAll((els) => els.map((e) => e.textContent.replace(/(Ctrl|Cmd|Shift)[+\w]+$|Del$/, '').trim()))
-    assert.deepEqual(names, ['Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Select all', 'Delete'])
-    for (const name of ['Undo', 'Redo', 'Cut', 'Copy', 'Delete']) {
+    assert.deepEqual(names, ['Undo', 'Redo', 'Cut', 'Copy', 'Paste', 'Select all', 'Tidy', 'Delete'])
+    // A built-in has no saved positions, so opening it tidies once as an Undo-able edit (Aurora-y8ku): Undo is on.
+    assert.notEqual(await editMenu(page).getByRole('menuitem', { name: 'Undo' }).getAttribute('aria-disabled'), 'true', 'Undo reaches the open-time tidy')
+    for (const name of ['Redo', 'Cut', 'Copy', 'Delete']) {
       assert.equal(await editMenu(page).getByRole('menuitem', { name }).getAttribute('aria-disabled'), 'true', `${name} is disabled with nothing to act on`)
     }
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/edit-menu.png`, clip: { x: 0, y: 0, width: 700, height: 360 } })
     await page.keyboard.press('Escape')
     assert.equal(await page.getByRole('button', { name: 'Undo', exact: true }).count(), 0, 'no Undo button on the bar')
-    step('Edit menu lists Undo, Redo, Cut, Copy, Paste, Select all, Delete; acting items start disabled; the bar has no Undo or Redo')
+    step('Edit menu lists Undo, Redo, Cut, Copy, Paste, Select all, Delete; Cut, Copy and Delete start disabled; the bar has no Undo or Redo')
 
     // Select all by key and by menu.
     await pane().click({ position: { x: 5, y: 300 } })
@@ -87,7 +89,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await canvasMenu.waitFor()
     assert.deepEqual(
       await canvasMenu.getByRole('menuitem').evaluateAll((els) => els.map((e) => e.textContent.replace(/(Ctrl|Cmd|Shift)[+\w]+$/, '').trim())),
-      ['Add node', 'Undo', 'Redo', 'Fit view', 'Paste', 'Select all'],
+      ['Add node', 'Undo', 'Redo', 'Fit view', 'Tidy', 'Paste', 'Select all'],
     )
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/canvas-menu.png` })
     await canvasMenu.getByRole('menuitem', { name: 'Paste' }).click()
