@@ -24,7 +24,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 32 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 98 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 86 | architecture or process decision |
-| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 27 | web testing specific |
+| [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 29 | web testing specific |
 | [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 19 | coordinating several agents on beads |
 | [language-cpp.md](language-cpp.md) | namespace, threads, C-portability | 26 | C++ language gotcha |
 | [input.md](input.md) | capture/grabber/platform-adapter | 63 | capture/grabber specific |
@@ -36,7 +36,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [components.md](components.md) | behavior, callbacks, data shapes | 43 | WebUI component finding |
 | [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 11 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 12 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 22 | WebUI layout/CSS finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 23 | WebUI layout/CSS finding |
 
 Counts as of 2026-11-22 — bump the count when adding entries
 (`grep -c '^## '` per file).

@@ -439,6 +439,13 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .editor-drop {
   width: min(70%, 640px);
   height: min(60%, 320px);
 }
+/* A wide window has room for a bigger target: still inside the area left of the header and any drawer. */
+@media (min-width: 900px) {
+  .editor-drop-box {
+    width: min(90%, 1400px);
+    height: min(88%, 900px);
+  }
+}
 
 /* The frame (DropFrame.tsx): two mirrored SVG paths with fitted dashes, a 6 px stroke centred on the box edge. */
 .editor-drop-frame {
