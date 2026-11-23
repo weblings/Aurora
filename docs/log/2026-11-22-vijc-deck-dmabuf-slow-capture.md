@@ -42,7 +42,9 @@ Id: vijc-deck-dmabuf-slow-capture
 - `SlowReadWatch` (`PipewireDmabuf.hpp`): after 3 consecutive DMA-BUF reads over 100 ms it renegotiates shared memory, once per stream, keeping the frame that triggered it. Unit tests: fires once, resets on a fast read, budget boundary.
 - Deck, default env, moving fullscreen source: `DMA-BUF reads too slow (712 ms, budget 100 ms)` within the first 2 s, then 18 to 19 changed callbacks/s for the rest of the 45 s run (dataType 3 to 2), none skipped. Logs `run5.log`, `run7.log`.
 - Real lights: owner confirmed a higher update rate. The owner's separate bridge-settings tweaks were unrelated to the fps change.
-- Not yet verified: no regression on other Wayland and X11 devices, and that the watch stays quiet on GNOME/Intel (1t1), where DMA-BUF reads should stay under budget. The 100 ms budget is a guess from the Deck figure. Owner is testing those devices next.
+- GNOME 46 Wayland, Intel i5-1334U (the 1t1 machine), default env, rebuilt with the vijc commits: 206/206 ctest, `fullscreen_repro.py` window and kiosk both PASS (20 to 22 changes, longest stall 1.5 to 1.6 s), DMA-BUF throughout (`dataType=3`), no "reads too slow" line, no renegotiation. The 1t1 fullscreen fix is intact.
+- DMA-BUF read time there (temporary print, reverted; n=1268, 1920x1200, window and kiosk): min 4.9 ms, median 8.3 ms, p99 15.2 ms, max 19.6 ms. The worst read is about 5x under the 100 ms budget and the Deck's 677 ms is about 80x this median, so the budget separates the two. Not covered: slower iGPUs, NVIDIA, other compositors (`Aurora-mvq1`).
+- Not yet verified: no regression on other Wayland and X11 devices. The 100 ms budget is a guess from the Deck figure, now bracketed by 20 ms (Intel/GNOME max) and 677 ms (Deck). Owner is testing those devices next.
 
 ## Decision and follow-ups
 - Quick fix (now shipped, above): a `SlowReadWatch` beside `DmabufReadFallback` that times the copy and, after about 3 consecutive reads over a budget, reuses the existing renegotiation to shared memory. Cause-agnostic and keeps GNOME on DMA-BUF. Open: the budget (about 100 ms is a guess) needs the Intel/GNOME read time first.
