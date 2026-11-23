@@ -2,7 +2,7 @@
 
 Id: vijc-deck-dmabuf-slow-capture
 
-`Aurora-vijc` (open, P2). On the Steam Deck (SteamOS 3.9.5, KDE Plasma Wayland, AMD APU) in the Arch Distrobox `aurora-dev`, color updates reached the lights about every 1 to 2 s. The cause is the CPU copy out of the mmapped LINEAR DMA-BUF: about 677 ms per frame, against about 3.3 ms from shared memory. Fixed for capture by a slow-read fallback to shared memory (`SlowReadWatch`, commit `Aurora-vijc: fall back to shared memory...`); the proper fix is filed (below). Setup is in `uai1-steamos-arch-distrobox`; why DMA-BUF is the default is in `1t1-fullscreen-freeze`.
+`Aurora-vijc` (closed, P2). On the Steam Deck (SteamOS 3.9.5, KDE Plasma Wayland, AMD APU) in the Arch Distrobox `aurora-dev`, color updates reached the lights about every 1 to 2 s. The cause is the CPU copy out of the mmapped LINEAR DMA-BUF: about 677 ms per frame, against about 3.3 ms from shared memory. Fixed for capture by a slow-read fallback to shared memory (`SlowReadWatch`, commit `Aurora-vijc: fall back to shared memory...`); the proper fix is filed (below). Setup is in `uai1-steamos-arch-distrobox`; why DMA-BUF is the default is in `1t1-fullscreen-freeze`.
 
 ## Method
 - `AURORA_DEV_PW_TRACE=1`, `build/linux-app/bin/Aurora` in `aurora-dev`, 1280x800 BGRx, 25 to 40 s runs. The moving source was a fullscreen `ffplay -f lavfi -i testsrc2=size=1280x800:rate=60 -fs` (owner confirmed it was live on screen). Logs are in `~/.cache/aurora-trace/` on the Deck.
@@ -44,7 +44,7 @@ Id: vijc-deck-dmabuf-slow-capture
 - Real lights: owner confirmed a higher update rate. The owner's separate bridge-settings tweaks were unrelated to the fps change.
 - GNOME 46 Wayland, Intel i5-1334U (the 1t1 machine), default env, rebuilt with the vijc commits: 206/206 ctest, `fullscreen_repro.py` window and kiosk both PASS (20 to 22 changes, longest stall 1.5 to 1.6 s), DMA-BUF throughout (`dataType=3`), no "reads too slow" line, no renegotiation. The 1t1 fullscreen fix is intact.
 - DMA-BUF read time there (temporary print, reverted; n=1268, 1920x1200, window and kiosk): min 4.9 ms, median 8.3 ms, p99 15.2 ms, max 19.6 ms. The worst read is about 5x under the 100 ms budget and the Deck's 677 ms is about 80x this median, so the budget separates the two. Not covered: slower iGPUs, NVIDIA, other compositors (`Aurora-mvq1`).
-- Not yet verified: no regression on other Wayland and X11 devices. The 100 ms budget is a guess from the Deck figure, now bracketed by 20 ms (Intel/GNOME max) and 677 ms (Deck). Owner is testing those devices next.
+- Closed with two verified machines (Deck, GNOME/Intel). No other Wayland device was available to the owner. X11 capture does not use the PipeWire path, so `SlowReadWatch` cannot affect it (owner's NVIDIA X11 machine: no X11 result recorded here). The 100 ms budget stays a threshold bracketed by 20 ms (Intel/GNOME max) and 677 ms (Deck); NVIDIA and other Wayland compositors are `Aurora-mvq1`, the proper fix is `Aurora-x0tw`. The pipeline-rate and output-rate split steps were not needed: the lights got faster once capture did.
 
 ## Decision and follow-ups
 - Quick fix (now shipped, above): a `SlowReadWatch` beside `DmabufReadFallback` that times the copy and, after about 3 consecutive reads over a budget, reuses the existing renegotiation to shared memory. Cause-agnostic and keeps GNOME on DMA-BUF. Open: the budget (about 100 ms is a guess) needs the Intel/GNOME read time first.
