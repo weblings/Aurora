@@ -29,27 +29,48 @@ on:
       - CMakePresets.json
       - .github/workflows/linux.yml
 
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      # Mirror stalls have eaten 23 min before: cap each attempt, retry.
       - name: Install deps
-        run: >
-          sudo apt-get update &&
-          sudo apt-get install -y cmake ninja-build
-          libx11-dev libxext-dev libxrandr-dev libxdamage-dev libxrender-dev
-          libpipewire-0.3-dev libglib2.0-dev
-          libaubio-dev libopencv-dev
-          libcurl4-openssl-dev libmbedtls-dev
-          libsecret-1-dev
+        timeout-minutes: 8
+        run: |
+          for attempt in 1 2 3; do
+            sudo timeout 150 apt-get update &&
+            sudo timeout 150 apt-get install -y cmake ninja-build \
+              libx11-dev libxext-dev libxrandr-dev libxdamage-dev libxrender-dev \
+              libpipewire-0.3-dev libglib2.0-dev \
+              libaubio-dev libopencv-dev \
+              libcurl4-openssl-dev libmbedtls-dev \
+              libsecret-1-dev && exit 0
+            echo "apt attempt $attempt failed"
+          done
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux
       - name: Configure
-        run: cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
+        run: |
+          cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
         run: cmake --build build/linux-app
       - name: Test
         run: ctest --test-dir build/linux-app --output-on-failure
