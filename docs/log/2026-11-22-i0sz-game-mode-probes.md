@@ -21,13 +21,12 @@ Id: i0sz-game-mode-probes
 
 ## Filed after the close
 - `Aurora-mjk0` (P3): permanent Game Mode launcher, a persistent `systemd --user` unit replacing the throwaway watcher (no browser window over the game, install steps, where it ships).
-- `Aurora-ch0g` (P3): audio capture and audio-effect reaction in Game Mode, a 2-minute frame-rate and `SlowReadWatch` check, and Remote Play interference.
+- `Aurora-ch0g` (P3, closed the same day): audio capture and audio-effect reaction in Game Mode (passed). Its 2-minute video frame-rate and `SlowReadWatch` check and the Remote Play interference check were skipped by the owner and not done.
 - The watcher service was stopped after the test. `Aurora-l3mp` (Decky) stays P4.
 
-## Open (now tracked in those beads)
-- Whether a second PipeWire consumer disturbs Steam Remote Play or recording (pipewire issue 3157).
-- Audio capture in Game Mode and whether the audio effect reacts to sound.
-- A permanent launcher (a persistent user unit that starts at boot, instead of the test script) and where it would ship.
+## Open
+- Not checked (skipped): Game Mode video frame rate and the `SlowReadWatch` fallback over a long run, and whether a second PipeWire consumer disturbs Steam Remote Play or recording (pipewire issue 3157).
+- A permanent launcher (a persistent user unit that starts at boot, instead of the test script) and where it would ship: `Aurora-mjk0`.
 - Decky is only needed for an in-Game-Mode panel if the light test passes.
 - Not verified that a game was focused during the sampler window.
 
