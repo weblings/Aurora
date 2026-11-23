@@ -220,7 +220,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `hr92-nux-effect-dropdown` | [log/2026-11-20-hr92-nux-effect-dropdown.md](log/2026-11-20-hr92-nux-effect-dropdown.md) | NUX capture source picks from the effect dropdown |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `hvxd-steamos-setup-script` | [log/2026-11-23-hvxd-steamos-setup-script.md](log/2026-11-23-hvxd-steamos-setup-script.md) | SteamOS setup script and user guide (Distrobox + Game Mode, 0 to 1) |
 | `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |
+| `i0sz-game-mode-probes` | [log/2026-11-22-i0sz-game-mode-probes.md](log/2026-11-22-i0sz-game-mode-probes.md) | Steam Deck Game Mode: the gamescope node is reachable from a background service and from the Distrobox (lights follow the game; audio untested) |
 | `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
@@ -336,6 +338,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `mac-windows-tray-pause` | [log/2026-10-04-mac-windows-tray-pause.md](log/2026-10-04-mac-windows-tray-pause.md) | Aurora-5ipy.14 / .15: Mac and Windows tray Pause/Resume (written, unbuilt) |
 | `mcp-link-lock` | [log/2026-10-26-mcp-link-lock.md](log/2026-10-26-mcp-link-lock.md) | 2v8l: aurora-mcp link lock on Windows (Aurora-2v8l) |
 | `mfud-effect-titles-builtin-graphinputs` | [log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md](log/2026-10-23-mfud-effect-titles-builtin-graphinputs.md) | Mfud + 5ipy.26: effect titles and descriptions, graphInputs for built-ins (Aurora-mfud, Aurora-5ipy.26) |
+| `mjk0-game-mode-launcher` | [log/2026-11-22-mjk0-game-mode-launcher-unit.md](log/2026-11-22-mjk0-game-mode-launcher-unit.md) | SteamOS Game Mode launcher unit: Aurora starts with gamescope and stops with it (Distrobox route) |
 | `module-split-plan` | [archive/ModuleSplitPlan.md](archive/ModuleSplitPlan.md) | Splitting huenicorn into Input / Processing / Output |
 | `monorepo-reorg` | [log/2026-09-21-monorepo-reorg.md](log/2026-09-21-monorepo-reorg.md) | Monorepo reorg (2026-09-21) |
 | `my6z-devstack-no-browser-tab` | [log/2026-11-12-my6z-devstack-no-browser-tab.md](log/2026-11-12-my6z-devstack-no-browser-tab.md) | devstack stops opening a browser tab on Mac |
@@ -416,6 +419,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
 | `stable-monitor-keys` | [log/2026-10-24-stable-monitor-keys.md](log/2026-10-24-stable-monitor-keys.md) | 5ipy.27: stable monitor keys (Aurora-5ipy.27) |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
+| `steamos-user-guide` | [SteamOS.md](SteamOS.md) | Aurora on the Steam Deck |
 | `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |
@@ -500,6 +504,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `wqzp8-windows-skip-cursor-frames` | [log/2026-10-13-wqzp8-windows-skip-cursor-frames.md](log/2026-10-13-wqzp8-windows-skip-cursor-frames.md) | Aurora-wqzp.8: Windows skips cursor-only DXGI frames |
 | `wqzp9-mac-mover-proof` | [log/2026-10-13-wqzp9-mac-mover-proof.md](log/2026-10-13-wqzp9-mac-mover-proof.md) | Aurora-wqzp.9: perf-harness proves the mover from the relay SSE |
 | `x1lh-error-shell-visual-polish` | [log/2026-10-07-error-shell-visual-polish.md](log/2026-10-07-error-shell-visual-polish.md) | Aurora-x1lh: error shell visual polish (closed) |
+| `xg8z-game-mode-autostart-setting` | [log/2026-11-23-xg8z-game-mode-autostart-setting.md](log/2026-11-23-xg8z-game-mode-autostart-setting.md) | Settings accordion and the Launch Automatically in Game Mode toggle |
 | `xr4c-save-as-new-check-title` | [log/2026-11-08-xr4c-save-as-new-check-title.md](log/2026-11-08-xr4c-save-as-new-check-title.md) | Save-as-new check expected the wrong copy title |
 | `xrl1-warning-icon` | [log/2026-10-07-xrl1-warning-icon.md](log/2026-10-07-xrl1-warning-icon.md) | Aurora-xrl1: vector warning icon replaces bold ⚠ (closed) |
 | `y8ku-tidy-action` | [log/2026-11-20-y8ku-tidy-action.md](log/2026-11-20-y8ku-tidy-action.md) | Tidy: the recipes page's layered layout in the editor |

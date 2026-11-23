@@ -806,7 +806,8 @@ TEST_CASE("Host routes answer capabilities, version and stop", "[HostRoutes]")
   CHECK(capsJson["outputs"] == nlohmann::json(registry.outputNames()));
   CHECK(capsJson["zeroOffOutputs"] == nlohmann::json(registry.zeroOffOutputNames()));
   CHECK(capsJson["canSelectMonitor"] == false);
-  CHECK(capsJson.size() == 7);
+  CHECK(capsJson["gameModeLauncher"] == false); // Aurora-xg8z: off unless the host passes it
+  CHECK(capsJson.size() == 8);
 
   // "hue" is listed once even though it was never registered.
   httplib::Client hueClient("127.0.0.1", huePort);

@@ -1,0 +1,11 @@
+[Unit]
+Description=Aurora lifecycle for SteamOS Game Mode (starts with gamescope, stops with it)
+
+[Service]
+ExecStart=%h/.local/share/aurora/aurora-gamemode.sh
+EnvironmentFile=-%h/.config/aurora/gamemode.env
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

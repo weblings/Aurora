@@ -57,6 +57,7 @@ namespace Aurora::Runtime
       FieldApply{"hiddenEffectIds", NoEffect, Video},
       FieldApply{"effectOrder", NoEffect, Video},
       FieldApply{"nuxCompleted", NoEffect, Video},
+      FieldApply{"gameModeAutostart", NoEffect, Video},
     };
   }
 

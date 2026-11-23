@@ -76,6 +76,7 @@ namespace Aurora::Runtime
         {"audioCentroidRangeHz", config.audioCentroidRangeHz()},
         {"audioBrightnessSmoothTime", config.audioBrightnessSmoothTime()},
         {"nuxCompleted", config.nuxCompleted()},
+        {"gameModeAutostart", config.gameModeAutostart()},
       };
     }
 
@@ -126,6 +127,7 @@ namespace Aurora::Runtime
       if(body.contains("audioCentroidRangeHz")) config.setAudioCentroidRangeHz(body.at("audioCentroidRangeHz").get<float>());
       if(body.contains("audioBrightnessSmoothTime")) config.setAudioBrightnessSmoothTime(body.at("audioBrightnessSmoothTime").get<float>());
       if(body.contains("nuxCompleted")) config.setNuxCompleted(body.at("nuxCompleted").get<bool>());
+      if(body.contains("gameModeAutostart")) config.setGameModeAutostart(body.at("gameModeAutostart").get<bool>());
     }
   }
 

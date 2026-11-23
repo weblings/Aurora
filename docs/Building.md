@@ -97,6 +97,9 @@ imgproc)`).
     fail with `EALLOWREMOTE`, because npm 12 defaults `allow-remote` to
     `none`.
 
+  `tools/steamos/setup-aurora.sh` does all of this in one run (box, packages,
+  build, Game Mode unit, menu entry); the user guide is [[steamos-user-guide]].
+
   Run it with `distrobox enter aurora-dev -- build/linux-app/bin/Aurora`; the
   container shares the host's Wayland and PipeWire sockets, so portal capture
   and audio need no extra setup. The first start shows the screen-share

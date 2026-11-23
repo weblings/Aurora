@@ -130,6 +130,24 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
 (Flatpak's node generator or an AUR npm cache can feed it), and
 `AURORA_GRAPH_EDITOR_DIST` accepts a prebuilt bundle.
 
+## Decision for 1.2.1 (2026-11-22)
+
+Ship a scripted Distrobox path with a Game Mode launcher unit, controlled from a
+paired phone. Flatpak stays the end-user target and Decky the Deck-only control
+option, both in 1.2.2. See [[i0sz-game-mode-probes]].
+
+1. Desktop Mode: one script creates `aurora-dev`, installs the packages, builds
+   Aurora and installs the launcher unit (`tools/steamos/setup-aurora.sh`, `Aurora-hvxd`;
+   guide: [[steamos-user-guide]]). CI builds only on Ubuntu and publishes no
+   binary, so Aurora is built on the Deck.
+2. Desktop Mode: launch Aurora once, set up Hue and capture, pair the phone from
+   the local UI at `127.0.0.1:8215` (pairing needs a trusted local UI), quit Aurora.
+3. Game Mode: the `systemd --user` unit waits for `gamescope-wl`, exports
+   `GAMESCOPE_WAYLAND_DISPLAY` from `/run/user/<uid>/gamescope-environment`, runs
+   Aurora, stops it when gamescope exits (`Aurora-mjk0`).
+4. Control from the phone at `http://<deck-ip>:8215/` on the same Wi-Fi
+   (`Aurora-dl5b` for a stable address).
+
 ## Open questions / next steps
 
 - No Flatpak manifest exists yet — next concrete step if this is pursued is
@@ -160,8 +178,16 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
   - PipeWire does work from the container (host PipeWire 1.6.8 behind the
     PulseAudio shim), contrary to the old Distrobox guide. The container does
     need the `pipewire` package for `client.conf`, or Aurora crashes.
-  - Still unverified: **Game Mode** (gamescope node, and audio there) and
-    whether the audio effect visibly reacts to sound.
+  - Game Mode (`Aurora-i0sz`, in progress): the `gamescope` PipeWire node
+    (`Video/Source`) is visible from a `systemd --user` service and from
+    inside the box; a service must read `GAMESCOPE_WAYLAND_DISPLAY` from
+    `/run/user/<uid>/gamescope-environment` because it does not inherit it.
+    See [[i0sz-game-mode-probes]]. Lights follow the game (including the boot
+    video) with Aurora run from such a service. Audio there also works (`builtin.audio`
+    linked to the speaker sink, lights follow the sound, `Aurora-ch0g`). The launcher
+    unit (`tools/steamos/`, `Aurora-mjk0`) starts and stops Aurora with gamescope;
+    verified by a mode switch and a cold boot ([[mjk0-game-mode-launcher]]). Still
+    unverified: a long Game Mode video run's frame rate.
 - Decky plugin path is unverified on two fronts: whether Steam's embedded
   CEF panel can iframe a localhost server without CSP/CORS issues, and
   whether Decky Store review would accept a root-privileged plugin bundling

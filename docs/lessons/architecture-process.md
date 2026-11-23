@@ -1334,3 +1334,14 @@ Applies-when: filing an epic with several children and dependencies in one scrip
 With about 750 beads each state-changing `bd` command printed "auto-export wrote 751 issues in 7s". One script that converted a task to an epic, created six children and added five dependencies passed the 120 s foreground timeout and was moved to the background, with the later commands still running. A second copy would have created duplicate children. This adds to the debounce lesson above: the export is slow, not only late.
 
 **Fix:** run a filing script with `run_in_background` and wait for its notification instead of starting it again, or batch the writes into fewer commands. Afterwards check the result with `bd show <epic>` (children and dependencies) before committing.
+
+---
+
+## A paired phone controls the Game Mode Aurora, but the pairing happens in Desktop Mode, and a stale Desktop copy holds the lock
+Tags: steamos, pairing, lan, single-instance, game-mode
+Applies-when: planning how a user controls Aurora on a Steam Deck in Game Mode, or starting Aurora from a launcher while another copy may exist
+
+Aurora-wsyo: Game Mode has no browser overlay, so the working control surface is a phone on the same Wi-Fi. LAN pairing (closed 2026-10-16) trusts loopback and gives each other device a token, approved from the local UI, so the phone must be paired in Desktop Mode, where `127.0.0.1:8215` is reachable; the token sits in `~/.config/aurora` and works in Game Mode afterwards. A planning note that said "no auth" was older than that work. One instance per config folder: a copy left from Desktop Mode keeps `aurora.lock`, captures through the portal and makes a Game Mode launch exit with "already running".
+
+**Fix:** pair in Desktop Mode through `http://steamdeck.local:8215/` (the token is a cookie bound to the host name used, so an IP-paired phone must re-pair when the IP changes), check the closed beads before quoting a planning doc's "today" line, and have the Game Mode launcher stop any running Aurora (`pkill -x Aurora`, wait for the lock) before it starts its own.
+
