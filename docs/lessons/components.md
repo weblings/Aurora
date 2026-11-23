@@ -640,3 +640,23 @@ Applies-when: choosing a Grille component to pick one item from several, or putt
 - `Header` bolds whatever it wraps. Set `font-weight` on a subtitle.
 
 **Fix:** use `Menu` single selection for a checkmark, and mount a canvas only in the selected tab.
+
+## Grille MessageRow takes no key, pulse or ids, so keep a thin wrapper and compare facts, not markup
+Tags: webui, grille, messagerow, error-shell, tests
+Applies-when: moving shell.css rows onto a Grille component while the other page still draws the old markup
+
+`MessageRow` has no `data-key`, `data-new` or `onAnimationEnd`, its mark is an unclassed svg and its dismiss button has no id. The pulse CSS and `shellCap.js` find rows by `.shell-banner-row[data-key]`, and browser checks looked for `.shell-mark-*` and `#shell-banner-dismiss-<source>`.
+- Keep a wrapper div with `shell-banner-row` and the key and pulse, and zero its border and padding in editor.css (not shell.css, the Dashboard still uses it).
+- Shared HTML strings carry their own mark, so strip it or the row shows two.
+- The old byte-for-byte parity test cannot hold. Compare the words, control ids, keys, dismiss count and error and notice marks, with dismiss buttons and react-aria ids left out and entities decoded in attributes too.
+- Check selectors change with the markup: `.ui-message-row-mark`, `[aria-label="Dismiss"]`.
+
+**Fix:** wrap `MessageRow`, compare facts in the parity test, update the browser check selectors.
+
+## A piece that becomes an island cannot be poked through its DOM, so give the render call the state
+Tags: webui, islands, navfooter, vanilla-wrapper, disabled
+Applies-when: replacing a vanilla `renderX(container, opts)` piece with a React island while screens still reach into its buttons
+
+Aurora-4nqt.3: two screens set `.disabled` and `textContent` on `.nav-footer-continue` after rendering the footer. A React button never sees a DOM write, `mountIsland` renders after the call returns, and Grille's buttons carry no `nav-footer-*` classes and style disabled from `data-disabled`, not `:disabled`.
+
+**Fix:** add the state to the options (`continueDisabled`, `continueLabel`) and call the render function again. The wrapper unmounts the old island first (a `WeakMap` keyed by container). Pass `window.auroraIslands` through a wrapper in `web/ui`, and fall back to plain buttons with one console error if the bundle is absent. Node tests run the fallback path, so they keep their class selectors.

@@ -441,3 +441,21 @@ Applies-when: reproducing a bug that needs a live preview stream when the user a
 An empty graph is an invalid draft, so loading `?effect=@empty` and pasting opened the stream for the pasted graph and the bug never showed. The owner's case was a stream already live from an earlier graph, then cleared.
 
 **Fix:** paste a video recipe, wait for Live, select all and delete, then paste the recipe under test. Confirm a new check fails with the fix reverted before trusting it.
+
+## A drop can be tested by dispatching a DragEvent with a DataTransfer that holds a File, and the return value shows whether dragover was cancelled
+Tags: playwright, drag-drop, file-drop, browser-check
+Applies-when: a browser check for a file dropped on the page
+
+Playwright has no real OS file drag. In `page.evaluate`, build `new DataTransfer()`, `dt.items.add(new File([text], name))` and dispatch
+`new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true, clientX, clientY })` on `document.body`, so window listeners see
+it. `e.defaultPrevented` after `dragover` or `drop` is the proof the browser will not open the file. A text drag
+(`dt.setData('text/plain', ...)`, no file) checks that the hint ignores it. Get a real file by waiting on the `download` event from
+Export graph instead of writing a fixture. `graph-editor-import.mjs` does all of this.
+
+## Port 8000 can be held by something that is not the dev stack, so a check's `up` fails until the viz port is moved
+Tags: devstack, browser-check, ports, windows
+Applies-when: a browser check or `devstack.py up` fails with port 8000 already in use after `down`
+
+`devstack.py up` stops with "port 8000 already in use -- stale stack? run `down`", and `down` has nothing to stop. On the owner machine a
+ComfyUI desktop instance listens on 8000. Do not kill it. The checks read `AURORA_VIZ_PORT`, so
+`AURORA_VIZ_PORT=8001 npm run graph-editor:<check>` runs on another port. Find the owner with `Get-NetTCPConnection -LocalPort 8000` first.

@@ -342,3 +342,23 @@ Applies-when: showing a callout with a pointer next to a button on a page, and i
 The refused-save callout is hand-placed and overflowed at 400 px. A Grille `Popover` (`isNonModal`, `triggerRef`) is placed by React Aria, which flips and clamps, so the box measured 55 to 339 px at 360 px wide. Grille's `.ui-popover` adds its own background, border and padding, so a balloon inside it showed a double frame. The pointer cannot sit at a fixed offset, because a clamped box no longer centres on the button.
 
 **Fix:** strip the frame with `.ui-popover:has(.balloon) { background: transparent; border: 0; padding: 0; box-shadow: none }`, draw the box with `.ui-tooltip`, and set the pointer's x from the anchor's and the box's `getBoundingClientRect` on each animation frame. Use the `offset` prop to clear anything under the button (the Outline switch).
+
+## A dashed frame with rounded corners looks even only if the dashes are fitted to the box, and a mirrored half outline keeps all four corners alike
+Tags: css, svg, dashed-border, border-radius, drop-hint
+Applies-when: drawing a dashed outline with rounded corners (a drop target, a selection frame)
+
+A CSS `border: dashed` has no control over dash length and cuts the dashes oddly at each corner. An SVG rounded `rect` with a fixed
+`stroke-dasharray` (or `pathLength`) closes the line, but the pattern lands at a different phase on each corner, so some corners wrap a dash
+and others sit on a gap. Solid corner arcs over dashed sides read as long odd dashes. What worked (`DropFrame.tsx`, `dashFit.ts`): draw
+the right half of the outline as a path from top centre to bottom centre, flip a copy for the left half, give each corner one dash as long as
+the others (`tail = (dash - arc) / 2`), and fit a whole number of dash and gap pairs on each stretch from the measured size, with half a gap
+at each end so the halves meet on a whole gap. A small radius (10 with a 6 px stroke) keeps the corner dash from dominating. Check the
+fitted array sums to the half perimeter: one side fit was wrong for most sizes and only right at 640 by 320.
+
+## Grille's ui.css sits in `@layer ui`, so Aurora's unlayered CSS wins every tie
+Tags: css, cascade, layers, grille, focus-visible
+Applies-when: loading Grille's `ui.css` on a page that also carries `web/ui` styles (`tokens.css`, `forms.css`), or an island looks different from the editor
+
+`ui.css` starts with `@layer reset, app, ui;` and puts every rule in `ui`. Unlayered CSS beats any layered rule whatever the specificity. Aurora's global `:focus-visible` rule in `tokens.css` is unlayered and overrides Grille's `[data-pointer-opened] { outline: none }`, so a popover trigger would keep its ring. The two focus rings agree (2px, offset 2px, same color), so a plain button shows no difference. Grille's own rules have no global selectors, so nothing on the vanilla page restyles.
+
+**Fix:** keep Aurora's page CSS scoped to its own classes. Put an override meant to beat Grille in `@layer app`, or accept the unlayered win when the values match.

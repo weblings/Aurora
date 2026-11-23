@@ -104,10 +104,14 @@ await withEditorStack(async ({ editorUrl }) => {
       assert.equal(await menuItem('Move down').getAttribute('aria-disabled'), 'true', 'last named section cannot move down')
       await menuItem('Move up').click()
       await waitHeadings(['A', 'Cee', 'B', 'General'])
-      // An empty section cannot lead (the stored order places it after the one it followed), so Move up is off.
+      // An empty section can lead (Aurora-e4bi.22): Move up puts it first, where Move up is off.
+      await pickFrom(secMenu('Cee'), 'Move up')
+      await waitHeadings(['Cee', 'A', 'B', 'General'])
       await secMenu('Cee').click()
-      assert.equal(await menuItem('Move up').getAttribute('aria-disabled'), 'true', 'an empty section cannot move to the top')
+      assert.equal(await menuItem('Move up').getAttribute('aria-disabled'), 'true', 'the first section cannot move up')
       await page.keyboard.press('Escape')
+      await pickFrom(secMenu('Cee'), 'Move down')
+      await waitHeadings(['A', 'Cee', 'B', 'General'])
       await pickFrom(secMenu('Cee'), 'Move down')
       await waitHeadings(['A', 'B', 'Cee', 'General'])
       await pickFrom(secMenu('A'), 'Move down')

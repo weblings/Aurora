@@ -20,7 +20,7 @@ const scripts = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'
 // The set a coordinator re-runs after each editor bead.
 export const EDITOR_SET = [
   'save-as-new', 'title-menu', 'refused-save', 'kept-copy', 'top-bar', 'undo-toast', 'failed-save', 'drawers',
-  'context-menus', 'clipboard', 'narrow', 'control-count', 'tooltips', 'gate', 'graph-editor', 'tuning-sections',
+  'context-menus', 'clipboard', 'import', 'narrow', 'control-count', 'tooltips', 'gate', 'graph-editor', 'tuning-sections',
 ]
 
 function checkFile(name) {

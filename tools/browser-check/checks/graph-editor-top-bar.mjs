@@ -97,7 +97,7 @@ await withEditorStack(async ({ editorUrl }) => {
     await page.getByRole('menuitem', { name: 'New', exact: true }).hover()
     const starts = page.getByRole('menu', { name: 'New', exact: true })
     await starts.waitFor()
-    assert.deepEqual(await starts.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent)), ['Start from'])
+    assert.deepEqual(await starts.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent)), ['Start from', 'File'])
     const startNames = await starts.getByRole('menuitem').allInnerTexts()
     assert.equal(startNames[0], 'Empty')
     assert.equal(startNames[1], 'Built-in', 'the Built-in sub-menu follows Empty (Aurora-l8ua)')
@@ -177,8 +177,10 @@ await withEditorStack(async ({ editorUrl }) => {
     step('Save on a built-in opens a naming dialog; Cancel, Escape and a scrim click write nothing')
 
     // A kept copy from an earlier visit comes back without asking (Aurora-u68h.2): no banner, no buttons.
+    const tuned0 = await page.locator('.param-in-tuning').count()
     await makeEdit(page)
     await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
+    assert.notEqual(await page.locator('.param-in-tuning').count(), tuned0, 'the edit adds a Tuning dot')
     await page.reload()
     await page.waitForSelector('.aurora-node')
     await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
@@ -188,7 +190,8 @@ await withEditorStack(async ({ editorUrl }) => {
     await waitToast(page, 'Reverted to the saved version')
     await page.reload()
     await page.waitForSelector('.aurora-node')
-    assert.equal(await page.locator('.editor-title-menu[data-unsaved="true"]').count(), 0, 'the reverted copy is gone')
+    // A built-in re-tidies on open (Aurora-y8ku), so it can show unsaved again: the edit itself must be gone.
+    assert.equal(await page.locator('.param-in-tuning').count(), tuned0, 'the reverted copy is gone')
     step('a kept copy restores silently and Revert to saved drops it')
 
     // Editing during a test shows no label; Stop is the only way out.

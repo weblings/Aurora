@@ -12,6 +12,7 @@
     "graph-editor:tooltips": "node checks/graph-editor-tooltips.mjs",
     "graph-editor:context-menus": "node checks/graph-editor-context-menus.mjs",
     "graph-editor:clipboard": "node checks/graph-editor-clipboard.mjs",
+    "graph-editor:import": "node checks/graph-editor-import.mjs",
     "graph-editor:recipes-paste": "node checks/graph-editor-recipes-paste.mjs",
     "graph-editor:save-as-new": "node checks/graph-editor-save-as-new.mjs",
     "graph-editor:converter": "node checks/graph-editor-converter.mjs",

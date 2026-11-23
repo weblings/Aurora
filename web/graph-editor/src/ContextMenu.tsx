@@ -11,7 +11,7 @@ import type { Catalog } from './graph/types'
 export type MenuTarget =
   | { kind: 'canvas'; x: number; y: number }
   // `touch`, `tip` and `params` are filled in by App: the touch press of ..., the node's short tip, whether it has params.
-  | { kind: 'node'; x: number; y: number; id: string; touch?: boolean; tip?: string; params?: boolean }
+  | { kind: 'node'; x: number; y: number; id: string; count?: number; touch?: boolean; tip?: string; params?: boolean }
   | { kind: 'edge'; x: number; y: number; id: string }
   | { kind: 'param'; x: number; y: number; id: string; param: string; label: string; on: boolean }
 
@@ -84,11 +84,13 @@ export function ContextMenu({
             aria-label="Node actions"
             onClose={onClose}
             onAction={(id) => {
-              if (id === 'dashboard' || id === 'cut' || id === 'copy' || id === 'delete-nodes') run({ type: id })
+              if (id === 'dashboard' || id === 'cut' || id === 'copy' || id === 'delete-nodes' || id === 'tidy') run({ type: id })
             }}
           >
             {target.params ? <MenuItem id="dashboard">Tuning controls…</MenuItem> : null}
             {target.params ? <MenuSeparator /> : null}
+            {(target.count ?? 1) > 1 ? <MenuItem id="tidy">Tidy</MenuItem> : null}
+            {(target.count ?? 1) > 1 ? <MenuSeparator /> : null}
             <MenuItem id="cut"><Keyed hint={hints.cut}>Cut</Keyed></MenuItem>
             <MenuItem id="copy"><Keyed hint={hints.copy}>Copy</Keyed></MenuItem>
             <MenuSeparator />

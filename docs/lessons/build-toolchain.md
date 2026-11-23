@@ -978,3 +978,11 @@ Aurora-wsyo: the script starts with `[ "$UID" -eq 0 ] || exec sudo "$0" "$@"`. R
 
 **Fix:** run `sudo sh install_release.sh` (it needs a password, so a person types it), read the loader version in `~/homebrew/services/.loader.version`, and for a spinner read `journalctl -u plugin_loader` before blaming Steam or the page. A crashed third-party plugin says nothing about the question it was meant to test.
 
+
+## A Vite entry with no HTML page gets no stylesheet links, so the entry adds its own
+Tags: vite, islands, css, build-output, grille
+Applies-when: adding a JS-only Vite entry (`rollupOptions.input`) that another page loads by URL, such as `islands.js` for the main page
+
+Aurora-4nqt.3: `islands.js` imported Grille's `ui.css`, and the build put the CSS in a shared chunk with a hashed name that only the editor's `index.html` linked. The island mounted with no styles on the main page. A fixed `assetFileNames` for the entry did not help, since the CSS belongs to the shared chunk.
+
+**Fix:** import the stylesheets with `?url` (`import uiCss from '@weblings_things/grille/ui.css?url'`) and append `<link rel="stylesheet">` elements from the entry. With `base: './'` the URL resolves against `import.meta.url`, so it works under any mount. Only the entry's JS keeps a fixed name (`entryFileNames`).

@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type AnimationEventHandler } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type AnimationEventHandler, type ReactNode } from 'react'
+import { Button, MessageRow } from '@weblings_things/grille'
 import { arrivalAnnouncement, arrivedKeys, baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, pairingAccessText, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
 import { createShellCap } from '../../ui/shellCap.js'
 import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
@@ -6,10 +7,10 @@ import type { HostCondition, HostError } from './graph/hostState'
 import type { Holder } from './graph/lightTest'
 import type { PairingRequest } from './useHostState'
 
-// The Dashboard's error shell as a React component (Aurora-s1t7.9): the markup and classes of
-// web/ui/shell.js and styles/shell.css, so the two pages read as one. It fetches nothing: rows
+// The Dashboard's error shell as a React component (Aurora-s1t7.9). Its rows are Grille MessageRows
+// (Aurora-4nqt.2) and the toggle, collapse and pulse keep shell.css. It fetches nothing: rows
 // come in as props (the editor feeds it from GET /api/state and its own draft state), and the
-// buttons call back. ErrorShell.test.tsx holds its markup equal to shell.js's. The rows, their order,
+// buttons call back. ErrorShell.test.tsx holds its words and actions equal to shell.js's. The rows, their order,
 // keys and words come from web/ui/shellRows.js, the same model the Dashboard draws (Aurora-9hqa.1);
 // each React row is keyed by its row key, so a changed message remounts only that row.
 
@@ -53,11 +54,16 @@ function Clock({ endsAtMs }: { endsAtMs: number }) {
   return <span id="shell-light-test-time">{clockText(endsAtMs)}</span>
 }
 
-function Warning({ text }: { text: string }) {
+// The shared permission and local-network html carries its own circled mark; MessageRow draws the mark here.
+const MARK_HTML = /<span class="shell-mark shell-mark-error" aria-hidden="true"><\/span>\s?/g
+const sharedHtml = (html: string) => <div dangerouslySetInnerHTML={{ __html: html.replace(MARK_HTML, '') }} />
+
+// The row box is Grille's MessageRow; the wrapper only carries the key, the pulse and the cap's hooks.
+function RowBox({ rowKey, pulse, children }: { rowKey: string; pulse: Pulse; children: ReactNode }) {
   return (
-    <p className="status-text status-text-error">
-      <span className="shell-mark shell-mark-error" aria-hidden="true"></span> {text}
-    </p>
+    <div className="shell-banner-row shell-grille-row" data-key={rowKey} {...pulse}>
+      {children}
+    </div>
   )
 }
 
@@ -65,18 +71,11 @@ type Row = ReturnType<typeof orderRows>[number] & { count?: number }
 
 function ConditionRow({ rowKey, condition, pulse }: { rowKey: string; condition: HostCondition; pulse: Pulse }) {
   // local_network is the one known condition row (shellRows.js renderRow); any other shows its message.
-  const content =
-    condition.source === 'local_network' ? (
-      <div className="shell-banner-content" dangerouslySetInnerHTML={{ __html: markErrors(renderLocalNetworkBanner()) }} />
-    ) : (
-      <div className="shell-banner-content">
-        <Warning text={condition.message ?? ''} />
-      </div>
-    )
+  const message = condition.source === 'local_network' ? sharedHtml(markErrors(renderLocalNetworkBanner())) : (condition.message ?? '')
   return (
-    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
-      {content}
-    </div>
+    <RowBox rowKey={rowKey} pulse={pulse}>
+      <MessageRow tone="error" message={message} />
+    </RowBox>
   )
 }
 
@@ -84,70 +83,60 @@ function ErrorRow({ rowKey, error, props, pulse }: { rowKey: string; error: Host
   const { hostState, platform, onRetry, onDismiss } = props
   const retryId = `shell-banner-retry-${error.source}`
   // X only while the old setup still works: a paused or failed host's row is the reason there are no lights.
-  const dismiss =
-    hostState === 'running' && Number.isInteger(error.id) ? (
-      <button type="button" className="shell-banner-dismiss" id={`shell-banner-dismiss-${error.source}`} data-action="dismiss" data-key={rowKey} aria-label="Dismiss" onClick={() => onDismiss(error)}>
-        ×
-      </button>
-    ) : null
+  const dismissible = hostState === 'running' && Number.isInteger(error.id)
   // The permission rows are shared with the Dashboard as HTML strings; their Retry is found by id.
   const html = permissionRowHtml(error, platform, rowKey)
   return (
-    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
+    <RowBox rowKey={rowKey} pulse={pulse}>
       {html !== null ? (
         <div
-          className="shell-banner-content"
-          dangerouslySetInnerHTML={{ __html: html }}
           onClick={(e) => {
             if ((e.target as Element).closest('button')?.id === retryId) onRetry(error.source)
           }}
-        />
-      ) : (
-        <div className="shell-banner-content">
-          <Warning text={errorSentence(error, hostState)} />
-          {error.retry === false ? null : (
-            <button type="button" className="btn btn-secondary" id={retryId} data-action="retry" data-key={rowKey} style={{ marginTop: 'var(--aurora-space-3)' }} onClick={() => onRetry(error.source)}>
-              Retry
-            </button>
-          )}
+        >
+          <MessageRow tone="error" message={sharedHtml(html)} onDismiss={dismissible ? () => onDismiss(error) : undefined} />
         </div>
+      ) : (
+        <MessageRow tone="error" message={errorSentence(error, hostState)} onDismiss={dismissible ? () => onDismiss(error) : undefined}>
+          {error.retry === false ? null : (
+            <Button variant="secondary" id={retryId} data-action="retry" data-key={rowKey} onPress={() => onRetry(error.source)}>
+              Retry
+            </Button>
+          )}
+        </MessageRow>
       )}
-      {dismiss}
-    </div>
+    </RowBox>
   )
 }
 
 function LightTestRow({ rowKey, lightTest, onStopTest, pulse }: { rowKey: string; lightTest: ShellLightTest; onStopTest: () => void; pulse: Pulse }) {
+  const message = (
+    <>
+      {lightTesterSentence(lightTest.holder)}
+      {lightTest.endsAtMs === null ? null : (
+        <>
+          {' Will revert in: '}
+          <Clock endsAtMs={lightTest.endsAtMs} />
+        </>
+      )}
+    </>
+  )
   return (
-    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
-      <div className="shell-banner-content">
-        <p className="status-text shell-pairing-title">
-          <span className="shell-mark shell-mark-info" aria-hidden="true"></span> {lightTesterSentence(lightTest.holder)}
-          {lightTest.endsAtMs === null ? null : (
-            <>
-              {' Will revert in: '}
-              <Clock endsAtMs={lightTest.endsAtMs} />
-            </>
-          )}
-        </p>
-        <div className="shell-banner-actions">
-          <button type="button" className="btn btn-secondary" id="shell-light-test-stop" data-action="stop-test" data-key={rowKey} onClick={onStopTest}>
-            Stop test
-          </button>
-        </div>
-      </div>
-    </div>
+    <RowBox rowKey={rowKey} pulse={pulse}>
+      <MessageRow tone="notice" message={message}>
+        <Button variant="secondary" id="shell-light-test-stop" data-action="stop-test" data-key={rowKey} onPress={onStopTest}>
+          Stop test
+        </Button>
+      </MessageRow>
+    </RowBox>
   )
 }
 
 function PairingRowView({ rowKey, request, onDecide, pulse }: { rowKey: string; request: PairingRequest; onDecide: (ref: string, decision: 'approve' | 'deny') => void; pulse: Pulse }) {
   const access = pairingAccessText(request.scope ?? '')
   return (
-    <div className="shell-banner-row" data-key={rowKey} {...pulse}>
-      <div className="shell-banner-content">
-        <p className="status-text shell-pairing-title">
-          <span className="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device with Aurora?
-        </p>
+    <RowBox rowKey={rowKey} pulse={pulse}>
+      <MessageRow tone="notice" message={<strong>Pair a device with Aurora?</strong>}>
         <ul className="shell-pairing-details">
           <li>
             <span className="shell-pairing-label">Device:</span> {request.name ?? ''}
@@ -167,15 +156,15 @@ function PairingRowView({ rowKey, request, onDecide, pulse }: { rowKey: string; 
           </li>
         </ul>
         <div className="shell-banner-actions">
-          <button type="button" className="btn btn-primary" id={`shell-pairing-approve-${request.ref}`} data-action="approve" data-key={rowKey} onClick={() => onDecide(request.ref, 'approve')}>
+          <Button variant="primary" id={`shell-pairing-approve-${request.ref}`} data-action="approve" data-key={rowKey} onPress={() => onDecide(request.ref, 'approve')}>
             Approve
-          </button>
-          <button type="button" className="btn btn-secondary" id={`shell-pairing-deny-${request.ref}`} data-action="deny" data-key={rowKey} onClick={() => onDecide(request.ref, 'deny')}>
+          </Button>
+          <Button variant="secondary" id={`shell-pairing-deny-${request.ref}`} data-action="deny" data-key={rowKey} onPress={() => onDecide(request.ref, 'deny')}>
             Deny
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+      </MessageRow>
+    </RowBox>
   )
 }
 
@@ -204,11 +193,9 @@ export function ShellBanner(props: ShellBannerProps) {
         return <ErrorRow key={row.key} rowKey={row.key} error={row.error as HostError} props={props} pulse={pulse(row.key)} />
       case 'note':
         return (
-          <div className="shell-banner-row" key={row.key} data-key={row.key} {...pulse(row.key)}>
-            <div className="shell-banner-content">
-              <Warning text={row.text as string} />
-            </div>
-          </div>
+          <RowBox key={row.key} rowKey={row.key} pulse={pulse(row.key)}>
+            <MessageRow tone="error" message={row.text as string} />
+          </RowBox>
         )
       case 'toggle': {
         // The same button in both states: React keeps the node, so focus survives a toggle.

@@ -77,8 +77,7 @@ export class EntertainmentZoneSelectScreen {
       `;
       body.querySelector('#ezs-refresh').addEventListener('click', () => this._reload());
 
-      renderNavFooter(footer, { showBack: this.showBack, onBack: () => this.onBack(), onContinue: () => this.onComplete() });
-      footer.querySelector('.nav-footer-continue').disabled = true;
+      renderNavFooter(footer, { showBack: this.showBack, onBack: () => this.onBack(), continueDisabled: true, onContinue: () => this.onComplete() });
       return;
     }
 

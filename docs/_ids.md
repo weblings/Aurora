@@ -24,8 +24,12 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
 | `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
+| `4g4d-x2om-51nv12-recipes-demo-live` | [log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md](log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md) | Recipes page and demo editor live on Pages: three beads closed on the owner's word |
 | `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
+| `4nqt1-react-dashboard-delivery` | [log/2026-11-23-4nqt1-react-dashboard-delivery.md](log/2026-11-23-4nqt1-react-dashboard-delivery.md) | React Dashboard and NUX: build and delivery decision |
+| `4nqt2-error-shell-messagerow` | [log/2026-11-23-4nqt2-error-shell-messagerow.md](log/2026-11-23-4nqt2-error-shell-messagerow.md) | Graph editor error shell on Grille MessageRow |
+| `4nqt3-islands-navfooter` | [log/2026-11-23-4nqt3-islands-navfooter.md](log/2026-11-23-4nqt3-islands-navfooter.md) | Main page loads a built bundle, NavFooter is the first island |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
@@ -159,6 +163,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
+| `dzsd-import-from-file` | [log/2026-11-23-dzsd-import-from-file.md](log/2026-11-23-dzsd-import-from-file.md) | Import a graph file: menu and drop |
 | `e4bi-22-empty-section-leads` | [log/2026-11-18-e4bi-22-empty-section-leads.md](log/2026-11-18-e4bi-22-empty-section-leads.md) | A stored empty section can lead the controls list |
 | `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
@@ -286,7 +291,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `kep28-effect-panel` | [log/2026-11-05-kep28-effect-panel.md](log/2026-11-05-kep28-effect-panel.md) | Effect panel: rows, layers and switch states |
 | `kep29-wire-row-actions` | [log/2026-11-04-kep29-wire-row-actions.md](log/2026-11-04-kep29-wire-row-actions.md) | Wire the effect panel's row actions |
 | `kgv7-pickers-follow-graph` | [log/2026-10-23-kgv7-pickers-follow-graph.md](log/2026-10-23-kgv7-pickers-follow-graph.md) | Kgv7: Dashboard pickers follow the MCP graph's declared inputs (Aurora-kgv7) |
+| `kp8y-multi-selection-context-menu` | [log/2026-11-23-kp8y-multi-selection-context-menu.md](log/2026-11-23-kp8y-multi-selection-context-menu.md) | Graph editor node menu on a multi-node selection |
 | `kuee-portable-anchor-pick` | [log/2026-11-17-kuee-portable-anchor-pick.md](log/2026-11-17-kuee-portable-anchor-pick.md) | Seeded palette anchor pick is portable across platforms |
+| `l3mp-pena-decky-flatpak-cut` | [log/2026-11-23-l3mp-pena-decky-flatpak-cut.md](log/2026-11-23-l3mp-pena-decky-flatpak-cut.md) | Decky plugin and Flatpak manifest cut from the SteamOS plan |
 | `l8ua-start-from-built-in-submenu` | [log/2026-11-16-l8ua-start-from-built-in-submenu.md](log/2026-11-16-l8ua-start-from-built-in-submenu.md) | Graph editor: New menu lists Built-in as its first sub-menu |
 | `l9gc-t8nd-test-edit-resend` | [log/2026-11-18-l9gc-t8nd-test-edit-resend.md](log/2026-11-18-l9gc-t8nd-test-edit-resend.md) | Test edits reach the lights and the demo room |
 | `lane-a-review-followups` | [log/2026-10-24-lane-a-review-followups.md](log/2026-10-24-lane-a-review-followups.md) | Lane A review follow-ups (Aurora-5ipy.28 to .34) |
@@ -396,6 +403,8 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
 | `ra4o8-g3-cutover` | [log/2026-10-15-ra4o8-g3-cutover.md](log/2026-10-15-ra4o8-g3-cutover.md) | G3 cutover: the app runs on the Graph (Aurora-ra4o.8) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
+| `react-dashboard-delivery` | [planning/WebUI/ReactDashboardDelivery.md](planning/WebUI/ReactDashboardDelivery.md) | React Dashboard and NUX: build and delivery |
+| `react-grille-migration` | [planning/WebUI/ReactGrilleMigration.md](planning/WebUI/ReactGrilleMigration.md) | Dashboard and NUX move to React and Grille |
 | `ruig-temp-dir-per-process` | [log/2026-11-18-ruig-temp-dir-per-process.md](log/2026-11-18-ruig-temp-dir-per-process.md) | Test temp dirs unique per process |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
@@ -470,6 +479,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `v1-spec-harness` | [log/2026-10-26-v1-spec-harness.md](log/2026-10-26-v1-spec-harness.md) | 5ipy.36: v1 spec harness (Aurora-5ipy.36) |
 | `v1-spec-hook` | [log/2026-10-27-v1-spec-hook.md](log/2026-10-27-v1-spec-hook.md) | 5ipy.37: pre-commit hook for the API spec (Aurora-5ipy.37, Aurora-pa6c) |
 | `vijc-deck-dmabuf-slow-capture` | [log/2026-11-22-vijc-deck-dmabuf-slow-capture.md](log/2026-11-22-vijc-deck-dmabuf-slow-capture.md) | Steam Deck: the DMA-BUF capture read is the 1 to 2 s light lag (slow-read fallback shipped) |
+| `vtm5-export-graph` | [log/2026-11-23-vtm5-export-graph.md](log/2026-11-23-vtm5-export-graph.md) | Export graph in the graph editor |
 | `vv46-route-test-port-collisions` | [log/2026-10-16-vv46-route-test-port-collisions.md](log/2026-10-16-vv46-route-test-port-collisions.md) | Route test flakes under parallel ctest (Aurora-vv46) |
 | `w6no-restore-token` | [log/2026-10-21-w6no-restore-token.md](log/2026-10-21-w6no-restore-token.md) | Aurora-w6no: portal restore token is actually stored now (closed) |
 | `w6zq-ux-notes-first-fixes` | [log/2026-11-11-w6zq-ux-notes-first-fixes.md](log/2026-11-11-w6zq-ux-notes-first-fixes.md) | Graph editor UX notes: first fixes |

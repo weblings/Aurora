@@ -16,7 +16,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
   page.on('request', (r) => /\/api\/graph\/(save|apply)$/.test(r.url()) && saves.push(r.url()))
   const isOpen = async () => (await titleMenu(page).count()) > 0
   const closed = () => titleMenu(page).waitFor({ state: 'detached' })
-  const focusInTrigger = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') === 'Effect menu')
+  const focusInTrigger = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label')?.startsWith('Effect menu'))
   const nodes = () => page.locator('.react-flow__node').count()
   // Fit view stops at 60% zoom (Aurora-daaa.18) and the pane drag pans further, so
   // the first node can sit outside the window: click the first header in view.
@@ -39,8 +39,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // A built-in: Save and Save and apply, no Save as new.
     await openTitleMenu(page)
-    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'Duplicate', 'Revert to saved', 'New', 'Open'])
-    step('the menu opens on a click and lists Save, Save and apply, Duplicate, Revert to saved, New and Open for a built-in')
+    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'Duplicate', 'Revert to saved', 'Export graph', 'New', 'Open'])
+    step('the menu opens on a click and lists Save, Save and apply, Duplicate, Revert to saved, Export graph, New and Open for a built-in')
 
     // Esc with focus inside the menu.
     await page.keyboard.press('Escape')
@@ -117,10 +117,10 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     const room = await flyout.evaluate((el) => ({ scrolls: el.scrollHeight > el.clientHeight, bottom: el.getBoundingClientRect().bottom, view: innerHeight }))
     assert.ok(room.scrolls && room.bottom <= room.view, `Open scrolls and stays on screen (${JSON.stringify(room)})`)
     const heads = await flyout.locator('.ui-menu-section-header').evaluateAll((els) => els.map((e) => e.textContent))
-    assert.deepEqual(heads, ['Custom', 'Built-in'])
+    assert.deepEqual(heads, ['Custom', 'Built-in', 'File'])
     const cut = await flyout.locator('.editor-menu-title').first().evaluate((el) => el.scrollWidth > el.clientWidth && getComputedStyle(el).textOverflow === 'ellipsis')
     assert.equal(cut, true, 'a long title is cut off with an ellipsis')
-    step('Open scrolls, groups Custom then Built-in, and cuts a long title off with an ellipsis')
+    step('Open scrolls, groups Custom then Built-in then File, and cuts a long title off with an ellipsis')
 
     // Aurora-ge1i.4: New lists Empty and the built-ins flat, Custom and Hidden as sub-menus, and
     // a pick opens an unsaved 'X (Copy)' that writes nothing until Save.
@@ -144,7 +144,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await start.waitFor()
     const flat = await start.getByRole('menuitem').allInnerTexts()
     assert.equal(flat[0], 'Empty')
-    assert.deepEqual(flat.slice(1), ['Built-in', 'Custom', 'Hidden'])
+    assert.deepEqual(flat.slice(1), ['Built-in', 'Custom', 'Hidden', 'From file...'])
     await start.getByRole('menuitem', { name: 'Custom', exact: true }).hover()
     const custom = page.getByRole('menu', { name: 'Custom', exact: true })
     await custom.waitFor()
@@ -155,7 +155,7 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
     await hidden.waitFor()
     assert.deepEqual(await hidden.getByRole('menuitem').allInnerTexts(), ['Fake hidden'])
     if (shots) await page.screenshot({ path: `${shots}/new-hidden.png` })
-    step('New lists Empty, then Built-in, Custom and Hidden as sub-menus')
+    step('New lists Empty, then Built-in, Custom and Hidden as sub-menus and From file...')
 
     const before = (await (await page.request.get(`${aurora}/api/effects`)).json()).effects.length
     await start.getByRole('menuitem', { name: 'Built-in', exact: true }).hover()
