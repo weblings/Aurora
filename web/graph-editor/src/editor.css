@@ -1340,3 +1340,15 @@ body:has(.ui-drawer[data-side='bottom'][data-expanded]) .editor-toast {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* A shell row is Grille's MessageRow (ErrorShell.tsx); the wrapper keeps only the key, the pulse ring and the gap. */
+.shell-banner-row.shell-grille-row {
+  display: block;
+  border: 0;
+  padding: 0;
+  border-radius: var(--ui-size-radius-lg);
+}
+
+.shell-banner-row.shell-grille-row[data-new]:has([data-tone='error']) {
+  --shell-ping-tint: var(--aurora-text-error);
+}

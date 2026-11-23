@@ -28,6 +28,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4nqt1-react-dashboard-delivery` | [log/2026-11-23-4nqt1-react-dashboard-delivery.md](log/2026-11-23-4nqt1-react-dashboard-delivery.md) | React Dashboard and NUX: build and delivery decision |
+| `4nqt2-error-shell-messagerow` | [log/2026-11-23-4nqt2-error-shell-messagerow.md](log/2026-11-23-4nqt2-error-shell-messagerow.md) | Graph editor error shell on Grille MessageRow |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |

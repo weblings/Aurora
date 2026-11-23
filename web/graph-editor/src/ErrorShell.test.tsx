@@ -97,6 +97,32 @@ function normal(html: string): string {
     .trim()
 }
 
+// The rows are Grille MessageRows in the editor and shell.css markup on the Dashboard (until
+// Aurora-4nqt.4), so the pages are held equal in what a user gets: the words, the ids and keys of the
+// controls, the dismiss buttons and the error and notice marks. Each page's own dismiss glyph is left out.
+function facts(full: string) {
+  const dismissButton = /<button[^>]*(?:data-action="dismiss"|aria-label="Dismiss")[^>]*>.*?<\/button>/g
+  const html = full.replace(dismissButton, '').replace(/&#x27;|&#39;/g, "'")
+  const text = html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;| /g, ' ')
+    .replace(/×/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const attrs = (re: RegExp) => [...html.matchAll(re)].map((m) => m[1]).sort()
+  return {
+    text,
+    ids: attrs(/ id="([^"]+)"/g).filter((id) => !id.startsWith('react-aria')),
+    keys: attrs(/ data-key="([^"]+)"/g),
+    actions: attrs(/ data-action="([^"]+)"/g),
+    dismisses: (full.match(dismissButton) ?? []).length,
+    errorMarks: (html.match(/shell-mark-error|data-tone="error"/g) ?? []).length,
+    noticeMarks: (html.match(/shell-mark-info|data-tone="notice"/g) ?? []).length,
+  }
+}
+
 const reload: HostError = { source: 'reload', message: 'no outputs paired', id: 4 }
 const effect: HostError = { source: 'effect', message: "Couldn't switch to 'x'", id: 2, retry: false }
 const startup: HostError = { source: 'startup', message: 'port in use' }
@@ -134,7 +160,7 @@ const cases: Case[] = [
   { name: 'three errors and a test, collapsed', errors: [reload, effect, startup], test: { active: true, confirmRemainingMs: null, holder: { session: 'e', client: null } } },
 ]
 
-describe('ErrorShell markup matches web/ui/shell.js', () => {
+describe('ErrorShell rows say what web/ui/shell.js says', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
@@ -145,7 +171,7 @@ describe('ErrorShell markup matches web/ui/shell.js', () => {
     it(c.name, () => {
       const reference = normal(dashboardMarkup(c))
       expect(reference.length).toBeGreaterThan(0)
-      expect(normal(editorMarkup(c))).toBe(reference)
+      expect(facts(editorMarkup(c))).toEqual(facts(reference))
     })
   }
 
@@ -158,7 +184,7 @@ describe('ErrorShell markup matches web/ui/shell.js', () => {
       expect(reference).not.toContain('data-new')
       expect(normal(editorMarkup(c))).not.toContain('data-new')
       const all = normal(editorMarkup({ ...c, pulsing: [...rows.map((row) => row.key), 'toggle'] }))
-      expect(all.replaceAll(' data-new=""', '')).toBe(reference)
+      expect(facts(all.replaceAll(' data-new=""', ''))).toEqual(facts(reference))
       // Every drawn row carries it; the toggle never does.
       expect((all.match(/data-new=""/g) ?? []).length).toBe(reference.includes('aria-expanded="false"') ? 0 : rows.length)
       expect(all).not.toMatch(/<button[^>]*data-new/)
@@ -169,7 +195,7 @@ describe('ErrorShell markup matches web/ui/shell.js', () => {
     const c: Case = { name: 'two open', errors: [reload, effect], open: true, pulsing: ['error:effect:' + effect.message] }
     const out = normal(editorMarkup(c))
     expect((out.match(/data-new=""/g) ?? []).length).toBe(1)
-    expect(out).toMatch(/<div class="shell-banner-row" data-key="error:effect:[^"]*" data-new="">/)
+    expect(out).toMatch(/<div class="shell-banner-row shell-grille-row" data-key="error:effect:[^"]*" data-new="">/)
   })
 
   it('the ErrorShell draws no pulse on its first render (the baseline)', () => {
@@ -198,7 +224,8 @@ describe('ErrorShell page parts', () => {
     const note = "Couldn't check your last edit."
     const html = normal(renderToStaticMarkup(<ErrorShell {...props} unreachable={false} notes={[note]} />))
     expect(html).toContain('<div id="shell-banner-slot"><div class="shell-banner"><div class="shell-banner-inner">')
-    expect(html).toContain(`<div class="shell-banner-row" data-key="note:${note}"><div class="shell-banner-content"><p class="status-text status-text-error"><span class="shell-mark shell-mark-error" aria-hidden="true"></span> ${note}</p></div></div>`)
+    expect(html).toContain(`<div class="shell-banner-row shell-grille-row" data-key="note:${note}"><div class="ui-message-row" data-tone="error">`)
+    expect(html).toContain(`<div class="ui-message-row-text">${note}</div>`)
     expect(html).not.toContain('Retry')
     expect(html).not.toContain('shell-banner-dismiss')
   })
@@ -206,7 +233,8 @@ describe('ErrorShell page parts', () => {
   it('the open-failure notes are rows too', () => {
     for (const note of ['Rainbow no longer exists.', "Rainbow's file can't be read.", "Couldn't open the editor."]) {
       const html = normal(renderToStaticMarkup(<ErrorShell {...props} unreachable={false} notes={[note]} />))
-      expect(html).toContain(`<span class="shell-mark shell-mark-error" aria-hidden="true"></span> ${note}</p>`)
+      expect(html).toContain(`data-tone="error"`)
+      expect(html).toContain(`<div class="ui-message-row-text">${note.replace("'", "'")}</div>`)
       expect(html).not.toContain('Retry')
     }
   })
@@ -257,7 +285,8 @@ describe('ErrorShell baseline', () => {
     const out = html({ pairings: [phone] })
     expect(out).toContain('id="shell-pairing-approve-r1" data-action="approve" data-key="pairing:r1"')
     expect(out).toContain('id="shell-pairing-deny-r1" data-action="deny" data-key="pairing:r1"')
-    expect(out).toContain('shell-pairing-title"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device')
+    expect(out).toContain('data-tone="notice"')
+    expect(out).toContain('<strong>Pair a device with Aurora?</strong>')
     expect(out.indexOf('shell-pairing-approve')).toBeLessThan(out.indexOf('shell-banner-toggle'))
   })
 

@@ -640,3 +640,15 @@ Applies-when: choosing a Grille component to pick one item from several, or putt
 - `Header` bolds whatever it wraps. Set `font-weight` on a subtitle.
 
 **Fix:** use `Menu` single selection for a checkmark, and mount a canvas only in the selected tab.
+
+## Grille MessageRow takes no key, pulse or ids, so keep a thin wrapper and compare facts, not markup
+Tags: webui, grille, messagerow, error-shell, tests
+Applies-when: moving shell.css rows onto a Grille component while the other page still draws the old markup
+
+`MessageRow` has no `data-key`, `data-new` or `onAnimationEnd`, its mark is an unclassed svg and its dismiss button has no id. The pulse CSS and `shellCap.js` find rows by `.shell-banner-row[data-key]`, and browser checks looked for `.shell-mark-*` and `#shell-banner-dismiss-<source>`.
+- Keep a wrapper div with `shell-banner-row` and the key and pulse, and zero its border and padding in editor.css (not shell.css, the Dashboard still uses it).
+- Shared HTML strings carry their own mark, so strip it or the row shows two.
+- The old byte-for-byte parity test cannot hold. Compare the words, control ids, keys, dismiss count and error and notice marks, with dismiss buttons and react-aria ids left out and entities decoded in attributes too.
+- Check selectors change with the markup: `.ui-message-row-mark`, `[aria-label="Dismiss"]`.
+
+**Fix:** wrap `MessageRow`, compare facts in the parity test, update the browser check selectors.
