@@ -31,8 +31,10 @@ log "launcher start pid=$$"
 while true; do
   if pgrep -x gamescope-wl >/dev/null; then
     if autostart_off; then
-      # Stay idle until gamescope goes; a toggle flipped on mid-session starts Aurora at the next Game Mode start.
-      log "Launch Automatically in Game Mode is off, leaving Aurora stopped"
+      # Evict a Desktop Mode copy that rode over the switch, but start nothing; stay idle until
+      # gamescope goes. A toggle flipped on mid-session starts Aurora at the next Game Mode start.
+      log "Launch Automatically in Game Mode is off, stopping any running Aurora and not starting one"
+      stop_aurora
       while pgrep -x gamescope-wl >/dev/null; do sleep 3; done
       continue
     fi
