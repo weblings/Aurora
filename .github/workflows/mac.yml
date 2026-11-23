@@ -31,6 +31,10 @@ on:
       - CMakePresets.json
       - .github/workflows/mac.yml
 
+concurrency:
+  group: mac-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test:
     runs-on: macos-latest
@@ -47,9 +51,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Compiler cache. The action keys on OS/arch (macos-latest is arm64).
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: mac-${{ runner.arch }}
       - name: Configure
-        run: cmake --preset mac-app -DAURORA_ENABLE_GRAPH_EDITOR=ON
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
+        run: |
+          cmake --preset mac-app -DAURORA_ENABLE_GRAPH_EDITOR=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
         run: cmake --build build/mac-app
       - name: Test
         run: ctest --test-dir build/mac-app --output-on-failure
