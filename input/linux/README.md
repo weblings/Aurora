@@ -33,7 +33,9 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   `/run/user/<uid>/gamescope-environment`, captures the gamescope node and
   the lights follow the screen, including the boot video. Audio in Game Mode
   (2026-11-22, Aurora-ch0g): `builtin.audio` binds the speaker sink, links
-  `AuroraAudioStream` to it, and the lights follow the game's sound. Not
+  `AuroraAudioStream` to it, and the lights follow the game's sound. Game
+  Mode start and stop is automated by `tools/steamos/` (Aurora-mjk0; install with
+  `install-gamemode-unit.sh`, verified by a mode switch and a cold boot). Not
   verified on X11 sessions or a long Game Mode video run (frame rate, Aurora-ch0g).
   Buffers: LINEAR DMA-BUF is offered first, plain shared memory second
   (GNOME 46 sends a fullscreen memfd stream only empty buffers, Aurora-1t1).

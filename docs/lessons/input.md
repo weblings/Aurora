@@ -1026,3 +1026,13 @@ Aurora-i0sz: a shortcut to a window-less script showed Steam's spinner and gets 
 
 **Fix:** launch from a user service, export `GAMESCOPE_WAYLAND_DISPLAY` from that file only while `gamescope-wl` runs, match the node by name and class (ids are reused), and run `pw-dump` with `unset LD_PRELOAD` and `2>/dev/null`.
 
+
+---
+
+## A user unit does not own Aurora when it runs through `distrobox enter`; stop it by name, and evict a stale copy first
+Tags: input, linux, steamos, systemd, distrobox
+Applies-when: writing or changing the Game Mode launcher unit, or any service that wraps a process started with `distrobox enter`.
+
+Aurora-mjk0: the process lives in the `aurora-dev` podman scope, not the unit's cgroup, so `systemctl --user stop` and `KillMode` never reach it. A `TERM` trap that runs `pkill -x Aurora` (SIGKILL after a timeout) does, and the same call before each start removes a Desktop Mode copy holding `aurora.lock`, which would otherwise print "already running" and exit.
+
+**Fix:** `tools/steamos/aurora-gamemode.sh` traps `TERM`/`INT` and calls `stop_aurora` at start and when gamescope exits.

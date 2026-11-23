@@ -182,7 +182,9 @@ option, both in 1.2.2. See [[i0sz-game-mode-probes]].
     `/run/user/<uid>/gamescope-environment` because it does not inherit it.
     See [[i0sz-game-mode-probes]]. Lights follow the game (including the boot
     video) with Aurora run from such a service. Audio there also works (`builtin.audio`
-    linked to the speaker sink, lights follow the sound, `Aurora-ch0g`). Still
+    linked to the speaker sink, lights follow the sound, `Aurora-ch0g`). The launcher
+    unit (`tools/steamos/`, `Aurora-mjk0`) starts and stops Aurora with gamescope;
+    verified by a mode switch and a cold boot ([[mjk0-game-mode-launcher]]). Still
     unverified: a long Game Mode video run's frame rate.
 - Decky plugin path is unverified on two fronts: whether Steam's embedded
   CEF panel can iframe a localhost server without CSP/CORS issues, and
