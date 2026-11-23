@@ -221,6 +221,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
 | `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |
+| `i0sz-game-mode-probes` | [log/2026-11-22-i0sz-game-mode-probes.md](log/2026-11-22-i0sz-game-mode-probes.md) | Steam Deck Game Mode: the gamescope node is reachable from a background service and from the Distrobox (paused before the light test) |
 | `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |

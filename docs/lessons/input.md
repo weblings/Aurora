@@ -1015,3 +1015,14 @@ Applies-when: Linux capture on a PipeWire stream delivers only 1 to 2 buffers pe
 Aurora-vijc: on the Deck (KDE Wayland, AMD APU, Arch Distrobox) the default DMA-BUF stream gave 1 to 2 callbacks per second, every one a changed frame on a moving fullscreen source, and the lights changed about every 1 to 2 s. `AURORA_PW_DMABUF=0` gave 18 to 19 per second. Per-stage timing in `_onStreamProcess` put it on the copy out of the mmapped buffer: 677 ms average vs 3.3 ms for memfd, while `DMA_BUF_IOCTL_SYNC` cost 0.25 ms and a bulk hash 2.7 ms. About 6 MB/s fits a CPU read of an uncached or write-combined GPU mapping; the memory heap was not measured. PipeWire's docs warn about exactly this and WebRTC moved to EGL import for it. The 1t1 default (DMA-BUF) was verified on one Intel GNOME laptop, where it was not costlier, and memfd's fullscreen freeze did not appear under `ffplay` fullscreen on KDE. See `docs/log/2026-11-22-vijc-deck-dmabuf-slow-capture.md`.
 
 **Fix:** `SlowReadWatch` times the copy and renegotiates shared memory after 3 reads over 100 ms; the Deck went from 1.5 to 18 to 19 callbacks/s with no env var. `AURORA_PW_DMABUF=0` still forces it. Other platforms were not yet re-verified. Next: EGL import with a GPU downscale (`Aurora-x0tw`). When a capture rate is low, time each stage of the callback before blaming the container, the CPU or the portal.
+
+---
+
+## A Steam non-Steam shortcut is the wrong launcher for a background capture process on the Deck; a `systemd-run --user` service survives the mode switch and sees the gamescope node
+Tags: input, linux, pipewire, gamescope, steamos, systemd
+Applies-when: Aurora (or any capture helper) must run beside a Game Mode game, or a probe script prints Steam `LD_PRELOAD` errors into parsed output.
+
+Aurora-i0sz: a shortcut to a window-less script showed Steam's spinner and gets a Stop button, and Steam's reaper cleans up its children, so it behaves as a foreground game. A transient `systemd-run --user` service started in Desktop Mode stayed active through Desktop to Game Mode to Desktop, and saw the `gamescope` node (`Video/Source`) from the host and from the Distrobox. It does not inherit `GAMESCOPE_WAYLAND_DISPLAY`; `/run/user/<uid>/gamescope-environment` (rewritten at each Game Mode start) holds it. Inside a Steam-launched process `pw-dump` stdout was unparseable because the overlay's `LD_PRELOAD` errors landed in it.
+
+**Fix:** launch from a user service, export `GAMESCOPE_WAYLAND_DISPLAY` from that file only while `gamescope-wl` runs, match the node by name and class (ids are reused), and run `pw-dump` with `unset LD_PRELOAD` and `2>/dev/null`.
+
