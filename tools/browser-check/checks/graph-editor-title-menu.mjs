@@ -39,8 +39,8 @@ await withEditorStack(async ({ editorUrl, aurora }) => {
 
     // A built-in: Save and Save and apply, no Save as new.
     await openTitleMenu(page)
-    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'Duplicate', 'Revert to saved', 'New', 'Open'])
-    step('the menu opens on a click and lists Save, Save and apply, Duplicate, Revert to saved, New and Open for a built-in')
+    assert.deepEqual(await titleMenu(page).getByRole('menuitem').allInnerTexts(), ['Save', 'Save and apply', 'Duplicate', 'Revert to saved', 'Export graph', 'New', 'Open'])
+    step('the menu opens on a click and lists Save, Save and apply, Duplicate, Revert to saved, Export graph, New and Open for a built-in')
 
     // Esc with focus inside the menu.
     await page.keyboard.press('Escape')

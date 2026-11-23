@@ -89,7 +89,7 @@ during one applies, then reverts, because apply alone leaves the test running
 (the revert rebuilds the just-applied effect from disk).
 
 The title menu is one `Menu`: Save, Save as new, Save and apply, Rename, Duplicate,
-Revert to saved, then New and Open submenus (`TitleMenu.tsx`). New lists the dashboard's
+Revert to saved, Export graph (the whole graph as the clip JSON that paste accepts, downloaded by `graph/exportGraph.ts`, `Aurora-vtm5`), then New and Open submenus (`TitleMenu.tsx`). New lists the dashboard's
 Start from choices flat; `graph/titleMenu.ts` `startPoints()` copies the rule of
 `startPoints()` in `web/ui/EffectPanelModel.js` (keep in sync). Custom and Hidden
 sub-menus follow (`startGroups()`, from the dashboard's `buildGroups`; Hidden holds hidden

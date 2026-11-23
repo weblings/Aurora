@@ -9,7 +9,7 @@ import type { EffectListEntry } from './graph/types'
 // The screen-reader text of every unsaved asterisk: MenuItem `description` on an item, hidden text on a heading.
 export const UNSAVED_TEXT = 'unsaved changes'
 
-export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'duplicate' | 'revert'
+export type TitleMenuAction = 'save' | 'save-as-new' | 'save-and-apply' | 'rename' | 'duplicate' | 'revert' | 'export'
 
 // The title menu (Aurora-daaa.11): a Dialog in a Popover with the file actions, then New and Open
 // submenus (Aurora-iryq). One menu, so the arrow keys reach everything; effects open on Enter or a
@@ -88,6 +88,7 @@ export function TitleMenu({
             {isBuiltin ? null : <MenuItem id="rename" isDisabled={nothingOpen}>Rename</MenuItem>}
             <MenuItem id="duplicate" isDisabled={nothingOpen}>Duplicate</MenuItem>
             <MenuItem id="revert" isDisabled={!unsaved}>Revert to saved</MenuItem>
+            <MenuItem id="export" isDisabled={nothingOpen}>Export graph</MenuItem>
             <MenuSeparator />
             <SubmenuItem id="new" label="New" aria-label="New effect" onAction={pickNew}>
               <MenuSection title="Start from">

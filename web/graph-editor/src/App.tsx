@@ -53,6 +53,7 @@ import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
 import { positionsFor, tidyPositions } from './graph/layout'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
+import { downloadText, exportFile } from './graph/exportGraph'
 import { hints, mod } from './graph/keys'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
@@ -635,6 +636,15 @@ export function App() {
   const pointer = useRef<{ x: number; y: number } | null>(null)
   const countOf = (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`
 
+  const exportCurrent = () => {
+    const current = docRef.current
+    if (!current) return
+    const positions = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
+    const file = exportFile(current, shownTitle || effectId, positions)
+    downloadText(file.name, file.text)
+    announce(`Exported ${countOf(current.nodes.length)}`)
+  }
+
   const copyPicked = async (cut: boolean) => {
     const current = docRef.current
     if (!current || picked.length === 0) return
@@ -1077,6 +1087,7 @@ export function App() {
             else if (action === 'save-and-apply') void write('apply')
             else if (action === 'duplicate') { if (doc) openCopy(doc, shownTitle) }
             else if (action === 'revert') revertToSaved()
+            else if (action === 'export') exportCurrent()
             else setNaming({ kind: 'rename', initial: title })
           }}
           onOpenEffect={(id) => openEffect(id, 'here')}
