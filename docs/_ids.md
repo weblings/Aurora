@@ -27,6 +27,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4g4d-x2om-51nv12-recipes-demo-live` | [log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md](log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md) | Recipes page and demo editor live on Pages: three beads closed on the owner's word |
 | `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
+| `4nqt1-react-dashboard-delivery` | [log/2026-11-23-4nqt1-react-dashboard-delivery.md](log/2026-11-23-4nqt1-react-dashboard-delivery.md) | React Dashboard and NUX: build and delivery decision |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |
@@ -160,7 +161,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `distributed-architecture-plan` | [archive/DistributedArchitecturePlan.md](archive/DistributedArchitecturePlan.md) | Distributed architecture — how far to decompose Input/Processing/Output over a network |
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
-| `dzsd-import-from-file` | [log/2026-11-23-dzsd-import-from-file.md](log/2026-11-23-dzsd-import-from-file.md) | Import a graph file from the Effect menu |
+| `dzsd-import-from-file` | [log/2026-11-23-dzsd-import-from-file.md](log/2026-11-23-dzsd-import-from-file.md) | Import a graph file: menu and drop |
 | `e4bi-22-empty-section-leads` | [log/2026-11-18-e4bi-22-empty-section-leads.md](log/2026-11-18-e4bi-22-empty-section-leads.md) | A stored empty section can lead the controls list |
 | `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
@@ -400,6 +401,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o7-g2d-builtin-graphs` | [log/2026-10-14-ra4o7-g2d-builtin-graphs.md](log/2026-10-14-ra4o7-g2d-builtin-graphs.md) | G2d built-in Video and Audio graphs, parity gate (Aurora-ra4o.7) |
 | `ra4o8-g3-cutover` | [log/2026-10-15-ra4o8-g3-cutover.md](log/2026-10-15-ra4o8-g3-cutover.md) | G3 cutover: the app runs on the Graph (Aurora-ra4o.8) |
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
+| `react-dashboard-delivery` | [planning/WebUI/ReactDashboardDelivery.md](planning/WebUI/ReactDashboardDelivery.md) | React Dashboard and NUX: build and delivery |
 | `ruig-temp-dir-per-process` | [log/2026-11-18-ruig-temp-dir-per-process.md](log/2026-11-18-ruig-temp-dir-per-process.md) | Test temp dirs unique per process |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |

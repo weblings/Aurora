@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { exportFile } from './exportGraph'
 import { importFile, titleFromFileName } from './importGraph'
+import { parseClip, pasteSelection } from './doc'
 import { builtinLike, catalog, customLike } from './fixtures'
 
 describe('titleFromFileName', () => {
@@ -41,5 +42,14 @@ describe('importFile', () => {
     const clip = JSON.stringify({ 'aurora-graph-clip': 1, nodes: [{ id: 'x', type: 'no.such', params: {} }], edges: [], ui: {}, controls: [] })
     const got = importFile(clip, 'a.json', catalog, [])
     expect(got).toEqual({ ok: false, error: 'Nothing to import: unknown type here' })
+  })
+
+  it('a dropped export merges into an open graph and leaves its own nodes alone', () => {
+    const open = builtinLike()
+    const clip = parseClip(exportFile(customLike(), 'x').text)!
+    const { doc, added } = pasteSelection(open, clip, { x: 300, y: 300 }, catalog)
+    expect(added.size).toBeGreaterThan(0)
+    expect(doc.nodes.slice(0, open.nodes.length)).toEqual(open.nodes)
+    expect(doc.edges.slice(0, open.edges.length)).toEqual(open.edges)
   })
 })

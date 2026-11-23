@@ -89,7 +89,7 @@ during one applies, then reverts, because apply alone leaves the test running
 (the revert rebuilds the just-applied effect from disk).
 
 The title menu is one `Menu`: Save, Save as new, Save and apply, Rename, Duplicate,
-Revert to saved, Export graph (the whole graph as the clip JSON that paste accepts, downloaded by `graph/exportGraph.ts`, `Aurora-vtm5`), then New and Open submenus (`TitleMenu.tsx`), each ending in From file..., which opens a picked graph file as a new unsaved effect (`graph/importGraph.ts`, `Aurora-dzsd`). New lists the dashboard's
+Revert to saved, Export graph (the whole graph as the clip JSON that paste accepts, downloaded by `graph/exportGraph.ts`, `Aurora-vtm5`), then New and Open submenus (`TitleMenu.tsx`), each ending in From file..., which opens a picked graph file as a new unsaved effect (`graph/importGraph.ts`, `Aurora-dzsd`). A graph file dropped on the window merges into the open graph at the drop point, or opens as a new effect when nothing is open (`useFileDrop.ts`, `DropFrame.tsx`). New lists the dashboard's
 Start from choices flat; `graph/titleMenu.ts` `startPoints()` copies the rule of
 `startPoints()` in `web/ui/EffectPanelModel.js` (keep in sync). Custom and Hidden
 sub-menus follow (`startGroups()`, from the dashboard's `buildGroups`; Hidden holds hidden

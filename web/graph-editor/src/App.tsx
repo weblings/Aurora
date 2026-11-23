@@ -54,7 +54,9 @@ import { positionsFor, tidyPositions } from './graph/layout'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
 import { downloadText, exportFile } from './graph/exportGraph'
-import { importFile } from './graph/importGraph'
+import { NOT_GRAPH, importFile } from './graph/importGraph'
+import { useFileDrop } from './useFileDrop'
+import { DropFrame } from './DropFrame'
 import { hints, mod } from './graph/keys'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
@@ -1002,6 +1004,21 @@ export function App() {
     )
   }
 
+  // A file dropped on the window (Aurora-dzsd): merged into the open graph at the drop point like a paste,
+  // or opened as a new effect when nothing is open.
+  const dropFiles = (files: File[], at: { x: number; y: number }) => {
+    if (files.length > 1) return showToast('Drop one file at a time')
+    if (!docRef.current) return openFile(files[0])
+    if (!catalog) return showToast('Still loading, try again in a moment')
+    files[0].text().then(
+      (text) => {
+        if (!pasteText(text, at)) showToast(NOT_GRAPH)
+      },
+      () => showToast("Couldn't read that file"),
+    )
+  }
+  const dropping = useFileDrop(dropFiles)
+
   // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
   // the kept copy goes with it.
   const revertToSaved = () => {
@@ -1347,6 +1364,14 @@ export function App() {
         }}
         onHold={holdToast}
       />
+      {dropping ? (
+        <div className="editor-drop" aria-hidden="true">
+          <div className="editor-drop-box">
+            <DropFrame />
+            <span className="editor-drop-hint">Drop to import</span>
+          </div>
+        </div>
+      ) : null}
       <Announcer text={announced} />
     </div>
   )
