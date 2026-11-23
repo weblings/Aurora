@@ -70,6 +70,56 @@ namespace Aurora::Input::Linux
   };
 
 
+  // Decides when DMA-BUF reads are too slow to be useful (Aurora-vijc: a
+  // mmapped LINEAR buffer on the Steam Deck APU copies out at ~680 ms a
+  // frame vs ~3 ms from shared memory) and a renegotiation to shared memory
+  // is worth it. Unlike DmabufReadFallback the frames are valid; only the
+  // time they take counts. A read at or under budget resets the count.
+  class SlowReadWatch
+  {
+  public:
+    static constexpr double kDefaultBudgetMs = 100.0;
+    static constexpr int kMaxConsecutiveSlow = 3;
+
+    explicit SlowReadWatch(double budgetMs = kDefaultBudgetMs)
+      : m_budgetMs(budgetMs)
+    {
+    }
+
+    // True exactly once: on the slow read that crosses the threshold.
+    bool onReadTimed(double ms)
+    {
+      if(m_disabled){
+        return false;
+      }
+      if(ms <= m_budgetMs){
+        m_consecutiveSlow = 0;
+        return false;
+      }
+      if(++m_consecutiveSlow >= kMaxConsecutiveSlow){
+        m_disabled = true;
+        return true;
+      }
+      return false;
+    }
+
+    bool disabled() const
+    {
+      return m_disabled;
+    }
+
+    double budgetMs() const
+    {
+      return m_budgetMs;
+    }
+
+  private:
+    double m_budgetMs;
+    int m_consecutiveSlow{0};
+    bool m_disabled{false};
+  };
+
+
   // Spots the 1t1 freeze: callbacks keep arriving but none carry pixels
   // (empty or CORRUPTED chunks), so the grabber serves its last good frame.
   // Silence (no callbacks) is not a stall: an idle screen sends nothing.

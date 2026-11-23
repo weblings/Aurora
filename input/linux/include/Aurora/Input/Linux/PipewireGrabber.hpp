@@ -73,6 +73,7 @@ namespace Aurora::Input::Linux
       // A Buffers param restricted to DmaBuf was sent; undo it on fallback.
       bool dmabufBuffersRequested{false};
       DmabufReadFallback dmabufFallback;
+      SlowReadWatch slowReadWatch;
       spa_source* renegotiateEvent{nullptr};
       StaleFrameWatch staleWatch;
 
