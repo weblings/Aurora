@@ -220,6 +220,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `hr92-nux-effect-dropdown` | [log/2026-11-20-hr92-nux-effect-dropdown.md](log/2026-11-20-hr92-nux-effect-dropdown.md) | NUX capture source picks from the effect dropdown |
 | `http-server-analysis` | [archive/HttpServerAnalysis.md](archive/HttpServerAnalysis.md) | HTTP server analysis |
 | `hue-output-analysis` | [archive/HueOutputAnalysis.md](archive/HueOutputAnalysis.md) | Hue::Api / Auth / Stream — Conversion analysis |
+| `hvxd-steamos-setup-script` | [log/2026-11-23-hvxd-steamos-setup-script.md](log/2026-11-23-hvxd-steamos-setup-script.md) | SteamOS setup script and user guide (Distrobox + Game Mode, 0 to 1) |
 | `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |
 | `i0sz-game-mode-probes` | [log/2026-11-22-i0sz-game-mode-probes.md](log/2026-11-22-i0sz-game-mode-probes.md) | Steam Deck Game Mode: the gamescope node is reachable from a background service and from the Distrobox (lights follow the game; audio untested) |
 | `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
@@ -418,6 +419,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `so1o-pairing-copy-fixes` | [log/2026-10-16-so1o-pairing-copy-fixes.md](log/2026-10-16-so1o-pairing-copy-fixes.md) | Pairing screen copy and centering fixes (Aurora-so1o) |
 | `stable-monitor-keys` | [log/2026-10-24-stable-monitor-keys.md](log/2026-10-24-stable-monitor-keys.md) | 5ipy.27: stable monitor keys (Aurora-5ipy.27) |
 | `stack-comparison` | [archive/StackComparison.md](archive/StackComparison.md) | Stack comparison — huenicorn vs. Aurora-App-Linux vs. Aurora-App-Windows |
+| `steamos-user-guide` | [SteamOS.md](SteamOS.md) | Aurora on the Steam Deck |
 | `t2hz-react-aria-popup-spike` | [log/2026-11-08-t2hz-react-aria-popup-spike.md](log/2026-11-08-t2hz-react-aria-popup-spike.md) | React Aria popup spike for the graph editor |
 | `ta5-param-schema` | [log/2026-10-01-ta5-param-schema.md](log/2026-10-01-ta5-param-schema.md) | Aurora-ta5: C++ param schema as single source for tuning ranges |
 | `tft-parity-harness` | [log/2026-10-01-tft-parity-harness.md](log/2026-10-01-tft-parity-harness.md) | Aurora-tft: golden parity harness for both orchestrators |

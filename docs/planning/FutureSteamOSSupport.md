@@ -137,7 +137,9 @@ paired phone. Flatpak stays the end-user target and Decky the Deck-only control
 option, both in 1.2.2. See [[i0sz-game-mode-probes]].
 
 1. Desktop Mode: one script creates `aurora-dev`, installs the packages, builds
-   Aurora and installs the launcher unit (`Aurora-hvxd`).
+   Aurora and installs the launcher unit (`tools/steamos/setup-aurora.sh`, `Aurora-hvxd`;
+   guide: [[steamos-user-guide]]). CI builds only on Ubuntu and publishes no
+   binary, so Aurora is built on the Deck.
 2. Desktop Mode: launch Aurora once, set up Hue and capture, pair the phone from
    the local UI at `127.0.0.1:8215` (pairing needs a trusted local UI), quit Aurora.
 3. Game Mode: the `systemd --user` unit waits for `gamescope-wl`, exports
