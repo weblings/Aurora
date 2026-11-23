@@ -28,12 +28,13 @@ Id: i0sz-game-mode-probes
 - Decision for 1.2.1: scripted Arch Distrobox, launcher unit, paired phone. Flatpak and Decky move to 1.2.2.
 
 ## Filed after the close
-- `Aurora-hvxd` (P2, 1.2.1): setup script and user guide for the whole path, `Aurora-dl5b` (P3, 1.2.1): stable phone address. `Aurora-mjk0` (P3, 1.2.1): permanent Game Mode launcher, a persistent `systemd --user` unit replacing the throwaway watcher (no browser window over the game, install steps, where it ships).
+- `Aurora-hvxd` (P2, 1.2.1): setup script and user guide for the whole path, `Aurora-dl5b` (P3, closed the same day): stable phone address, not needed. `Aurora-mjk0` (P3, 1.2.1): permanent Game Mode launcher, a persistent `systemd --user` unit replacing the throwaway watcher (no browser window over the game, install steps, where it ships).
 - `Aurora-ch0g` (P3, closed the same day): audio capture and audio-effect reaction in Game Mode (passed). Its 2-minute video frame-rate and `SlowReadWatch` check and the Remote Play interference check were skipped by the owner and not done.
 - The watcher service was stopped after the test. `Aurora-l3mp` (Decky) stays P4.
 
 ## Open
 - Not checked (skipped): Game Mode video frame rate and the `SlowReadWatch` fallback over a long run, and whether a second PipeWire consumer disturbs Steam Remote Play or recording (pipewire issue 3157).
+- Phone address: `http://steamdeck.local:8215/` loads on the owner's phone, and Aurora's Host allowlist already accepts the machine name and `<name>.local`. The pairing cookie `aurora_token` belongs to the host name the phone used, so the guide pairs through `steamdeck.local`, not the IP (an IP change would need a re-pair). Nothing to build; `Aurora-dl5b` closed.
 - The permanent launcher unit with a stale-instance eviction: `Aurora-mjk0`; the setup script and guide: `Aurora-hvxd`.
 - A native Decky panel for Deck-only control (`Aurora-l3mp`) and the Flatpak (`Aurora-pena`) are 1.2.2.
 - Not verified that a game was focused during the sampler window.

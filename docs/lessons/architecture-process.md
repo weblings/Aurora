@@ -1343,5 +1343,5 @@ Applies-when: planning how a user controls Aurora on a Steam Deck in Game Mode, 
 
 Aurora-wsyo: Game Mode has no browser overlay, so the working control surface is a phone on the same Wi-Fi. LAN pairing (closed 2026-10-16) trusts loopback and gives each other device a token, approved from the local UI, so the phone must be paired in Desktop Mode, where `127.0.0.1:8215` is reachable; the token sits in `~/.config/aurora` and works in Game Mode afterwards. A planning note that said "no auth" was older than that work. One instance per config folder: a copy left from Desktop Mode keeps `aurora.lock`, captures through the portal and makes a Game Mode launch exit with "already running".
 
-**Fix:** pair in Desktop Mode, check the closed beads before quoting a planning doc's "today" line, and have the Game Mode launcher stop any running Aurora (`pkill -x Aurora`, wait for the lock) before it starts its own.
+**Fix:** pair in Desktop Mode through `http://steamdeck.local:8215/` (the token is a cookie bound to the host name used, so an IP-paired phone must re-pair when the IP changes), check the closed beads before quoting a planning doc's "today" line, and have the Game Mode launcher stop any running Aurora (`pkill -x Aurora`, wait for the lock) before it starts its own.
 
