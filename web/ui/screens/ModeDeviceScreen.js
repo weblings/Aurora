@@ -225,10 +225,9 @@ export class ModeDeviceScreen {
     // server-side) -- show busy state while awaiting it, or the button
     // reads as dead. No restore needed: the apply's own trailing _render
     // rebuilds this footer fresh before navigation runs.
-    const button = this.container.querySelector('.nav-footer-continue');
-    if(button){
-      button.disabled = true;
-      button.textContent = 'Applying…';
+    const footer = this.container.querySelector('.nav-footer-slot');
+    if (footer) {
+      renderNavFooter(footer, { showBack: this.showBack, onBack: () => this.onBack(), continueLabel: 'Applying…', continueDisabled: true });
     }
     try {
       await this.applyPromise;

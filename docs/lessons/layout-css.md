@@ -354,3 +354,11 @@ the right half of the outline as a path from top centre to bottom centre, flip a
 the others (`tail = (dash - arc) / 2`), and fit a whole number of dash and gap pairs on each stretch from the measured size, with half a gap
 at each end so the halves meet on a whole gap. A small radius (10 with a 6 px stroke) keeps the corner dash from dominating. Check the
 fitted array sums to the half perimeter: one side fit was wrong for most sizes and only right at 640 by 320.
+
+## Grille's ui.css sits in `@layer ui`, so Aurora's unlayered CSS wins every tie
+Tags: css, cascade, layers, grille, focus-visible
+Applies-when: loading Grille's `ui.css` on a page that also carries `web/ui` styles (`tokens.css`, `forms.css`), or an island looks different from the editor
+
+`ui.css` starts with `@layer reset, app, ui;` and puts every rule in `ui`. Unlayered CSS beats any layered rule whatever the specificity. Aurora's global `:focus-visible` rule in `tokens.css` is unlayered and overrides Grille's `[data-pointer-opened] { outline: none }`, so a popover trigger would keep its ring. The two focus rings agree (2px, offset 2px, same color), so a plain button shows no difference. Grille's own rules have no global selectors, so nothing on the vanilla page restyles.
+
+**Fix:** keep Aurora's page CSS scoped to its own classes. Put an override meant to beat Grille in `@layer app`, or accept the unlayered win when the values match.

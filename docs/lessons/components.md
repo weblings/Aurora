@@ -652,3 +652,11 @@ Applies-when: moving shell.css rows onto a Grille component while the other page
 - Check selectors change with the markup: `.ui-message-row-mark`, `[aria-label="Dismiss"]`.
 
 **Fix:** wrap `MessageRow`, compare facts in the parity test, update the browser check selectors.
+
+## A piece that becomes an island cannot be poked through its DOM, so give the render call the state
+Tags: webui, islands, navfooter, vanilla-wrapper, disabled
+Applies-when: replacing a vanilla `renderX(container, opts)` piece with a React island while screens still reach into its buttons
+
+Aurora-4nqt.3: two screens set `.disabled` and `textContent` on `.nav-footer-continue` after rendering the footer. A React button never sees a DOM write, `mountIsland` renders after the call returns, and Grille's buttons carry no `nav-footer-*` classes and style disabled from `data-disabled`, not `:disabled`.
+
+**Fix:** add the state to the options (`continueDisabled`, `continueLabel`) and call the render function again. The wrapper unmounts the old island first (a `WeakMap` keyed by container). Pass `window.auroraIslands` through a wrapper in `web/ui`, and fall back to plain buttons with one console error if the bundle is absent. Node tests run the fallback path, so they keep their class selectors.

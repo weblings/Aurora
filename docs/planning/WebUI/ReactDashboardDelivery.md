@@ -24,9 +24,15 @@ Id: react-dashboard-delivery
   entry from `/graph-editor/` (root-absolute, since the page is not under that
   prefix).
 - The build uses `base: './'`, so the island entry needs a **stable file name**
-  (`islands.js`, `islands.css` via `entryFileNames` and `assetFileNames` for
-  that entry only). Its chunks stay hashed and are imported relative to it.
-  Aurora-4nqt.3 proves this.
+  (`islands.js` via `entryFileNames` for that entry only). Its chunks stay
+  hashed and are imported relative to it. An entry with no HTML page gets no
+  stylesheet links, so `islands.js` adds its own for Grille's `tokens.css` and
+  `ui.css` (`?url` imports). Aurora-4nqt.3 proves this.
+- `islands.js` runs before `app.js` (module scripts run in document order) and
+  sets `window.auroraIslands`. A vanilla wrapper such as `NavFooter.js` calls
+  it, so `web/ui` never imports the bundle and the demo vendor closure stays
+  intact. With no bundle the wrapper logs one console error and draws plain
+  buttons.
 - The editor's `index.html` entry is unchanged.
 - Islands are mounted with Grille `mountIsland` into slots that vanilla code
   never touches. One owner per DOM region.
@@ -88,8 +94,8 @@ Id: react-dashboard-delivery
 
 ## Open questions for the owner
 
-- Is a Node-less app build still supported between the first replacing island
-  and the flip? Recommendation: no. Presets already require Node, so declare
-  the bundle mandatory from Aurora-4nqt.4 and let `-DAURORA_ENABLE_GRAPH_EDITOR=OFF`
-  build a Dashboard-less dev slice only.
+- Node-less app build: **decided 2026-11-23, the bundle is mandatory** from
+  Aurora-4nqt.3 (the first replacing island, NavFooter). Presets already
+  require Node, and `-DAURORA_ENABLE_GRAPH_EDITOR=OFF` builds a Dashboard-less
+  dev slice only.
 - Rename the project directory after the flip? Recommendation: defer.
