@@ -28,6 +28,7 @@ import { ZoneCanvas } from '../ZoneCanvas.js';
 import { ZoneActiveToggleList } from '../ZoneActiveToggle.js';
 import { screenDivisionRects } from '../ScreenDivision.js';
 import { AccordionSection } from '../AccordionSection.js';
+import { SettingsPanel } from '../SettingsPanel.js';
 import { PairedDevices } from '../PairedDevices.js';
 import { TuningFields } from '../TuningFields.js';
 import { sliderGroupHtml, wireSliderGroup } from '../TuningSliderGroup.js';
@@ -162,6 +163,8 @@ export class DashboardScreen {
     this.tuningSection = null;
     this.outputSection = null;
     this.pairedDevices = null;
+    this.settingsPanel = null;
+    this.capabilities = {};
   }
 
   async mount(container) {
@@ -231,6 +234,7 @@ export class DashboardScreen {
       return false;
     }
 
+    this.capabilities = capabilities;
     this.output = (capabilities.outputs ?? []).find((name) => Object.hasOwn(OUTPUT_SECTIONS, name)) ?? null;
     this.zeroOffOutputs = capabilities.zeroOffOutputs ?? [];
     this.inputs = capabilities.inputs ?? [];
@@ -651,6 +655,7 @@ export class DashboardScreen {
       <div class="db-accordion-tuning"></div>
       <div class="db-accordion-output"></div>
       <div class="db-accordion-paired-devices"></div>
+      <div class="db-accordion-settings"></div>
     `;
 
     this.zoneMappingSection = new AccordionSection(wrap.querySelector('.db-accordion-zone-mapping'), { title: 'Zone Mapping', expanded: true });
@@ -677,6 +682,16 @@ export class DashboardScreen {
       this.pairedDevices = new PairedDevices(section.content, { onUnreachable: () => this.app.checkNow() });
       this.pairedDevices.render();
       void this.pairedDevices.load();
+    }
+
+    // Settings is always the last accordion (Aurora-vxhm); skipped when no row applies.
+    this.settingsPanel = null;
+    const settings = new SettingsPanel(null, { capabilities: this.capabilities, onUnreachable: () => this.app.checkNow() });
+    if (settings.hasRows) {
+      const section = new AccordionSection(wrap.querySelector('.db-accordion-settings'), { title: 'Settings', expanded: false });
+      settings.container = section.content;
+      this.settingsPanel = settings;
+      void settings.render();
     }
   }
 
