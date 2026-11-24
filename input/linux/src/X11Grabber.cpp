@@ -4,6 +4,8 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <ctime>
 #include <limits>
 #include <stdexcept>
 
@@ -34,6 +36,25 @@ namespace
   // when a driver under-reports root damage (NVIDIA fullscreen flipping
   // without a compositor is the known case).
   constexpr long long kMaxStaleMs = 1000;
+
+  // TEMPORARY diagnostic (pink-flash hunt): AURORA_DEV_X11_TRACE=1 logs one
+  // stderr line per real grab -- which path triggered it, how it was read,
+  // and the mean color it produced -- so a bad frame can be matched to its
+  // path. Remove once the cause is found.
+  bool x11TraceEnabled()
+  {
+    static const bool enabled = std::getenv("AURORA_DEV_X11_TRACE") != nullptr;
+    return enabled;
+  }
+
+  // TEMPORARY A/B switch for the same hunt: AURORA_DEV_X11_NO_CHAIN=1 forces
+  // the plain full-frame XShmGetImage read instead of the XRender halving
+  // chain, to tell whether the chain is what returns bad frames (Aurora-1juz).
+  bool x11NoChain()
+  {
+    static const bool disabled = std::getenv("AURORA_DEV_X11_NO_CHAIN") != nullptr;
+    return disabled;
+  }
 
   // EDID hash of the output, empty when it has none. Duplicates are
   // disambiguated later by assignMonitorKeys.
@@ -363,9 +384,11 @@ namespace Aurora::Input::Linux
     const long long nowMs = steadyNowMs();
     const bool damaged = m_grabGate.hasFrame() ? _pollDamage(selectedMonitor) : true;
     if(!m_grabGate.shouldGrab(damaged, nowMs)){
+      ++m_traceSkips;
       imageData = m_lastFrame;
       return;
     }
+    const char* traceWhy = !m_grabGate.hasFrame() ? "first" : damaged ? "damage" : "stale";
 
     int width = static_cast<int>(selectedMonitor->width);
     int height = static_cast<int>(selectedMonitor->height);
@@ -424,6 +447,41 @@ namespace Aurora::Input::Linux
         width, height,
         static_cast<size_t>(ximage->bytes_per_line),
         format, decimation, bytesPerPixel);
+    }
+
+    if(x11TraceEnabled() && !m_lastFrame.imageMatrix.empty()){
+      const cv::Scalar mean = cv::mean(m_lastFrame.imageMatrix);
+      const bool tracePink = mean[2] > mean[1] + 15 && mean[0] > mean[1] + 8;
+      const bool traceBlack = mean[0] < 3 && mean[1] < 3 && mean[2] < 3;
+      timespec ts{};
+      clock_gettime(CLOCK_REALTIME, &ts);
+      std::fprintf(
+        stderr, "[x11-trace] %ld.%03ld why=%s via=%s %dx%d dec=%d bpp=%d skips=%u meanBGR=(%.0f,%.0f,%.0f)%s\n",
+        static_cast<long>(ts.tv_sec), static_cast<long>(ts.tv_nsec / 1000000),
+        traceWhy, m_scaleChain ? "chain" : "shm", width, height, decimation,
+        ximage->bits_per_pixel, m_traceSkips, mean[0], mean[1], mean[2],
+        tracePink ? " flag=pink" : traceBlack ? " flag=black" : "");
+      m_traceSkips = 0;
+      // Pink frame (R well above G, B above G): keep its pixels (BGR order).
+      if(tracePink){
+        static int dumped = 0;
+        if(dumped < 6){
+          const cv::Mat& bgr = m_lastFrame.imageMatrix;
+          char path[128];
+          std::snprintf(path, sizeof(path), "%s/pink_%d.ppm", std::getenv("AURORA_DEV_X11_TRACE"), dumped);
+          if(std::FILE* out = std::fopen(path, "wb")){
+            std::fprintf(out, "P6\n%d %d\n255\n", bgr.cols, bgr.rows);
+            for(int y = 0; y < bgr.rows; ++y){
+              for(int x = 0; x < bgr.cols; ++x){
+                const uint8_t* px = bgr.ptr<uint8_t>(y) + x * bgr.channels();
+                std::fputc(px[2], out); std::fputc(px[1], out); std::fputc(px[0], out);
+              }
+            }
+            std::fclose(out);
+          }
+          ++dumped;
+        }
+      }
     }
 
     imageData = m_lastFrame;
@@ -609,7 +667,7 @@ namespace Aurora::Input::Linux
 
   void X11Grabber::_ensureScaleChain(const X11MonitorData& monitor)
   {
-    const int halvings = m_rootPicture == None
+    const int halvings = (m_rootPicture == None || x11NoChain())
       ? 0
       : serverHalvings(m_captureWidthHint.load(), static_cast<int>(monitor.width));
 
