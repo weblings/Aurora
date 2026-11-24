@@ -18,6 +18,7 @@ endif()
 add_executable(AuroraInputMacTests
   MacInputTests.cpp
   InputControlDescriptorTests.cpp
+  DisplayReconfigurationTests.cpp
 )
 
 if(AURORA_INPUT_MAC_ENABLE_AUDIO)

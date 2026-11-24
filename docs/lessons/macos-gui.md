@@ -524,3 +524,13 @@ Applies-when: a script run by a LaunchAgent cleans itself up with `launchctl boo
 `update-grant-test.sh --after-reboot` ended with `launchctl bootout gui/<uid>/<label>` and then `rm -f` of its own plist and a notification. The result file was written, but bootout stopped the running job, so the `rm` and the notification never ran and the plist stayed in `~/Library/LaunchAgents`, ready to rerun at the next login.
 
 **Fix:** do the notification and `rm` of the plist first and `bootout` last, or let the job exit and have a separate step unload it.
+
+---
+
+## Display reconfiguration callbacks and the screen-parameters notification arrive only under an AppKit event pump, not a bare run-loop pump; the removed display's UUID is already gone in the callback
+Tags: macos, cgdisplay, reconfiguration-callback, runloop, nsapplication, virtual-display, hotplug
+Applies-when: reacting to a display being added or removed with `CGDisplayRegisterReconfigurationCallback` or `NSApplicationDidChangeScreenParametersNotification`, or testing that without a second monitor
+
+A probe that registered both and then pumped with `CFRunLoopRunInMode` or `[NSRunLoop runUntilDate:]` got neither signal across three runs, in the Claude Code shell and in Terminal.app, while the virtual display itself came and went. Under `[NSApp run]`, and under Aurora's own `TrayIcon::pump` shape (`finishLaunching` once, then `nextEventMatchingMask` plus `sendEvent`), both fired (Aurora-h06o). Observed on macOS 27.2.1: each display first gets `BeginConfiguration` (0x1), then an add is 0x111a (`Moved|SetMode|Add|Enabled|DesktopShapeChanged`) on the new display and 0x1000 on the others; a remove is 0x1220 (`Remove|Disabled|DesktopShapeChanged`) with a second screen-parameters notification. In the remove callback `CGDisplayCreateUUIDFromDisplayID` already returns null, so the removed monitor cannot be named by key there. Calling the notification by itself "hotplug" is wrong: it also fires for non-membership changes, so compare identities.
+
+**Fix:** register the callback in an app that pumps like `TrayIcon::pump`; treat the callback as a trigger only (`displayReconfigurationMayChangeMonitors`, no `BeginConfiguration`, a membership bit) and re-enumerate and diff `monitorIdentities`. To test without a second monitor, `tools/mac/virtual-display-probe.m` creates and removes a private `CGVirtualDisplay` (same vendor, product and serial keeps the same display UUID on re-add, only the display id changes); it is a private API and may break on a macOS update.
