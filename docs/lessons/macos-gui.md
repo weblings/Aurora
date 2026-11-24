@@ -483,7 +483,7 @@ Applies-when: you need the Local Network prompt to appear again, or a "reset all
 
 macOS 27.2 changes this: TN3179 (rev. 2026-10-06) says the System Settings > Privacy & Security > Local Network list gains +/- buttons, and removing an app resets it. Earlier 27.x (this Mac was 27.0.1 in Aurora-dwvu) has no reset.
 
-**Fix:** on 27.2+, remove the app from the list. Before that, `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first (or pass `--fresh`). Ad-hoc copies show two dialogs where a shipped build shows one; see the notarized-build entry before counting prompts.
+**Fix:** on 27.2+, remove the app from the list (verified on 27.2.1, Aurora-lswm: after removing a throwaway signed app with the minus button, its next launch raised the prompt again; `tools/mac/remove-entry-test.sh grant|relaunch` runs it). Before that, `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first (or pass `--fresh`). Ad-hoc copies show two dialogs where a shipped build shows one; see the notarized-build entry before counting prompts.
 
 ---
 
