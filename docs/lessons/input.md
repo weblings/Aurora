@@ -1036,3 +1036,13 @@ Applies-when: writing or changing the Game Mode launcher unit, or any service th
 Aurora-mjk0: the process lives in the `aurora-dev` podman scope, not the unit's cgroup, so `systemctl --user stop` and `KillMode` never reach it. A `TERM` trap that runs `pkill -x Aurora` (SIGKILL after a timeout) does, and the same call before each start removes a Desktop Mode copy holding `aurora.lock`, which would otherwise print "already running" and exit.
 
 **Fix:** `tools/steamos/aurora-gamemode.sh` traps `TERM`/`INT` and calls `stop_aurora` at start and when gamescope exits.
+
+---
+
+## Mac monitor set: re-read it from CoreGraphics on a reconfiguration callback; a mirrored display leaves the list, and mode or primary changes leave `/api/monitors` stale until the next rebuild
+Tags: mac, screencapturekit, monitors, hotplug, mirroring, virtual-display, takeMonitorsChanged
+Applies-when: changing how the Mac grabber notices displays coming and going, or testing monitor hotplug without a second monitor
+
+`ScreenCaptureKitGrabber::takeMonitorsChanged` (Aurora-h06o) compares `CGGetActiveDisplayList` identities (key, else name) against a baseline taken when the list was built, triggered by the filtered `CGDisplayRegisterReconfigurationCallback`; `SCShareableContent` is not used there, so no Screen Recording is needed and no cross-process wait blocks the tick thread. Observed with a private `CGVirtualDisplay` and the dev build run from Terminal.app (input `mac`), reading `source.video.monitor` in `/api/state`: add shows in `/api/monitors` in about 2 s; removing the captured display falls back to the primary and re-adding it with the same serial is captured again by its saved key; a mirrored display drops out of the list and returns on unmirror; display sleep and wake change nothing; a display added while paused is picked up by the rebuild on resume; a burst of add/remove collapses to one rebuild by the 1 s debounce; a mode change or a primary change causes no rebuild, so the listed size and the `PRIMARY` label stay stale until the next rebuild; with two virtual displays, removing the selected one falls back to the primary, not the other. The list order changes when a display is added.
+
+**Fix:** keep the trigger cheap (filter the flags, then compare identities) and never key off list position or the `PRIMARY` label. To test, build `tools/mac/virtual-display-probe.m` (`--hold`, `--mirror 1`, `--mode-change 1`, `--primary-change 1`, `--fast 1`) and run it in Terminal.app against the app launched from Terminal; an app launched with `open` under a dev identity got no Screen Recording prompt. See [[h06o-mac-monitor-reconfiguration]].

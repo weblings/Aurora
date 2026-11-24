@@ -39,6 +39,7 @@
 #include <Aurora/Runtime/ControlDescriptorTables.hpp>
 #include <Aurora/Runtime/ControlDescriptors.hpp>
 #include <Aurora/Runtime/PendingRunRequest.hpp>
+#include <Aurora/Runtime/MonitorChangeWatcher.hpp>
 #include <Aurora/Runtime/OutputLinkMonitor.hpp>
 #include <Aurora/Runtime/Pipeline.hpp>
 #include <Aurora/Runtime/ApplyRoutes.hpp>
@@ -604,6 +605,14 @@ try
   auto outputLinkMonitor = Aurora::Runtime::makeHostLinkMonitor(pipelineHost, registry, configRoot);
   outputLinkMonitor->start();
 
+  // A display plugged, unplugged or (un)mirrored under a running capture
+  // (Aurora-h06o): one debounced rebuild, so /api/monitors and the capture
+  // follow without a restart. The grabber's callback is delivered by the
+  // main-thread AppKit pump below.
+  auto monitorChangeWatcher = Aurora::Runtime::makeHostMonitorChangeWatcher(
+    pipelineHost, registry, configRoot, [lightTest]{ return lightTest->info().active; });
+  monitorChangeWatcher->start();
+
   std::exception_ptr tickError;
   std::thread tickThread([&]{
     try{
@@ -645,6 +654,7 @@ try
   std::cout << "Stopping...\n";
   tickThread.join();
   if(tickError){ std::rethrow_exception(tickError); }
+  monitorChangeWatcher->stop();
   outputLinkMonitor->stop();
   pipelineHost.shutdown();
 
