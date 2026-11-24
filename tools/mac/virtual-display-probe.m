@@ -10,7 +10,7 @@
 //
 // Build: clang -fobjc-arc -framework AppKit -framework ApplicationServices \
 //          tools/mac/virtual-display-probe.m -o /tmp/virtual-display-probe
-// Run:   /tmp/virtual-display-probe [--cycles N] [--hold SECONDS] [--serial N] [--pump run|hand]
+// Run:   /tmp/virtual-display-probe [--cycles N] [--hold SECONDS] [--serial N] [--pump run|hand] [--mirror 1]
 //        (callbacks arrive under [NSApp run]; --pump hand mirrors Aurora's own loop)
 #import <AppKit/AppKit.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -97,12 +97,13 @@ static void pump(double seconds)
 int main(int argc, char** argv)
 {
   @autoreleasepool {
-    int cycles = 2; double hold = 4; unsigned serial = 4242; BOOL handPump = NO;
+    int cycles = 2; double hold = 4; unsigned serial = 4242; BOOL handPump = NO; BOOL mirror = NO;
     for(int i = 1; i + 1 < argc; i += 2){
       if(!strcmp(argv[i], "--cycles")) cycles = atoi(argv[i + 1]);
       else if(!strcmp(argv[i], "--hold")) hold = atof(argv[i + 1]);
       else if(!strcmp(argv[i], "--serial")) serial = (unsigned)atoi(argv[i + 1]);
       else if(!strcmp(argv[i], "--pump")) handPump = !strcmp(argv[i + 1], "hand");
+      else if(!strcmp(argv[i], "--mirror")) mirror = !strcmp(argv[i + 1], "1");
     }
     if(!NSClassFromString(@"CGVirtualDisplay")){
       fprintf(stderr, "CGVirtualDisplay is not present on this macOS\n");
@@ -150,6 +151,19 @@ int main(int argc, char** argv)
                v ? v.displayID : 0, v ? [uuidOf(v.displayID) UTF8String] : "-", activeCount());
         fflush(stdout);
       });
+      if(mirror){
+        // Mirror the virtual display onto the main one 3 s in, undo it 3 s later.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+          CGDisplayConfigRef cfg; CGBeginDisplayConfiguration(&cfg);
+          CGConfigureDisplayMirrorOfDisplay(cfg, v.displayID, CGMainDisplayID());
+          printf("  mirroring virtual display onto main: %d\n", (int)CGCompleteDisplayConfiguration(cfg, kCGConfigureForSession)); fflush(stdout);
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+          CGDisplayConfigRef cfg; CGBeginDisplayConfiguration(&cfg);
+          CGConfigureDisplayMirrorOfDisplay(cfg, v.displayID, kCGNullDirectDisplay);
+          printf("  unmirroring: %d\n", (int)CGCompleteDisplayConfiguration(cfg, kCGConfigureForSession)); fflush(stdout);
+        });
+      }
       dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((1.5 + hold) * NSEC_PER_SEC)), dispatch_get_main_queue(), remove);
     };
     remove = ^{

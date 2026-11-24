@@ -1,4 +1,4 @@
-# Mac monitor-set rebuild: probe results, filter and grabber override (paused before the real-app pass)
+# Mac monitor-set rebuild: probe results, filter, grabber override and a virtual-display pass
 
 Id: h06o-mac-monitor-reconfiguration
 
@@ -15,7 +15,14 @@ Id: h06o-mac-monitor-reconfiguration
 ## Lessons
 - One entry in [[lesson-macos-gui]]: display callbacks need an AppKit event pump, and the removed display's UUID is gone in its callback.
 
-## Resume
-- Parked 2026-11-23 for want of a Screen Recording grant on a dev build: an ad-hoc dev build and a Developer ID signed copy under a throwaway bundle ID both got `no shareable displays` with no prompt, and `tccutil` reports the throwaway bundle ID unknown (macOS never made an entry for it). `tccutil reset ScreenCapture com.aurora.app` was run once while trying; a release build with that bundle ID may need its grant re-enabled.
+## Real-app pass (virtual display, same day)
+Dev build `build/mac-app/bin/Aurora.app` run from Terminal.app (`--fresh --fake-hue`, input `mac`, fake bridge as output), so Screen Recording ran under Terminal's grant. A launch with `open` (the app's own identity), ad hoc or Developer ID signed under a throwaway bundle ID, got `no shareable displays` with no prompt (`tccutil` says the throwaway ID is unknown: macOS made no entry). `tools/mac/virtual-display-probe.m` added and removed a private `CGVirtualDisplay` (same serial each time, so the same display UUID) while `/api/monitors` and `source.video.monitor` in `/api/state` were polled each second.
+- Add: `/api/monitors` gained the display about 2 s after the add, state stayed `running`, 0 errors, on both cycles.
+- Captured display removed: with the virtual display selected by its key, removal fell back to `Display 1 (Primary)` within about 2 s, `running`, 0 errors; re-adding it was captured again by its saved key (new display id each time). Done twice.
+- Mirroring: the probe mirrored the virtual display onto the main one and undid it. The mirrored display dropped out of the list and capture fell back to the primary; unmirroring brought it back and recaptured it. 5 state changes in total (initial, mirror out, unmirror in, remove), no loop.
+- Not covered: a resolution or mode change (the probe's display is static; only the unit-tested filter covers it), a physical cable pull, the app's own Screen Recording and Local Network identity, and ScreenCaptureKit capture content (only the reported capture target was read, no frames inspected).
+- `tccutil reset ScreenCapture com.aurora.app` was run once while trying to get a grant; a release build with that bundle ID may need its grant re-enabled.
 - A Developer ID copy needs hardened runtime off here: with it the Homebrew dylibs fail library validation (different Team ID); release builds bundle their own.
-- Resume on the notarized 1.2.1 candidate with the five steps in the `Aurora-h06o` notes (open the app, probe with `--hold 12` against `/api/monitors`, remove and re-add the selected display, mirror and resolution change, permission state unchanged).
+
+## Lessons
+- One entry in [[lesson-macos-gui]] (display callbacks need an AppKit event pump, the removed display's UUID is gone in its callback).
