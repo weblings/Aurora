@@ -12,6 +12,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
+| `1juz-x11-pink-flashes` | [log/2026-11-24-1juz-x11-pink-flashes.md](log/2026-11-24-1juz-x11-pink-flashes.md) | Aurora-1juz: X11 pink flashes with the GNOME magnifier, held as one-grab glitches (closed) |
 | `1n1u-browser-check-set` | [log/2026-11-17-1n1u-browser-check-set.md](log/2026-11-17-1n1u-browser-check-set.md) | Browser checks: the editor regression set on one stack |
 | `1na1-grille-0-2-0` | [log/2026-11-20-1na1-grille-0-2-0.md](log/2026-11-20-1na1-grille-0-2-0.md) | Graph editor moves to stable Grille 0.2.0 |
 | `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |

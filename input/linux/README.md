@@ -17,7 +17,10 @@ Distilled from [huenicorn](https://gitlab.com/openjowelsofts/huenicorn)
   Aurora-1pwk; chained 2x XRender composites downscale server-side before
   the read, Aurora-fq5y). Not
   unit-testable (needs a real X11 display); the damage-rect intersection
-  is a pure, tested helper (`X11Damage.hpp`).
+  is a pure, tested helper (`X11Damage.hpp`). Grabs also pass a pure
+  one-grab glitch filter (`X11GrabGlitchFilter.hpp`, Aurora-1juz): the
+  XRender chain can return the GNOME magnifier's bare layer for one grab, so
+  a grab whose mean color jumps is held until the next grab confirms it.
 - `PipewireGrabber`/`XdgDesktopPortal` — Wayland capture via
   `xdg-desktop-portal`'s ScreenCast interface, plus Gamescope's direct
   Pipewire node. Gamescope-node matching and raw-buffer-to-`ImageData`
