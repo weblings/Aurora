@@ -14,7 +14,8 @@ include(FetchContent)
 
 # Aurora core -- needed directly (Config/GraphRunner/Contracts) regardless
 # of which plugins below are enabled, not just transitively through them.
-set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
+option(AURORA_BUILD_CORE_TESTS "Also build core's own test suite (CI sets this ON)" FALSE)
+set(BUILD_TESTS ${AURORA_BUILD_CORE_TESTS} CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core
