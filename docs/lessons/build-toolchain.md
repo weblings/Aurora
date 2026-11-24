@@ -986,3 +986,33 @@ Applies-when: adding a JS-only Vite entry (`rollupOptions.input`) that another p
 Aurora-4nqt.3: `islands.js` imported Grille's `ui.css`, and the build put the CSS in a shared chunk with a hashed name that only the editor's `index.html` linked. The island mounted with no styles on the main page. A fixed `assetFileNames` for the entry did not help, since the CSS belongs to the shared chunk.
 
 **Fix:** import the stylesheets with `?url` (`import uiCss from '@weblings_things/grille/ui.css?url'`) and append `<link rel="stylesheet">` elements from the entry. With `base: './'` the URL resolves against `import.meta.url`, so it works under any mount. Only the entry's JS keeps a fixed name (`entryFileNames`).
+
+---
+
+## A fixed actions/cache key never re-saves, so a vcpkg binary cache can "hit" and restore nothing
+Tags: ci, vcpkg, actions-cache, windows
+Applies-when: caching vcpkg's binary cache (or any tool cache keyed by an ABI hash) with actions/cache
+
+Aurora-7r74: the key `vcpkg-Windows-v1` hit on every run, yet vcpkg logged `Restored 0 package(s)` and rebuilt curl and mbedtls (Install vcpkg deps 1:30-1:52). The entry dated from 2026-10-08. actions/cache never overwrites an existing key, and a runner image update had changed vcpkg's compiler hash, so the stored packages no longer matched.
+
+**Fix:** put `${{ env.ImageVersion }}` in the key (`vcpkg-${{ runner.os }}-${{ env.ImageVersion }}-v2`). Each new image misses once, rebuilds and saves. After the change the install step took 12 s. Read the vcpkg log line, not the cache step's "hit", to judge a vcpkg cache.
+
+---
+
+## Forcing a core option from a slice needs every slice that can fetch core to take it
+Tags: cmake, fetchcontent, superbuild, tests
+Applies-when: adding a switch for what `core/` builds (tests, tools) that slices currently force off
+
+Aurora-ptns: each slice sets `BUILD_TESTS FALSE CACHE FORCE` before `FetchContent_MakeAvailable(AuroraCore)`. In the superbuild `input/*` and `output/hue` fetch core before the app does, and FetchContent dedups by name, so only the first fetcher's value counts. Changing just the app slices would leave the core tests silently off.
+
+**Fix:** declare `AURORA_BUILD_CORE_TESTS` (default OFF) in the root and in every slice and set `BUILD_TESTS ${AURORA_BUILD_CORE_TESTS}` in all seven (app and input per platform, plus output/hue). A configure-only trial shows the Catch2 and nlohmann_json fetches dedup cleanly with the apps' own tests.
+
+---
+
+## The Visual Studio generator ignores compiler launchers, so sccache on Windows needs Ninja
+Tags: ci, windows, sccache, ninja, msvc
+Applies-when: adding sccache or ccache to a Windows build that uses `cmake --preset` with no generator
+
+Aurora-7r74: `CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` are honored only by Makefile and Ninja generators. The `windows-app` preset sets none, so CI used the Visual Studio generator and sccache would never have run. This reverses the advice in "Installing Visual Studio's C++ workload doesn't put its own tools on PATH" for CI.
+
+**Fix:** run `ilammy/msvc-dev-cmd` so `cl.exe` is on PATH, then configure with `-G Ninja -DCMAKE_BUILD_TYPE=Release`. Output moves from `bin/Release/` to `bin/`. Release has no `/Zi`, so sccache works without `/Z7`.
