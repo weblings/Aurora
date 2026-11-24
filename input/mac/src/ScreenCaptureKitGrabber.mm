@@ -1,6 +1,7 @@
 #include <Aurora/Input/Mac/ScreenCaptureKitGrabber.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <future>
@@ -9,6 +10,11 @@
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <Aurora/Input/MonitorKey.hpp>
+#include <Aurora/Input/Mac/DisplayReconfiguration.hpp>
 
 #import <AppKit/AppKit.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -42,6 +48,49 @@ namespace Aurora::Input::Mac
         label += " (Primary)";
       }
       return label;
+    }
+
+    // Bumped by the CoreGraphics reconfiguration callback whenever a call
+    // could have changed which monitors exist (Aurora-h06o). One process-wide
+    // registration that is never removed: the callback touches only this
+    // counter, so there is no object lifetime to guard, and a grabber compares
+    // the value it saw last. Delivered on the main thread under an AppKit
+    // event pump; read from the tick thread.
+    std::atomic<std::uint64_t> g_displayReconfigurations{0};
+
+    void displayReconfigured(CGDirectDisplayID, CGDisplayChangeSummaryFlags flags, void*)
+    {
+      if(displayReconfigurationMayChangeMonitors(static_cast<std::uint32_t>(flags))){
+        g_displayReconfigurations.fetch_add(1, std::memory_order_relaxed);
+      }
+    }
+
+    void registerDisplayReconfigurationCallback()
+    {
+      static std::once_flag once;
+      std::call_once(once, []{ CGDisplayRegisterReconfigurationCallback(displayReconfigured, nullptr); });
+    }
+
+    // Identities of the displays CoreGraphics reports active right now, the
+    // same key-else-name rule the other grabbers compare. Taken from
+    // CoreGraphics, not SCShareableContent: it needs no Screen Recording
+    // permission and no cross-process round trip on the tick thread. Empty
+    // vector when there is nothing to compare.
+    std::vector<std::string> activeDisplayIdentities()
+    {
+      CGDirectDisplayID ids[32];
+      uint32_t count = 0;
+      if(CGGetActiveDisplayList(32, ids, &count) != kCGErrorSuccess){
+        return {};
+      }
+      const CGDirectDisplayID main = CGMainDisplayID();
+      std::vector<std::string> keys;
+      std::vector<std::string> names;
+      for(uint32_t i = 0; i < count; ++i){
+        keys.push_back(displayKey(ids[i]));
+        names.push_back(displayLabel(ids[i], ids[i] == main));
+      }
+      return monitorIdentities(keys, names);
     }
   }
 }
@@ -98,6 +147,12 @@ namespace Aurora::Input::Mac
 
     // IVideoInput::setCaptureWidthHint() -- 0 means deliver full pixel size.
     unsigned captureWidthHint = 0;
+
+    // takeMonitorsChanged() (Aurora-h06o): the display identities taken when
+    // the monitor list was built, and the callback count already acted on.
+    // Only the tick thread touches them.
+    std::vector<std::string> knownIdentities;
+    std::uint64_t seenReconfigurations = 0;
 
     std::mutex frameMutex;
 
@@ -438,6 +493,7 @@ namespace Aurora::Input::Mac
     // Real setup (permission-gated, async) happens in _initMonitorsList(),
     // per docs/MacSupport.md's "Bridging the async permission wait" -- the
     // constructor stays synchronous/trivial.
+    registerDisplayReconfigurationCallback();
   }
 
 
@@ -518,6 +574,23 @@ namespace Aurora::Input::Mac
       std::cerr << "ScreenCaptureKitGrabber: updateConfiguration for capture width hint "
                 << width << " didn't succeed within 5s; keeping the previous frame size\n";
     }
+  }
+
+
+  bool ScreenCaptureKitGrabber::takeMonitorsChanged()
+  {
+    const std::uint64_t now = g_displayReconfigurations.load(std::memory_order_relaxed);
+    if(now == m_impl->seenReconfigurations){
+      return false;
+    }
+    m_impl->seenReconfigurations = now;
+
+    // A callback only says something may have changed (a mirror toggle or a
+    // display waking is not a new monitor): compare identities, like Windows
+    // and X11. Mid-replug there may be no display yet, so an empty list is
+    // not a change; the next callback re-checks.
+    const auto current = activeDisplayIdentities();
+    return !current.empty() && current != m_impl->knownIdentities;
   }
 
 
@@ -650,6 +723,11 @@ namespace Aurora::Input::Mac
 
     m_monitorSelectionData.monitors = std::move(monitors);
     m_monitorSelectionData.selectedMonitorId = primaryIndex;
+
+    // Baseline for takeMonitorsChanged(): CoreGraphics' own view, so the later
+    // comparison never depends on how SCShareableContent lists mirrored displays.
+    m_impl->knownIdentities = activeDisplayIdentities();
+    m_impl->seenReconfigurations = g_displayReconfigurations.load(std::memory_order_relaxed);
 
     configureAndStartStream(*m_impl, chosen);
   }
