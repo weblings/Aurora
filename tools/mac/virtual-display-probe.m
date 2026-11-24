@@ -10,7 +10,7 @@
 //
 // Build: clang -fobjc-arc -framework AppKit -framework ApplicationServices \
 //          tools/mac/virtual-display-probe.m -o /tmp/virtual-display-probe
-// Run:   /tmp/virtual-display-probe [--cycles N] [--hold SECONDS] [--serial N] [--pump run|hand] [--mirror 1]
+// Run:   /tmp/virtual-display-probe [--cycles N] [--hold SECONDS] [--serial N] [--pump run|hand] [--mirror 1] [--fast 1]
 //        (callbacks arrive under [NSApp run]; --pump hand mirrors Aurora's own loop)
 #import <AppKit/AppKit.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -97,13 +97,14 @@ static void pump(double seconds)
 int main(int argc, char** argv)
 {
   @autoreleasepool {
-    int cycles = 2; double hold = 4; unsigned serial = 4242; BOOL handPump = NO; BOOL mirror = NO;
+    int cycles = 2; double hold = 4; unsigned serial = 4242; BOOL handPump = NO; BOOL mirror = NO; double settle = 1.5, gap = 3;
     for(int i = 1; i + 1 < argc; i += 2){
       if(!strcmp(argv[i], "--cycles")) cycles = atoi(argv[i + 1]);
       else if(!strcmp(argv[i], "--hold")) hold = atof(argv[i + 1]);
       else if(!strcmp(argv[i], "--serial")) serial = (unsigned)atoi(argv[i + 1]);
       else if(!strcmp(argv[i], "--pump")) handPump = !strcmp(argv[i + 1], "hand");
       else if(!strcmp(argv[i], "--mirror")) mirror = !strcmp(argv[i + 1], "1");
+      else if(!strcmp(argv[i], "--fast") && !strcmp(argv[i + 1], "1")){ settle = 0.3; gap = 0.3; }
     }
     if(!NSClassFromString(@"CGVirtualDisplay")){
       fprintf(stderr, "CGVirtualDisplay is not present on this macOS\n");
@@ -146,7 +147,7 @@ int main(int argc, char** argv)
       s.hiDPI = 0;
       s.modes = @[[[CGVirtualDisplayMode alloc] initWithWidth:1920 height:1080 refreshRate:60]];
       BOOL ok = v ? [v applySettings:s] : NO;
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(settle * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         printf("  created=%s id=%u uuid=%s, %u active display(s)\n", ok ? "yes" : "NO",
                v ? v.displayID : 0, v ? [uuidOf(v.displayID) UTF8String] : "-", activeCount());
         fflush(stdout);
@@ -164,12 +165,12 @@ int main(int argc, char** argv)
           printf("  unmirroring: %d\n", (int)CGCompleteDisplayConfiguration(cfg, kCGConfigureForSession)); fflush(stdout);
         });
       }
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((1.5 + hold) * NSEC_PER_SEC)), dispatch_get_main_queue(), remove);
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((settle + hold) * NSEC_PER_SEC)), dispatch_get_main_queue(), remove);
     };
     remove = ^{
       printf("cycle %d: removing it\n", cycle);
       v = nil;
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(gap * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         printf("  after remove: %u active display(s)\n", activeCount());
         fflush(stdout);
         if(cycle < cycles){ create(); } else { gDone = YES; [NSApp stop:nil]; [NSApp postEvent:[NSEvent otherEventWithType:NSEventTypeApplicationDefined location:NSZeroPoint modifierFlags:0 timestamp:0 windowNumber:0 context:nil subtype:0 data1:0 data2:0] atStart:YES]; }
