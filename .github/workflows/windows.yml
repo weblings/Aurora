@@ -78,32 +78,13 @@ jobs:
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DOpenCV_DIR="C:/tools/opencv/build"
           -DAURORA_ENABLE_GRAPH_EDITOR=ON
+          -DAURORA_BUILD_CORE_TESTS=ON
       - name: Build
         env:
           SCCACHE_GHA_ENABLED: "true"
         run: cmake --build build/windows-app
       - name: Test
-        run: ctest --test-dir build/windows-app --output-on-failure
-      # Core's suite (incl. Parity) is not part of any app preset: it only
-      # builds when core/ is configured standalone (core/CMakeLists.txt).
-      # Aubio_DIR is explicit: standalone core doesn't find it through the
-      # toolchain alone (docs/lessons, build-toolchain). Manifest mode OFF:
-      # core/vcpkg.json lists opencv4, and with the toolchain file that would
-      # build vcpkg's OpenCV (~40 min) instead of using the choco one.
-      - name: Core tests (incl. Parity)
-        env:
-          SCCACHE_GHA_ENABLED: "true"
-        run: |
-          cmake -S core -B build/core-test -G Ninja `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
-            -DVCPKG_MANIFEST_MODE=OFF `
-            -DOpenCV_DIR="C:/tools/opencv/build" `
-            -DAubio_DIR="$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/aubio"
-          cmake --build build/core-test
-          ctest --test-dir build/core-test --output-on-failure --timeout 120
+        run: ctest --test-dir build/windows-app --output-on-failure --timeout 120
       - name: sccache stats
         if: always()
         run: sccache --show-stats
