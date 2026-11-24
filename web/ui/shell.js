@@ -1,7 +1,5 @@
-import { arrivalAnnouncement, arrivedKeys, baselineReady, baselineSnapshot, bannerHtml, bannerRows, clockText, collapsibleKeys, orderRows, reconcileSnapshot } from './shellRows.js';
-import { applyPatch } from './shellPatch.js';
+import { baselineReady } from './shellRows.js';
 import { decidePairing, fetchPendingPairings } from './Pairing.js';
-import { createShellCap } from './shellCap.js';
 
 // App shell: owns the one #screen-container mount point. Same navigate()
 // pattern as RockyRoad's own App.ts, trimmed to what Aurora actually needs
@@ -40,13 +38,12 @@ import { createShellCap } from './shellCap.js';
 // of /api/capabilities -- one request gives reachability, host state and
 // the error list, and gives an open Dashboard live paused-state updates for
 // free (onStateUpdate below). The banner is shell-owned, same as the
-// takeover: mounted next to #screen-container, fed only while the daemon
+// takeover: the React ErrorShell island (islands/main.tsx) draws it into #shell-island. This
+// class owns the polling and the facts and pushes them as props. It is fed only while the daemon
 // answers (a stale error is worse than none, so the takeover clears it).
 const DEFAULT_POLL_INTERVAL_MS = 3000;
 const DEFAULT_ABORT_TIMEOUT_MS = 2500;
-// The arrival pulse is 1375 ms (styles/shell.css); shellCap.js clears data-new if animationend never
-// comes (an animation turned off, a hidden tab), from the moment the pulse starts. These are the
-// announcement's two timers (shellRows.js arrivals).
+// The announcement's two timers: parts raised within the delay go out as one, then it clears.
 const ANNOUNCE_DELAY_MS = 50;
 const ANNOUNCE_CLEAR_MS = 10_000;
 const DEFAULT_FAILURE_THRESHOLD = 2;
@@ -83,27 +80,12 @@ export class App {
     this.currentScreen = null;
     this.currentRouteId = null;
     this.screenContainer = document.getElementById('screen-container');
-    this.overlaySlot = document.getElementById('shell-overlay-slot');
-    this.bannerSlot = document.getElementById('shell-banner-slot');
-    // One delegated click handler for every button in the banner: data-action and data-key name
-    // what was pressed (shellRows.js), _act does it. The patch keeps the buttons alive across polls.
-    this._rows = []; // the rows last drawn, laid out
-    // Arrivals (Aurora-9hqa.2): every row key the last render held (null until the baseline), the one
-    // polite live region (#shell-announcer, outside the slot so the patch never touches it) and its timers.
-    this._knownKeys = null;
+    // The island's own state (collapse, pulses) lives in React. The polite live region sits outside it.
     this.announcer = document.getElementById('shell-announcer');
     this._announceParts = [];
     this._announceTimer = null;
     this._announceClearTimer = null;
-    // The 60vh cap on the rows region (Aurora-9hqa.3): scroll to a new row, pulses start when seen.
-    this._cap = createShellCap({ onPulseDone: (node) => node.removeAttribute('data-new') });
-    this.bannerSlot?.addEventListener?.('animationend', (event) => {
-      if (event.target?.hasAttribute?.('data-new')) event.target.removeAttribute('data-new');
-    });
-    this.bannerSlot?.addEventListener?.('click', (event) => {
-      const button = event.target?.closest?.('[data-action]');
-      if (button) void this._act(button.getAttribute('data-action'), button.getAttribute('data-key'));
-    });
+    this._shell = null; // { update(props), unmount() } from islands.js, or null without the bundle
     // onRecovered(preservedRouteId): re-probe and navigate back after the
     // daemon comes back. Set by app.js (bootstrap/recover); null in unit
     // tests that only assert the takeover itself.
@@ -141,17 +123,31 @@ export class App {
     this.hostState = null; // idle | running | paused | failed, from the last reachable poll
     this.hostErrors = []; // [{source, message}], from the last reachable poll
     this.hostConditions = []; // [{source, message}], standing facts (Aurora-rbp3)
-    // Collapse state (Aurora-u8jx.5): the row keys the user collapsed over, or null for open. Memory
-    // only. The baseline (2+ rows collapsed, a lone row open) is taken once per page load and once per
-    // recovery, when the first /api/state reply, the canApprove answer and (if it can approve) the
-    // first pending-pairing result are all in (shellRows.js baselineReady). Nothing is drawn before.
-    this._collapsed = null;
+    // The collapse baseline (2+ rows collapsed, a lone row open) is taken by the island once hasReplied
+    // is true: the first /api/state reply, the canApprove answer and (if it can approve) the first
+    // pending-pairing result are all in (shellRows.js baselineReady). Nothing is drawn before.
     this._stateReplied = false;
     this._baselined = false;
     this.lightTestLive = false; // a running light test with no deadline
     this.lightTestEndsAt = null; // ms epoch the running MCP light test must be confirmed by, else null
     this.lightTestHolder = null; // {session, client} of the running light test, from /api/state test.holder
-    this._lightTestTimer = null;
+    // Stable identities: the island re-announces if onAnnounce changes between renders.
+    this._handlers = {
+      onRetry: (source) => void this._retry(source),
+      onDismiss: (error) => void this._dismiss(error),
+      onStopTest: () => void this._stopLightTest(),
+      onDecidePairing: (ref, decision) => void this._decidePairing(ref, decision),
+      onAnnounce: (text) => this._announce(text),
+    };
+    this._mountShell();
+  }
+
+  // The bundle is required for app builds. Without it the page draws no banner or takeover.
+  _mountShell() {
+    const el = document.getElementById('shell-island');
+    const mount = globalThis.auroraIslands?.mountErrorShell;
+    if (el && mount) this._shell = mount(el, this._shellProps());
+    else if (el) console.error('Shell: islands.js is not loaded, no error banner');
   }
 
   navigate(screen, routeId = null) {
@@ -313,9 +309,6 @@ export class App {
     if (this._baselined) return;
     if (!baselineReady({ stateReplied: this._stateReplied, canApprove: this.canApprove, pendingLoaded: this._pendingLoaded })) return;
     this._baselined = true;
-    const ordered = orderRows(this._bannerInput());
-    this._collapsed = baselineSnapshot(ordered);
-    this._knownKeys = new Set(ordered.map((row) => row.key)); // what is there at the baseline is not an arrival
   }
 
   // app.js calls this after reading /api/pairing/status, which may land after the first poll.
@@ -342,16 +335,13 @@ export class App {
   // Single variant (Aurora-yzp4): heading only, never body copy or a
   // button -- the page cannot relaunch the daemon, and the beat owns
   // recovery. `kind` is kept so the two call sites read unchanged; both
-  // render the same overlay, which is also what forms.css's `h2:last-child`
-  // rule assumes.
+  // draw the same overlay (the island's unreachable prop).
   _showTakeover(kind) {
     // Every banner row is server state that's stale the moment the daemon
     // is gone; the takeover replaces it entirely rather than sitting next
     // to it (ErrorOverlay.md, 'Daemon unreachable as a banner row' under
     // Rejected alternatives). Fresh errors repopulate it on recovery, via
     // the same poll that clears this takeover.
-    if (this.bannerSlot) this.bannerSlot.innerHTML = '';
-    this._rows = [];
     this.hostState = null;
     this.hostErrors = [];
     this.hostConditions = [];
@@ -360,26 +350,15 @@ export class App {
     this.lightTestEndsAt = null;
     this.lightTestLive = false;
     this.lightTestHolder = null;
-    this._collapsed = null;
     this._stateReplied = false;
     this._baselined = false;
-    this._knownKeys = null;
-    this._stopLightTestTimer();
-    if (!this.overlaySlot) return;
     this._takeover = kind;
-    this.overlaySlot.innerHTML = `
-      <div class="overlay">
-        <div class="overlay-scrim"></div>
-        <div class="overlay-panel">
-          <h2>Aurora has stopped</h2>
-        </div>
-      </div>
-    `;
+    this._renderBanner();
   }
 
   _clearTakeover() {
     this._takeover = null;
-    if (this.overlaySlot) this.overlaySlot.innerHTML = '';
+    this._renderBanner();
   }
 
   // One generic row per currently-true error source, never per-source
@@ -398,51 +377,25 @@ export class App {
     return this.hostErrors.filter((error) => !(suppressReload && error.source === 'reload'));
   }
 
-  // The shell's rows as the model lays them out for the current state (shellRows.js).
-  _bannerInput() {
+  // What the island draws, from the current state. Rows, order, collapse, pulses and the
+  // announcement are the island's (ErrorShell.tsx, shellRows.js); this only feeds it facts.
+  _shellProps() {
     const testing = this.lightTestEndsAt !== null || this.lightTestLive;
     return {
+      hostState: this.hostState,
+      platform: this.platform,
       conditions: this.hostConditions,
       errors: this._visibleErrors(),
       pairings: this.pendingPairings,
       lightTest: testing ? { holder: this.lightTestHolder, endsAtMs: this.lightTestLive ? null : this.lightTestEndsAt } : null,
+      unreachable: this._takeover !== null,
+      hasReplied: this._baselined,
+      ...this._handlers,
     };
   }
 
-  // `fresh`: the keys of rows that arrived this render (they pulse); the caller works them out.
-  _bannerRowList(fresh = []) {
-    const input = this._bannerInput();
-    // Nothing is drawn before the baseline; after it, a snapshot the rows no longer match is dropped.
-    if (!this._baselined) return [];
-    this._collapsed = reconcileSnapshot(orderRows(input), this._collapsed);
-    return bannerRows(input, { snapshot: this._collapsed, hostState: this.hostState, platform: this.platform, fresh });
-  }
-
-  // The banner's whole markup ('' when there is nothing to say). The page draws it with a keyed
-  // patch; this is what unit tests and the editor's markup parity check read.
-  _bannerHtml() {
-    return bannerHtml(this._bannerRowList());
-  }
-
   _renderBanner() {
-    if (!this.bannerSlot) return;
-    const testing = this.lightTestEndsAt !== null || this.lightTestLive;
-    if (!testing) this._stopLightTestTimer();
-    // Arrivals are judged against every key the last render held, drawn or folded, so a row folded
-    // into the collapse is not new when the shell opens; a new key opens the shell in this same render
-    // (bannerRowList reconciles the snapshot), and the rows that were already there do not pulse.
-    const ordered = orderRows(this._bannerInput());
-    const fresh = arrivedKeys(ordered, this._knownKeys);
-    if (this._baselined) this._knownKeys = new Set(ordered.map((row) => row.key));
-    const rows = this._bannerRowList(fresh);
-    this._rows = rows;
-    // Only rows whose key or content changed are touched, so focus survives a poll.
-    applyPatch(this.bannerSlot, rows);
-    if (fresh.length > 0) {
-      this._announce(arrivalAnnouncement(ordered, fresh, { hostState: this.hostState, platform: this.platform }));
-    }
-    this._cap.render(this.bannerSlot);
-    if (testing) this._startLightTestTimer();
+    this._shell?.update(this._shellProps());
   }
 
   // Says `text` in the polite live region. Parts raised within the short delay (one poll can render
@@ -462,45 +415,6 @@ export class App {
       this._announceClearTimer.unref?.();
     }, ANNOUNCE_DELAY_MS);
     this._announceTimer.unref?.();
-  }
-
-  // A banner button was pressed: `action` and `key` come from its data-action and data-key.
-  async _act(action, key) {
-    const row = this._rows.find((candidate) => candidate.key === key);
-    if (!row) return;
-    switch (action) {
-      case 'toggle':
-        // Collapsing stores the keys on screen; opening drops them.
-        this._collapsed = row.collapsed ? null : collapsibleKeys(orderRows(this._bannerInput()));
-        this._renderBanner();
-        return;
-      case 'retry': return this._retry(row.source);
-      case 'dismiss': return this._dismiss(row.error);
-      case 'stop-test': return this._stopLightTest();
-      case 'approve': return this._decidePairing(row.request.ref, 'approve');
-      case 'deny': return this._decidePairing(row.request.ref, 'deny');
-      default:
-    }
-  }
-
-  _lightTestClock() {
-    return clockText(this.lightTestEndsAt);
-  }
-
-  // Ticks only the clock text so the Stop button keeps focus between polls.
-  _startLightTestTimer() {
-    if (this._lightTestTimer !== null) return;
-    this._lightTestTimer = setInterval(() => {
-      const time = this.bannerSlot?.querySelector('#shell-light-test-time');
-      if (time && this.lightTestEndsAt !== null) time.textContent = this._lightTestClock();
-    }, 1000);
-    this._lightTestTimer.unref?.();
-  }
-
-  _stopLightTestTimer() {
-    if (this._lightTestTimer === null) return;
-    clearInterval(this._lightTestTimer);
-    this._lightTestTimer = null;
   }
 
   // The re-poll shows what the daemon holds (a test that already ended just goes).

@@ -26,11 +26,11 @@
   <link rel="stylesheet" href="styles/pairing.css" />
 </head>
 <body>
-  <div id="shell-banner-slot"></div>
-  <!-- The shell's polite live region (Aurora-9hqa.2): outside the slot, which the keyed patch rewrites, and present from load. -->
+  <!-- The error shell island draws #shell-banner-slot and #shell-overlay-slot in here. -->
+  <div id="shell-island"></div>
+  <!-- The shell's polite live region (Aurora-9hqa.2): outside the island and present from load. -->
   <div id="shell-announcer" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
   <div id="screen-container"></div>
-  <div id="shell-overlay-slot"></div>
 
   <!-- Island bundle first: module scripts run in order, so app.js finds window.auroraIslands. -->
   <script type="module" src="/graph-editor/islands.js"></script>

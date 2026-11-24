@@ -660,3 +660,11 @@ Applies-when: replacing a vanilla `renderX(container, opts)` piece with a React 
 Aurora-4nqt.3: two screens set `.disabled` and `textContent` on `.nav-footer-continue` after rendering the footer. A React button never sees a DOM write, `mountIsland` renders after the call returns, and Grille's buttons carry no `nav-footer-*` classes and style disabled from `data-disabled`, not `:disabled`.
 
 **Fix:** add the state to the options (`continueDisabled`, `continueLabel`) and call the render function again. The wrapper unmounts the old island first (a `WeakMap` keyed by container). Pass `window.auroraIslands` through a wrapper in `web/ui`, and fall back to plain buttons with one console error if the bundle is absent. Node tests run the fallback path, so they keep their class selectors.
+
+## An island with its own state is mounted once and fed props
+Tags: island, mountIsland, react, state, announce
+Applies-when: a vanilla page mounts a React piece that keeps collapse, pulse or announcement state of its own
+
+Aurora-4nqt.4: the Dashboard shell's collapse, pulse and arrival state live in `ErrorShell`. The NavFooter pattern (unmount, render again) would reset them on every poll, and a changed `onAnnounce` identity would repeat the announcement.
+
+**Fix:** `mountErrorShell` mounts once and returns `{ update, unmount }`, with a small external store read by `useSyncExternalStore`. The caller builds its handlers once and passes the same functions on every update. Node tests mount a double that records each pushed props object, so they assert on what the island was told, not on markup.

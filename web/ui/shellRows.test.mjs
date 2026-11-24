@@ -1,7 +1,7 @@
 // The error shell's row model (Aurora-9hqa.1): order, keys, the collapse layout, the collapsed
 // label, and the html per row. No DOM. Run with `node shellRows.test.mjs`.
 import assert from 'node:assert/strict';
-import { SOURCE_PREFIX, arrivalAnnouncement, arrivedKeys, bannerHtml, bannerRows, baselineReady, baselineSnapshot, clockText, collapsedLabel, collapsibleKeys, errorSentence, isCollapsed, layoutRows, markErrors, orderRows, reconcileSnapshot, renderRow } from './shellRows.js';
+import { SOURCE_PREFIX, arrivalAnnouncement, arrivedKeys, baselineReady, baselineSnapshot, clockText, collapsedLabel, collapsibleKeys, errorSentence, isCollapsed, layoutRows, markErrors, orderRows, reconcileSnapshot } from './shellRows.js';
 
 // Words.
 assert.equal(SOURCE_PREFIX.startup, "Couldn't start: ");
@@ -108,67 +108,10 @@ const paired = orderRows({ lightTest: { holder: null, endsAtMs: null }, pairings
 assert.deepEqual(kinds(paired, baselineSnapshot(paired)), ['toggle']);
 assert.deepEqual(kinds(paired, null), ['light-test', 'pairing', 'pairing', 'error', 'toggle']);
 assert.deepEqual([toggleOf(paired, null).notices, toggleOf(paired, null).errors], [3, 1], 'light test and both requests are notices');
-assert.ok(renderRow(toggleOf(paired, collapsibleKeys(paired)), { hostState: 'running', platform: '', nowMs: 0 }).includes('3 notices'));
 assert.equal(isCollapsed(orderRows({ pairings: [{ ref: 'r' }, { ref: 'q' }] }), ['pairing:r', 'pairing:q']), true);
 assert.equal(isCollapsed(orderRows({ pairings: [{ ref: 'r' }, { ref: 'q' }, { ref: 'z' }] }), ['pairing:r', 'pairing:q']), false, 'a new request re-opens');
 
-// Html per row: root carries data-key, buttons carry data-action and data-key.
-const ctx = { hostState: 'running', platform: '', nowMs: 0 };
-const error = orderRows({ errors: [{ source: 'reload', message: 'a "q" <b>', id: 1 }] })[0];
-const html = renderRow(error, ctx);
-assert.ok(html.startsWith('<div class="shell-banner-row" data-key="error:reload:a &quot;q&quot; &lt;b&gt;">'), 'key escaped on the root');
-assert.ok(html.includes('id="shell-banner-retry-reload" data-action="retry" data-key="error:reload:a &quot;q&quot; &lt;b&gt;"'));
-assert.ok(html.includes('id="shell-banner-dismiss-reload" data-action="dismiss"'), 'X on a running host with an id');
-assert.ok(html.includes('a &quot;q&quot; &lt;b&gt;</p>') || html.includes('apply: a &quot;q&quot;') || html.includes('&lt;b&gt;'), 'message escaped');
-assert.ok(!renderRow(error, { ...ctx, hostState: 'paused' }).includes('shell-banner-dismiss'), 'no X when not running');
-assert.ok(!renderRow(orderRows({ errors: [{ source: 'effect', message: 'x', retry: false, id: 1 }] })[0], ctx).includes('shell-banner-retry'), 'retry false: no Retry');
-const mac = renderRow(orderRows({ errors: [{ source: 'reload', message: 'permission_denied: no', id: 1 }] })[0], { ...ctx, platform: 'mac' });
-assert.ok(mac.includes('Screen Recording is off.') && mac.includes('id="shell-banner-retry-reload" data-action="retry" data-key='), 'permission row: shared html, delegated Retry');
-const audio = renderRow(orderRows({ errors: [{ source: 'audio_permission', message: 's', id: 1 }] })[0], ctx);
-assert.ok(audio.includes('id="shell-banner-retry-audio_permission" data-action="retry"'));
-const condition = renderRow(orderRows({ conditions: [{ source: 'x', message: '<i>' }] })[0], ctx);
-assert.ok(condition.includes('&lt;i&gt;') && !condition.includes('<button'), 'condition: escaped, no buttons');
-assert.ok(renderRow(orderRows({ conditions: [{ source: 'local_network', message: '' }] })[0], ctx).includes("reach devices"), 'local_network row');
-const note = renderRow(orderRows({ notes: ['hi & bye'] })[0], ctx);
-assert.ok(note.includes('hi &amp; bye') && !note.includes('<button'));
-const test = renderRow(orderRows({ lightTest: { holder: { session: 'x', client: 'mcp' }, endsAtMs: 100_000 } })[0], ctx);
-assert.ok(test.includes('An agent is testing an effect on the lights. Will revert in: <span id="shell-light-test-time">1:40</span>'));
-assert.ok(test.includes('id="shell-light-test-stop" data-action="stop-test" data-key="test:x:once"'));
-assert.ok(!renderRow(orderRows({ lightTest: { holder: null, endsAtMs: null } })[0], ctx).includes('Will revert'), 'live: no countdown');
-const pairing = renderRow(orderRows({ pairings: [{ ref: 'r<1', name: 'Phone', scope: 'apply', code: 'K7Q2X', from: '10.0.0.2' }] })[0], ctx);
-assert.ok(pairing.includes('data-action="approve"') && pairing.includes('data-action="deny"'));
-assert.ok(pairing.includes('Access:</span> Apply.') && pairing.includes('From:</span> 10.0.0.2'));
-assert.ok(pairing.includes('id="shell-pairing-approve-r&lt;1"'));
-assert.ok(pairing.includes('shell-pairing-title"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device'), 'a request carries the circled-info, like the light test');
-// The toggle: one id, aria-expanded, label swaps; marks and tones per part.
-const closedBar = renderRow(toggleOf(mixed, collapsibleKeys(mixed)), ctx);
-assert.ok(closedBar.startsWith('<button type="button" class="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key="toggle">'));
-assert.ok(closedBar.includes('<span class="shell-count"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> 1 notice</span><span class="shell-count shell-count-error"><span class="shell-mark shell-mark-error" aria-hidden="true"></span> 3 errors</span>'));
-const openBar = renderRow(toggleOf(mixed, null), ctx);
-assert.ok(openBar.includes('id="shell-banner-toggle" aria-expanded="true"') && openBar.includes('shell-banner-quiet') && openBar.includes('Show less'));
-assert.ok(!renderRow(toggleOf(problems(1), collapsibleKeys(problems(1))), ctx).includes('notice'), 'a zero part is omitted');
-// Open rows carry the marks: error rows the circled-exclamation, the light test the circled-info.
-assert.ok(renderRow(mixed.find((row) => row.kind === 'error'), ctx).includes('shell-mark-error') && !renderRow(mixed.find((row) => row.kind === 'error'), ctx).includes('warn-glyph'));
-assert.ok(renderRow(mixed.find((row) => row.kind === 'light-test'), ctx).includes('shell-mark-info'));
-assert.ok(renderRow(mixed.find((row) => row.kind === 'note'), ctx).includes('shell-mark-error'));
 assert.equal(markErrors('<span class="warn-glyph" aria-hidden="true"></span> x'), '<span class="shell-mark shell-mark-error" aria-hidden="true"></span> x');
-
-// bannerRows and bannerHtml: signatures leave the countdown out; no rows is ''.
-const at = (nowMs) => bannerRows({ lightTest: { holder: { session: 'x' }, endsAtMs: 100_000 } }, { nowMs })[0];
-assert.notEqual(at(0).html, at(10_000).html);
-assert.equal(at(0).sig, at(10_000).sig, 'a ticking clock is not a change');
-assert.equal(bannerHtml([]), '');
-assert.equal(bannerHtml(bannerRows({ notes: ['n'] })).startsWith('<div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-rows"><div class="shell-banner-row"'), true);
-// The toggle sits after the capped rows region, never inside it (Aurora-9hqa.3).
-{
-  const html = bannerHtml(bannerRows({ notes: ['n'] }));
-  assert.ok(html.indexOf('</div><button') > html.indexOf('shell-banner-rows'), 'toggle follows the region');
-  assert.equal(html.slice(html.indexOf('shell-banner-rows'), html.indexOf('<button')).includes('shell-banner-toggle'), false);
-  // Collapsed: an empty region, then the toggle.
-  const collapsed = bannerHtml(bannerRows({ notes: ['a', 'b'] }, { snapshot: ['note:a', 'note:b'] }));
-  assert.ok(collapsed.includes('<div class="shell-banner-rows"></div><button'));
-}
-assert.notEqual(bannerRows({ errors: [{ source: 'reload', message: 'm', id: 1 }] }, { hostState: 'running' })[0].sig, bannerRows({ errors: [{ source: 'reload', message: 'm', id: 1 }] }, { hostState: 'paused' })[0].sig, 'same key, new content: replaced');
 
 // Arrivals (Aurora-9hqa.2): a key the previous render did not hold is new; nothing before the baseline.
 {
@@ -187,13 +130,6 @@ assert.notEqual(bannerRows({ errors: [{ source: 'reload', message: 'm', id: 1 }]
   assert.ok(!arrivedKeys(layoutRows(rowsOf(), null), []).includes('toggle'), 'the toggle never pulses');
   // Pairing rows arrive like any other row.
   assert.deepEqual(arrivedKeys(rowsOf({ pairings: [{ ref: 'r1' }] }), ['error:startup:a']), ['pairing:r1']);
-  // bannerRows flags only the fresh keys, and the html and the sig do not change with it.
-  const plain = bannerRows(input({ pairings: [{ ref: 'r1' }] }));
-  const flagged = bannerRows(input({ pairings: [{ ref: 'r1' }] }), { fresh: ['pairing:r1'] });
-  assert.deepEqual(flagged.filter((row) => row.isNew).map((row) => row.key), ['pairing:r1']);
-  assert.ok(plain.every((row) => !row.isNew), 'no fresh keys: nothing flagged');
-  assert.deepEqual(flagged.map((row) => [row.html, row.sig]), plain.map((row) => [row.html, row.sig]), 'data-new is state, not part of the html or the sig');
-  assert.ok(!flagged.find((row) => row.kind === 'toggle').isNew);
 }
 
 // Announcement words, one per row kind, joined in drawn order; no buttons, no countdown, no code.

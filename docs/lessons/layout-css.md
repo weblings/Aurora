@@ -362,3 +362,11 @@ Applies-when: loading Grille's `ui.css` on a page that also carries `web/ui` sty
 `ui.css` starts with `@layer reset, app, ui;` and puts every rule in `ui`. Unlayered CSS beats any layered rule whatever the specificity. Aurora's global `:focus-visible` rule in `tokens.css` is unlayered and overrides Grille's `[data-pointer-opened] { outline: none }`, so a popover trigger would keep its ring. The two focus rings agree (2px, offset 2px, same color), so a plain button shows no difference. Grille's own rules have no global selectors, so nothing on the vanilla page restyles.
 
 **Fix:** keep Aurora's page CSS scoped to its own classes. Put an override meant to beat Grille in `@layer app`, or accept the unlayered win when the values match.
+
+## A rule an island needs must live in a stylesheet the main page loads, not in editor.css
+Tags: css, island, shell, editor.css, shell.css
+Applies-when: a component shared by the graph editor and the Dashboard needs an override of `shell.css`
+
+Aurora-4nqt.4: the `.shell-banner-row.shell-grille-row` rule that strips the old row border and padding sat in `editor.css`. The editor loaded it, the Dashboard does not, so Dashboard rows would have drawn a second border and padding around Grille's MessageRow. Unit tests and the markup could not show it.
+
+**Fix:** put the override in `web/ui/styles/shell.css`, which both pages load (the editor imports it in `main.tsx`). Before moving a component to an island, grep the stylesheets it relies on for rules that exist only in `editor.css`.

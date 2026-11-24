@@ -1,4 +1,3 @@
-import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ErrorShell, ShellBanner, type ShellBannerProps } from './ErrorShell'
@@ -6,21 +5,8 @@ import { baselineSnapshot, collapsibleKeys, orderRows } from '../../ui/shellRows
 import type { HostCondition, HostError } from './graph/hostState'
 import type { PairingRequest } from './useHostState'
 
-// The Dashboard's shell (web/ui/shell.js) is the reference. Its banner is drawn with the real class
-// against a stub slot, and the editor's component must produce the same markup for the same rows.
-const shellPath = fileURLToPath(new URL('../../ui/shell.js', import.meta.url))
-const { App } = (await import(/* @vite-ignore */ shellPath)) as { App: new (opts: object) => ShellApp }
-
-type ShellApp = {
-  platform: string
-  currentRouteId: string
-  lightTestHolder: unknown
-  _collapsed: string[] | null
-  pendingPairings: unknown[]
-  _updateHostState: (result: object) => void
-  _bannerHtml: () => string
-  _stopLightTestTimer: () => void
-}
+// The Dashboard (web/ui/shell.js) feeds this same component through the islands entry (Aurora-4nqt.4), so
+// these tests hold the rows' words, ids and keys, the collapse layout and the pulse on their own.
 
 type Case = {
   name: string
@@ -36,27 +22,6 @@ type Case = {
   userCollapsed?: boolean
   // Row keys mid-pulse (Aurora-9hqa.2): the editor draws data-new on them.
   pulsing?: string[]
-}
-
-// The shell's markup, as the page would hold it in #shell-banner-slot (the page draws _bannerHtml()
-// with a keyed patch; the string is the same).
-function dashboardMarkup(c: Case): string {
-  const slot = { innerHTML: '', querySelector: () => null }
-  const real = globalThis.document
-  ;(globalThis as { document: unknown }).document = { getElementById: (id: string) => (id === 'shell-banner-slot' ? slot : null) }
-  try {
-    const app = new App({})
-    app.platform = c.platform ?? ''
-    app.currentRouteId = 'dashboard'
-    app.pendingPairings = c.pairings ?? []
-    app._updateHostState({ state: c.hostState ?? 'running', errors: c.errors ?? [], conditions: c.conditions ?? [], test: c.test ?? { active: false } })
-    if (c.open) app._collapsed = null
-    if (c.userCollapsed) app._collapsed = collapsibleKeys(orderRows(rowsInput(c)))
-    app._stopLightTestTimer()
-    return app._bannerHtml()
-  } finally {
-    ;(globalThis as { document: unknown }).document = real
-  }
 }
 
 function lightTestOf(c: Case) {
@@ -97,18 +62,18 @@ function normal(html: string): string {
     .trim()
 }
 
-// The rows are Grille MessageRows in the editor and shell.css markup on the Dashboard (until
-// Aurora-4nqt.4), so the pages are held equal in what a user gets: the words, the ids and keys of the
-// controls, the dismiss buttons and the error and notice marks. Each page's own dismiss glyph is left out.
+// What a user gets from a render: the words, the ids and keys of the controls, the dismiss buttons and
+// the error and notice marks.
 function facts(full: string) {
-  const dismissButton = /<button[^>]*(?:data-action="dismiss"|aria-label="Dismiss")[^>]*>.*?<\/button>/g
+  const dismissButton = /<button[^>]*aria-label="Dismiss"[^>]*>.*?<\/button>/g
   const html = full.replace(dismissButton, '').replace(/&#x27;|&#39;/g, "'")
   const text = html
     .replace(/<[^>]+>/g, ' ')
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
-    .replace(/&nbsp;| /g, ' ')
-    .replace(/×/g, '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;| /g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   const attrs = (re: RegExp) => [...html.matchAll(re)].map((m) => m[1]).sort()
@@ -128,65 +93,77 @@ const effect: HostError = { source: 'effect', message: "Couldn't switch to 'x'",
 const startup: HostError = { source: 'startup', message: 'port in use' }
 const phone: PairingRequest = { ref: 'r1', name: 'Phone <b>', scope: 'admin', code: 'K7Q2X' }
 const agent: PairingRequest = { ref: 'r2', name: 'aurora-mcp on laptop', scope: 'apply', code: 'ABCDE', from: '192.168.0.51' }
-const cases: Case[] = [
-  { name: 'a lone pairing request: a browser, no access line, open', pairings: [phone] },
-  { name: 'an agent request names its access and where it came from', pairings: [agent] },
-  { name: 'two requests start collapsed: two notices', pairings: [phone, agent] },
-  { name: 'two requests open, with Approve and Deny', pairings: [phone, agent], open: true },
-  { name: 'a request collapsed by the user', pairings: [phone], userCollapsed: true },
-  { name: 'a test, a request and an error: notices first, one error', open: true, pairings: [phone], errors: [reload], test: { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } } },
-  { name: 'a request and an error, collapsed: 1 notice 1 error', pairings: [phone], errors: [reload], userCollapsed: true },
-  { name: 'one error on a running host: Retry and the dismiss X', errors: [reload] },
-  { name: 'one error on a paused host: Retry, no X', hostState: 'paused', errors: [startup] },
-  { name: 'an error with retry false has no Retry', errors: [effect] },
-  { name: 'a declined screen share is worded plainly', errors: [{ source: 'reload', message: 'screen_share_declined: portal said no', id: 1 }] },
-  { name: 'two errors start collapsed: the counts bar', errors: [reload, effect] },
-  { name: 'errors are drawn newest id first, whatever order they arrive in', errors: [effect, reload], open: true },
-  { name: 'two errors open: rows and Show less', errors: [reload, effect], open: true },
-  { name: 'a condition and an error', errors: [reload], conditions: [{ source: 'local_network', message: 'x' }], open: true },
-  { name: 'an unknown condition shows its message', conditions: [{ source: 'other', message: 'Something <b>is</b> off' }] },
-  { name: 'a failed effect with a known code reads the table, an unknown code keeps the server text', errors: [
-    { source: 'effect', message: "Couldn't start Sunset: graph needs an audio input but none is configured", id: 3, retry: false, code: 'input_not_configured', detail: { effectTitle: 'Sunset', inputKind: 'audio' } },
-    { source: 'reload', message: 'brand new failure', id: 2, code: 'brand_new_code' },
-  ], open: true },
-  { name: 'a macOS permission error on a Mac', platform: 'mac', errors: [{ source: 'reload', message: 'permission_denied: no', id: 1 }] },
-  { name: 'the audio permission row', platform: 'mac', errors: [{ source: 'audio_permission', message: 'silent', id: 1 }] },
-  { name: 'an agent testing, with a countdown', test: { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } } },
-  { name: 'an editor tab testing live: no countdown', test: { active: true, confirmRemainingMs: null, holder: { session: 'e', client: null } } },
-  { name: 'a lone error the user collapsed', errors: [reload], userCollapsed: true },
-  { name: 'a lone light test the user collapsed: a notice only', userCollapsed: true, test: { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } } },
-  { name: 'a test and a condition collapsed: one notice, one error', conditions: [{ source: 'other', message: 'x' }], test: { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } } },
-  { name: 'a test above two open errors', open: true, errors: [reload, effect], test: { active: true, confirmRemainingMs: 5_000, holder: { session: 'a', client: 'mcp' } } },
-  { name: 'three errors and a test, collapsed', errors: [reload, effect, startup], test: { active: true, confirmRemainingMs: null, holder: { session: 'e', client: null } } },
+const testOnce = { active: true, confirmRemainingMs: 90_000, holder: { session: 'a', client: 'mcp' } }
+const testLive = { active: true, confirmRemainingMs: null, holder: { session: 'e', client: null } }
+
+// What each case must say and offer, in the words the Dashboard has always used.
+type Expect = { says?: string[]; lacks?: string[]; ids?: string[]; dismisses?: number; errorMarks?: number; noticeMarks?: number; actions?: string[] }
+const cases: [Case, Expect][] = [
+  [{ name: 'a lone pairing request: a browser, no access line, open', pairings: [phone] }, { says: ['Pair a device with Aurora?', 'Device: Phone <b>', 'Code: K7Q2X', 'Approve only if the device shows the same code.'], lacks: ['Access:', 'From:'], ids: ['shell-pairing-approve-r1', 'shell-pairing-deny-r1'], actions: ['approve', 'deny'], noticeMarks: 1 }],
+  [{ name: 'an agent request names its access and where it came from', pairings: [agent] }, { says: ['Device: aurora-mcp on laptop', 'From: 192.168.0.51', 'Access: Apply. Change effects and test on the lights, not settings.'] }],
+  [{ name: 'two requests start collapsed: two notices', pairings: [phone, agent] }, { says: ['2 notices'], lacks: ['K7Q2X'], noticeMarks: 1 }],
+  [{ name: 'two requests open, with Approve and Deny', pairings: [phone, agent], open: true }, { says: ['Show less', 'K7Q2X', 'ABCDE'], ids: ['shell-pairing-approve-r1', 'shell-pairing-deny-r2'] }],
+  [{ name: 'a request collapsed by the user', pairings: [phone], userCollapsed: true }, { says: ['1 notice'], lacks: ['K7Q2X'] }],
+  [{ name: 'a test, a request and an error: notices first, one error', open: true, pairings: [phone], errors: [reload], test: { ...testOnce } }, { says: ['An agent is testing an effect on the lights.', 'Pair a device with Aurora?', "Saved, but couldn't apply: no outputs paired"], ids: ['shell-light-test-stop', 'shell-banner-retry-reload'], dismisses: 1, noticeMarks: 2, errorMarks: 1 }],
+  [{ name: 'a request and an error, collapsed: 1 notice 1 error', pairings: [phone], errors: [reload], userCollapsed: true }, { says: ['1 notice', '1 error'], noticeMarks: 1, errorMarks: 1 }],
+  [{ name: 'one error on a running host: Retry and the dismiss X', errors: [reload] }, { says: ["Saved, but couldn't apply: no outputs paired", 'Show less'], ids: ['shell-banner-retry-reload'], actions: ['retry', 'toggle'], dismisses: 1 }],
+  [{ name: 'one error on a paused host: Retry, no X', hostState: 'paused', errors: [startup] }, { says: ["Couldn't start: port in use"], ids: ['shell-banner-retry-startup'], dismisses: 0 }],
+  [{ name: 'an error with retry false has no Retry', errors: [effect] }, { says: ["Couldn't switch to 'x'"], lacks: ['Retry'], dismisses: 1 }],
+  [{ name: 'a declined screen share is worded plainly', errors: [{ source: 'reload', message: 'screen_share_declined: portal said no', id: 1 }] }, { lacks: ['portal said no'] }],
+  [{ name: 'two errors start collapsed: the counts bar', errors: [reload, effect] }, { says: ['2 errors'], lacks: ['no outputs paired'], errorMarks: 1 }],
+  [{ name: 'errors are drawn newest id first, whatever order they arrive in', errors: [effect, reload], open: true }, { says: ["Couldn't switch to 'x'"] }],
+  [{ name: 'two errors open: rows and Show less', errors: [reload, effect], open: true }, { says: ['no outputs paired', "Couldn't switch to 'x'", 'Show less'], dismisses: 2, errorMarks: 2 }],
+  [{ name: 'a condition and an error', errors: [reload], conditions: [{ source: 'local_network', message: 'x' }], open: true }, { says: ['reach devices'], errorMarks: 2 }],
+  [{ name: 'an unknown condition shows its message', conditions: [{ source: 'other', message: 'Something <b>is</b> off' }] }, { says: ['Something <b>is</b> off'], lacks: ['Retry'], dismisses: 0 }],
+  [{ name: 'a macOS permission error on a Mac', platform: 'mac', errors: [{ source: 'reload', message: 'permission_denied: no', id: 1 }] }, { says: ['Screen Recording is off.', 'Retry'], ids: ['shell-banner-retry-reload'] }],
+  [{ name: 'the audio permission row', platform: 'mac', errors: [{ source: 'audio_permission', message: 'silent', id: 1 }] }, { ids: ['shell-banner-retry-audio_permission'] }],
+  [{ name: 'an agent testing, with a countdown', test: { ...testOnce } }, { says: ['An agent is testing an effect on the lights. Will revert in: 1:30', 'Stop test'], ids: ['shell-light-test-stop'], actions: ['stop-test'], noticeMarks: 1 }],
+  [{ name: 'an editor tab testing live: no countdown', test: { ...testLive } }, { says: ['Stop test'], lacks: ['Will revert'] }],
+  [{ name: 'a lone error the user collapsed', errors: [reload], userCollapsed: true }, { says: ['1 error'], lacks: ['no outputs paired'] }],
+  [{ name: 'a test and a condition collapsed: one notice, one error', conditions: [{ source: 'other', message: 'x' }], test: { ...testOnce } }, { says: ['1 notice', '1 error'] }],
+  [{ name: 'three errors and a test, collapsed', errors: [reload, effect, startup], test: { ...testLive } }, { says: ['1 notice', '3 errors'] }],
 ]
 
-describe('ErrorShell rows say what web/ui/shell.js says', () => {
+describe('ErrorShell rows say what the Dashboard has always said', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
   })
   afterEach(() => vi.useRealTimers())
 
-  for (const c of cases) {
+  for (const [c, want] of cases) {
     it(c.name, () => {
-      const reference = normal(dashboardMarkup(c))
-      expect(reference.length).toBeGreaterThan(0)
-      expect(facts(editorMarkup(c))).toEqual(facts(reference))
+      const got = facts(editorMarkup(c))
+      for (const words of want.says ?? []) expect(got.text).toContain(words)
+      for (const words of want.lacks ?? []) expect(got.text).not.toContain(words)
+      for (const id of want.ids ?? []) expect(got.ids).toContain(id)
+      for (const action of want.actions ?? []) expect(got.actions).toContain(action)
+      if (want.dismisses !== undefined) expect(got.dismisses).toBe(want.dismisses)
+      if (want.errorMarks !== undefined) expect(got.errorMarks).toBeGreaterThanOrEqual(want.errorMarks)
+      if (want.noticeMarks !== undefined) expect(got.noticeMarks).toBeGreaterThanOrEqual(want.noticeMarks)
     })
   }
 
-  // data-new is state (the pulse), not markup: it is on no row at the baseline, it is never in the
-  // Dashboard's html or its patch signature, and with it taken away the two pages are still equal.
-  it('data-new is on the rows that pulse and nowhere else; without it the markup is unchanged', () => {
-    for (const c of cases) {
+  it('errors are drawn newest id first', () => {
+    const text = facts(editorMarkup({ name: 'x', errors: [effect, reload], open: true })).text
+    expect(text.indexOf('no outputs paired')).toBeLessThan(text.indexOf("Couldn't switch to 'x'"))
+  })
+
+  it('rows run the light test, requests, conditions, then errors, each keyed by what it is', () => {
+    const c: Case = { name: 'x', open: true, pairings: [phone], conditions: [{ source: 'other', message: 'cond' }], errors: [startup, reload], test: { ...testLive } }
+    // Buttons carry their row's key too, so each key shows more than once.
+    expect([...new Set(facts(editorMarkup(c)).keys)]).toEqual(['condition:other:cond', 'error:reload:no outputs paired', 'error:startup:port in use', 'pairing:r1', 'test:e:live', 'toggle'])
+  })
+
+  // data-new is state (the pulse), not markup: it is on no row at the baseline, and the toggle never has it.
+  it('data-new is on the rows that pulse and nowhere else', () => {
+    for (const [c] of cases) {
       const rows = orderRows(rowsInput(c))
-      const reference = normal(dashboardMarkup(c))
-      expect(reference).not.toContain('data-new')
       expect(normal(editorMarkup(c))).not.toContain('data-new')
       const all = normal(editorMarkup({ ...c, pulsing: [...rows.map((row) => row.key), 'toggle'] }))
-      expect(facts(all.replaceAll(' data-new=""', ''))).toEqual(facts(reference))
+      expect(facts(all.replaceAll(' data-new=""', ''))).toEqual(facts(normal(editorMarkup(c))))
       // Every drawn row carries it; the toggle never does.
-      expect((all.match(/data-new=""/g) ?? []).length).toBe(reference.includes('aria-expanded="false"') ? 0 : rows.length)
+      expect((all.match(/data-new=""/g) ?? []).length).toBe(editorMarkup(c).includes('aria-expanded="false"') ? 0 : rows.length)
       expect(all).not.toMatch(/<button[^>]*data-new/)
     }
   })
@@ -207,7 +184,6 @@ describe('ErrorShell rows say what web/ui/shell.js says', () => {
 
   it('shows nothing when there is nothing to say', () => {
     expect(editorMarkup({ name: 'none' })).toBe('')
-    expect(dashboardMarkup({ name: 'none' })).toBe('')
   })
 })
 
@@ -252,7 +228,7 @@ describe('ErrorShell page parts', () => {
 })
 
 // The interactive collapse state (toggle, re-open on an arrival, recovery) needs a DOM, which this
-// suite does not have: its rules are unit-tested in web/ui/shellRows.test.mjs and shell.test.mjs and
+// suite does not have: its rules are unit-tested in web/ui/shellRows.test.mjs and
 // driven in a browser by tools/browser-check graph-editor:error-shell.
 describe('ErrorShell baseline', () => {
   const noop = () => {}

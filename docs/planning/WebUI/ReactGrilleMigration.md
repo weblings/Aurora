@@ -2,7 +2,7 @@
 
 Id: react-grille-migration
 
-Status: scoped 2026-11-23 under `Aurora-4nqt` (children `.1`-`.11`), nothing built. The owner leans to option A for the build (Decisions). Bead `.1` records the decisions.
+Status: scoped 2026-11-23 under `Aurora-4nqt` (children `.1`-`.11`). Done: `.1` to `.4`. The owner leans to option A for the build (Decisions). Bead `.1` records the decisions.
 
 The plan for moving `web/ui` (the Dashboard and the onboarding screens, vanilla ES modules today) to React and Grille. The audit below was done 2026-11-23 against Grille 0.2.1 (`../../Grille`) and the graph editor.
 
@@ -12,7 +12,7 @@ The plan for moving `web/ui` (the Dashboard and the onboarding screens, vanilla 
 - `web/graph-editor` builds with npm and Vite, embeds as `GraphEditorWebRoot` at `/graph-editor/` behind `AURORA_ENABLE_GRAPH_EDITOR` (off by default, needs Node >= 22.12, `AURORA_GRAPH_EDITOR_DIST` embeds a prebuilt bundle). It already has a second entry, `recipes.html`.
 - `web/demo` copies `web/ui` byte for byte (`MANIFEST.json`, `sync-webui.py`, CI drift check) and builds the editor apart (`build-editor.py`).
 - Every screen is `{ mount(container), unmount() }`. Most components are classes with `constructor(container, opts)` and `destroy()`.
-- `ErrorShell.tsx` (`Aurora-s1t7.9`) is React but renders the `shell.css` classes and has no Grille imports. A markup test holds it equal to `shell.js`. Grille's `MessageRow` (error and notice tones, since Grille-83g.1) was made to replace that markup and only `NameDialog` uses it so far.
+- `ErrorShell.tsx` (`Aurora-s1t7.9`) draws its rows with Grille `MessageRow` since `.2`, and the Dashboard's `shell.js` pushes props to it since `.4`.
 
 ## Component map
 
@@ -47,7 +47,6 @@ Scale: `DashboardScreen.js` is 1234 lines of imperative DOM with a 1067-line tes
 - Grille `ui.css` against `tokens.css` globals and the global `:focus-visible` rule (the editor loads both, the Dashboard has not).
 - The demo vendor closure check flags any import outside `MANIFEST.json`, and a wrapper importing a built bundle needs the demo to build that bundle. `demo-boot.js` fakes the `app` facade and has to feed the shell's props.
 - Focus order and Escape across vanilla and React popups (Grille `docs/lessons/components.md`).
-- The snapshot and pulse state for `ErrorShell` lives in the editor's `App.tsx` today and has to be extracted to a shared hook before the Dashboard can reuse it.
 - Tests that stub a component by its class may need updates, and the 1067-line Dashboard test has to be ported or retired.
 
 ## Beads

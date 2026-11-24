@@ -204,7 +204,6 @@ export function layoutRows(rows, snapshot) {
 // The marks: Grille's circled-exclamation (errors, error red) and circled-info (notices, default
 // colour) as CSS-mask spans, the way .warn-glyph is drawn (styles/shell.css).
 const ERROR_MARK = '<span class="shell-mark shell-mark-error" aria-hidden="true"></span>';
-const INFO_MARK = '<span class="shell-mark shell-mark-info" aria-hidden="true"></span>';
 
 // An error row's html from a shared string (the permission and local-network rows) carries the old
 // warning triangle; the shell's error rows draw the circled-exclamation instead.
@@ -239,100 +238,3 @@ export function pairingAccessText(scope) {
   return access ? `${scope[0].toUpperCase()}${scope.slice(1)}. ${access}` : '';
 }
 
-function pairingAccess(scope) {
-  const text = pairingAccessText(scope);
-  return text ? `<li><span class="shell-pairing-label">Access:</span> ${text}</li>` : '';
-}
-
-// One row's html. Its root element carries data-key; its buttons carry data-action and data-key.
-//   ctx: { hostState, platform, nowMs }
-export function renderRow(row, { hostState = null, platform = '', nowMs = Date.now() } = {}) {
-  const key = escapeHtml(row.key);
-  const act = (action) => `data-action="${action}" data-key="${key}"`;
-  switch (row.kind) {
-    case 'light-test': {
-      // No Keep here: that stays with the agent (confirm needs an effect id the user has not chosen).
-      const clock = row.endsAtMs === null ? '' : ` Will revert in: <span id="shell-light-test-time">${clockText(row.endsAtMs, nowMs)}</span>`;
-      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">${INFO_MARK} ${lightTesterSentence(row.holder)}${clock}</p>
-      <div class="shell-banner-actions">
-        <button type="button" class="btn btn-secondary" id="shell-light-test-stop" ${act('stop-test')}>Stop test</button>
-      </div>
-    </div></div>`;
-    }
-    case 'pairing': {
-      const request = row.request;
-      const ref = escapeHtml(request.ref);
-      // The code is the user's check that the request is their own device.
-      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">
-      <p class="status-text shell-pairing-title">${INFO_MARK} Pair a device with Aurora?</p>
-      <ul class="shell-pairing-details">
-        <li><span class="shell-pairing-label">Device:</span> ${escapeHtml(request.name ?? '')}</li>
-        ${request.from ? `<li><span class="shell-pairing-label">From:</span> ${escapeHtml(request.from)}</li>` : ''}
-        ${pairingAccess(request.scope)}
-        <li><span class="shell-pairing-label">Code:</span> <strong class="shell-pairing-code">${escapeHtml(request.code ?? '')}</strong>. Approve only if the device shows the same code.</li>
-      </ul>
-      <div class="shell-banner-actions">
-        <button type="button" class="btn btn-primary" id="shell-pairing-approve-${ref}" ${act('approve')}>Approve</button>
-        <button type="button" class="btn btn-secondary" id="shell-pairing-deny-${ref}" ${act('deny')}>Deny</button>
-      </div>
-    </div></div>`;
-    }
-    case 'condition': {
-      // Standing facts, not failures: no Retry (the daemon re-checks and clears them itself) and no X.
-      // A new known source adds an entry here, not a branch in the shell.
-      const inner = row.condition.source === 'local_network'
-        ? markErrors(renderLocalNetworkBanner())
-        : `<p class="status-text status-text-error">${ERROR_MARK} ${escapeHtml(row.condition.message ?? '')}</p>`;
-      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">${inner}</div></div>`;
-    }
-    case 'error': {
-      const error = row.error;
-      const retryId = `shell-banner-retry-${escapeHtml(error.source)}`;
-      const inner = permissionRowHtml(error, platform, row.key)
-        ?? `<p class="status-text status-text-error">${ERROR_MARK} ${escapeHtml(errorSentence(error, hostState))}</p>
-         ${error.retry === false ? '' : `<button type="button" class="btn btn-secondary" id="${retryId}" ${act('retry')} style="margin-top: var(--aurora-space-3);">Retry</button>`}`;
-      // X only while the old setup still works (ErrorOverlay.md, 'Dismiss'): a paused or failed
-      // host's row is the reason there are no lights.
-      const dismiss = hostState === 'running' && Number.isInteger(error.id)
-        ? `<button type="button" class="shell-banner-dismiss" id="shell-banner-dismiss-${escapeHtml(error.source)}" ${act('dismiss')} aria-label="Dismiss">×</button>`
-        : '';
-      // Content wrapped so the row can flex dismiss-beside-text (see shell.css).
-      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content">${inner}</div>${dismiss}</div>`;
-    }
-    case 'note':
-      return `<div class="shell-banner-row" data-key="${key}"><div class="shell-banner-content"><p class="status-text status-text-error">${ERROR_MARK} ${escapeHtml(row.text)}</p></div></div>`;
-    case 'toggle': {
-      // One button for both states, so it is the same node across a toggle and keeps focus.
-      if (!row.collapsed) {
-        return `<button type="button" class="shell-banner-summary shell-banner-collapse shell-banner-quiet" id="shell-banner-toggle" aria-expanded="true" ${act('toggle')}>Show less <span class="accordion-chevron shell-banner-chevron-up" aria-hidden="true"></span></button>`;
-      }
-      const part = (n, word, mark, tone) => (n > 0 ? `<span class="shell-count${tone}">${mark} ${countPart(n, word)}</span>` : '');
-      return `<button type="button" class="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" ${act('toggle')}>${part(row.notices, 'notice', INFO_MARK, '')}${part(row.errors, 'error', ERROR_MARK, ' shell-count-error')} <span class="accordion-chevron" aria-hidden="true"></span></button>`;
-    }
-    default:
-      return '';
-  }
-}
-
-// The laid-out rows with their html and a patch signature. The signature is what decides keep or
-// replace for a row whose key is unchanged: the html (data-new is never in it), except that the light-test countdown is left
-// out (its own timer ticks it, so a poll must not replace the row and drop focus on Stop test).
-export function bannerRows(input, { snapshot = null, hostState = null, platform = '', nowMs = Date.now(), fresh = [] } = {}) {
-  const arrived = new Set(fresh);
-  return layoutRows(orderRows(input), snapshot).map((row) => {
-    const html = renderRow(row, { hostState, platform, nowMs });
-    const sig = row.kind === 'light-test' ? html.replace(/(<span id="shell-light-test-time">)[^<]*/, '$1') : html;
-    // isNew is state for the page's pulse (Aurora-9hqa.2), not part of the html or the sig.
-    return { ...row, html, sig, inPlace: row.kind === 'toggle', isNew: arrived.has(row.key) };
-  });
-}
-
-// The whole banner as the slot holds it, or '' for no rows.
-// The rows sit in their own region (the 60vh cap, Aurora-9hqa.3); the toggle stays outside it, so
-// it is always reachable. The region is drawn even when empty (collapsed), so the markup is one shape.
-export function bannerHtml(rows) {
-  if (rows.length === 0) return '';
-  const html = (list) => list.map((row) => row.html).join('');
-  return `<div class="shell-banner"><div class="shell-banner-inner"><div class="shell-banner-rows">${html(rows.filter((row) => row.kind !== 'toggle'))}</div>${html(rows.filter((row) => row.kind === 'toggle'))}</div></div>`;
-}

@@ -24,9 +24,11 @@ testing gotchas: `docs/lessons/` (`web-ui-lessons` skill).
 ("Aurora has stopped" takeover, reconnects on its own) and the system-error
 banner fed by `GET /api/state`. Screens keep only inline per-control errors.
 Design and copy rules: [[error-overlay]]. The banner's rows (kinds, order,
-keys, words, html) are `shellRows.js`, shared with the graph editor's
-`ErrorShell.tsx`; `shellPatch.js` plans and applies a keyed patch each poll so
-focus survives ([[9hqa1-shell-row-model]]). The whole shell collapses as one
+keys, words) are `shellRows.js`, shared with the graph editor's
+`ErrorShell.tsx`, which draws them on both pages ([[9hqa1-shell-row-model]]).
+`shell.js` only polls and pushes props to that island (`mountErrorShell` in
+`islands.js`, mounted into `#shell-island`), see [[4nqt4-dashboard-error-shell-island]].
+The whole shell collapses as one
 (`shellRows.js`: baseline, snapshot, toggle, counts; [[u8jx5-shell-collapse]]),
 and its circled marks are `icons/circled-exclamation.svg` and `circled-info.svg`
 (those two icons are vendored into the demo; the shell modules are not).
@@ -35,12 +37,11 @@ waits for the first pending result (`shellRows.js` `baselineReady`, `app.js`
 starts `canApprove` at `null` and calls `setCanApprove`; [[9hqa4-shell-pairing]]).
 A row whose key is new gets `data-new` (one ring pulse from `styles/shell.css`,
 which the Problems chip's ping shares) and is announced once in the visually
-hidden `#shell-announcer` in `index.html`, outside the slot the patch rewrites
+hidden `#shell-announcer` in `index.html`, outside the island
 (`shellRows.js` `arrivedKeys`, `rowSpeech`, `arrivalAnnouncement`;
 [[9hqa2-shell-spotlight]]).
 The rows sit in `.shell-banner-rows`, capped at 60vh with edge fades, the toggle
-outside it; `shellPatch.js` patches the region's rows and the toggle as two
-keyed lists, and `shellCap.js` (shared with `ErrorShell.tsx`) keeps the region's
+outside it. `shellCap.js` (used by `ErrorShell.tsx`) keeps the region's
 tab stop and fades true, scrolls to the first new row and starts each pulse once
 its row is seen ([[9hqa3-shell-cap]]; browser check `shell-cap`).
 

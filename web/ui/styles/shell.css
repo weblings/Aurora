@@ -131,6 +131,11 @@
    file's own #screen-container/html comments, so sticky needs no extra
    scroll container). Same column width as the screen content so a row's
    text wraps at the same point Dashboard's own status text does. */
+/* The island's mount point draws no box, so the slot below still sticks against the page. */
+#shell-island {
+  display: contents;
+}
+
 #shell-banner-slot {
   /* Sticky lives on the slot (a direct child of body), not on .shell-banner:
      a sticky element can't leave its parent's box, and the slot is exactly
@@ -200,6 +205,18 @@
   border: 2px solid var(--aurora-border);
   border-radius: var(--aurora-radius-panel);
   padding: var(--aurora-space-4) var(--aurora-space-6);
+}
+
+/* A shell row is Grille's MessageRow (ErrorShell.tsx); the wrapper keeps only the key, the pulse ring and the gap. */
+.shell-banner-row.shell-grille-row {
+  display: block;
+  border: 0;
+  padding: 0;
+  border-radius: var(--ui-size-radius-lg);
+}
+
+.shell-banner-row.shell-grille-row[data-new]:has([data-tone='error']) {
+  --shell-ping-tint: var(--aurora-text-error);
 }
 
 .shell-banner-content {
