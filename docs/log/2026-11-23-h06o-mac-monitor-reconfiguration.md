@@ -1,19 +1,16 @@
-# Mac monitor-set rebuild: probe results, filter, grabber override and a virtual-display pass
+# Mac monitor-set rebuild: probe, filter, grabber override and virtual-display passes (closed)
 
 Id: h06o-mac-monitor-reconfiguration
 
-`Aurora-h06o` (open, P2; 1.2.1). Windows and X11 already rebuild on a monitor-set change ([[ecl5-windows-monitors-changed]], [[9fn3-x11-monitors-changed]]) through the shared `MonitorChangeWatcher`; only the Mac grabber side is missing. This entry records the research and the first slice. Resume at the grabber override below.
+`Aurora-h06o` (closed, P2; 1.2.1). Windows and X11 already rebuild on a monitor-set change ([[ecl5-windows-monitors-changed]], [[9fn3-x11-monitors-changed]]) through the shared `MonitorChangeWatcher`; this is the Mac half. Closed with the notarized-build pass waived by the owner: the app's own Screen Recording and Local Network identity were not exercised (the dev build ran under Terminal's grant), and no physical cable pull was done.
 
 - Probe: `tools/mac/virtual-display-probe.m` creates and removes a private `CGVirtualDisplay` (present on macOS 27.2.1) and logs every reconfiguration callback and screen-parameters notification. Run from Terminal.app, two add/remove cycles per run.
 - Observed: add gives `BeginConfiguration` (0x1) per display, then 0x111a on the new one and 0x1000 on the existing one; remove gives 0x1 per display, then 0x1220 on the removed one and 0x1000 on the other. The removed display's UUID is already null in its callback. A recreated display with the same vendor, product and serial keeps its `CGDisplayCreateUUIDFromDisplayID` value; only the display id changes (the saved monitor key survives a replug).
 - Delivery: callbacks and the notification arrived under `[NSApp run]` and under Aurora's `TrayIcon::pump` shape, and never under a bare `CFRunLoopRunInMode` or `NSRunLoop` pump (first three runs).
 - Done: `DisplayReconfiguration.hpp` (`displayReconfigurationMayChangeMonitors`) and `DisplayReconfigurationTests.cpp`, 6 cases and 26 assertions, constants pinned to the CoreGraphics values; built with `cmake --build build/mac-app --target AuroraInputMacTests`.
 - Done, second slice: `ScreenCaptureKitGrabber::takeMonitorsChanged`. One process-wide `CGDisplayRegisterReconfigurationCallback` (registered in the constructor, never removed) bumps an atomic counter when the filter says membership may have changed; the tick thread sees a new count, re-reads the active displays from CoreGraphics (key else name, `monitorIdentities`) and returns true only when they differ from the baseline taken in `_initMonitorsList`. CoreGraphics, not `SCShareableContent`, so there is no Screen Recording dependency or cross-process wait on the tick thread, and mirroring cannot make the two views disagree. An empty list mid-replug is not a change. `app/mac/src/main.cpp` now starts `makeHostMonitorChangeWatcher` next to the link monitor and stops it before shutdown. Mac app and input tests: 126 of 126 pass.
-- Not done: any run of the real app against the virtual display (needs Screen Recording and Local Network identity on this dev build, likely prompts), mode-only and mirroring checks, whether ScreenCaptureKit lists and captures the virtual display, and a unit test for `takeMonitorsChanged` itself (needs a delivered callback, so only the app run covers it).
+- `takeMonitorsChanged` has no unit test of its own (it needs a delivered callback); the real-app pass below covers it.
 - Bead housekeeping: h06o is marked as depending on `Aurora-zbvu` (capture-card input); nothing here needs it.
-
-## Lessons
-- One entry in [[lesson-macos-gui]]: display callbacks need an AppKit event pump, and the removed display's UUID is gone in its callback.
 
 ## Real-app pass (virtual display, same day)
 Dev build `build/mac-app/bin/Aurora.app` run from Terminal.app (`--fresh --fake-hue`, input `mac`, fake bridge as output), so Screen Recording ran under Terminal's grant. A launch with `open` (the app's own identity), ad hoc or Developer ID signed under a throwaway bundle ID, got `no shareable displays` with no prompt (`tccutil` says the throwaway ID is unknown: macOS made no entry). `tools/mac/virtual-display-probe.m` added and removed a private `CGVirtualDisplay` (same serial each time, so the same display UUID) while `/api/monitors` and `source.video.monitor` in `/api/state` were polled each second.
@@ -31,4 +28,5 @@ Dev build `build/mac-app/bin/Aurora.app` run from Terminal.app (`--fresh --fake-
 - A Developer ID copy needs hardened runtime off here: with it the Homebrew dylibs fail library validation (different Team ID); release builds bundle their own.
 
 ## Lessons
-- One entry in [[lesson-macos-gui]] (display callbacks need an AppKit event pump, the removed display's UUID is gone in its callback).
+- [[lesson-macos-gui]]: display callbacks need an AppKit event pump and the removed display's UUID is gone in its callback; a Developer ID re-sign of a dev build needs hardened runtime off, and an unknown bundle ID makes `tccutil` fail.
+- [[lesson-input]]: how the Mac monitor set is read, what a mirrored, mode-changed or primary-changed display does to `/api/monitors`, and how to test it with a virtual display and a Terminal-launched app.
