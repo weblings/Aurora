@@ -11,4 +11,5 @@ Id: lswm-local-network-stale-entry
 - Housekeeping: the script and the two `removetest` and `updatetest` throwaway entries in System Settings; the state folder `~/Library/Application Support/AuroraRemoveEntryTest` was removed by `remove-entry-test.sh clean`.
 
 ## Lessons
-- Updated the reset entry in [[lesson-macos-gui]] ("Resetting the Local Network permission") with the 27.2.1 verification; no new entry.
+- Updated the reset entry in [[lesson-macos-gui]] ("Resetting the Local Network permission") with the 27.2.1 verification.
+- New entry in [[lesson-macos-gui]]: a permission banner gets a hint variant only for a state the app can detect and a fix that works on every supported macOS (the banner-copy decision above).
