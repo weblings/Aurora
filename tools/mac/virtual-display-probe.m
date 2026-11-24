@@ -10,7 +10,7 @@
 //
 // Build: clang -fobjc-arc -framework AppKit -framework ApplicationServices \
 //          tools/mac/virtual-display-probe.m -o /tmp/virtual-display-probe
-// Run:   /tmp/virtual-display-probe [--cycles N] [--hold SECONDS] [--serial N] [--pump run|hand] [--mirror 1] [--fast 1]
+// Run:   /tmp/virtual-display-probe [--cycles N] [--hold SECONDS] [--serial N] [--pump run|hand] [--mirror 1] [--fast 1] [--mode-change 1] [--primary-change 1]
 //        (callbacks arrive under [NSApp run]; --pump hand mirrors Aurora's own loop)
 #import <AppKit/AppKit.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -97,13 +97,15 @@ static void pump(double seconds)
 int main(int argc, char** argv)
 {
   @autoreleasepool {
-    int cycles = 2; double hold = 4; unsigned serial = 4242; BOOL handPump = NO; BOOL mirror = NO; double settle = 1.5, gap = 3;
+    int cycles = 2; double hold = 4; unsigned serial = 4242; BOOL handPump = NO; BOOL mirror = NO; BOOL modeChange = NO; BOOL primaryChange = NO; double settle = 1.5, gap = 3;
     for(int i = 1; i + 1 < argc; i += 2){
       if(!strcmp(argv[i], "--cycles")) cycles = atoi(argv[i + 1]);
       else if(!strcmp(argv[i], "--hold")) hold = atof(argv[i + 1]);
       else if(!strcmp(argv[i], "--serial")) serial = (unsigned)atoi(argv[i + 1]);
       else if(!strcmp(argv[i], "--pump")) handPump = !strcmp(argv[i + 1], "hand");
       else if(!strcmp(argv[i], "--mirror")) mirror = !strcmp(argv[i + 1], "1");
+      else if(!strcmp(argv[i], "--mode-change")) modeChange = !strcmp(argv[i + 1], "1");
+      else if(!strcmp(argv[i], "--primary-change")) primaryChange = !strcmp(argv[i + 1], "1");
       else if(!strcmp(argv[i], "--fast") && !strcmp(argv[i + 1], "1")){ settle = 0.3; gap = 0.3; }
     }
     if(!NSClassFromString(@"CGVirtualDisplay")){
@@ -145,13 +147,42 @@ int main(int argc, char** argv)
       v = [[CGVirtualDisplay alloc] initWithDescriptor:d];
       CGVirtualDisplaySettings* s = [[CGVirtualDisplaySettings alloc] init];
       s.hiDPI = 0;
-      s.modes = @[[[CGVirtualDisplayMode alloc] initWithWidth:1920 height:1080 refreshRate:60]];
+      s.modes = @[[[CGVirtualDisplayMode alloc] initWithWidth:1920 height:1080 refreshRate:60],
+                  [[CGVirtualDisplayMode alloc] initWithWidth:1280 height:720 refreshRate:60]];
       BOOL ok = v ? [v applySettings:s] : NO;
       dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(settle * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         printf("  created=%s id=%u uuid=%s, %u active display(s)\n", ok ? "yes" : "NO",
                v ? v.displayID : 0, v ? [uuidOf(v.displayID) UTF8String] : "-", activeCount());
         fflush(stdout);
       });
+      if(modeChange){
+        // 4.5 s in: offer only the 1280x720 mode, so macOS switches the display to it.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+          CGVirtualDisplaySettings* small = [[CGVirtualDisplaySettings alloc] init];
+          small.hiDPI = 0;
+          small.modes = @[[[CGVirtualDisplayMode alloc] initWithWidth:1280 height:720 refreshRate:60]];
+          printf("  mode change to 1280x720: %s\n", [v applySettings:small] ? "applied" : "FAILED"); fflush(stdout);
+        });
+      }
+      if(primaryChange){
+        // Make the virtual display the main display for 3 s, then put the arrangement back.
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+          CGDirectDisplayID mainID = CGMainDisplayID();
+          CGRect mainBounds = CGDisplayBounds(mainID);
+          CGDisplayConfigRef cfg; CGBeginDisplayConfiguration(&cfg);
+          CGConfigureDisplayOrigin(cfg, v.displayID, 0, 0);
+          CGConfigureDisplayOrigin(cfg, mainID, 1920, 0);
+          printf("  virtual display made main (was %u at %.0fx%.0f): %d\n", mainID, mainBounds.size.width, mainBounds.size.height,
+                 (int)CGCompleteDisplayConfiguration(cfg, kCGConfigureForSession)); fflush(stdout);
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+          CGDirectDisplayID builtin = 1;  // the built-in display's id on this Mac; the other is the virtual one
+          CGDisplayConfigRef cfg; CGBeginDisplayConfiguration(&cfg);
+          CGConfigureDisplayOrigin(cfg, builtin, 0, 0);
+          CGConfigureDisplayOrigin(cfg, v.displayID, 1710, 0);
+          printf("  arrangement restored: %d (main is now %u)\n", (int)CGCompleteDisplayConfiguration(cfg, kCGConfigureForSession), CGMainDisplayID()); fflush(stdout);
+        });
+      }
       if(mirror){
         // Mirror the virtual display onto the main one 3 s in, undo it 3 s later.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
