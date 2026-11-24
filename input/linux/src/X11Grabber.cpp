@@ -352,6 +352,7 @@ namespace Aurora::Input::Linux
     m_monitorSelectionData.selectedMonitorId = monitorId;
     // The cached frame belongs to the old monitor; the next grab is full.
     m_grabGate.reset();
+    m_glitchFilter.reset();
   }
 
 
@@ -432,6 +433,11 @@ namespace Aurora::Input::Linux
     // -- so a 4K frame never crosses the tick at full size. bytes_per_line
     // is the real stride; XImage rows can be padded past width * bytesPerPixel.
     const int decimation = captureDecimation(m_captureWidthHint.load(), width);
+    // Owned candidate frame, judged by the glitch filter (Aurora-1juz) before
+    // it replaces the cached one. The zero-copy header path below has no owned
+    // previous frame to fall back to, so it is published unfiltered.
+    Contracts::ImageData candidate;
+    bool publish = true;
     if(decimation <= 1 && !m_scaleChain){
       // No hint (or a small screen): keep the historic zero-copy header over
       // the persistent XShm buffer instead of cloning for nothing. (A scale
@@ -440,33 +446,44 @@ namespace Aurora::Input::Linux
       m_lastFrame.format = format;
       m_lastFrame.imageMatrix = cv::Mat(
         height, width, cvType, ximage->data, static_cast<size_t>(ximage->bytes_per_line));
+      m_glitchFilter.reset();
     }
     else{
-      m_lastFrame = toOwnedImage(
+      candidate = toOwnedImage(
         reinterpret_cast<const uint8_t*>(ximage->data),
         width, height,
         static_cast<size_t>(ximage->bytes_per_line),
         format, decimation, bytesPerPixel);
+      if(!candidate.imageMatrix.empty()){
+        const cv::Scalar candidateMean = cv::mean(candidate.imageMatrix);
+        publish = m_glitchFilter.judge(
+          static_cast<float>(candidateMean[0]), static_cast<float>(candidateMean[1]),
+          static_cast<float>(candidateMean[2])) == GrabVerdict::Publish;
+      }
+      if(publish){
+        m_lastFrame = candidate;
+      }
     }
+    const cv::Mat& tracedMatrix = candidate.imageMatrix.empty() ? m_lastFrame.imageMatrix : candidate.imageMatrix;
 
-    if(x11TraceEnabled() && !m_lastFrame.imageMatrix.empty()){
-      const cv::Scalar mean = cv::mean(m_lastFrame.imageMatrix);
+    if(x11TraceEnabled() && !tracedMatrix.empty()){
+      const cv::Scalar mean = cv::mean(tracedMatrix);
       const bool tracePink = mean[2] > mean[1] + 15 && mean[0] > mean[1] + 8;
       const bool traceBlack = mean[0] < 3 && mean[1] < 3 && mean[2] < 3;
       timespec ts{};
       clock_gettime(CLOCK_REALTIME, &ts);
       std::fprintf(
-        stderr, "[x11-trace] %ld.%03ld why=%s via=%s %dx%d dec=%d bpp=%d skips=%u meanBGR=(%.0f,%.0f,%.0f)%s\n",
+        stderr, "[x11-trace] %ld.%03ld why=%s via=%s %dx%d dec=%d bpp=%d skips=%u meanBGR=(%.0f,%.0f,%.0f)%s%s\n",
         static_cast<long>(ts.tv_sec), static_cast<long>(ts.tv_nsec / 1000000),
         traceWhy, m_scaleChain ? "chain" : "shm", width, height, decimation,
         ximage->bits_per_pixel, m_traceSkips, mean[0], mean[1], mean[2],
-        tracePink ? " flag=pink" : traceBlack ? " flag=black" : "");
+        tracePink ? " flag=pink" : traceBlack ? " flag=black" : "", publish ? "" : " HELD");
       m_traceSkips = 0;
       // Pink frame (R well above G, B above G): keep its pixels (BGR order).
       if(tracePink){
         static int dumped = 0;
         if(dumped < 6){
-          const cv::Mat& bgr = m_lastFrame.imageMatrix;
+          const cv::Mat& bgr = tracedMatrix;
           char path[128];
           std::snprintf(path, sizeof(path), "%s/pink_%d.ppm", std::getenv("AURORA_DEV_X11_TRACE"), dumped);
           if(std::FILE* out = std::fopen(path, "wb")){
@@ -486,8 +503,10 @@ namespace Aurora::Input::Linux
 
     imageData = m_lastFrame;
     m_grabGate.markGrabbed(nowMs);
-    ++m_frameSerial;
-    m_grabbedSerial = m_frameSerial;
+    if(publish){
+      ++m_frameSerial;
+      m_grabbedSerial = m_frameSerial;
+    }
   }
 
 
