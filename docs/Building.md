@@ -22,7 +22,8 @@ cmake --install build/linux-app # registers launcher + tray icon (Linux)
 
 Per-slice presets live in `CMakePresets.json`; the root `CMakeLists.txt` is a
 thin superbuild (each slice pulls `core/` itself via `FetchContent`). Core's
-own suite is not part of any preset — build it standalone with
+own suite is off by default; add `-DAURORA_BUILD_CORE_TESTS=ON` to any app
+preset to build it in the same tree (CI does), or build it standalone with
 `cmake -S core`.
 
 ## Prerequisites

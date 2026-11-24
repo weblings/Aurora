@@ -18,7 +18,8 @@ include(FetchContent)
 
 # Aurora core -- SOURCE_DIR points into the monorepo tree.
 # Suppress its own test suite -- we only want its libraries here.
-set(BUILD_TESTS FALSE CACHE BOOL "" FORCE)
+option(AURORA_BUILD_CORE_TESTS "Also build core's own test suite (CI sets this ON)" FALSE)
+set(BUILD_TESTS ${AURORA_BUILD_CORE_TESTS} CACHE BOOL "" FORCE)
 set(AURORA_CORE_ENABLE_AUDIO ${AURORA_INPUT_MAC_ENABLE_AUDIO} CACHE BOOL "" FORCE)
 FetchContent_Declare(
   AuroraCore
