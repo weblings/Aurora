@@ -39,21 +39,20 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      # Mirror stalls have eaten 23 min before: cap each attempt, retry.
+      # Mirror stalls have eaten 23 min before. Only the download is capped
+      # and retried: killing apt mid-unpack leaves dpkg interrupted and every
+      # retry then fails. The install itself reads local files only.
       - name: Install deps
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: |
+          pkgs="cmake ninja-build libx11-dev libxext-dev libxrandr-dev libxdamage-dev libxrender-dev libpipewire-0.3-dev libglib2.0-dev libaubio-dev libopencv-dev libcurl4-openssl-dev libmbedtls-dev libsecret-1-dev"
           for attempt in 1 2 3; do
-            sudo timeout 150 apt-get update &&
-            sudo timeout 150 apt-get install -y cmake ninja-build \
-              libx11-dev libxext-dev libxrandr-dev libxdamage-dev libxrender-dev \
-              libpipewire-0.3-dev libglib2.0-dev \
-              libaubio-dev libopencv-dev \
-              libcurl4-openssl-dev libmbedtls-dev \
-              libsecret-1-dev && exit 0
-            echo "apt attempt $attempt failed"
+            sudo timeout 240 apt-get update &&
+            sudo timeout 240 apt-get install -y --download-only $pkgs && break
+            echo "apt download attempt $attempt failed"
+            [ "$attempt" = 3 ] && exit 1
           done
-          exit 1
+          sudo apt-get install -y $pkgs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
