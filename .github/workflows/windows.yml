@@ -29,6 +29,10 @@ on:
       - CMakePresets.json
       - .github/workflows/windows.yml
 
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test:
     runs-on: windows-latest
@@ -47,7 +51,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/vcpkg-bincache
-          key: vcpkg-${{ runner.os }}-v1
+          # Image version in the key: vcpkg's ABI hash changes with the MSVC
+          # image, and a fixed key never re-saves (0 packages restored).
+          key: vcpkg-${{ runner.os }}-${{ env.ImageVersion }}-v2
       - name: Install vcpkg deps
         env:
           VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
@@ -57,16 +63,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Ninja needs cl.exe on PATH. Release has no /Zi, so sccache works
+      # without /Z7 (RelWithDebInfo would need CMAKE_MSVC_DEBUG_INFORMATION_FORMAT).
+      - uses: ilammy/msvc-dev-cmd@v1
+      - uses: mozilla-actions/sccache-action@v0.0.9
       - name: Configure
+        env:
+          SCCACHE_GHA_ENABLED: "true"
         run: >
-          cmake --preset windows-app
+          cmake --preset windows-app -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER_LAUNCHER=sccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
           -DOpenCV_DIR="C:/tools/opencv/build"
           -DAURORA_ENABLE_GRAPH_EDITOR=ON
       - name: Build
-        run: cmake --build build/windows-app --config Release
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+        run: cmake --build build/windows-app
       - name: Test
-        run: ctest --test-dir build/windows-app -C Release --output-on-failure
+        run: ctest --test-dir build/windows-app --output-on-failure
       # Core's suite (incl. Parity) is not part of any app preset: it only
       # builds when core/ is configured standalone (core/CMakeLists.txt).
       # Aubio_DIR is explicit: standalone core doesn't find it through the
@@ -74,11 +91,19 @@ jobs:
       # core/vcpkg.json lists opencv4, and with the toolchain file that would
       # build vcpkg's OpenCV (~40 min) instead of using the choco one.
       - name: Core tests (incl. Parity)
+        env:
+          SCCACHE_GHA_ENABLED: "true"
         run: |
-          cmake -S core -B build/core-test `
+          cmake -S core -B build/core-test -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache `
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_MANIFEST_MODE=OFF `
             -DOpenCV_DIR="C:/tools/opencv/build" `
             -DAubio_DIR="$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/aubio"
-          cmake --build build/core-test --config Release
-          ctest --test-dir build/core-test -C Release --output-on-failure --timeout 120
+          cmake --build build/core-test
+          ctest --test-dir build/core-test --output-on-failure --timeout 120
+      - name: sccache stats
+        if: always()
+        run: sccache --show-stats
