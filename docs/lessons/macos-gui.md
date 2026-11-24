@@ -504,3 +504,23 @@ Applies-when: adding an "Open Settings" link for a privacy pane, or a `?Privacy_
 `x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork` (and the `com.apple.settings.PrivacySecurity.extension` variants, with or without `.privacy-localnetwork`) all land on the Privacy & Security page on macOS 27. Apple calls these URLs unsupported. The anchors that do work (`Privacy_ScreenCapture`, `Privacy_AudioCapture`) are keys in `/System/Library/ExtensionKit/Extensions/SecurityPrivacyExtension.appex/Contents/Resources/en.lproj/PrivacySecurity.searchTerms`; Local Network is not there, because its row is a code-driven service (`PrivacyLocalNetworkService` in `TCCServiceList.plist`), not an indexed one.
 
 **Fix:** list the real anchors with `grep -o "Privacy_[A-Za-z]*" .../PrivacySecurity.searchTerms | sort -u` before writing a link. When the pane has none, link the parent page and name the last click in the copy ("In Settings, click Local Network and allow Aurora."). Re-check after a macOS update.
+
+---
+
+## A Developer ID app keeps its Local Network grant across an executable UUID change and a reboot; test that with two copies under one throwaway bundle ID, not the real one
+Tags: macos, local-network, lc-uuid, developer-id, update, reboot, testing
+Applies-when: a Mac user reports the Local Network banner after an app update, or you need to know whether a rebuild or release keeps the grant
+
+TN3179 says Local Network privacy tracks code signature and uses the main executable UUID, and says nothing about a new UUID under the same bundle ID and Team. Apple forum threads split on it. On macOS 27.2.1 (Aurora-lswm, Aurora-e2j4) two copies of one build, same throwaway bundle ID, different patched `LC_UUID`, both signed with the Developer ID identity, behaved the same: after Allow on copy A, copy B swapped in at the same path had the host's `local_network` condition clear on every read, with no prompt; the same held after a real reboot, for A alone and then for B. Ad-hoc copies drop identity and look like a new app each time, so they cannot show this. Notarization was not needed for a local run.
+
+**Fix:** use `tools/mac/update-grant-test.sh [--reboot]`: it builds both copies, reads `GET /api/state` for the `local_network` condition, and with `--reboot` finishes after login through a login agent. Remove the throwaway entries in System Settings afterward (27.2+ remove button). One run on one machine; a different install path, a quarantined first launch and the real updater were not tried. A user who sees the banner after an update most likely has a stale entry from an earlier ad-hoc or dev build.
+
+---
+
+## A launchd job that boots itself out is killed before its next line runs; delete the plist and notify first
+Tags: macos, launchd, launchagent, bootout, shell
+Applies-when: a script run by a LaunchAgent cleans itself up with `launchctl bootout` at the end
+
+`update-grant-test.sh --after-reboot` ended with `launchctl bootout gui/<uid>/<label>` and then `rm -f` of its own plist and a notification. The result file was written, but bootout stopped the running job, so the `rm` and the notification never ran and the plist stayed in `~/Library/LaunchAgents`, ready to rerun at the next login.
+
+**Fix:** do the notification and `rm` of the plist first and `bootout` last, or let the job exit and have a separate step unload it.

@@ -164,6 +164,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
 | `dzsd-import-from-file` | [log/2026-11-23-dzsd-import-from-file.md](log/2026-11-23-dzsd-import-from-file.md) | Import a graph file: menu and drop |
+| `e2j4-local-network-update-grant` | [log/2026-11-23-e2j4-local-network-update-grant.md](log/2026-11-23-e2j4-local-network-update-grant.md) | Local Network grant across a Developer ID update and a reboot |
 | `e4bi-22-empty-section-leads` | [log/2026-11-18-e4bi-22-empty-section-leads.md](log/2026-11-18-e4bi-22-empty-section-leads.md) | A stored empty section can lead the controls list |
 | `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
