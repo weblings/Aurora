@@ -23,6 +23,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `3qh-mac-capture-width-hint` | [log/2026-10-01-3qh-mac-capture-width-hint.md](log/2026-10-01-3qh-mac-capture-width-hint.md) | Aurora-3qh: Mac video mode resized full-Retina frames every tick |
 | `3xqi-node-ids-dev-builds` | [log/2026-11-16-3xqi-node-ids-dev-builds.md](log/2026-11-16-3xqi-node-ids-dev-builds.md) | Graph editor: node ids only in developer builds |
 | `3z1x-embed-skips-static-mocks` | [log/2026-11-08-3z1x-embed-skips-static-mocks.md](log/2026-11-08-3z1x-embed-skips-static-mocks.md) | Web root embed skips Static_* mock folders |
+| `4068-ci-ccache-linux-mac` | [log/2026-11-23-4068-ci-ccache-linux-mac.md](log/2026-11-23-4068-ci-ccache-linux-mac.md) | CI ccache for linux and mac, apt retry on linux |
 | `4ccg-announcer-queue` | [log/2026-11-13-4ccg-announcer-queue.md](log/2026-11-13-4ccg-announcer-queue.md) | Graph editor: a takeover is announced again when the shell's new row arrives in the same poll |
 | `4g4d-x2om-51nv12-recipes-demo-live` | [log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md](log/2026-11-23-4g4d-x2om-51nv12-recipes-demo-live.md) | Recipes page and demo editor live on Pages: three beads closed on the owner's word |
 | `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
@@ -83,6 +84,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
 | `7nyu-pairing-e2e-frozen-clock` | [log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md](log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md) | Pairing end-to-end test uses a frozen clock |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
+| `7r74-ptns-windows-ninja-core-tests` | [log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md](log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md) | Windows Ninja and sccache, core tests folded into the app build |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
 | `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
 | `8ydf-wayland-rate-cap-review` | [log/2026-10-20-8ydf-wayland-rate-cap-review.md](log/2026-10-20-8ydf-wayland-rate-cap-review.md) | Aurora-8ydf step 1: Wayland rate-cap review + tests (motion run open) |
