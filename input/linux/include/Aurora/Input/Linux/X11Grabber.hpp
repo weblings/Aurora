@@ -167,7 +167,6 @@ namespace Aurora::Input::Linux
     void _ensureScaleChain(const X11MonitorData& monitor);
 
     int m_screenId;
-    unsigned m_traceSkips{0}; // AURORA_DEV_X11_TRACE diagnostic only
     // RandR event subscription (Aurora-9fn3); 0 = no RandR, no change events.
     int m_randrEventBase{0};
     std::atomic<bool> m_monitorsChanged{false};
