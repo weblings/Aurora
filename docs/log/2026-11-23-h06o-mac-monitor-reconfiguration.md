@@ -14,3 +14,8 @@ Id: h06o-mac-monitor-reconfiguration
 
 ## Lessons
 - One entry in [[lesson-macos-gui]]: display callbacks need an AppKit event pump, and the removed display's UUID is gone in its callback.
+
+## Resume
+- Parked 2026-11-23 for want of a Screen Recording grant on a dev build: an ad-hoc dev build and a Developer ID signed copy under a throwaway bundle ID both got `no shareable displays` with no prompt, and `tccutil` reports the throwaway bundle ID unknown (macOS never made an entry for it). `tccutil reset ScreenCapture com.aurora.app` was run once while trying; a release build with that bundle ID may need its grant re-enabled.
+- A Developer ID copy needs hardened runtime off here: with it the Homebrew dylibs fail library validation (different Team ID); release builds bundle their own.
+- Resume on the notarized 1.2.1 candidate with the five steps in the `Aurora-h06o` notes (open the app, probe with `--hold 12` against `/api/monitors`, remove and re-add the selected display, mirror and resolution change, permission state unchanged).
