@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -178,6 +179,22 @@ namespace Aurora::Runtime
       return CodedBuildError(message, "input_unavailable", {{"inputKind", kind}, {"inputName", name}});
     }
 
+    // Shuts a throwing build's outputs down for good when the host has closed.
+    struct ClosedBuildGuard
+    {
+      Pipeline& pipeline;
+      const std::atomic<bool>* hostClosed;
+      const int exceptions{std::uncaught_exceptions()};
+
+      ~ClosedBuildGuard()
+      {
+        if(std::uncaught_exceptions() > exceptions && hostClosed && hostClosed->load()){
+          pipeline.shutdown(/*isReplacement*/ false);
+        }
+      }
+    };
+
+
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
     constexpr std::uint8_t kUsesAudioInput = 1u << 1;
     constexpr std::uint8_t kSamplesZones = 1u << 2;
@@ -221,6 +238,8 @@ namespace Aurora::Runtime
     Config config = savedConfig;
 
     auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
+    // Declared after `pipeline`, so it runs while the outputs still exist.
+    const ClosedBuildGuard closedGuard{*pipeline, overrides.hostClosed};
 
     // Aurora-o13 spike: presence-only flag, same convention as
     // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
@@ -1068,7 +1087,7 @@ namespace Aurora::Runtime
       // Pause, swaps and the epoch all take m_changeMutex, so they hold still
       // while the light builds against the running pipeline's outputs.
       std::lock_guard<std::mutex> change(m_changeMutex);
-      if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+      if(m_closed.load() || m_paused.load() || m_buildEpoch.load() != epoch){ return; }
       std::unique_ptr<Pipeline> light;
       if(m_pipeline || !m_failureLight){
         light = _buildFailureLight(registry, config, configRoot, m_pipeline.get());
@@ -1130,6 +1149,7 @@ namespace Aurora::Runtime
     const Registry& registry, const Config& config, const std::filesystem::path& configRoot)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
+    if(m_closed.load()){ return false; }
     {
       std::lock_guard<std::mutex> lock(m_mutex);
       if(m_failureLight){ return true; }
@@ -1164,7 +1184,7 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     std::lock_guard<std::mutex> lock(m_mutex);
-    if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+    if(m_closed.load() || m_paused.load() || m_buildEpoch.load() != epoch){ return; }
     _setBuildErrorLocked(source, message, true, code, detail);
   }
 
@@ -1527,13 +1547,15 @@ namespace Aurora::Runtime
   )
   {
     // Paused: the config is already on disk and applies on resume.
-    if(m_paused){ return true; }
+    if(m_closed || m_paused){ return true; }
 
     ScopedPhaseTimer reloadTimer(m_options, "reload total");
     const std::uint64_t epoch = m_buildEpoch.load();
     std::unique_ptr<Pipeline> next;
     try{
-      next = Pipeline::build(registry, config, configRoot, m_options);
+      PipelineBuildOverrides overrides;
+      overrides.hostClosed = &m_closed;
+      next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const EffectBuildError& e){
       errorOut = e.what();
@@ -1568,11 +1590,13 @@ namespace Aurora::Runtime
     std::unique_ptr<Pipeline> previous;
     std::unique_ptr<Pipeline> light;
     bool discardNext = false;
+    bool closed = false;
     {
       std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
-      // A pause() that landed during the build wins.
-      if(m_paused){
+      // A shutdown() or pause() that landed during the build wins.
+      closed = m_closed;
+      if(closed || m_paused){
         discardNext = true;
       }
       else{
@@ -1585,7 +1609,7 @@ namespace Aurora::Runtime
       }
     }
     if(discardNext){
-      if(next){ next->shutdown(/*isReplacement*/ true); }
+      if(next){ next->shutdown(/*isReplacement*/ !closed); }
       return true;
     }
     // previous is null on the first successful reload after a fresh
@@ -1725,12 +1749,14 @@ namespace Aurora::Runtime
   )
   {
     std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
-    if(!m_paused){ return true; }
+    if(m_closed || !m_paused){ return true; }
 
     ScopedPhaseTimer resumeTimer(m_options, "resume total");
     std::unique_ptr<Pipeline> next;
     try{
-      next = Pipeline::build(registry, config, configRoot, m_options);
+      PipelineBuildOverrides overrides;
+      overrides.hostClosed = &m_closed;
+      next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const std::exception& e){
       errorOut = _describeBuildError(e);
@@ -1742,24 +1768,41 @@ namespace Aurora::Runtime
       return false;
     }
 
-    std::lock_guard<std::mutex> change(m_changeMutex);
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_pipeline = std::move(next);
-    _storeCapabilities(m_pipeline.get());
-    m_pausedMonitors.clear();
-    m_pausedZones = {};
-    m_paused = false;
-    ++m_buildEpoch;
-    _publishBuiltLocked();
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(!m_closed){
+        m_pipeline = std::move(next);
+        _storeCapabilities(m_pipeline.get());
+        m_pausedMonitors.clear();
+        m_pausedZones = {};
+        m_paused = false;
+        ++m_buildEpoch;
+        _publishBuiltLocked();
+      }
+    }
+    // Still held only when shutdown() landed during the build.
+    if(next){ next->shutdown(/*isReplacement*/ false); }
     return true;
   }
 
 
   void PipelineHost::shutdown()
   {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if(m_pipeline){ m_pipeline->shutdown(/*isReplacement*/ false); }
-    if(m_failureLight){ m_failureLight->shutdown(/*isReplacement*/ false); }
+    m_closed = true;
+
+    std::unique_ptr<Pipeline> previous;
+    std::unique_ptr<Pipeline> light;
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      previous = std::move(m_pipeline);
+      light = std::move(m_failureLight);
+      // Open preview streams and a running light test see their pipeline gone.
+      ++m_buildEpoch;
+    }
+    if(previous){ previous->shutdown(/*isReplacement*/ false); }
+    if(light){ light->shutdown(/*isReplacement*/ false); }
   }
 
 

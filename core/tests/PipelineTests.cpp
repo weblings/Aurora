@@ -5641,6 +5641,119 @@ TEST_CASE("The preview summary leaves an open stream for the session alone (Auro
 }
 
 
+TEST_CASE("PipelineHost::shutdown is final: reload, resume and the failure light build nothing after it (Aurora-lyr3)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-shutdown-final");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+
+  SECTION("running")
+  {
+    PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+    const std::uint64_t epoch = host.buildEpoch();
+    host.shutdown();
+    CHECK(host.buildEpoch() > epoch);
+    events->lines.clear();
+
+    CHECK(host.reload(registry, config, dir.path, error));
+    CHECK_FALSE(host.pause());
+    CHECK(host.resume(registry, config, dir.path, error));
+    CHECK_FALSE(host.reloadInputs(registry, config, dir.path, nullptr, error));
+    host.shutdown();
+    CHECK(events->lines.empty());
+  }
+
+  SECTION("paused")
+  {
+    PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+    REQUIRE(host.pause());
+    host.shutdown();
+    events->lines.clear();
+
+    CHECK(host.resume(registry, config, dir.path, error));
+    CHECK(events->lines.empty());
+  }
+
+  SECTION("failed")
+  {
+    PipelineHost host(nullptr, {}, std::make_exception_ptr(std::runtime_error("boom")));
+    REQUIRE(host.status().state == HostState::Failed);
+    host.shutdown();
+
+    CHECK_FALSE(host.showFailureLight(registry, dir.path));
+    CHECK(host.setRunning(true, registry, dir.path, error));
+    CHECK(events->lines.empty());
+  }
+}
+
+
+TEST_CASE("A build in flight across PipelineHost::shutdown leaves no output without a final shutdown (Aurora-lyr3)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-shutdown-in-flight");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  Config bad = config;
+  bad.setActiveInputName("nope");
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  std::string error;
+
+  // shutdown() lands inside the new build's output init, after that init ran.
+  bool nested = false;
+  auto shutdownDuringBuild = [&]{
+    events->lines.clear();
+    events->onOutputInit = [&]{
+      if(nested){ return; }
+      nested = true;
+      host.shutdown();
+    };
+  };
+  const auto finalShutdowns = [&]{
+    return std::count(events->lines.begin(), events->lines.end(), "shutdown out-a final");
+  };
+
+  SECTION("reload")
+  {
+    shutdownDuringBuild();
+    CHECK(host.reload(registry, config, dir.path, error));
+  }
+
+  SECTION("resume")
+  {
+    REQUIRE(host.pause());
+    shutdownDuringBuild();
+    CHECK(host.resume(registry, config, dir.path, error));
+  }
+
+  SECTION("failing reload")
+  {
+    shutdownDuringBuild();
+    CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  }
+
+  SECTION("failing resume")
+  {
+    REQUIRE(host.pause());
+    shutdownDuringBuild();
+    CHECK_FALSE(host.resume(registry, bad, dir.path, error));
+  }
+
+  REQUIRE(nested);
+  // The last thing the output hears is a final shutdown, after the only init.
+  CHECK(initCount(*events) == 1);
+  REQUIRE_FALSE(events->lines.empty());
+  CHECK(events->lines.back() == "shutdown out-a final");
+  CHECK(finalShutdowns() >= 1);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  CHECK_FALSE(host.failureLightOn());
+  CHECK_FALSE(host.graphJson().has_value());
+}
+
+
 TEST_CASE("PipelineHost::reloadInputs keeps outputs when the list is unchanged and replaces them otherwise (Aurora-4xqt.1)", "[PipelineHost]")
 {
   ScopedTempDir dir("reload-inputs-outputs");

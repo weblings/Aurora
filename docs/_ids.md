@@ -342,6 +342,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lswm-local-network-stale-entry` | [log/2026-11-23-lswm-local-network-stale-entry.md](log/2026-11-23-lswm-local-network-stale-entry.md) | Local Network stale entries: remove button verified, banner copy ruled out (closed) |
 | `lt66-output-link-monitor` | [log/2026-11-05-lt66-output-link-monitor.md](log/2026-11-05-lt66-output-link-monitor.md) | A dead or dropped Hue bridge raises a banner row and reconnects by itself |
 | `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
+| `lyr3-shutdown-final` | [log/2026-11-25-lyr3-shutdown-final.md](log/2026-11-25-lyr3-shutdown-final.md) | `PipelineHost::shutdown()` is final |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |

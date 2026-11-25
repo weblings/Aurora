@@ -179,6 +179,10 @@ namespace Aurora::Runtime
     // screen capture is not reopened (a Wayland picker, a Mac stream start).
     // Same borrow-then-adopt handover as outputsFrom, via adoptInputsFrom().
     const Pipeline* inputsFrom{nullptr};
+
+    // The host's closed flag. A build that throws while it is set shuts down
+    // the outputs it opened: no later final shutdown will reach them.
+    const std::atomic<bool>* hostClosed{nullptr};
   };
 
 
@@ -571,6 +575,11 @@ namespace Aurora::Runtime
       std::string& errorOut
     );
 
+    // Final, for quit: shuts the pipeline and failure light down for good.
+    // Afterwards reload() and resume() succeed without building, nothing else
+    // installs a pipeline, and a build already in flight shuts its own outputs
+    // down when it finishes. Waits for reloadInputs() or a failure light that
+    // is mid-build.
     void shutdown();
 
     // The failure light (Aurora-dh1p): a dim magenta on the configured outputs
@@ -787,6 +796,9 @@ namespace Aurora::Runtime
     // Set under m_mutex. reload() while set succeeds without building, so a
     // settings save, /api/reload or Hue pairing cannot silently resume.
     std::atomic<bool> m_paused{false};
+    // Set once by shutdown(), before it takes the locks; checked under them
+    // before anything is built or installed.
+    std::atomic<bool> m_closed{false};
     Input::Monitors m_pausedMonitors;
     ZoneListResult m_pausedZones;
 

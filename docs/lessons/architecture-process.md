@@ -1364,3 +1364,17 @@ Applies-when: pulling a feature out of a release while another branch keeps deve
 Aurora-b665 reverted the island bundle (`Aurora-4nqt.3`) for 1.2.1. `feat/ReactPort` already contains that commit and builds on it, so merging the release branch into it applies the revert there: unchanged files are deleted and edited ones conflict.
 
 **Fix:** record it where the other branch's owner will look (the planning doc and the bead). When merging, revert the revert on that branch and check its files are back.
+
+---
+
+## A host's shutdown must refuse later builds, not just stop what is installed
+Tags: shutdown, lifetime, threads, reload, outputs
+Applies-when: adding a teardown to an object that other threads can still ask to rebuild
+
+Aurora-lyr3: `PipelineHost::shutdown()` shut the installed outputs down while the
+web server still served, so a later or in-flight reload installed new ones and
+started streaming again. A build that threw after output init leaked the same way:
+nothing outside `build` could reach its outputs.
+
+**Fix:** set a closed flag first, check it under the same lock that installs, and
+hand it to the build so a late success or throw releases what it opened.
