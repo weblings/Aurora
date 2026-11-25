@@ -9,6 +9,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `112-linux-verification` | [log/2026-10-18-112-linux-verification.md](log/2026-10-18-112-linux-verification.md) | v1.1.2 Linux verification |
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
+| `121-mac-release-testing` | [log/2026-11-25-121-mac-release-testing.md](log/2026-11-25-121-mac-release-testing.md) | 1.2.1 Mac release build and testing: notarized zip, monitor passes, quit crash |
 | `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
