@@ -12,6 +12,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
+| `1juz-x11-pink-flashes` | [log/2026-11-24-1juz-x11-pink-flashes.md](log/2026-11-24-1juz-x11-pink-flashes.md) | Aurora-1juz: X11 pink flashes with the GNOME magnifier, held as one-grab glitches (closed) |
 | `1n1u-browser-check-set` | [log/2026-11-17-1n1u-browser-check-set.md](log/2026-11-17-1n1u-browser-check-set.md) | Browser checks: the editor regression set on one stack |
 | `1na1-grille-0-2-0` | [log/2026-11-20-1na1-grille-0-2-0.md](log/2026-11-20-1na1-grille-0-2-0.md) | Graph editor moves to stable Grille 0.2.0 |
 | `1pwk-x11-damage-ratecap` | [log/2026-10-20-1pwk-x11-damage-ratecap.md](log/2026-10-20-1pwk-x11-damage-ratecap.md) | Aurora-1pwk: X11 damage skip + 20 fps grab cap (63% -> 40/20%) |
@@ -173,6 +174,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `docs-lessons-pain-points` | [archive/DocsAndLessonsPainPoints.md](archive/DocsAndLessonsPainPoints.md) | Docs & lessons: scaling pain points |
 | `dwvu-double-local-network-prompt` | [log/2026-10-08-dwvu-double-local-network-prompt.md](log/2026-10-08-dwvu-double-local-network-prompt.md) | Aurora-dwvu: two Local Network prompts on first Mac launch (closed) |
 | `dzsd-import-from-file` | [log/2026-11-23-dzsd-import-from-file.md](log/2026-11-23-dzsd-import-from-file.md) | Import a graph file: menu and drop |
+| `e2j4-local-network-update-grant` | [log/2026-11-23-e2j4-local-network-update-grant.md](log/2026-11-23-e2j4-local-network-update-grant.md) | Local Network grant across a Developer ID update and a reboot |
 | `e4bi-22-empty-section-leads` | [log/2026-11-18-e4bi-22-empty-section-leads.md](log/2026-11-18-e4bi-22-empty-section-leads.md) | A stored empty section can lead the controls list |
 | `e4bi-controls-panel-planning` | [log/2026-11-16-e4bi-controls-panel-planning.md](log/2026-11-16-e4bi-controls-panel-planning.md) | Graph editor: Dashboard controls panel redesign planned as stage 10 |
 | `e4bi1-controls-panel-mock` | [log/2026-11-16-e4bi1-controls-panel-mock.md](log/2026-11-16-e4bi1-controls-panel-mock.md) | Graph editor: Dashboard controls panel mock on React Aria and Grille (paused) |
@@ -221,6 +223,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |
 | `gujj-gate-flake` | [log/2026-11-13-gujj-gate-flake.md](log/2026-11-13-gujj-gate-flake.md) | graph-editor:gate flake: the problems chip unmounts under a late draft PUT |
+| `h06o-mac-monitor-reconfiguration` | [log/2026-11-23-h06o-mac-monitor-reconfiguration.md](log/2026-11-23-h06o-mac-monitor-reconfiguration.md) | Mac monitor-set rebuild: probe, filter, grabber override and virtual-display passes (closed) |
 | `h45-post-110-upstream-sweep` | [log/2026-10-08-h45-post-110-upstream-sweep.md](log/2026-10-08-h45-post-110-upstream-sweep.md) | Aurora-h45: post-1.1.0 sweep for more huenicorn upstream candidates |
 | `h45-upstream-fix-branches` | [log/2026-10-01-h45-upstream-fix-branches.md](log/2026-10-01-h45-upstream-fix-branches.md) | Aurora-h45: upstream fix branches for huenicorn — fixes done, MRs planned |
 | `h457-audio-permission-banner-row` | [log/2026-10-06-h457-audio-permission-banner-row.md](log/2026-10-06-h457-audio-permission-banner-row.md) | Aurora-h457: Mac audio permission becomes a daemon-pushed banner row (closed) |
@@ -335,6 +338,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `linux-post-d-verification` | [log/2026-10-23-linux-post-d-verification.md](log/2026-10-23-linux-post-d-verification.md) | Linux verification of the changes after Sequence D (0e73051 to e1834d0) |
 | `linux-tray-pause` | [log/2026-10-04-linux-tray-pause.md](log/2026-10-04-linux-tray-pause.md) | Aurora-5ipy.16: Linux SNI tray Pause/Resume (closed) |
 | `lmn5-doc-checkers-as-hook` | [log/2026-10-07-lmn5-doc-checkers-as-hook.md](log/2026-10-07-lmn5-doc-checkers-as-hook.md) | Aurora-lmn.5: check-links.sh/check-lessons.sh wired into the pre-commit hook |
+| `lswm-local-network-stale-entry` | [log/2026-11-23-lswm-local-network-stale-entry.md](log/2026-11-23-lswm-local-network-stale-entry.md) | Local Network stale entries: remove button verified, banner copy ruled out (closed) |
 | `lt66-output-link-monitor` | [log/2026-11-05-lt66-output-link-monitor.md](log/2026-11-05-lt66-output-link-monitor.md) | A dead or dropped Hue bridge raises a banner row and reconnects by itself |
 | `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |

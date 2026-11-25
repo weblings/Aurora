@@ -1307,3 +1307,14 @@ Applies-when: a repeat run of a containerized app prints "already running" or an
 Aurora-vijc: two trace runs of `Aurora` in the Distrobox used `timeout 40 distrobox enter aurora-dev -- ./Aurora`. `timeout` killed the wrapper but not the container child, so the next run logged only `Aurora is already running -- opening http://127.0.0.1:8215/ instead` and the grep for trace lines counted 0. The first run's callbacks were still printing into the old log.
 
 **Fix:** between runs, `pkill -x Aurora` (exact name, so it cannot match its own wrapper) and check `pgrep -x Aurora` is empty before relaunching; an empty trace or a one-line log is a launch problem first, a result second.
+
+---
+
+## A flash too short to see: record the output next to an independent capture of the truth, then trace inside the path and dump the bad frame
+Tags: debugging, evidence, timing, flicker, tap, correlation, x11
+Applies-when: someone reports brief flashes or dips in lights or video that a log line cannot explain, or you are about to blame the network, the hardware or a recent change for a glitch you have not measured
+
+Aurora-1juz: pink and black flashes of ~50 ms, intermittent, in bursts of 10 to 20 s minutes apart. The first theories (Hue link, PipeWire, fullscreen VLC, a stale-refresh path, post-release rebuilds) each fell to one measurement. What worked, in order: (1) record every frame of the output (`AURORA_DEV_LIGHT_TAP` over UDP) and read the shape of the glitch: duration in frames (3 frames = one 20 fps grab), colors (identical every time), neighbours (steady, so not a fade); (2) record the real screen at the same time with an independent grab (ffmpeg x11grab scaled to 96x54) and match events by timestamp: output pink with no pink on screen puts the fault in the grabber; (3) add an env-gated trace line inside the grab and dump the bad frame to PPM, then look at it: it was the magnified wallpaper, which named the magnifier. Dead ends worth skipping: `XDG_SESSION_TYPE` was x11, so the PipeWire theory cost a turn (check the session type first); a standalone reproduction of the suspect code did not reproduce it (the fault needed the app's own grab pattern); a watcher started after the burst saw nothing (bursts are short, keep the recorder and watcher running before asking the owner to try); a background job started with `nohup ... &` inside a background command reports "completed" when the launcher exits, not the watcher (check `pgrep`).
+
+**Fix:** keep the tap logger running for the whole session, run the independent capture only in short windows around a report, and put the trace and frame dump behind an env var that is removed after the cause is known. Judge the result by what reaches the output (tap), not by the trace.
+
