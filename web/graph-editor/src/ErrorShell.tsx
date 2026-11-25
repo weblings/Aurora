@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type AnimationEventHandler, type ReactNode } from 'react'
-import { Button, MessageRow } from '@weblings_things/grille'
+import { Button, MessageRow, squareChatIcon } from '@weblings_things/grille'
 import { arrivalAnnouncement, arrivedKeys, baselineSnapshot, clockText, collapsibleKeys, errorSentence, layoutRows, lightTesterSentence, markErrors, orderRows, pairingAccessText, permissionRowHtml, reconcileSnapshot } from '../../ui/shellRows.js'
 import { createShellCap } from '../../ui/shellCap.js'
 import { renderLocalNetworkBanner } from '../../ui/MacPermissionRecovery.js'
@@ -123,7 +123,7 @@ function LightTestRow({ rowKey, lightTest, onStopTest, pulse }: { rowKey: string
   )
   return (
     <RowBox rowKey={rowKey} pulse={pulse}>
-      <MessageRow tone="notice" message={message}>
+      <MessageRow tone="notice" icon={squareChatIcon} message={message}>
         <Button variant="secondary" id="shell-light-test-stop" data-action="stop-test" data-key={rowKey} onPress={onStopTest}>
           Stop test
         </Button>
@@ -136,7 +136,7 @@ function PairingRowView({ rowKey, request, onDecide, pulse }: { rowKey: string; 
   const access = pairingAccessText(request.scope ?? '')
   return (
     <RowBox rowKey={rowKey} pulse={pulse}>
-      <MessageRow tone="notice" message={<strong>Pair a device with Aurora?</strong>}>
+      <MessageRow tone="notice" icon={squareChatIcon} message={<strong>Pair a device with Aurora?</strong>}>
         <ul className="shell-pairing-details">
           <li>
             <span className="shell-pairing-label">Device:</span> {request.name ?? ''}

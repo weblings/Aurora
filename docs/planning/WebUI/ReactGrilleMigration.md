@@ -40,7 +40,7 @@ Scale: `DashboardScreen.js` is 1234 lines of imperative DOM with a 1067-line tes
 - Build (owner leaning, 2026-11-23): add the Dashboard and NUX as pages of the existing graph-editor Vite project, like `recipes.html`, not a sibling project. Open: Node policy for the main UI, how the demo consumes the bundle. Both go in `Aurora-4nqt.1`.
 - Migration is hybrid and per piece, not a big bang. Grille's `mountIsland(el, node)` mounts React into an element owned by vanilla code. A React piece gets a wrapper class with the same API as the class it replaces, so callers do not change. Aurora does not use `mountIsland` yet.
 - Order: shell island first (rows come in as props and `ErrorShell` fetches nothing), then leaf islands, then NUX screens, then the Dashboard, then flip `app.js` and retire vanilla. Each step keeps a working app and a passing demo build.
-- Grille gaps (Switch, Slider, Select, accordion Disclosure, power icon) were mocked in Aurora first (`Aurora-4nqt.5`, approved 2026-11-24, see [[4nqt5-grille-gaps-mock]]), filed as Grille epic `Grille-0u5` and shipped in Grille v0.2.2-dev.2 and polished in dev.3. The editor now pins dev.4 (`Aurora-6ovl`). Checkbox and back arrow were dropped.
+- Grille gaps (Switch, Slider, Select, accordion Disclosure, power icon) were mocked in Aurora first (`Aurora-4nqt.5`, approved 2026-11-24, see [[4nqt5-grille-gaps-mock]]), filed as Grille epic `Grille-0u5` and shipped in Grille v0.2.2-dev.2 and polished in dev.3. The editor now pins dev.5 (`Aurora-7p8f`). Checkbox and back arrow were dropped.
 
 ## Risks to check
 

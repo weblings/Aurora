@@ -262,6 +262,8 @@ describe('ErrorShell baseline', () => {
     expect(out).toContain('id="shell-pairing-approve-r1" data-action="approve" data-key="pairing:r1"')
     expect(out).toContain('id="shell-pairing-deny-r1" data-action="deny" data-key="pairing:r1"')
     expect(out).toContain('data-tone="notice"')
+    // squareChatIcon's padded viewBox, in place of the tone's circled (i).
+    expect(out).toContain('viewBox="-0.8 -0.8 25.6 25.6"')
     expect(out).toContain('<strong>Pair a device with Aurora?</strong>')
     expect(out.indexOf('shell-pairing-approve')).toBeLessThan(out.indexOf('shell-banner-toggle'))
   })

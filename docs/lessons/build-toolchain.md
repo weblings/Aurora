@@ -1034,3 +1034,13 @@ Applies-when: rebuilding `build/windows-app` to get a binary that embeds changed
 Aurora-4nqt.7: `--target Aurora` failed with "Project file does not exist" (MSBuild MSB1009), and a following `--target AuroraApp` succeeded but only produced `AuroraApp.lib`, so `Aurora.exe` kept its old date. A shell command that ends in `tail` reports exit 0 either way.
 
 **Fix:** `cmake --build build/windows-app --config Release --target aurora-app-windows`, then check `bin/Release/Aurora.exe` has a new timestamp and `grep -c <new class name> Aurora.exe` is above zero.
+
+---
+
+## On Windows a running Vite dev server makes the graph editor's npm ci fail with EPERM
+Tags: windows, vite, npm-ci, cmake, eperm, background-process
+Applies-when: rebuilding the app after a `web/graph-editor` dependency change, or after stopping a background dev server
+
+Aurora-7p8f: after a Grille pin change the app build failed (`npm error code: 'EPERM'`, MSB8066) because the Vite dev server still held files in `node_modules`. Stopping the background `npm run dev` task left its child `node ... vite.js` listening on 5173. A browser check run in the same command then passed against the old `Aurora.exe`.
+
+**Fix:** stop the process that owns the port (`Get-NetTCPConnection -LocalPort 5173`), rebuild, and check the exe's timestamp before trusting a browser check.

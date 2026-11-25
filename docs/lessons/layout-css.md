@@ -389,10 +389,10 @@ Aurora-4nqt.4: the `.shell-banner-row.shell-grille-row` rule that strips the old
 
 ---
 
-## Grille's MessageRow has no mark prop, so a different mark is a CSS mask over its icon
-Tags: grille, message-row, icon, css-mask, shell
-Applies-when: changing the icon on a Grille MessageRow, or counting where a shell mark is drawn
+## A Grille icon draws 8px larger than its layout box, so size it with the overhang variable
+Tags: grille, icon, message-row, css-mask, shell
+Applies-when: resizing a Grille icon, or drawing a replacement over one
 
-Aurora-7p8f: the shell's notice mark is drawn twice, by `.shell-mark-info` on the collapsed bar and by MessageRow's built-in `circledInfoIcon` on open rows. Editing only the Aurora class leaves the open rows on the old icon.
+Aurora-7p8f: a Grille icon is a 24px glyph with negative margins in a 16px box. A chat icon masked on MessageRow's 16px mark wrapper drew at two thirds of the error mark beside it. The shell mark is also drawn twice: `.shell-mark` on the collapsed bar and MessageRow's icon on open rows.
 
-**Fix:** in `shell.css`, hide the row's svg with `visibility: hidden` (the box keeps its size) and mask the new icon on `.ui-message-row-mark`. Change both rules together.
+**Fix:** pass MessageRow's `icon` prop (Grille v0.2.2-dev.5) instead of masking, and set `--ui-size-icon-overhang` on a parent to resize without moving the text. Change both drawings together and compare them in a screenshot.

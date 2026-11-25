@@ -304,8 +304,8 @@
 .shell-mark {
   display: inline-block;
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   vertical-align: -2px;
   background-color: currentColor;
   -webkit-mask-size: contain;
@@ -321,15 +321,9 @@
   mask-image: url('../icons/square-chat.svg');
 }
 
-/* MessageRow has no mark prop: hide its notice svg (keeping the box) and mask the chat icon over it. */
-.shell-grille-row [data-tone='notice'] .ui-message-row-mark {
-  background-color: currentColor;
-  -webkit-mask: url('../icons/square-chat.svg') center / contain no-repeat;
-  mask: url('../icons/square-chat.svg') center / contain no-repeat;
-}
-
-.shell-grille-row [data-tone='notice'] .ui-message-row-mark svg {
-  visibility: hidden;
+/* Open-row marks draw at Grille's 16px icon box, without the overhang that makes the glyph 24px. */
+.shell-grille-row .ui-message-row-mark {
+  --ui-size-icon-overhang: 0px;
 }
 
 .shell-mark-error {
