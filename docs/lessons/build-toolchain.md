@@ -1016,3 +1016,13 @@ Applies-when: adding sccache or ccache to a Windows build that uses `cmake --pre
 Aurora-7r74: `CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` are honored only by Makefile and Ninja generators. The `windows-app` preset sets none, so CI used the Visual Studio generator and sccache would never have run. This reverses the advice in "Installing Visual Studio's C++ workload doesn't put its own tools on PATH" for CI.
 
 **Fix:** run `ilammy/msvc-dev-cmd` so `cl.exe` is on PATH, then configure with `-G Ninja -DCMAKE_BUILD_TYPE=Release`. Output moves from `bin/Release/` to `bin/`. Release has no `/Zi`, so sccache works without `/Z7`.
+
+---
+
+## A running Vite dev server keeps serving the old Grille after the tarball pin changes
+Tags: vite, grille, dev-server, cache, tarball, stale-build
+Applies-when: measuring or screenshotting a page against a dev server after bumping `@weblings_things/grille`
+
+After `tools/grille/switch.mjs dev v0.2.2-dev.3` and a passing `tsc` and `vitest`, the Vite dev server started before the bump still returned dev.2's numbers (a 16px slider label gap that dev.3 fixes). A server restarted with `--force` returned dev.3's. A plain restart was not tried.
+
+**Fix:** after any Grille pin change, stop the dev server and start it with `npx vite --force` before measuring, and print one value that differs between the two versions to confirm which one is served.

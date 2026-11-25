@@ -459,3 +459,13 @@ Applies-when: a browser check or `devstack.py up` fails with port 8000 already i
 `devstack.py up` stops with "port 8000 already in use -- stale stack? run `down`", and `down` has nothing to stop. On the owner machine a
 ComfyUI desktop instance listens on 8000. Do not kill it. The checks read `AURORA_VIZ_PORT`, so
 `AURORA_VIZ_PORT=8001 npm run graph-editor:<check>` runs on another port. Find the owner with `Get-NetTCPConnection -LocalPort 8000` first.
+
+---
+
+## The Dashboard cases of a browser check run the app's embedded web/ui and islands bundle, so rebuild the app before trusting them after a bump
+Tags: browser-check, dashboard, embedded, stale-build, grille
+Applies-when: a Grille bump or a web/ui or islands change is checked with `dashboard-shell`, `shell-cap` or the editor set
+
+`AURORA_EDITOR=embedded` is not the only mode that reads the app binary. Even by default the Dashboard page comes from the webroot embedded in `Aurora.exe`, and only the editor pages come from the Vite dev server. On 2026-11-24 `Aurora.exe` was built 2026-11-23 16:30, so the Dashboard cases of `shell-cap` ran an older bundle than the Grille dev.3 pin they were meant to cover. A flaky Dashboard failure there could not be tied to the change (`Aurora-6f9b`).
+
+**Fix:** check the build time of `build/<preset>/bin/Aurora.exe` before running Dashboard checks, and rebuild the app first when it predates the change. Report which cases ran against which build.

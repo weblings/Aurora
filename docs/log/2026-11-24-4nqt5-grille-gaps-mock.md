@@ -25,6 +25,7 @@ Id: 4nqt5-grille-gaps-mock
 ## Follow-ups filed
 - Grille: `Grille-cf3` (slider label gap 10px and secondary label colour) and `Grille-jdf` (repad `powerIcon` so its ink matches the arrow). The Grille epic `Grille-0u5` is closed.
 - Aurora: `Aurora-4nqt.12`, an inset focus ring for Select options in `tokens.css`. Aurora's unlayered global `:focus-visible` rule draws an outer ring on Grille's `.ui-option`, and Grille's `@layer ui` cannot beat it. `Aurora-4nqt.7` depends on it.
+- `Aurora-6f9b`: the flaky `shell-cap` check above.
 - Not filed: Select disabled at 0.4 opacity (Grille's own button rule), and today's Select trigger starting with the raw value, to check in the running Dashboard.
 
 ## Grille v0.2.2-dev.3 check
@@ -32,7 +33,9 @@ Id: 4nqt5-grille-gaps-mock
 - `Grille-cf3` fixed: slider label to track is 10px (today 10px) and the label is `rgb(200,200,200)` (today the same).
 - `Grille-jdf` fixed: `powerIcon` viewBox is `-4 -4 32 32`, and its ink at `size="sm"` is 12.1 x 12.7px against the arrow's 12.5 x 11.4px, centred (offset 0,0).
 - Unchanged from dev.2: switch, select, accordion and held-key slider results above, and the 0.4 disabled Select. A Vite dev server kept serving the cached dev.2 package until it was restarted with `--force`.
-- Not run on dev.3: the editor browser checks, the demo build and the web CI loop.
+- Gates on dev.3: 44 web node tests, the vendor closure check, the demo graph and descriptors checks, the editor build, the recipes build and the demo editor build (`build-editor.py`) all passed. The editor browser set passed 17 of 17 and `dashboard-shell` passed.
+- `shell-cap` failed 2 of 5 runs on one Dashboard assertion (400x420, the first new row pulses with itself in view) and passed 36 of 36 the other 3. `Aurora.exe` was built 2026-11-23, before the bump, so the Dashboard cases did not run dev.3. Not reproduced on a clean baseline, filed as `Aurora-6f9b`.
+- Not run: `docs/api/gen-openapi.py --check` (needs a pip install, nothing under `docs/api` changed).
 
 ## Verification
 - `tsc --noEmit` was clean. The mock was driven headless (Playwright, cached Chromium) against the Vite dev server with no console errors.
@@ -44,3 +47,5 @@ Id: 4nqt5-grille-gaps-mock
 ## Lessons
 - [[lesson-planning]]: audit the consumers before listing a gap to request, and check an icon's licence tier.
 - [[lesson-components]]: React Aria Slider ends on every key repeat.
+- [[lesson-build-toolchain]]: a running Vite dev server keeps serving the old Grille after a pin change.
+- [[lesson-web-testing]]: the Dashboard cases of a browser check run the app's embedded bundle.
