@@ -215,6 +215,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `fzzr-laptop-width-fit` | [log/2026-10-29-fzzr-laptop-width-fit.md](log/2026-10-29-fzzr-laptop-width-fit.md) | Graph editor: fit holds at laptop width |
 | `ge1i-stage8-minimap-mark-start-from` | [log/2026-11-15-ge1i-stage8-minimap-mark-start-from.md](log/2026-11-15-ge1i-stage8-minimap-mark-start-from.md) | Graph editor stage 8: minimap contrast, unsaved *, New from any effect |
 | `ge1i21-clipboard` | [log/2026-11-16-ge1i21-clipboard.md](log/2026-11-16-ge1i21-clipboard.md) | Graph editor clipboard: copy, cut, paste, Select all, Edit menu |
+| `ghh3-version-1-2-1` | [log/2026-11-25-ghh3-version-1-2-1.md](log/2026-11-25-ghh3-version-1-2-1.md) | Project version bumped to 1.2.1 |
 | `graph-editor-cleanup` | [planning/WebUI/GraphEditorCleanup.md](planning/WebUI/GraphEditorCleanup.md) | Graph editor cleanup |
 | `gtkd-bare-bus-fix` | [log/2026-10-07-gtkd-bare-bus-fix.md](log/2026-10-07-gtkd-bare-bus-fix.md) | Aurora-gtkd closed: fake bare bus no longer activates the real xdg-desktop-portal |
 | `gui-launch-ux` | [archive/GUILaunchUX.md](archive/GUILaunchUX.md) | GUI Launch UX |

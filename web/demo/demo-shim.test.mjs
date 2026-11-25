@@ -454,7 +454,7 @@ console.log('demo-shim contract tests passed.');
 {
   const pending = testRouter({})('GET', '/api/version');
   assert.ok(pending instanceof Promise, 'route returns a promise');
-  assert.deepEqual(await pending, { status: 200, json: { version: '1.2.0' } });
+  assert.deepEqual(await pending, { status: 200, json: { version: '1.2.1' } });
   await assert.doesNotReject(testRouter({})('PUT', '/api/state', '{bad'), 'bad body answers 400, never rejects');
 }
 
@@ -472,7 +472,7 @@ console.log('demo-shim contract tests passed.');
   assert.equal(bad.status, 404);
   assert.equal(await window.fetch('/page.css'), 'native');
   assert.deepEqual(calls, ['/page.css']);
-  assert.equal((await shim.route('GET', '/api/version')).json.version, '1.2.0');
+  assert.equal((await shim.route('GET', '/api/version')).json.version, '1.2.1');
   shim.uninstall();
   delete globalThis.window;
 }
