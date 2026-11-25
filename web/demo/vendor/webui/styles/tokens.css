@@ -92,7 +92,8 @@
   outline-offset: var(--aurora-focus-ring-offset);
 }
 .segmented-btn:focus-visible,
-.dropdown-option:focus-visible {
+.dropdown-option:focus-visible,
+.ui-option:focus-visible {
   outline-offset: calc(-1 * var(--aurora-focus-ring-width));
 }
 /* The listbox is never the focus target's visible state: the active option is (dropdown.css). */

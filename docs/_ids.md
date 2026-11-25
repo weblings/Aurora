@@ -29,6 +29,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4g4d2-recipes-page` | [log/2026-11-19-4g4d2-recipes-page.md](log/2026-11-19-4g4d2-recipes-page.md) | Effect recipes page: read-only editor viewer, seven canon clips |
 | `4hhb-browser-check-1470` | [log/2026-10-29-4hhb-browser-check-1470.md](log/2026-10-29-4hhb-browser-check-1470.md) | Browser checks rerun at laptop width |
 | `4nqt1-react-dashboard-delivery` | [log/2026-11-23-4nqt1-react-dashboard-delivery.md](log/2026-11-23-4nqt1-react-dashboard-delivery.md) | React Dashboard and NUX: build and delivery decision |
+| `4nqt12-select-option-inset-focus` | [log/2026-11-24-4nqt12-select-option-inset-focus.md](log/2026-11-24-4nqt12-select-option-inset-focus.md) | Inset focus ring on Grille Select options |
 | `4nqt2-error-shell-messagerow` | [log/2026-11-23-4nqt2-error-shell-messagerow.md](log/2026-11-23-4nqt2-error-shell-messagerow.md) | Graph editor error shell on Grille MessageRow |
 | `4nqt3-islands-navfooter` | [log/2026-11-23-4nqt3-islands-navfooter.md](log/2026-11-23-4nqt3-islands-navfooter.md) | Main page loads a built bundle, NavFooter is the first island |
 | `4nqt4-dashboard-error-shell-island` | [log/2026-11-23-4nqt4-dashboard-error-shell-island.md](log/2026-11-23-4nqt4-dashboard-error-shell-island.md) | Dashboard error shell becomes a React island |
