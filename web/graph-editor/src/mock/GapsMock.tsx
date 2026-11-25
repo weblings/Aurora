@@ -7,7 +7,7 @@ import { bindSliderFill } from '../../../ui/SliderFill.js'
 import powerUrl from '../../../ui/icons/power-svgrepo-com.svg'
 import backArrowUrl from '../../../ui/icons/back-arrow.svg'
 
-// Grille gaps mock (Aurora-4nqt.5), now on the real Grille v0.2.2-dev.3 components (Grille-0u5.1 to .5).
+// Grille gaps mock (Aurora-4nqt.5), now on the real Grille v0.2.2-dev.4 components (Grille-0u5.1 to .5).
 // The left column is today's web/ui, the right column is Grille, so differences show side by side.
 
 function useLog() {
@@ -38,7 +38,7 @@ function Pair({ today, grille }: { today: ReactNode; grille: ReactNode }) {
   return (
     <div className="gm-pair">
       <div className="gm-col"><h3>Today (web/ui, vanilla)</h3>{today}</div>
-      <div className="gm-col"><h3>Grille v0.2.2-dev.3</h3>{grille}</div>
+      <div className="gm-col"><h3>Grille v0.2.2-dev.4</h3>{grille}</div>
     </div>
   )
 }
@@ -279,7 +279,7 @@ export function GapsMock() {
   return (
     <main className="gm-page">
       <h1>Grille components for the Dashboard and NUX</h1>
-      <p className="gm-lede">Aurora-4nqt.5. Left is the live web/ui component, right is the real Grille v0.2.2-dev.3 component asked for in Grille-0u5.</p>
+      <p className="gm-lede">Aurora-4nqt.5. Left is the live web/ui component, right is the real Grille v0.2.2-dev.4 component asked for in Grille-0u5.</p>
       <SwitchFrame />
       <SliderFrame />
       <SelectFrame />

@@ -84,6 +84,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5ipy7-global-brightness` | [log/2026-10-16-5ipy7-global-brightness.md](log/2026-10-16-5ipy7-global-brightness.md) | Aurora-5ipy.7: global brightness gain stage |
 | `5ipy8-coalesce-settings-reloads` | [log/2026-10-16-5ipy8-coalesce-settings-reloads.md](log/2026-10-16-5ipy8-coalesce-settings-reloads.md) | Coalesce settings-PUT reloads (Aurora-5ipy.8) |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
+| `6ovl-grille-dev4` | [log/2026-11-25-6ovl-grille-dev4.md](log/2026-11-25-6ovl-grille-dev4.md) | Grille v0.2.2-dev.4 |
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
 | `7nyu-pairing-e2e-frozen-clock` | [log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md](log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md) | Pairing end-to-end test uses a frozen clock |
