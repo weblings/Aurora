@@ -205,6 +205,7 @@ export class DashboardScreen {
     document.removeEventListener('visibilitychange', this._onWake);
     if (this.app.onStateUpdate === this._onHeartbeatState) this.app.onStateUpdate = null;
     if (this.app.onPairedDevicesChanged === this._onPairedDevicesChanged) this.app.onPairedDevicesChanged = null;
+    this._unmountFloor();
     this.pairedDevices?.destroy();
     this.pairedDevices = null;
     this._stopAudioStatusPoll();
@@ -707,9 +708,16 @@ export class DashboardScreen {
     this._renderBridgeZoneList();
   }
 
+  // Black handling's Grille islands (Aurora-4nqt.7), unmounted before the section is rebuilt.
+  _unmountFloor() {
+    this._floorUnmounts?.forEach((unmount) => unmount());
+    this._floorUnmounts = [];
+  }
+
   // Black handling for outputs that treat brightness 0 as off (Aurora-4zr.11).
   // Every edit saves at once like the rest of the Dashboard.
   _renderOutputFloor(content) {
+    this._unmountFloor();
     if (this.output === null || !this.zeroOffOutputs.includes(this.output)) return;
     const saved = this.tuningValues.outputFloors?.[this.output] ?? {};
     const floor = { policy: saved.policy ?? 'off', floor: saved.floor ?? 0.05, holdSeconds: saved.holdSeconds ?? 2 };
@@ -718,13 +726,16 @@ export class DashboardScreen {
       ['holdSeconds', 'Hold time', 0, 60, 0.1, 's'],
     ];
     const policies = [['off', 'Off'], ['hold', 'Hold dim'], ['switchOff', 'Switch off']];
+    const mountSegmented = globalThis.auroraIslands?.mountSegmented;
     const wrap = document.createElement('div');
     wrap.className = 'db-output-floor';
     wrap.innerHTML = `
       <p class="field-label">Black handling</p>
-      <div class="segmented" role="group" aria-label="Black handling">
+      ${mountSegmented
+        ? '<div class="db-floor-policy-slot"></div>'
+        : `<div class="segmented" role="group" aria-label="Black handling">
         ${policies.map(([id, label]) => `<button type="button" class="segmented-btn${floor.policy === id ? ' active' : ''}" data-policy="${id}">${label}</button>`).join('')}
-      </div>
+      </div>`}
       <div class="db-floor-sliders"${floor.policy === 'off' ? ' hidden' : ''}>${sliderGroupHtml(sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor)}</div>
     `;
     content.appendChild(wrap);
@@ -746,14 +757,24 @@ export class DashboardScreen {
       }
     };
 
-    wireSliderGroup(wrap, sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor, save);
+    this._floorUnmounts.push(wireSliderGroup(wrap, sliders.slice(0, floor.policy === 'switchOff' ? 2 : 1), floor, save));
+    const pick = async (policy) => {
+      floor.policy = policy;
+      await save();
+      wrap.remove();
+      this._renderOutputFloor(content);
+    };
+    if (mountSegmented) {
+      const slot = wrap.querySelector('.db-floor-policy-slot');
+      this._floorUnmounts.push(mountSegmented(slot, {
+        label: 'Black handling',
+        options: policies.map(([id, label]) => ({ id, label })),
+        value: floor.policy,
+        onChange: pick,
+      }).unmount);
+    }
     for (const button of wrap.querySelectorAll('[data-policy]')) {
-      button.addEventListener('click', async () => {
-        floor.policy = button.dataset.policy;
-        await save();
-        wrap.remove();
-        this._renderOutputFloor(content);
-      });
+      button.addEventListener('click', () => pick(button.dataset.policy));
     }
   }
 

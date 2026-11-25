@@ -23,6 +23,8 @@ export function findZone(zones, rawId) {
   return zones.find((z) => z.zoneId === rawId || z.zoneId === Number(rawId));
 }
 
+const mountedLists = new WeakMap();
+
 export class ZoneActiveToggleList {
   // zones: live zone array (mutated in place, same convention as
   // ZoneCanvas). zoneLabel(zone) is injected -- this component knows
@@ -39,7 +41,39 @@ export class ZoneActiveToggleList {
     this._render();
   }
 
+  // One Switch island per zone (Aurora-4nqt.7), mounted once and fed props so a flip keeps focus.
+  _renderIslands(mountSwitch) {
+    // A screen rebuilds the list on the same slot without a destroy, so the last one's roots go here.
+    mountedLists.get(this.container)?.forEach((unmount) => unmount());
+    const unmounts = [];
+    mountedLists.set(this.container, unmounts);
+    this.container.innerHTML = '';
+    for (const zone of this.zones) {
+      const row = document.createElement('div');
+      row.className = 'zm-active-toggle';
+      applyTooltip(row, this.tooltipKey);
+      this.container.append(row);
+      const props = () => ({
+        label: this.zoneLabel(zone),
+        isSelected: zone.active,
+        onChange: (active) => {
+          zone.active = active;
+          this._queue.queue(zone.zoneId, { active });
+          live.update(props());
+          this.onChange?.(zone);
+        },
+      });
+      const live = mountSwitch(row, props());
+      unmounts.push(live.unmount);
+    }
+  }
+
   _render() {
+    const mountSwitch = globalThis.auroraIslands?.mountSwitch;
+    if (mountSwitch) {
+      this._renderIslands(mountSwitch);
+      return;
+    }
     this.container.innerHTML = this.zones.map((zone) => `
       <label class="toggle-row zm-active-toggle">
         <span class="toggle-row-label">${escapeHtml(this.zoneLabel(zone))}</span>

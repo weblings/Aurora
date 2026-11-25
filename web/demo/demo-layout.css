@@ -95,10 +95,18 @@ html, body {
 /* :where() keeps the reset at zero specificity, like web/ui's bare * --
    this file loads last, so a plain .db-port * would beat every component
    class rule and zero its padding (Aurora-jwt7). */
-:where(.db-port) * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* In @layer reset so Grille's layered ui.css keeps its padding (Aurora-4nqt.7). */
+@layer reset {
+  :where(.db-port) * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+}
+
+/* Grille popovers render in a portal on body, outside .db-port, so they need the font too. */
+.ui-popover {
+  font-family: var(--aurora-font);
 }
 
 .db-port {

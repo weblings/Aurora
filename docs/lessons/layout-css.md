@@ -363,6 +363,22 @@ Applies-when: loading Grille's `ui.css` on a page that also carries `web/ui` sty
 
 **Fix:** keep Aurora's page CSS scoped to its own classes. Put an override meant to beat Grille in `@layer app`, or accept the unlayered win when the values match.
 
+## An unlayered page reset zeroes every Grille component's padding
+Tags: css, cascade, layers, grille, reset, island, demo
+Applies-when: a Grille island on a `web/ui` or demo page has no padding, is too short, or its row is off by a few pixels while the same component looks right in the editor or a mock
+
+Aurora-4nqt.7: the Select trigger rendered 20 px tall instead of the Dashboard's 35 px. `web/ui/styles/page.css` had `* { margin: 0; padding: 0 }` and the demo's `demo-layout.css` had `:where(.db-port) * { ... }`, both unlayered. An unlayered rule beats any layered one at any specificity, so Grille's `.ui-select-trigger` padding in `@layer ui` lost. Tokens were fine (`--ui-size-control-pad-y` read 9px). Two earlier fixes (labels, hidden label) changed nothing visible, and the Grille mock looked right because it had no page reset around it.
+
+**Fix:** put the resets in `@layer reset` (Grille's README says to), and measure in a real browser first. A Playwright script listing the rules that match the element and set `padding` found the culprit in one run. Grille's `.ui-field` also pads 10 px top and bottom for FieldList rows, so zero it (`forms.css`) where Aurora's own rows already space the control.
+
+## A Grille popover portals to body, so a page that sets its font on a wrapper gets the browser default
+Tags: css, grille, popover, portal, font, demo
+Applies-when: a Grille Select, Menu or Popover opens in a page whose font is set on a container (the demo's `.db-port`) and its text is serif
+
+Aurora-4nqt.7: the Zone Select's options rendered in Times New Roman in the demo. React Aria portals the popover to `body`, outside `.db-port`, and `demo-layout.css` set the font on `.db-port` only (the app's `page.css` sets it on `body`, so the app was fine).
+
+**Fix:** give the portalled layer the font: `.ui-popover { font-family: var(--aurora-font) }` in the demo's own CSS. Any style a popover needs from a page container has to be set on `body` or on `.ui-popover`.
+
 ## A rule an island needs must live in a stylesheet the main page loads, not in editor.css
 Tags: css, island, shell, editor.css, shell.css
 Applies-when: a component shared by the graph editor and the Dashboard needs an override of `shell.css`

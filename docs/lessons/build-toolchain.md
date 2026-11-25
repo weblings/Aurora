@@ -1026,3 +1026,11 @@ Applies-when: measuring or screenshotting a page against a dev server after bump
 After `tools/grille/switch.mjs dev v0.2.2-dev.3` and a passing `tsc` and `vitest`, the Vite dev server started before the bump still returned dev.2's numbers (a 16px slider label gap that dev.3 fixes). A server restarted with `--force` returned dev.3's. A plain restart was not tried.
 
 **Fix:** after any Grille pin change, stop the dev server and start it with `npx vite --force` before measuring, and print one value that differs between the two versions to confirm which one is served.
+
+## The Windows app executable is the `aurora-app-windows` target, and building `AuroraApp` only builds libraries
+Tags: cmake, windows, build, targets, embed
+Applies-when: rebuilding `build/windows-app` to get a binary that embeds changed `web/ui` or editor files
+
+Aurora-4nqt.7: `--target Aurora` failed with "Project file does not exist" (MSBuild MSB1009), and a following `--target AuroraApp` succeeded but only produced `AuroraApp.lib`, so `Aurora.exe` kept its old date. A shell command that ends in `tail` reports exit 0 either way.
+
+**Fix:** `cmake --build build/windows-app --config Release --target aurora-app-windows`, then check `bin/Release/Aurora.exe` has a new timestamp and `grep -c <new class name> Aurora.exe` is above zero.

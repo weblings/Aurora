@@ -9,9 +9,9 @@ Id: atpm-remove-zest-pro-icons
 - `THIRD_PARTY_NOTICES.md`: the Zest Free entry now covers `power-svgrepo-com.svg` and `minus.svg` only, and through Grille the minus and warning icons.
 - Old logs that mention the two files are history and were left alone.
 
-## Not resolved
-- `power-svgrepo-com.svg` has an SVG Repo header and no licence text. Its Zest Free origin could not be verified offline, so the notice now says "unverified". It is still used by the Dashboard demo (`DashboardScreen.js`), `GapsMock.tsx` and the static mocks. Needs an owner check against the zest-icons repo.
-- `minus.svg` was not compared against zest-free either. The other files in `web/ui/icons` are Vidstack (MIT) or Aurora's own.
+## Checked, nothing more to do
+- `power-svgrepo-com.svg` is Zest Free. The root README credits it by the zest-free licence file link SVG Repo supplies, and [[daaa33-notices-audit]] already fetched that licence text. The notice stays as it was. Grille's `powerIcon` is OpenMoji because Zest's `power-symbol.svg` is Pro only ([[4nqt5-grille-gaps-mock]]), a different file.
+- `minus.svg` is Zest Free (owner, 2026-11-24). The other files in `web/ui/icons` are Vidstack (MIT) or Aurora's own.
 
 ## Lessons
 - [[lesson-planning]]: an icon taken on someone's word needs its tier checked when added.

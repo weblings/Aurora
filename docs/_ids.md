@@ -34,6 +34,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `4nqt3-islands-navfooter` | [log/2026-11-23-4nqt3-islands-navfooter.md](log/2026-11-23-4nqt3-islands-navfooter.md) | Main page loads a built bundle, NavFooter is the first island |
 | `4nqt4-dashboard-error-shell-island` | [log/2026-11-23-4nqt4-dashboard-error-shell-island.md](log/2026-11-23-4nqt4-dashboard-error-shell-island.md) | Dashboard error shell becomes a React island |
 | `4nqt5-grille-gaps-mock` | [log/2026-11-24-4nqt5-grille-gaps-mock.md](log/2026-11-24-4nqt5-grille-gaps-mock.md) | Grille mock for the Dashboard and NUX gaps |
+| `4nqt7-leaf-islands-controls` | [log/2026-11-24-4nqt7-leaf-islands-controls.md](log/2026-11-24-4nqt7-leaf-islands-controls.md) | Leaf islands: controls |
 | `4xqt1-input-rebuild-keeps-outputs` | [log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md](log/2026-10-21-4xqt1-input-rebuild-keeps-outputs.md) | Aurora-4xqt.1 (D0a): input-only rebuild keeps outputs, preview owns its extra inputs (paused) |
 | `4xqt1-windows-second-duplication-recheck` | [log/2026-10-21-4xqt1-windows-second-duplication-recheck.md](log/2026-10-21-4xqt1-windows-second-duplication-recheck.md) | Aurora-4xqt.1: Windows second-duplication recheck (closed) |
 | `4xqt10-try-apply-tools` | [log/2026-10-22-4xqt10-try-apply-tools.md](log/2026-10-22-4xqt10-try-apply-tools.md) | Aurora-4xqt.10: try and apply tools (D4) |

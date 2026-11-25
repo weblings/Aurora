@@ -467,3 +467,16 @@
   color: var(--aurora-text-secondary);
   font-size: 13px;
 }
+
+/* Grille control islands (Aurora-4nqt.7): they fill their slot like the vanilla controls did. */
+.dropdown-island,
+.ui-island-fill { width: 100%; }
+.ui-island-segmented { display: flex; gap: var(--aurora-space-3); }
+/* The page draws these two labels itself, so the island's copy stays for assistive tech only. */
+.dropdown-island .ui-field-label,
+.zm-active-field-col .ui-switch-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+/* Grille's field pads 10px top and bottom for its FieldList rows, which the Dashboard's rows already space. */
+.dropdown-island .ui-field,
+.ui-island-fill .ui-field { padding: 0; }

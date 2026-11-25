@@ -24,10 +24,25 @@ export class PairedDevices {
 
   destroy() {
     this._destroyed = true;
+    this._live?.unmount();
+    this._live = null;
   }
 
   render() {
     if (this._destroyed) return;
+    // The island draws the list when the bundle is loaded (Aurora-4nqt.7), mounted once and fed props.
+    const mount = globalThis.auroraIslands?.mountPairedDevices;
+    if (mount) {
+      const props = {
+        devices: this.devices?.map((d) => ({ id: d.id, name: d.name ?? '', meta: this._meta(d) })) ?? null,
+        busyId: this.busyId,
+        error: this.error,
+        onRevoke: (id) => this._revoke(id),
+      };
+      if (this._live) this._live.update(props);
+      else this._live = mount(this.container, props);
+      return;
+    }
     if (this.devices === null) {
       this.container.innerHTML = `<p class="status-text">Loading…</p>`;
       return;

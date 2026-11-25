@@ -54,5 +54,6 @@ Scale: `DashboardScreen.js` is 1234 lines of imperative DOM with a 1067-line tes
 Epic `Aurora-4nqt`. Order and dependencies:
 
 - `.1` decide build and delivery, `.2` editor shell on `MessageRow`, `.5` Grille mock for the gaps. These start with no build change.
-- `.3` main page loads a bundle (needs `.1`), then `.4` shell island (`.2`, `.3`), `.6` leaf islands for shell pieces (`.3`), `.9` EffectPanel rebuild (`.3`), `.7` leaf islands for controls (`.3`, `.5`).
-- `.8` NUX screens (`.6`, `.7`), `.10` Dashboard screen (`.7`, `.9`), `.11` flip the router and retire vanilla (`.8`, `.10`).
+- `.3` main page loads a bundle (needs `.1`), then `.4` shell island (`.2`, `.3`), `.9` EffectPanel rebuild (`.3`), `.7` leaf islands for controls (`.3`, `.5`).
+- `.6` was closed with its scope moved: the top bar and NUX buttons to `.8`, the stop overlay, Dashboard buttons, Stop icon and `Aurora-0ofk` to `.10`.
+- `.8` NUX screens (`.7`), `.10` Dashboard screen (`.7`, `.9`), `.11` flip the router and retire vanilla (`.8`, `.10`).

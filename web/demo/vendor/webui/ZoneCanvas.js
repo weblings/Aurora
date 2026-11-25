@@ -67,15 +67,41 @@ export class ZoneCanvas {
   // mid-interaction (a full re-render would kill an open zone dropdown).
   // No box mounted (renderActive false) is a no-op.
   refreshActive() {
+    const selected = this.zones.find((z) => z.zoneId === this._selectedZoneId) ?? this.zones[0];
+    if (this._activeIsland) {
+      this._activeIsland.update(this._activeProps(selected));
+      return;
+    }
     const box = this.container.querySelector('#zc-active-toggle');
     if (!box) return;
-    const selected = this.zones.find((z) => z.zoneId === this._selectedZoneId) ?? this.zones[0];
     box.checked = selected.active;
+  }
+
+  // Active and Gamma are Grille islands when the bundle is loaded (Aurora-4nqt.7).
+  _activeProps(zone) {
+    return {
+      label: 'Active',
+      isSelected: zone.active,
+      onChange: (active) => {
+        zone.active = active;
+        this._queue.queue(zone.zoneId, { active });
+        this.onActiveChange?.(zone);
+        this._activeIsland?.update(this._activeProps(zone));
+      },
+    };
+  }
+
+  _unmountIslands() {
+    this._activeIsland?.unmount();
+    this._activeIsland = null;
+    this._gammaIsland?.unmount();
+    this._gammaIsland = null;
   }
 
   _render() {
     this.zoneDropdown?.destroy();
     this.zoneDropdown = null;
+    this._unmountIslands();
 
     this.container.innerHTML = `
       <div class="zm-canvas-wrap">
@@ -183,6 +209,23 @@ export class ZoneCanvas {
       container.querySelector('#zc-see-all-zones').addEventListener('click', () => this.onSeeAllZones());
     }
 
+    const { mountSwitch, mountSlider } = globalThis.auroraIslands ?? {};
+    if (mountSlider) {
+      if (this.renderActive && mountSwitch) {
+        this._activeIsland = mountSwitch(container.querySelector('#zc-active-slot'), this._activeProps(zone));
+      }
+      const gammaProps = () => ({
+        label: 'Gamma', value: zone.gamma, min: -1, max: 1, step: 0.1,
+        onChange: (v) => {
+          zone.gamma = v;
+          this._queue.queue(zone.zoneId, { gamma: v });
+          this._gammaIsland.update(gammaProps());
+        },
+      });
+      this._gammaIsland = mountSlider(container.querySelector('#zm-gamma-slot'), gammaProps());
+      return;
+    }
+
     if (this.renderActive) {
       container.querySelector('#zc-active-toggle').addEventListener('change', (e) => {
         zone.active = e.currentTarget.checked;
@@ -203,6 +246,14 @@ export class ZoneCanvas {
 
   _activeFieldHtml(zone) {
     const tip = tooltipFor('zones.active');
+    if (globalThis.auroraIslands?.mountSwitch && globalThis.auroraIslands?.mountSlider) {
+      return `
+      <div class="field zm-active-field-col"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
+        <label class="field-label">Active</label>
+        <div class="zm-control-band"><div id="zc-active-slot"></div></div>
+      </div>
+    `;
+    }
     return `
       <div class="field zm-active-field-col"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
         <label class="field-label">Active</label>
@@ -232,6 +283,9 @@ export class ZoneCanvas {
 
   _sliderFieldHtml(zone) {
     const tip = tooltipFor('zones.gamma');
+    if (globalThis.auroraIslands?.mountSlider) {
+      return `<div class="field"${tip ? ` title="${escapeHtml(tip)}"` : ''}><div class="zm-gamma-island" id="zm-gamma-slot"></div></div>`;
+    }
     return `
       <div class="field"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
         <div class="slider-field-header">
@@ -311,6 +365,7 @@ export class ZoneCanvas {
   // Call before discarding an instance (e.g. before a full-container
   // innerHTML rebuild) so its internal Dropdown doesn't linger.
   destroy() {
+    this._unmountIslands();
     this.zoneDropdown?.destroy();
     this.zoneDropdown = null;
   }

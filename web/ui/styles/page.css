@@ -4,10 +4,13 @@
    in demo-layout.css (demo-owned). Component rules live in
    styles/shell.css. */
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* In @layer reset so Grille's layered ui.css keeps its padding (Aurora-4nqt.7). */
+@layer reset {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
 }
 
 /* Reserve the scrollbar's width always, whether or not a given screen's

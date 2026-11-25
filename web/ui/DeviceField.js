@@ -156,20 +156,11 @@ export class DeviceField {
         this._appliedOptions = this._appliedOptions.map((o) => ({ ...o, selected: o.value === value }));
         this.onChange?.({ sinkName: value });
       },
-      { labelId: 'device-field-sink-label', fill: true, tooltipKey: 'input.sink' },
+      // Refresh on every open: hotplugged sinks appear on the next open.
+      { labelId: 'device-field-sink-label', fill: true, tooltipKey: 'input.sink', onOpen: () => this._reloadSinks() },
     );
     this.dropdown.setOptions(options);
     this._appliedOptions = options.map((o) => ({ ...o }));
-
-    // Refresh on every open: hotplugged sinks appear on the next open.
-    // Every open path (trigger click, Enter / Space / arrows,
-    // programmatic toggle) funnels through openMenu, so one wrap covers
-    // them all with no per-path listeners.
-    const baseOpen = this.dropdown.openMenu.bind(this.dropdown);
-    this.dropdown.openMenu = () => {
-      baseOpen();
-      this._reloadSinks();
-    };
 
     // Populate when built; the openMenu wrap above refreshes
     // on every open. Fire-and-forget: the _destroyed guard drops the

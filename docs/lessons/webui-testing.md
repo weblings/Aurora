@@ -276,3 +276,11 @@ Applies-when: a browser check reads a new `/api/nodes` field or drives a Grille 
 `devstack` runs `build/mac-app` as it stands, so the Add node menu check saw every node under "Other": the binary predated the catalog `group` field (Aurora-daaa.24.1), and the editor dev server happily proxied to it. Rebuild (`cmake --build build/mac-app`) before a check that depends on a core API change. Separately, the open submenu's `role=menu` is not reachable by `getByRole('menu', { name })` (the check timed out although the DOM had it); select it with `[role=menu][aria-label="..."]`.
 
 **Fix:** rebuild first; locate flyouts by attribute selector.
+
+## A Grille mock on its own cannot show page CSS clashes, so measure the island in the real page
+Tags: webui, grille, mock, islands, playwright, verification
+Applies-when: approving a Grille component from a mock and then dropping it into a `web/ui` screen with its own labels, resets and row heights
+
+Aurora-4nqt.7: the gaps mock matched today's controls side by side, yet in the Dashboard the Select was 20px tall, labels doubled and Gamma floated. The mock had no page reset, no `.field-label` rows and no 35px control band around the components. Reading the code and re-syncing did not show it, and two guessed fixes changed nothing.
+
+**Fix:** after wiring an island, drive the page headless (Playwright from `tools/browser-check`, `findChromium`), screenshot the row with and without `islands.js` (`page.route('**/islands.js', r => r.abort())` gives the vanilla version) and compare bounding boxes. List the matching CSS rules for a wrong value instead of guessing.

@@ -40,11 +40,15 @@ export class Dropdown {
   // docs/WebUI/WebUI_Design_1stPass.md's screen designs.
   // controlled: a commit only closes and calls onSelect. The caller owns the
   // label and selection (the effect picker shows what runs, not the pick).
-  constructor(container, initialLabel, onSelect, { labelId = null, fill = false, tooltipKey = null, tooltip = null, controlled = false, onClose = null } = {}) {
+  constructor(container, initialLabel, onSelect, { labelId = null, fill = false, tooltipKey = null, tooltip = null, controlled = false, onClose = null, onOpen = null } = {}) {
+    // The Grille Select island draws it when the bundle is loaded (Aurora-4nqt.7).
+    const mountSelect = globalThis.auroraIslands?.mountSelect;
+    if (mountSelect) return new IslandDropdown(mountSelect, container, initialLabel, onSelect, { labelId, tooltipKey, tooltip, controlled, onOpen });
     const id = `dropdown-${_nextId++}`;
     this._onSelect = onSelect;
     this._controlled = controlled;
     this._onClose = onClose;
+    this._onOpen = onOpen;
     this._labelId = labelId;
     this._tooltipKey = tooltipKey;
     this._tooltip = tooltip;
@@ -151,6 +155,7 @@ export class Dropdown {
     const selectedIndex = this._options.findIndex((o) => o.selected);
     this._setActiveIndex(selectedIndex !== -1 ? selectedIndex : 0);
     this.menu.focus();
+    this._onOpen?.();
   }
 
   close() {
@@ -169,6 +174,10 @@ export class Dropdown {
     this.trigger.disabled = busy;
     if (busy) this.trigger.setAttribute('aria-busy', 'true');
     else this.trigger.removeAttribute('aria-busy');
+  }
+
+  setDisabled(disabled) {
+    this.trigger.disabled = disabled;
   }
 
   setTriggerLabel(text) {
@@ -316,5 +325,86 @@ export class Dropdown {
       default:
         break;
     }
+  }
+}
+
+// Same surface as Dropdown over the Select island. The external label stays on screen and the
+// Select's own is visually hidden (forms.css), so layouts are unchanged. The
+// shown value is the selected option's label, and a Select cannot be opened or closed from code.
+class IslandDropdown {
+  constructor(mountSelect, container, initialLabel, onSelect, { labelId, tooltipKey, tooltip, controlled, onOpen }) {
+    this._onSelect = onSelect;
+    this._controlled = controlled;
+    this._options = [];
+    this._value = '';
+    this._disabled = false;
+    this._busy = false;
+    const labelEl = labelId ? document.getElementById(labelId) : null;
+    this._label = labelEl?.textContent ?? initialLabel;
+    this.root = document.createElement('div');
+    this.root.className = 'dropdown-island';
+    applyTooltip(this.root, tooltipKey, tooltip);
+    container.appendChild(this.root);
+    this._onOpen = onOpen;
+    this._live = mountSelect(this.root, this._props());
+  }
+
+  get isOpen() {
+    return false;
+  }
+
+  openMenu() {}
+  toggle() {}
+  close() {}
+
+  setOptions(options) {
+    this._options = options;
+    this._value = String(options.find((o) => o.selected)?.value ?? '');
+    this._push();
+  }
+
+  setBusy(busy) {
+    this._busy = busy;
+    this._push();
+  }
+
+  setDisabled(disabled) {
+    this._disabled = disabled;
+    this._push();
+  }
+
+  // The shown label follows the selected option, so there is nothing to set.
+  setTriggerLabel() {}
+
+  setVisible(visible) {
+    this.root.style.display = visible ? '' : 'none';
+  }
+
+  destroy() {
+    this._live.unmount();
+    this.root.remove();
+  }
+
+  _props() {
+    return {
+      label: this._label,
+      options: this._options.map((o) => ({ id: String(o.value), label: o.label })),
+      value: this._value,
+      isDisabled: this._disabled || this._busy,
+      onOpen: this._onOpen ?? undefined,
+      onChange: (id) => {
+        const opt = this._options.find((o) => String(o.value) === id);
+        if (!opt) return;
+        if (!this._controlled) {
+          this._value = id;
+          this._push();
+        }
+        this._onSelect(opt.value);
+      },
+    };
+  }
+
+  _push() {
+    this._live.update(this._props());
   }
 }

@@ -21,6 +21,8 @@ export class SettingsPanel {
   }
 
   async render() {
+    this._live?.unmount();
+    this._live = null;
     this.container.innerHTML = '';
     if (this.showGameMode) {
       await this._renderGameMode();
@@ -34,6 +36,13 @@ export class SettingsPanel {
       enabled = config.gameModeAutostart !== false;
     } catch {
       this.onUnreachable?.();
+      return;
+    }
+
+    // The island draws the switch, hint and error when the bundle is loaded (Aurora-4nqt.7).
+    const mount = globalThis.auroraIslands?.mountSettingsPanel;
+    if (mount) {
+      this._mountIsland(mount, enabled);
       return;
     }
 
@@ -71,5 +80,28 @@ export class SettingsPanel {
         error.hidden = false;
       }
     });
+  }
+
+  _mountIsland(mount, enabled) {
+    const state = { isSelected: enabled, error: false };
+    const props = () => ({ gameMode: { ...state, onChange } });
+    const onChange = async (wanted) => {
+      state.isSelected = wanted;
+      state.error = false;
+      this._live.update(props());
+      try {
+        const result = await (await fetch('/api/config', {
+          method: 'PUT',
+          body: JSON.stringify({ gameModeAutostart: wanted }),
+        })).json();
+        if (!result.succeeded) throw new Error(result.error ?? 'save failed');
+      } catch (e) {
+        state.isSelected = !wanted;
+        state.error = true;
+        if (e instanceof TypeError) this.onUnreachable?.();
+        this._live.update(props());
+      }
+    };
+    this._live = mount(this.container, props());
   }
 }

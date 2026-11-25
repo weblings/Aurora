@@ -106,6 +106,7 @@ export class TuningFields {
 
   destroy() {
     this._destroyed = true;
+    for (const unmount of this.islandUnmounts ?? []) unmount();
     for (const dropdown of this.dropdowns) dropdown.destroy();
     this.dropdowns = [];
   }
@@ -132,6 +133,9 @@ export class TuningFields {
   _render() {
     for (const dropdown of this.dropdowns) dropdown.destroy();
     this.dropdowns = [];
+    // Slider and switch islands of the last render, unmounted before their slots are replaced.
+    for (const unmount of this.islandUnmounts ?? []) unmount();
+    this.islandUnmounts = [];
 
     const message = this.error ?? (this.controls === null ? 'Tuning controls appear once the pipeline is running.' : null);
     const errorHtml = message
@@ -220,7 +224,7 @@ export class TuningFields {
       { labelId: `tn-${control.id}-label`, fill: true, tooltipKey: control.configKey ? sliderTooltipKey(control.configKey) : null, tooltip: control.tooltip },
     );
     dropdown.setOptions(options.map((o) => ({ ...o, selected: o.value === current })));
-    if (!control.writable) dropdown.trigger.disabled = true;
+    if (!control.writable) dropdown.setDisabled(true);
     this.dropdowns.push(dropdown);
   }
 
@@ -242,28 +246,41 @@ export class TuningFields {
     holder.style.display = 'contents';
 
     if (control.allowsUnset) {
-      holder.innerHTML = `
+      const mountSwitch = globalThis.auroraIslands?.mountSwitch;
+      const label = `Use ${control.label.toLowerCase()}`;
+      const toggleHtml = mountSwitch
+        ? '<div class="tuning-checkbox-row"><div class="toggle-island-slot"></div></div>'
+        : `
         <div class="tuning-checkbox-row">
           <label class="toggle-row">
-            <span class="toggle-row-label">Use ${escapeHtml(control.label.toLowerCase())}</span>
+            <span class="toggle-row-label">${escapeHtml(label)}</span>
             <span class="toggle-switch">
               <input type="checkbox" ${this.optionalOn[key] ? 'checked' : ''} />
               <span class="toggle-knob"></span>
             </span>
           </label>
-        </div>
+        </div>`;
+      holder.innerHTML = `
+        ${toggleHtml}
         ${this.optionalOn[key] ? sliderGroupHtml(sliders, this.values) : ''}
       `;
       grid.append(holder);
-      const toggle = holder.querySelector('input[type="checkbox"]');
-      applyTooltip(holder.querySelector('label.toggle-row'), control.toggleTooltipKey, control.tooltip);
-      toggle.disabled = !control.writable;
-      toggle.addEventListener('change', () => {
-        this.optionalOn[key] = toggle.checked;
-        if (toggle.checked && !(Number(this.values[key]) >= 0)) this.values[key] = control.min;
+      const onToggle = (checked) => {
+        this.optionalOn[key] = checked;
+        if (checked && !(Number(this.values[key]) >= 0)) this.values[key] = control.min;
         this._render();
         this._autoSave();
-      });
+      };
+      if (mountSwitch) {
+        const slot = holder.querySelector('.toggle-island-slot');
+        applyTooltip(slot, control.toggleTooltipKey, control.tooltip);
+        this.islandUnmounts.push(mountSwitch(slot, { label, isSelected: !!this.optionalOn[key], isDisabled: !control.writable, onChange: onToggle }).unmount);
+      } else {
+        const toggle = holder.querySelector('input[type="checkbox"]');
+        applyTooltip(holder.querySelector('label.toggle-row'), control.toggleTooltipKey, control.tooltip);
+        toggle.disabled = !control.writable;
+        toggle.addEventListener('change', () => onToggle(toggle.checked));
+      }
       if (!this.optionalOn[key]) return;
     } else {
       holder.innerHTML = sliderGroupHtml(sliders, this.values, { controlBand });
@@ -271,8 +288,7 @@ export class TuningFields {
     }
 
     if (control.tooltip) holder.querySelector('.field')?.setAttribute('title', control.tooltip);
-    wireSliderGroup(holder, sliders, this.values, control.writable ? () => this._autoSave() : null);
-    if (!control.writable) holder.querySelector(`#tn-${key}`).disabled = true;
+    this.islandUnmounts.push(wireSliderGroup(holder, sliders, this.values, control.writable ? () => this._autoSave() : null, { disabled: !control.writable }));
   }
 
   // Every field auto-saves on its own commit -- there's no manual Save button.

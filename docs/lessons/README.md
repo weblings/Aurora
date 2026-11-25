@@ -19,7 +19,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 
 | File | Scope | Entries | File here when |
 |---|---|---|---|
-| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 72 | build/tooling specific |
+| [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 73 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 31 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 32 | macOS GUI/AppKit specific |
 | [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 98 | debugging/verification method |
@@ -34,9 +34,9 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [rendering-internals.md](rendering-internals.md) | own 3D-scene design | 4 | our scene technique, demonstrated by a real bug |
 | [planning.md](planning.md) | reuse research, JTBD, doc hygiene | 41 | WebUI planning/design-process finding |
 | [components.md](components.md) | behavior, callbacks, data shapes | 47 | WebUI component finding |
-| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 11 | WebUI testing finding |
+| [webui-testing.md](webui-testing.md) | jsdom limits, mocks, fixtures | 12 | WebUI testing finding |
 | [navigation-flow.md](navigation-flow.md) | Back/Continue, gating, NUX | 12 | WebUI flow finding |
-| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 25 | WebUI layout/CSS finding |
+| [layout-css.md](layout-css.md) | responsive, pseudo-elements, flex | 27 | WebUI layout/CSS finding |
 
 Counts as of 2026-11-22 — bump the count when adding entries
 (`grep -c '^## '` per file).

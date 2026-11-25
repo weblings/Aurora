@@ -136,6 +136,10 @@
   min-width: 0;
 }
 
+/* Gamma's Grille Slider draws its own header, so it sits at the top like the other labels and its
+   header gap puts the track on the same centre line as the 35px controls beside it. */
+.zm-gamma-island .ui-slider-header { margin-bottom: 11.5px; }
+
 .zm-control-band {
   height: 35px;
   display: flex;

@@ -28,8 +28,31 @@ export function sliderGroupHtml(sliders, values, { controlBand = false } = {}) {
 // call after inserting sliderGroupHtml()'s output anywhere in the DOM,
 // including mixed in with other content in the same container. onCommit
 // (optional) fires once per completed interaction -- see wireSlider.
-export function wireSliderGroup(container, sliders, values, onCommit) {
-  for (const [key, , , , , unit] of sliders) wireSlider(container, key, unit, values, onCommit);
+// disabled: not writable, so the slider shows its value and takes no input.
+// Returns a function that unmounts any slider islands; call it before the container is rebuilt.
+export function wireSliderGroup(container, sliders, values, onCommit, { disabled = false } = {}) {
+  const mountSlider = globalThis.auroraIslands?.mountSlider;
+  const unmounts = [];
+  for (const [key, label, min, max, step, unit] of sliders) {
+    const slot = mountSlider && container.querySelector(`#tn-${key}-slot`);
+    if (slot) unmounts.push(mountSliderIsland(mountSlider, slot, { key, label, min, max, step, unit }, values, onCommit, disabled));
+    else wireSlider(container, key, unit, values, onCommit, disabled);
+  }
+  return () => unmounts.forEach((unmount) => unmount());
+}
+
+// The island has no unit readout, so the unit joins the label.
+function mountSliderIsland(mountSlider, slot, { key, label, min, max, step, unit }, values, onCommit, disabled) {
+  const props = () => ({
+    label: unit ? `${label} (${unit})` : label,
+    value: Number(values[key] ?? min),
+    min, max, step: Number(step),
+    isDisabled: disabled,
+    onChange: (v) => { values[key] = String(v); live.update(props()); },
+    onChangeEnd: onCommit ? () => onCommit() : undefined,
+  });
+  const live = mountSlider(slot, props());
+  return live.unmount;
 }
 
 // Descriptor key from the slider's config key: `audio*` settings live
@@ -47,6 +70,10 @@ export function sliderTooltipKey(configKey) {
 function sliderFieldHtml(key, label, min, max, step, unit, values, controlBand) {
   const value = values[key] ?? min;
   const tip = tooltipFor(sliderTooltipKey(key));
+  // The Slider island draws its own label, value and track into this slot (Aurora-4nqt.7).
+  if (globalThis.auroraIslands?.mountSlider) {
+    return `<div class="field slider-island-slot" id="tn-${key}-slot"${tip ? ` title="${escapeHtml(tip)}"` : ''}></div>`;
+  }
   const inputHtml = `<input type="range" class="slider-input" id="tn-${key}" min="${min}" max="${max}" step="${step}" value="${value}" />`;
   return `
     <div class="field"${tip ? ` title="${escapeHtml(tip)}"` : ''}>
@@ -70,13 +97,14 @@ function sliderFieldHtml(key, label, min, max, step, unit, values, controlBand) 
 // currently down" signal, the same kind of start/end-of-gesture signal
 // pointerdown/pointerup already give a mouse drag, so no arbitrary delay is
 // needed for either input method.
-function wireSlider(container, key, unit, values, onCommit) {
+function wireSlider(container, key, unit, values, onCommit, disabled = false) {
   const input = container.querySelector(`#tn-${key}`);
   const readout = container.querySelector(`#tn-${key}-val`);
   const step = input.step;
   let isKeyHeld = false;
 
   bindSliderFill(input);
+  if (disabled) input.disabled = true;
 
   input.addEventListener('input', () => {
     values[key] = input.value;
