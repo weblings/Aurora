@@ -282,14 +282,13 @@
   color: var(--aurora-text-secondary);
 }
 
-/* Circled marks (Grille's circledInfoIcon and circledExclamationIcon, icons/circled-*.svg), masked
-   like .warn-glyph (forms.css) so they take currentColor. Error marks are the error red wherever
-   they sit; the info mark keeps the text colour. */
+/* Shell marks (Grille's squareChatIcon and circledExclamationIcon, same-named icons/*.svg), masked
+   like .warn-glyph (forms.css). Error marks are the error red, the notice mark keeps the text colour. */
 .shell-mark {
   display: inline-block;
   flex-shrink: 0;
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   vertical-align: -2px;
   background-color: currentColor;
   -webkit-mask-size: contain;
@@ -301,8 +300,13 @@
 }
 
 .shell-mark-info {
-  -webkit-mask-image: url('../icons/circled-info.svg');
-  mask-image: url('../icons/circled-info.svg');
+  -webkit-mask-image: url('../icons/square-chat.svg');
+  mask-image: url('../icons/square-chat.svg');
+}
+
+/* Open-row marks draw at Grille's 16px icon box, without the overhang that makes the glyph 24px. */
+.shell-grille-row .ui-message-row-mark {
+  --ui-size-icon-overhang: 0px;
 }
 
 .shell-mark-error {

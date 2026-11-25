@@ -116,7 +116,6 @@ Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from 
 | `arrowLeftIcon` | Back link |
 | `chevronDownIcon` (Grille flips it while `aria-expanded`) | Title menu, View menu, Zones header, Test split caret |
 | `playIcon` / `stopIcon` | Test split button (Test/Take over, Stop) |
-| `undoIcon` / `redoIcon` | Top bar: icon buttons at every width, named by `aria-label`, so there is no More menu any more |
 | `addIcon` | Add node button |
 | `menuHorizontalIcon` | Node menu button |
 | `warningIcon` | Problems chip, node badge, problem lists, port mark, param problems. Grille's warning is Zest's triangle-exclamation; Aurora's own `web/ui/icons/warning.svg` is not used by the editor |

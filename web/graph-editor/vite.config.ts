@@ -1,4 +1,3 @@
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -15,14 +14,6 @@ export default defineConfig(({ command }) => ({
     // chunk carries Grille (React Aria) and React Flow by design; see
     // [[graph-editor-cleanup]] Decisions, "No bundle budget".
     chunkSizeWarningLimit: 1000,
-    // The editor page plus the islands entry for the main page. Only islands.js keeps a
-    // fixed name, since web/ui and the demo load it by URL.
-    rollupOptions: {
-      input: { index: fileURLToPath(new URL('index.html', import.meta.url)), islands: fileURLToPath(new URL('src/islands/main.tsx', import.meta.url)) },
-      output: {
-        entryFileNames: (chunk) => (chunk.name === 'islands' ? 'islands.js' : 'assets/[name]-[hash].js'),
-      },
-    },
     // Emits THIRD-PARTY-NOTICES.md for every bundled npm package; the CMake
     // embed ships it inside the editor's map.
     license: { fileName: 'THIRD-PARTY-NOTICES.md' },

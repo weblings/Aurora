@@ -62,7 +62,7 @@ const realFetch = globalThis.fetch;
   assert.ok(slot.innerHTML.includes('pause-rockyroad.svg'), 'pause glyph while running');
   assert.ok(!slot.innerHTML.includes('src="icons'), 'icon resolves against the module, not the page URL');
   assert.ok(slot.innerHTML.includes('aria-label="Pause"'), 'Pause label while running');
-  assert.ok(slot.innerHTML.includes('power-svgrepo-com.svg'), 'power glyph present');
+  assert.ok(slot.innerHTML.includes('power.svg'), 'power glyph present');
   assert.ok(slot.innerHTML.includes('top-bar-power-btn'), 'power button lighter than pause');
 }
 

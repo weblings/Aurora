@@ -206,7 +206,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     // Already pending at load, with another row: baseline, so 2 rows start collapsed and nothing re-opens.
     await expectCollapsed('1 notice 1 error')
     assert.equal(await rows.count(), 0)
-    assert.equal(await markColor(toggle().locator('.shell-mark-info')), WHITE, 'the request counts under the default-colour circled-info')
+    assert.equal(await markColor(toggle().locator('.shell-mark-info')), WHITE, 'the request counts under the default-colour square chat')
     await shot('p-collapsed')
     await page.setViewportSize({ width: 400, height: 800 })
     assert.ok((await slot.evaluate((el) => el.scrollWidth - el.clientWidth)) <= 0, 'the collapsed bar fits at 400 wide')
@@ -216,7 +216,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     await expectCollapsed('1 notice 1 error')
     step('a request already pending at load is baseline: it starts collapsed with the error and polls never re-open it')
 
-    // Open it: the row carries the code the requester holds, a circled-info and both buttons.
+    // Open it: the row carries the code the requester holds, a square chat mark and both buttons.
     await toggle().click()
     await expectOpen()
     assert.equal(await rows.count(), 2)
@@ -407,7 +407,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     const keepAgent = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session: 'agent-1' }).catch(() => {}), 1000)
     await page.locator('#shell-light-test-time').waitFor({ timeout: 8000 })
     await expectOpen()
-    assert.equal(await markColor(rows.first().locator('.ui-message-row-mark')), WHITE, 'the light-test row carries the default-colour circled-info')
+    assert.equal(await markColor(rows.first().locator('.ui-message-row-mark')), WHITE, 'the light-test row carries the default-colour square chat')
     await shot('e-notice-and-error-open')
     await toggle().click()
     await expectCollapsed('1 notice 1 error')

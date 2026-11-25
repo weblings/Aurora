@@ -6,6 +6,11 @@ still exists. Epic: Aurora-4nqt.
 
 Id: react-dashboard-delivery
 
+Status: moved to 1.2.2 on 2026-11-25 (`Aurora-b665`). The first island
+(`Aurora-4nqt.3`) was reverted for 1.2.1, so everything below describes
+`feat/ReactPort`. Merging this branch into it brings the revert along: undo
+that revert there, or the islands are deleted.
+
 ## Decision
 
 - **Option A.** Dashboard and NUX pages join the existing `web/graph-editor` Vite

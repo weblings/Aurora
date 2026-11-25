@@ -52,7 +52,6 @@ jobs:
           test -f _site/vendor/engine/aurora-engine.wasm
           test -f _site/vendor/engine/engine.js
           test -f _site/graph-editor/THIRD-PARTY-NOTICES.md
-          test -f _site/graph-editor/islands.js
           touch _site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v3

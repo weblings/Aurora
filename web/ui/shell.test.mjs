@@ -651,7 +651,7 @@ const HELD = { source: 'reload', message: 'bridge unreachable', id: 7 };
   assert.ok(banner().includes('shell-pairing-approve-r1') && banner().includes('shell-pairing-deny-r1'), 'approve and deny');
   assert.ok(!banner().includes('2 errors') && banner().includes('aria-expanded="true"'), 'a request that arrives re-opens the collapsed shell');
   assert.ok(banner().indexOf('K7Q2X') < banner().indexOf('shell-banner-toggle'), 'the request is a row above the toggle');
-  assert.ok(banner().includes('shell-pairing-title"><span class="shell-mark shell-mark-info"'), 'a notice: circled-info');
+  assert.ok(banner().includes('shell-pairing-title"><span class="shell-mark shell-mark-info"'), 'a notice: square chat');
   assert.ok(!banner().includes('Access:'), 'a browser (admin) request has no access line');
   assert.ok(banner().includes('Device:</span> &lt;Phone&gt;') && !banner().includes('From:'), 'no From line without an address');
   press(app, 'toggle', 'shell-banner-toggle');

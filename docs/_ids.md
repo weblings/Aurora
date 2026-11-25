@@ -84,6 +84,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
 | `7nyu-pairing-e2e-frozen-clock` | [log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md](log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md) | Pairing end-to-end test uses a frozen clock |
+| `7p8f-notice-chat-icon` | [log/2026-11-25-7p8f-notice-chat-icon.md](log/2026-11-25-7p8f-notice-chat-icon.md) | Notice mark: square chat icon |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7r74-ptns-windows-ninja-core-tests` | [log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md](log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md) | Windows Ninja and sccache, core tests folded into the app build |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
@@ -102,9 +103,11 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
 | `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
 | `api-v1-review` | [planning/ApiV1Review.md](planning/ApiV1Review.md) | API v1 spec review: fields, scopes, public and internal split |
+| `atpm-remove-zest-pro-icons` | [log/2026-11-24-atpm-remove-zest-pro-icons.md](log/2026-11-24-atpm-remove-zest-pro-icons.md) | Remove Zest Pro undo and redo icons |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
+| `b665-react-free-port` | [log/2026-11-25-b665-react-free-port.md](log/2026-11-25-b665-react-free-port.md) | 1.2.1 takes the React-free pieces of feat/ReactPort |
 | `bju0-failed-save-check` | [log/2026-11-13-bju0-failed-save-check.md](log/2026-11-13-bju0-failed-save-check.md) | Browser check failed-save: the audio graph ran because Aurora picks the missing input |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
@@ -411,6 +414,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `react-dashboard-delivery` | [planning/WebUI/ReactDashboardDelivery.md](planning/WebUI/ReactDashboardDelivery.md) | React Dashboard and NUX: build and delivery |
 | `react-grille-migration` | [planning/WebUI/ReactGrilleMigration.md](planning/WebUI/ReactGrilleMigration.md) | Dashboard and NUX move to React and Grille |
+| `release-label-retriage-1-2-2` | [log/2026-11-25-release-label-retriage.md](log/2026-11-25-release-label-retriage.md) | Open 1.2.1 beads move to 1.2.2, three more to 1.2.3 |
 | `ruig-temp-dir-per-process` | [log/2026-11-18-ruig-temp-dir-per-process.md](log/2026-11-18-ruig-temp-dir-per-process.md) | Test temp dirs unique per process |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |

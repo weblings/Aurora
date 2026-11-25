@@ -713,7 +713,7 @@ Epic `Aurora-u8jx`. The editor shows its own words for graph problems; the serve
 **Words.** The error shell's second pass (`Aurora-9hqa`) fixed three words, and stage 7 copy keeps to them:
 
 - **error**: Aurora's own state, in the shell on every page (red circled exclamation): conditions, failures to start, resume or apply, and the editor's own notes.
-- **notice**: the light test and pairing requests, in the shell (circled info).
+- **notice**: the light test and pairing requests, in the shell (square chat).
 - **problem**: something wrong with the draft graph, on the editor's chip and node badges (amber warning).
 
 So graph issues are never called errors, and runtime preview failures read "Runs, but <node> fails".

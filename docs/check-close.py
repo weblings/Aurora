@@ -4,7 +4,8 @@ the staged .beads/issues.jsonl, not in HEAD's), require a docs/log/ entry
 (staged here, else already tracked) naming it with a lessons record (a non-empty `## Lessons` section or a
 `- Lessons: ...` line, "none" counts), and a docs/log/INDEX.md
 row naming it. Also blocks when the working-tree export shows closes that were
-never staged. Prints the AGENTS.md close checklist and exits 1 on any gap.
+never staged. A bead labelled on:<branch> is skipped on any other branch, since
+its log lives with its work. Prints the AGENTS.md close checklist and exits 1 on any gap.
 Bypass: AURORA_SKIP_CLOSE_GATE=1 or `git commit --no-verify`."""
 import json
 import os
@@ -28,7 +29,8 @@ def git(*args):
     return r.stdout if r.returncode == 0 else None
 
 
-def statuses(text):
+# Beads labelled on:<branch> are left out unless <branch> is checked out
+def statuses(text, branch='', every_branch=False):
     out = {}
     for line in (text or '').splitlines():
         line = line.strip()
@@ -39,6 +41,9 @@ def statuses(text):
         except ValueError:
             continue
         if d.get('_type', 'issue') == 'issue' and 'id' in d:
+            homes = [l[3:] for l in d.get('labels') or [] if l.startswith('on:')]
+            if homes and branch not in homes and not every_branch:
+                continue
             out[d['id']] = d.get('status')
     return out
 
@@ -56,11 +61,13 @@ def main():
     if os.environ.get('AURORA_SKIP_CLOSE_GATE') == '1':
         return 0
     os.chdir(git('rev-parse', '--show-toplevel').strip())
-    head = statuses(git('show', 'HEAD:' + EXPORT))
-    staged = statuses(git('show', ':' + EXPORT))
+    branch = (git('branch', '--show-current') or '').strip()
+    # HEAD is unfiltered, so removing a label later does not look like a new close
+    head = statuses(git('show', 'HEAD:' + EXPORT), every_branch=True)
+    staged = statuses(git('show', ':' + EXPORT), branch)
     try:
         with open(EXPORT, encoding='utf-8') as f:
-            worktree = statuses(f.read())
+            worktree = statuses(f.read(), branch)
     except OSError:
         worktree = {}
 

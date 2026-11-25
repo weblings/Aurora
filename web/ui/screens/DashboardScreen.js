@@ -48,7 +48,7 @@ import { DAEMON_UNREACHABLE } from '../messages.js';
 const LOGO_URL = new URL('../icons/aurora-logo.png', import.meta.url).href;
 const PLAY_URL = new URL('../icons/play-rockyroad.svg', import.meta.url).href;
 const PAUSE_URL = new URL('../icons/pause-rockyroad.svg', import.meta.url).href;
-const POWER_URL = new URL('../icons/power-svgrepo-com.svg', import.meta.url).href;
+const POWER_URL = new URL('../icons/power.svg', import.meta.url).href;
 
 // Per-output content for the Output section; a new output adds one entry.
 // The title stays the output's own word (Hue: 'Bridge'), `load` runs once per
