@@ -414,6 +414,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `ra4o9-g1c-pre-g2-adjustments` | [log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md](log/2026-10-14-ra4o9-g1c-pre-g2-adjustments.md) | G1c pre-G2 runtime adjustments (Aurora-ra4o.9) |
 | `react-dashboard-delivery` | [planning/WebUI/ReactDashboardDelivery.md](planning/WebUI/ReactDashboardDelivery.md) | React Dashboard and NUX: build and delivery |
 | `react-grille-migration` | [planning/WebUI/ReactGrilleMigration.md](planning/WebUI/ReactGrilleMigration.md) | Dashboard and NUX move to React and Grille |
+| `release-label-retriage-1-2-2` | [log/2026-11-25-release-label-retriage.md](log/2026-11-25-release-label-retriage.md) | Open 1.2.1 beads move to 1.2.2, three more to 1.2.3 |
 | `ruig-temp-dir-per-process` | [log/2026-11-18-ruig-temp-dir-per-process.md](log/2026-11-18-ruig-temp-dir-per-process.md) | Test temp dirs unique per process |
 | `runtime-analysis` | [archive/RuntimeAnalysis.md](archive/RuntimeAnalysis.md) | Runtime / Config — Conversion analysis |
 | `s1t7-stage5-6-planning` | [log/2026-11-11-s1t7-stage5-6-planning.md](log/2026-11-11-s1t7-stage5-6-planning.md) | Graph editor stages 5 and 6: epics filed and noted in the plan |
