@@ -103,6 +103,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
 | `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
 | `api-v1-review` | [planning/ApiV1Review.md](planning/ApiV1Review.md) | API v1 spec review: fields, scopes, public and internal split |
+| `atpm-remove-zest-pro-icons` | [log/2026-11-24-atpm-remove-zest-pro-icons.md](log/2026-11-24-atpm-remove-zest-pro-icons.md) | Remove Zest Pro undo and redo icons |
 | `audio-analysis` | [archive/AudioAnalysis.md](archive/AudioAnalysis.md) | Audio-reactive color — findings, not a decision |
 | `audio-sink-dropdown-fetch-rework` | [log/2026-09-30-sink-dropdown-fetch-rework.md](log/2026-09-30-sink-dropdown-fetch-rework.md) | Sink dropdown: fetch rework, chrome removal, 1.0.4 |
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |

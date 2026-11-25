@@ -761,3 +761,13 @@ Applies-when: listing components or icons to request from a design-system librar
 Aurora-4nqt.5's bead listed Switch and Checkbox, a back-arrow icon, a power icon and a WebXR check. Reading the consumers cut it: all 7 `web/ui` checkboxes are the one toggle switch, Grille `arrowLeft` is the same Vidstack path as `back-arrow.svg`, and the WebXR check belongs to another project. The power icon looked like a Zest pickup, but `power-symbol.svg` is in Zest Pro only. Grille then found its own undo and redo were Pro artwork too and removed them in v0.2.2-dev.2.
 
 **Fix:** before filing, grep the consumers for every control (here `type="checkbox"`), compare icon paths, and check which package tier holds the asset. Record each dropped item and its reason in the bead, so the ask list is the real list.
+
+---
+
+## An icon added "on the owner's word" needs its licence tier checked against the upstream repo at add time
+Tags: planning, icons, licence, zest, notices
+Applies-when: copying an icon from SVG Repo or any pack with a free and a paid tier into `web/ui/icons`
+
+`Undo.svg` and `Redo.svg` were added 2026-11-11 as Zest Free with no origin comment, on the owner's word, and `THIRD_PARTY_NOTICES.md` then listed them under the Zest Free License. They were Zest Pro artwork, found only when Grille audited its own icons (`Aurora-atpm`). SVG Repo files carry no licence text, so the notice was the only claim.
+
+**Fix:** when adding a pack icon, look the file name up in the upstream free tier (zest-icons) and note the check in the log. If it cannot be verified, say "unverified" in the notice, not the pack's licence.
