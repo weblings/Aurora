@@ -553,3 +553,4 @@ Planning docs stay clean: decisions, status, and pointers here only.
 | 2026-11-25 | Graph editor pins Grille 0.2.2 from npm in place of the dev.5 GitHub tarball (`Aurora-aiy2`). [[aiy2-grille-0-2-2-npm]] | `bd show Aurora-aiy2` |
 | 2026-11-25 | Grille source switch tool closed: dev tarball or npm release, with a manual `check` that fails on a non-npm pin (`Aurora-bnpx`). [[bnpx-grille-source-switch]] | `bd show Aurora-bnpx` |
 | 2026-11-25 | Mac 1.2.1 notarized zip built and tested (660/660 native, 30/34 browser checks first run, virtual-display passes under the app's own Screen Recording grant); a segfault on quit filed (`Aurora-i6zx`). [[121-mac-release-testing]] | `bd show Aurora-i6zx` |
+| 2026-11-25 | Quit segfault fixed: HTTP `stop()` waits for the listen loop and the server is destroyed only afterwards; notarized-build quit not checked, and `Aurora-lyr3` filed (`Aurora-i6zx`). [[i6zx-http-stop-join]] | `bd show Aurora-i6zx` |

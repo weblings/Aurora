@@ -381,7 +381,7 @@ namespace Aurora::Network::Http::Server
     {
       const size_t previous = m_openStreams.fetch_add(1);
       if(previous >= m_maxStreams || m_stopping.load()){
-        _releaseStream();
+        m_openStreams.fetch_sub(1);
         res.status = 503;
         res.set_header("Retry-After", "3");
         res.set_content("{\"succeeded\":false,\"error\":\"too_many_streams\"}", "application/json");
@@ -399,18 +399,8 @@ namespace Aurora::Network::Http::Server
           sink.done();
           return true;
         },
-        [this](bool){ _releaseStream(); }
+        [this](bool){ m_openStreams.fetch_sub(1); }
       );
-    }
-
-
-    void _releaseStream()
-    {
-      {
-        std::lock_guard<std::mutex> lock(m_streamsMutex);
-        m_openStreams.fetch_sub(1);
-      }
-      m_streamsCv.notify_all();
     }
 
 
@@ -559,21 +549,25 @@ namespace Aurora::Network::Http::Server
     }
 
 
+    // Returns once listen() has returned, which cpp-httplib does only after
+    // joining its workers. The server itself lives until ~Impl: destroying it
+    // here crashed workers still inside a handler (Aurora-i6zx). Calling this
+    // from a handler would deadlock.
     bool stop()
     {
-      if(!m_service.has_value()){
+      std::unique_lock<std::mutex> lock(m_listenMutex);
+      // Streams watch this and return, freeing their workers.
+      if(m_stopping.exchange(true)){
         return false;
       }
 
-      // Streams watch m_stopping; wait them out so the server is not
-      // destroyed under a worker still inside a handler.
-      m_stopping.store(true);
-      m_service->stop();
-      {
-        std::unique_lock<std::mutex> lock(m_streamsMutex);
-        m_streamsCv.wait_for(lock, std::chrono::seconds(5), [this]{ return m_openStreams.load() == 0; });
+      // httplib::Server::stop() does nothing until the accept loop is up, so
+      // a listen() that has only just started has to get there first.
+      while(m_listening && !m_service->is_running()){
+        m_listenCv.wait_for(lock, std::chrono::milliseconds(1));
       }
-      m_service.reset();
+      m_service->stop();
+      m_listenCv.wait(lock, [this]{ return !m_listening; });
 
       return true;
     }
@@ -596,18 +590,31 @@ namespace Aurora::Network::Http::Server
 
     bool listen()
     {
-      if(!m_service){
-        return false;
+      {
+        std::lock_guard<std::mutex> lock(m_listenMutex);
+        if(m_stopping.load()){
+          return false;
+        }
+        m_listening = true;
       }
 
-      return m_service->listen_after_bind();
+      const bool result = m_service->listen_after_bind();
+
+      {
+        // Notified under the lock: a woken stop() may be the destructor's.
+        std::lock_guard<std::mutex> lock(m_listenMutex);
+        m_listening = false;
+        m_listenCv.notify_all();
+      }
+      return result;
     }
 
     std::atomic<bool> m_stopping{false};
     std::atomic<size_t> m_openStreams{0};
     size_t m_maxStreams{0};
-    std::mutex m_streamsMutex;
-    std::condition_variable m_streamsCv;
+    std::mutex m_listenMutex;
+    std::condition_variable m_listenCv;
+    bool m_listening{false};
 
     std::optional<httplib::Server> m_service;
   };
