@@ -1318,3 +1318,12 @@ Aurora-1juz: pink and black flashes of ~50 ms, intermittent, in bursts of 10 to 
 
 **Fix:** keep the tap logger running for the whole session, run the independent capture only in short windows around a report, and put the trace and frame dump behind an env var that is removed after the cause is known. Judge the result by what reaches the output (tap), not by the trace.
 
+---
+
+## Read a baseline with `git show` or a worktree, since an interrupted `git stash pop` leaves a half-restored tree
+Tags: git, stash, baseline, interrupt, index-lock, recovery
+Applies-when: comparing a failing test against HEAD with uncommitted changes present, or finding `.git/index.lock` and deleted files after a stopped command
+
+Aurora-ghh3: a one-line `git stash`, test, `git stash pop` was stopped while running. It left an empty `.git/index.lock`, a changed file showing as deleted, and the stash entry still holding every change.
+
+**Fix:** for a baseline, read the old file with `git show HEAD:path` or use a separate worktree. To recover: check no git process is running, remove the lock, `git checkout stash@{0} -- <file>`, and drop the stash only after `git diff --quiet stash@{0}` passes.

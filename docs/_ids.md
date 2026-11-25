@@ -99,6 +99,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `9hqa3-shell-cap` | [log/2026-11-13-9hqa3-shell-cap.md](log/2026-11-13-9hqa3-shell-cap.md) | Error shell 60vh safety cap: fades, scroll to the new row, pulses that wait to be seen |
 | `9hqa4-shell-pairing` | [log/2026-11-13-9hqa4-shell-pairing.md](log/2026-11-13-9hqa4-shell-pairing.md) | Pairing requests in the error shell: collapse, editor, baseline wait |
 | `9ig-pipeline-to-core` | [log/2026-10-01-9ig-pipeline-to-core.md](log/2026-10-01-9ig-pipeline-to-core.md) | Aurora-9ig: Pipeline, PipelineHost and Registry moved into core |
+| `aiy2-grille-0-2-2-npm` | [log/2026-11-25-aiy2-grille-0-2-2-npm.md](log/2026-11-25-aiy2-grille-0-2-2-npm.md) | Graph editor pins Grille 0.2.2 from npm |
 | `ajr5-graph-capabilities` | [log/2026-11-13-ajr5-graph-capabilities.md](log/2026-11-13-ajr5-graph-capabilities.md) | Pipeline capabilities follow the running graph's nodes |
 | `api-v1-adapters` | [api/README.md](api/README.md) | Aurora control API (`/api/v1`) |
 | `api-v1-plan` | [planning/ApiV1Plan.md](planning/ApiV1Plan.md) | API v1 plan: from today's routes to a frozen `/api/v1` |
@@ -109,6 +110,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `axoz-pending-highlight` | [log/2026-10-04-axoz-pending-highlight.md](log/2026-10-04-axoz-pending-highlight.md) | Aurora-axoz: pending highlight on Video/Audio switch (implemented, tracker close refused) |
 | `b665-react-free-port` | [log/2026-11-25-b665-react-free-port.md](log/2026-11-25-b665-react-free-port.md) | 1.2.1 takes the React-free pieces of feat/ReactPort |
 | `bju0-failed-save-check` | [log/2026-11-13-bju0-failed-save-check.md](log/2026-11-13-bju0-failed-save-check.md) | Browser check failed-save: the audio graph ran because Aurora picks the missing input |
+| `bnpx-grille-source-switch` | [log/2026-11-25-bnpx-grille-source-switch.md](log/2026-11-25-bnpx-grille-source-switch.md) | Grille source switch tool |
 | `browser-analysis` | [archive/BrowserAnalysis.md](archive/BrowserAnalysis.md) | Browser video-upload input — findings, not a decision |
 | `c0g-live-tuning-apply` | [log/2026-10-02-c0g-live-tuning-apply.md](log/2026-10-02-c0g-live-tuning-apply.md) | Aurora-c0g: tuning edits apply to the running pipeline without a reload |
 | `c5gw-builtin-save-title` | [log/2026-10-29-c5gw-builtin-save-title.md](log/2026-10-29-c5gw-builtin-save-title.md) | Graph editor: saving a built-in picks a distinct title |
