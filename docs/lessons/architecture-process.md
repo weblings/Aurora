@@ -1354,3 +1354,13 @@ Applies-when: relabelling or unlinking beads while branches carry different `.be
 `bd import` skips rows older than the live bead, so closes and notes survive an old export. `bd label remove` and `bd dep remove` leave `updated_at` alone, so the old row is not stale and restores what was removed (Aurora-b665, bd 1.3.1).
 
 **Fix:** after a removal, `bd update <id> --append-notes "<why>"`, then export. Never use `--allow-stale` on another branch's file.
+
+---
+
+## Reverting a commit that a long-lived branch builds on deletes that work at the next merge
+Tags: git, revert, branches, merge, release-scope
+Applies-when: pulling a feature out of a release while another branch keeps developing it
+
+Aurora-b665 reverted the island bundle (`Aurora-4nqt.3`) for 1.2.1. `feat/ReactPort` already contains that commit and builds on it, so merging the release branch into it applies the revert there: unchanged files are deleted and edited ones conflict.
+
+**Fix:** record it where the other branch's owner will look (the planning doc and the bead). When merging, revert the revert on that branch and check its files are back.

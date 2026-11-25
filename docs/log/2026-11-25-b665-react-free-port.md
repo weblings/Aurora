@@ -2,7 +2,7 @@
 
 Id: b665-react-free-port
 
-`Aurora-b665`. The React and Grille port (`Aurora-4nqt`) moved to 1.2.2 and stays on `feat/ReactPort`.
+`Aurora-b665`, closed. The React and Grille port (`Aurora-4nqt`) moved to 1.2.2 and stays on `feat/ReactPort`.
 
 - Reverted the code of `Aurora-4nqt.3` (owner, 2026-11-25): no island bundle on the main page or the demo, and NavFooter is vanilla again. Its log and lessons stay.
 - `feat/ReactPort` contains the reverted commit, so merging this branch into it removes the islands unless the revert is undone there.
@@ -18,7 +18,9 @@ Id: b665-react-free-port
 - Editor `tsc --noEmit`, `vitest run` (375, the 3 NavFooter tests went with the revert), editor and recipes builds passed.
 - On a rebuilt Windows Release app, `dashboard-shell` and `graph-editor:error-shell` passed. Dashboard collapsed and pairing screenshots and the editor open-rows screenshot were viewed.
 - The close gate passed after labelling. A scratch copy without the `on:` skip blocked on the branch-only beads.
-- Not checked: the onboarding footer in a browser, the demo in a browser, Firefox, Safari, Mac and Linux.
+- The owner checked the buttons on the rebuilt Windows app (2026-11-25) and accepted them.
+- Not checked: the demo in a browser, Firefox, Safari, Mac and Linux.
 
 ## Lessons
 - [[lesson-architecture-process]]: removing a beads label or dependency does not bump `updated_at`.
+- [[lesson-architecture-process]]: a revert reaches the long-lived branch that still needs the commit.
