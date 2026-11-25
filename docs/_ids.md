@@ -88,6 +88,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
 | `7nyu-pairing-e2e-frozen-clock` | [log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md](log/2026-11-18-7nyu-pairing-e2e-frozen-clock.md) | Pairing end-to-end test uses a frozen clock |
+| `7p8f-notice-chat-icon` | [log/2026-11-25-7p8f-notice-chat-icon.md](log/2026-11-25-7p8f-notice-chat-icon.md) | Notice mark: square chat icon |
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7r74-ptns-windows-ninja-core-tests` | [log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md](log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md) | Windows Ninja and sccache, core tests folded into the app build |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |

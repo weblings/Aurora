@@ -204,7 +204,7 @@ One sticky element mounted by the app shell, not by any screen:
   dropped, so once re-opened it stays open even if the new row leaves; when
   the rows clear the state resets. Conditions, host errors and the page's own
   notes count as errors (red circled-exclamation); the light-test row counts
-  and pairing requests count as notices (default-colour circled-info), and
+  and pairing requests count as notices (default-colour square chat), and
   open rows carry the same marks. Pairing requests (`Aurora-9hqa.4`,
   [[9hqa4-shell-pairing]]) are ordinary rows inside the collapse on both
   pages, with Approve and Deny; the editor reads `/api/pairing/status` and the

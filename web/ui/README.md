@@ -30,7 +30,7 @@ keys, words) are `shellRows.js`, shared with the graph editor's
 `islands.js`, mounted into `#shell-island`), see [[4nqt4-dashboard-error-shell-island]].
 The whole shell collapses as one
 (`shellRows.js`: baseline, snapshot, toggle, counts; [[u8jx5-shell-collapse]]),
-and its circled marks are `icons/circled-exclamation.svg` and `circled-info.svg`
+and its marks are `icons/circled-exclamation.svg` and `square-chat.svg`
 (those two icons are vendored into the demo; the shell modules are not).
 Pairing requests are notices inside that collapse on both pages; the baseline
 waits for the first pending result (`shellRows.js` `baselineReady`, `app.js`

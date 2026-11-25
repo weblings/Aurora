@@ -257,7 +257,7 @@ describe('ErrorShell baseline', () => {
     expect(out).not.toContain('shell-pairing-approve')
   })
 
-  it('a lone request is open with Approve and Deny, the circled-info mark and a toggle after it', () => {
+  it('a lone request is open with Approve and Deny, the notice mark and a toggle after it', () => {
     const out = html({ pairings: [phone] })
     expect(out).toContain('id="shell-pairing-approve-r1" data-action="approve" data-key="pairing:r1"')
     expect(out).toContain('id="shell-pairing-deny-r1" data-action="deny" data-key="pairing:r1"')

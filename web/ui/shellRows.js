@@ -201,7 +201,7 @@ export function layoutRows(rows, snapshot) {
   return collapsed ? [toggle] : [...covered, toggle];
 }
 
-// The marks: Grille's circled-exclamation (errors, error red) and circled-info (notices, default
+// The marks: Grille's circled-exclamation (errors, error red) and square chat (notices, default
 // colour) as CSS-mask spans, the way .warn-glyph is drawn (styles/shell.css).
 const ERROR_MARK = '<span class="shell-mark shell-mark-error" aria-hidden="true"></span>';
 

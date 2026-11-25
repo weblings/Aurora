@@ -386,3 +386,13 @@ Applies-when: a component shared by the graph editor and the Dashboard needs an 
 Aurora-4nqt.4: the `.shell-banner-row.shell-grille-row` rule that strips the old row border and padding sat in `editor.css`. The editor loaded it, the Dashboard does not, so Dashboard rows would have drawn a second border and padding around Grille's MessageRow. Unit tests and the markup could not show it.
 
 **Fix:** put the override in `web/ui/styles/shell.css`, which both pages load (the editor imports it in `main.tsx`). Before moving a component to an island, grep the stylesheets it relies on for rules that exist only in `editor.css`.
+
+---
+
+## Grille's MessageRow has no mark prop, so a different mark is a CSS mask over its icon
+Tags: grille, message-row, icon, css-mask, shell
+Applies-when: changing the icon on a Grille MessageRow, or counting where a shell mark is drawn
+
+Aurora-7p8f: the shell's notice mark is drawn twice, by `.shell-mark-info` on the collapsed bar and by MessageRow's built-in `circledInfoIcon` on open rows. Editing only the Aurora class leaves the open rows on the old icon.
+
+**Fix:** in `shell.css`, hide the row's svg with `visibility: hidden` (the box keeps its size) and mask the new icon on `.ui-message-row-mark`. Change both rules together.

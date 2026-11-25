@@ -77,6 +77,7 @@ Processing (source to effects handling), or Output (color / effects) module
 ## Art
 - The aurora SVG in the logo is modified from <a href="https://www.vecteezy.com/vector-art/88906-free-northern-lights-vector-series"> Kaitlyn Parker's Northern Lights Series</a> on <a href="https://www.vecteezy.com/free-vector/nature">Nature Vectors by Vecteezy</a>
 - Power icon from <a href="https://github.com/32pixelsCo/zest-icons/blob/master/packages/zest-free/LICENSE.md?ref=svgrepo.com" target="_blank">Zest</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+- Notice (chat bubble) icon from Zest Free, via <a href="https://github.com/weblings/GrilleDS">Grille</a>
 - Other icon svgs are from <a href="https://vidstack.io/icons/?lib=react">Vidstack</a>
 - Full copyright and licence text for Vidstack, Zest and the other third-party material: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - For demo assets see: <a href="./web/demo/README.md">its README</a>

@@ -49,7 +49,7 @@ SOFTWARE.
 
 ## Zest Free icons (MIT-style "Zest Free License") -- incorporated
 
-Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg` and `minus.svg`, and, through Grille, the graph editor's minus and warning icons (Aurora's own `web/ui/icons/warning.svg` is no longer used by the editor). The Zest Free origin of `power-svgrepo-com.svg` is unverified (SVG Repo download, no licence in the file).
+Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `minus.svg` and `square-chat.svg` (copied from Grille, sourced from zest-icons directly), and, through Grille, the graph editor's minus and warning icons (Aurora's own `web/ui/icons/warning.svg` is no longer used by the editor). The Zest Free origin of `power-svgrepo-com.svg` is unverified (SVG Repo download, no licence in the file).
 
 ```
 Zest Free License
