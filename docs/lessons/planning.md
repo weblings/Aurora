@@ -751,3 +751,13 @@ Applies-when: adding a mock control that overrides a media query, breakpoint or 
 To show a wide bottom dock, the Aurora-e4bi.1 mock got a Force dock switch, which docked a landscape window the editor never docks. The owner read it as a design proposal. The popup link meant to show the real case (900x1400) was clamped to the screen's height, came out landscape, and showed the side drawer instead. The question itself ("cap the wide dock?") went away once the layouts were measured: the rule should not produce that state at all.
 
 **Fix:** reach states through the real condition (a popup or window at the true size, with the measured size printed in the frame), and say when a state needs an unusual screen. If a state looks wrong, first ask whether the rule should produce it.
+
+---
+
+## An icon added "on the owner's word" needs its licence tier checked against the upstream repo at add time
+Tags: planning, icons, licence, zest, notices
+Applies-when: copying an icon from SVG Repo or any pack with a free and a paid tier into `web/ui/icons`
+
+`Undo.svg` and `Redo.svg` were added 2026-11-11 as Zest Free with no origin comment, on the owner's word, and `THIRD_PARTY_NOTICES.md` then listed them under the Zest Free License. They were Zest Pro artwork, found only when Grille audited its own icons (`Aurora-atpm`). SVG Repo files carry no licence text, so the notice was the only claim.
+
+**Fix:** when adding a pack icon, look the file name up in the upstream free tier (zest-icons) and note the check in the log. If it cannot be verified, say "unverified" in the notice, not the pack's licence.

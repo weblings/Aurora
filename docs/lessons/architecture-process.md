@@ -1345,3 +1345,12 @@ Aurora-wsyo: Game Mode has no browser overlay, so the working control surface is
 
 **Fix:** pair in Desktop Mode through `http://steamdeck.local:8215/` (the token is a cookie bound to the host name used, so an IP-paired phone must re-pair when the IP changes), check the closed beads before quoting a planning doc's "today" line, and have the Game Mode launcher stop any running Aurora (`pkill -x Aurora`, wait for the lock) before it starts its own.
 
+---
+
+## Removing a beads label or dependency does not mark the bead as newer
+Tags: beads, import, jsonl, branches, labels
+Applies-when: relabelling or unlinking beads while branches carry different `.beads/issues.jsonl` exports
+
+`bd import` skips rows older than the live bead, so closes and notes survive an old export. `bd label remove` and `bd dep remove` leave `updated_at` alone, so the old row is not stale and restores what was removed (Aurora-b665, bd 1.3.1).
+
+**Fix:** after a removal, `bd update <id> --append-notes "<why>"`, then export. Never use `--allow-stale` on another branch's file.

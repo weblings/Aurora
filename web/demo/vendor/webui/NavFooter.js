@@ -1,32 +1,26 @@
-// Shared onboarding wizard footer: Back (omitted on a screen's first step) and
-// Continue, centered as a pair. The React island (graph-editor/src/islands) draws it
-// on Grille buttons. islands.js loads before app.js, so window.auroraIslands is there
-// when a screen renders. Re-render with new options to change labels or disable Continue.
-const unmounts = new WeakMap();
-let warned = false;
-
-export function renderNavFooter(container, { showBack = true, onBack, backLabel = 'Back', backIcon = true, continueLabel = 'Continue', continueDisabled = false, onContinue }) {
-  unmounts.get(container)?.();
-  unmounts.delete(container);
-  container.innerHTML = '';
-
-  const mount = globalThis.auroraIslands?.mountNavFooter;
-  if (mount) {
-    unmounts.set(container, mount(container, { showBack, onBack, backLabel, backIcon, continueLabel, continueDisabled, onContinue }));
-    return;
-  }
-
-  // The bundle is required for app builds. This keeps onboarding usable if it failed to load.
-  if (!warned) {
-    warned = true;
-    console.error('NavFooter: islands.js is not loaded, using plain buttons');
-  }
+// Shared onboarding wizard footer -- Back (omitted on a screen's first
+// step) / Continue, centered as a pair (docs/WebUI/
+// WebUI_Design_2.5Pass.md's NUX Polish Pass -- RockyRoad's own real
+// shared `.frame .actions` bar, not a guess). Replaces reliance on the top
+// bar's own back arrow, which was never consistently positioned or
+// present screen to screen -- the root complaint that started this
+// redesign. Same one-call render+wire shape as topBar.js's renderTopBar.
+// Back-arrow artwork resolved against this module, so the same file
+// works from any mount (app webroot, embedded webroot, demo vendor dir).
+const BACK_ARROW_URL = new URL('./icons/back-arrow.svg', import.meta.url).href;
+export function renderNavFooter(container, { showBack = true, onBack, backLabel = 'Back', backIcon = true, continueLabel = 'Continue', onContinue }) {
   container.innerHTML = `
     <div class="nav-footer">
-      ${showBack ? `<button type="button" class="btn btn-secondary nav-footer-back">${escapeHtml(backLabel)}</button>` : ''}
-      <button type="button" class="btn btn-primary nav-footer-continue"${continueDisabled ? ' disabled' : ''}>${escapeHtml(continueLabel)}</button>
+      ${showBack ? `
+        <button type="button" class="btn btn-secondary nav-footer-back">
+          ${backIcon ? `<img src="${BACK_ARROW_URL}" alt="" class="nav-footer-back-icon" />` : ''}
+          <span>${escapeHtml(backLabel)}</span>
+        </button>
+      ` : ''}
+      <button type="button" class="btn btn-primary nav-footer-continue">${escapeHtml(continueLabel)}</button>
     </div>
   `;
+
   if (showBack) {
     container.querySelector('.nav-footer-back').addEventListener('click', onBack);
   }

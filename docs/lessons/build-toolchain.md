@@ -1016,3 +1016,13 @@ Applies-when: adding sccache or ccache to a Windows build that uses `cmake --pre
 Aurora-7r74: `CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` are honored only by Makefile and Ninja generators. The `windows-app` preset sets none, so CI used the Visual Studio generator and sccache would never have run. This reverses the advice in "Installing Visual Studio's C++ workload doesn't put its own tools on PATH" for CI.
 
 **Fix:** run `ilammy/msvc-dev-cmd` so `cl.exe` is on PATH, then configure with `-G Ninja -DCMAKE_BUILD_TYPE=Release`. Output moves from `bin/Release/` to `bin/`. Release has no `/Zi`, so sccache works without `/Z7`.
+
+---
+
+## On Windows a running Vite dev server makes the graph editor's npm ci fail with EPERM
+Tags: windows, vite, npm-ci, cmake, eperm, background-process
+Applies-when: rebuilding the app after a `web/graph-editor` dependency change, or after stopping a background dev server
+
+Aurora-7p8f: after a Grille pin change the app build failed (`npm error code: 'EPERM'`, MSB8066) because the Vite dev server still held files in `node_modules`. Stopping the background `npm run dev` task left its child `node ... vite.js` listening on 5173. A browser check run in the same command then passed against the old `Aurora.exe`.
+
+**Fix:** stop the process that owns the port (`Get-NetTCPConnection -LocalPort 5173`), rebuild, and check the exe's timestamp before trusting a browser check.

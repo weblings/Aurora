@@ -362,3 +362,13 @@ Applies-when: loading Grille's `ui.css` on a page that also carries `web/ui` sty
 `ui.css` starts with `@layer reset, app, ui;` and puts every rule in `ui`. Unlayered CSS beats any layered rule whatever the specificity. Aurora's global `:focus-visible` rule in `tokens.css` is unlayered and overrides Grille's `[data-pointer-opened] { outline: none }`, so a popover trigger would keep its ring. The two focus rings agree (2px, offset 2px, same color), so a plain button shows no difference. Grille's own rules have no global selectors, so nothing on the vanilla page restyles.
 
 **Fix:** keep Aurora's page CSS scoped to its own classes. Put an override meant to beat Grille in `@layer app`, or accept the unlayered win when the values match.
+
+---
+
+## A Grille icon draws 8px larger than its layout box, so size it with the overhang variable
+Tags: grille, icon, message-row, css-mask, shell
+Applies-when: resizing a Grille icon, or drawing a replacement over one
+
+Aurora-7p8f: a Grille icon is a 24px glyph with negative margins in a 16px box. A chat icon masked on MessageRow's 16px mark wrapper drew at two thirds of the error mark beside it. The shell mark is also drawn twice: `.shell-mark` on the collapsed bar and MessageRow's icon on open rows.
+
+**Fix:** pass MessageRow's `icon` prop (Grille v0.2.2-dev.5) instead of masking, and set `--ui-size-icon-overhang` on a parent to resize without moving the text. Change both drawings together and compare them in a screenshot.

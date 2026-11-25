@@ -19,6 +19,10 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   `bd export -o .beads/issues.jsonl` immediately before `git add`ing task state.
   Sync rides git, not the Dolt remote (unused here): after `git pull`, run
   `bd import` to upsert the tracked export into your live DB — never `--reinit-local`.
+- Beads are one DB across branches. Label a bead `on:<branch>` while its work
+  exists only there, and remove the label at merge. After removing any label or
+  dependency, `bd update <id> --append-notes`: removals do not bump `updated_at`,
+  so importing an older export restores them.
 - Non-obvious gotchas worth saving future time: `docs/lessons/`, with `Tags:`/`Applies-when:`,
   routed by the matching `.claude/skills/` skill — check it before changing
   that area, file per `docs/lessons/README.md`. Before splitting beads
@@ -35,6 +39,7 @@ Core repo: shared `Contracts`, `Processing`, `Input`/`Output` interfaces,
   `docs/check-close.py` blocks a commit whose staged export closes a bead
   with no log naming it, no lessons record (`## Lessons` or `- Lessons:`,
   "none" counts) or no `INDEX.md` row (bypass: `AURORA_SKIP_CLOSE_GATE=1`),
+  skipping beads labelled `on:<branch>` when that branch is not checked out,
   then `check-lessons.sh` and `check-links.py` run on docs-touching commits.
 - Citing another doc under `docs/`: use `Id:`/`[[id]]`, not a bare
   relative path — see `docs/README.md`'s "Citing other docs" section for

@@ -47,9 +47,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## OpenMoji power icon (CC BY-SA 4.0) -- incorporated
+
+Source: <https://openmoji.org/library/emoji-23FB/> (power symbol, U+23FB), through Grille's `powerIcon`. Used in `web/ui/icons/power.svg`. Copyright HfG Schwaebisch Gmuend and the OpenMoji contributors. Licensed under CC BY-SA 4.0: <https://creativecommons.org/licenses/by-sa/4.0/>.
+
+Changes: the symbol was redrawn by the Grille owner as two round-capped strokes on a 24 grid, with a padded viewBox, and is drawn white here. The adapted icon is shared under the same licence.
+
 ## Zest Free icons (MIT-style "Zest Free License") -- incorporated
 
-Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/power-svgrepo-com.svg`, `Undo.svg`, `Redo.svg` and `minus.svg`, and, through Grille, the graph editor's undo, redo, minus and warning icons (Aurora's own `web/ui/icons/warning.svg` is no longer used by the editor).
+Source: <https://github.com/32pixelsCo/zest-icons> via SVG Repo. Used for `web/ui/icons/minus.svg` and `square-chat.svg` (copied from Grille, which took it from zest-icons directly), and, through Grille, the graph editor's minus and warning icons (Aurora's own `web/ui/icons/warning.svg` is no longer used by the editor).
 
 ```
 Zest Free License
