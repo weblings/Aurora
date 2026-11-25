@@ -1026,3 +1026,13 @@ Applies-when: rebuilding the app after a `web/graph-editor` dependency change, o
 Aurora-7p8f: after a Grille pin change the app build failed (`npm error code: 'EPERM'`, MSB8066) because the Vite dev server still held files in `node_modules`. Stopping the background `npm run dev` task left its child `node ... vite.js` listening on 5173. A browser check run in the same command then passed against the old `Aurora.exe`.
 
 **Fix:** stop the process that owns the port (`Get-NetTCPConnection -LocalPort 5173`), rebuild, and check the exe's timestamp before trusting a browser check.
+
+---
+
+## A GitHub tarball dependency pin brings back npm 12's refusal, and a release check that nothing runs does not stop it
+Tags: npm, dependencies, grille, release, steamos, tarball
+Applies-when: pinning `web/graph-editor` to a dev tarball of Grille, preparing a release, or an `npm ci` fails with `EALLOWREMOTE`
+
+Aurora-uai1 moved Grille to the npm registry because npm 12 refused the GitHub tarball and CMake's own `npm ci` step failed on SteamOS. A later dev pin (`v0.2.2-dev.5`, Aurora-7p8f) brought the tarball back. The Windows install and builds kept passing, and `grille -- check` is not run by CI or a hook.
+
+**Fix:** before a release run `npm run grille -- check` in `web/graph-editor`. If it fails, publish Grille to npm and run `npm run grille -- release <version>`.
