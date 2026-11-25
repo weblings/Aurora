@@ -2,7 +2,7 @@
 
 Id: react-grille-migration
 
-Status: scoped 2026-11-23 under `Aurora-4nqt` (children `.1`-`.11`). Done: `.1` to `.4`. The owner leans to option A for the build (Decisions). Bead `.1` records the decisions.
+Status: scoped 2026-11-23 under `Aurora-4nqt` (children `.1`-`.11`). Done: `.1` to `.5` (the `.5` mock was approved 2026-11-24, the asks are Grille epic `Grille-0u5`). The owner leans to option A for the build (Decisions). Bead `.1` records the decisions.
 
 The plan for moving `web/ui` (the Dashboard and the onboarding screens, vanilla ES modules today) to React and Grille. The audit below was done 2026-11-23 against Grille 0.2.1 (`../../Grille`) and the graph editor.
 
@@ -24,12 +24,12 @@ The plan for moving `web/ui` (the Dashboard and the onboarding screens, vanilla 
 | `Tooltips.js` (native `title`) | `Tooltip` | Direct |
 | Error shell, `status-text` | `MessageRow`, `StatusMessage` | Direct, except collapse, 60vh cap and pulse (stay local CSS) |
 | Settings and device fields | `TextField`, `FieldList`, `Select` | Direct |
-| `Dropdown.js` (6 uses) | `Select` | Partial: string options only, WebXR check open (Grille-0up) |
-| `AccordionSection` | `Disclosure` | Partial: no `expand()`/`collapse()`, and "See all zones" opens Bridge from outside |
-| Tuning sliders, `SliderFill` | `Slider` | Partial: `onChange` only, Tuning commits on gesture end |
-| Toggles and checkboxes (zone active, Settings, Tuning optional) | none | Gap: no Switch or Checkbox |
+| `Dropdown.js` (6 uses) | `Select` | Partial: needs `{id, label}` options, `isDisabled` and a full-width trigger (`Grille-0u5.3`). The WebXR check is RockyRoad's (Grille-0up) |
+| `AccordionSection` | `Disclosure` | Partial: needs an accordion variant and `isExpanded` control, because "See all zones" opens Bridge from outside (`Grille-0u5.4`) |
+| Tuning sliders, `SliderFill` | `Slider` | Partial: needs once-per-gesture `onChangeEnd` with key-up, Aurora's colours, full width, 8px track and header layout (`Grille-0u5.2`) |
+| Toggles and checkboxes (zone active, Settings, Tuning optional) | none | Gap: a Switch only, all 7 checkboxes are the switch (`Grille-0u5.1`) |
 | Black-handling `segmented` | `Tabs` maybe | Unclear, it is a value choice not navigation |
-| Icons (`web/ui/icons`) | `icons/*.ts` | Mostly covered (`Aurora-0ofk`), no power icon, `arrowLeft` stands in for `back-arrow` |
+| Icons (`web/ui/icons`) | `icons/*.ts` | Mostly covered (`Aurora-0ofk`). `powerIcon` ships in Grille v0.2.2-dev.2 (OpenMoji, `Grille-0u5.5`), repadded in dev.3 so it weighs like the arrow. `arrowLeft` is the back arrow |
 | `EffectPanel` (879 lines) | `Popover`, `ListBox`, `Menu`, `Tree` pieces | Rebuild per the kep2 spec |
 | `ZoneCanvas`, `ScreenDivision`, `ZonePatchQueue` | none | Stays custom (SVG drag editing) |
 
@@ -40,7 +40,7 @@ Scale: `DashboardScreen.js` is 1234 lines of imperative DOM with a 1067-line tes
 - Build (owner leaning, 2026-11-23): add the Dashboard and NUX as pages of the existing graph-editor Vite project, like `recipes.html`, not a sibling project. Open: Node policy for the main UI, how the demo consumes the bundle. Both go in `Aurora-4nqt.1`.
 - Migration is hybrid and per piece, not a big bang. Grille's `mountIsland(el, node)` mounts React into an element owned by vanilla code. A React piece gets a wrapper class with the same API as the class it replaces, so callers do not change. Aurora does not use `mountIsland` yet.
 - Order: shell island first (rows come in as props and `ErrorShell` fetches nothing), then leaf islands, then NUX screens, then the Dashboard, then flip `app.js` and retire vanilla. Each step keeps a working app and a passing demo build.
-- Grille gaps (Switch, Checkbox, Slider release, Select ids, Disclosure open-from-outside, power icon) are mocked in Aurora first. Nothing is filed in Grille until the owner asks.
+- Grille gaps (Switch, Slider, Select, accordion Disclosure, power icon) were mocked in Aurora first (`Aurora-4nqt.5`, approved 2026-11-24, see [[4nqt5-grille-gaps-mock]]), filed as Grille epic `Grille-0u5` and shipped in Grille v0.2.2-dev.2 and polished in dev.3, which the editor now pins. Checkbox and back arrow were dropped.
 
 ## Risks to check
 

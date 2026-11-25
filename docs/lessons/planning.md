@@ -751,3 +751,13 @@ Applies-when: adding a mock control that overrides a media query, breakpoint or 
 To show a wide bottom dock, the Aurora-e4bi.1 mock got a Force dock switch, which docked a landscape window the editor never docks. The owner read it as a design proposal. The popup link meant to show the real case (900x1400) was clamped to the screen's height, came out landscape, and showed the side drawer instead. The question itself ("cap the wide dock?") went away once the layouts were measured: the rule should not produce that state at all.
 
 **Fix:** reach states through the real condition (a popup or window at the true size, with the measured size printed in the frame), and say when a state needs an unusual screen. If a state looks wrong, first ask whether the rule should produce it.
+
+---
+
+## A gap list is a hypothesis: audit the consumers and the icon's licence tier before filing the ask
+Tags: planning, design-process, mocks, grille, audit, licence
+Applies-when: listing components or icons to request from a design-system library
+
+Aurora-4nqt.5's bead listed Switch and Checkbox, a back-arrow icon, a power icon and a WebXR check. Reading the consumers cut it: all 7 `web/ui` checkboxes are the one toggle switch, Grille `arrowLeft` is the same Vidstack path as `back-arrow.svg`, and the WebXR check belongs to another project. The power icon looked like a Zest pickup, but `power-symbol.svg` is in Zest Pro only. Grille then found its own undo and redo were Pro artwork too and removed them in v0.2.2-dev.2.
+
+**Fix:** before filing, grep the consumers for every control (here `type="checkbox"`), compare icon paths, and check which package tier holds the asset. Record each dropped item and its reason in the bead, so the ask list is the real list.

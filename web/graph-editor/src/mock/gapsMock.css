@@ -1,0 +1,27 @@
+.gm-page { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; color: var(--ui-color-text-default); font-family: inherit; }
+.gm-page h1 { font-size: 20px; margin: 0 0 4px; }
+.gm-lede { color: var(--ui-color-text-secondary); margin: 0 0 16px; }
+.gm-frame { border-top: 1px solid var(--ui-color-control-bg-active); padding: 16px 0 24px; }
+.gm-frame h2 { font-size: 16px; margin: 0 0 8px; }
+.gm-gap, .gm-today { font-size: 13px; margin: 2px 0; color: var(--ui-color-text-secondary); }
+.gm-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 12px 0; }
+@media (max-width: 640px) { .gm-pair { grid-template-columns: 1fr; } }
+.gm-col { border: 1px solid var(--ui-color-control-bg-active); border-radius: 8px; padding: 12px 16px; min-width: 0; }
+.gm-col h3 { font-size: 12px; font-weight: 600; margin: 0 0 12px; color: var(--ui-color-text-secondary); }
+.gm-stack { display: flex; flex-direction: column; gap: 12px; }
+.gm-row { display: flex; gap: 12px; align-items: center; }
+.gm-note { font-size: 12px; color: var(--ui-color-text-secondary); margin: 8px 0 0; }
+.gm-note code, .gm-page code { font-size: 12px; }
+.gm-link { background: none; border: none; padding: 0; margin-bottom: 8px; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; }
+.gm-log { list-style: none; margin: 8px 0 0; padding: 0; font-size: 11px; font-family: ui-monospace, monospace; color: var(--ui-color-text-secondary); min-height: 3.6em; }
+.gm-log-empty { opacity: 0.6; }
+.gm-keys { font-size: 12px; border-collapse: collapse; margin-top: 8px; }
+.gm-keys th, .gm-keys td { text-align: left; padding: 2px 16px 2px 0; }
+
+/* Stop reads one step lighter than its neighbour, as .top-bar-power-btn does today. */
+.ui-button:has(> .gm-stop) { background: var(--ui-color-control-bg-hover); }
+.ui-button:has(> .gm-stop)[data-hovered], .ui-button:has(> .gm-stop)[data-pressed] { background: var(--ui-color-control-bg-active); }
+.gm-stop { display: contents; }
+
+/* Inset ring on Select options, as tokens.css does for .dropdown-option (an outer ring overlaps neighbours). */
+.ui-option:focus-visible { outline-offset: calc(-1 * var(--aurora-focus-ring-width)); }

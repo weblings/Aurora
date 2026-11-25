@@ -668,3 +668,13 @@ Applies-when: a vanilla page mounts a React piece that keeps collapse, pulse or 
 Aurora-4nqt.4: the Dashboard shell's collapse, pulse and arrival state live in `ErrorShell`. The NavFooter pattern (unmount, render again) would reset them on every poll, and a changed `onAnnounce` identity would repeat the announcement.
 
 **Fix:** `mountErrorShell` mounts once and returns `{ update, unmount }`, with a small external store read by `useSyncExternalStore`. The caller builds its handlers once and passes the same functions on every update. Node tests mount a double that records each pushed props object, so they assert on what the island was told, not on markup.
+
+---
+
+## React Aria Slider calls onChangeEnd on every key repeat
+Tags: slider, react-aria, keyboard, grille, commit
+Applies-when: a slider must save once per gesture, including a held arrow key
+
+Aurora's Tuning sliders save on pointer release and on key up. In the Grille gaps mock a bare React Aria Slider fired `onChangeEnd` once per keydown, so a held arrow key saved on every repeat. A controlled value must also follow `onChange`, or the thumb stays put during a drag.
+
+**Fix:** keep `value` bound to `onChange`. Mark the key as held on keydown (capture phase, so it is set before React Aria handles the key), store the pending end, and fire it once on key up and on blur. Pointer ends pass straight through.
