@@ -247,6 +247,17 @@ namespace
   };
 
 
+  // The next output init throws, after it has taken the device over.
+  void failNextOutputInit(Events& events)
+  {
+    events.onOutputInit = [&events, failed = std::make_shared<bool>(false)]{
+      if(*failed){ return; }
+      *failed = true;
+      throw std::runtime_error("output init failed");
+    };
+  }
+
+
   Registry makeRegistry(const std::shared_ptr<Events>& events, bool withAudio = true)
   {
     Registry registry;
@@ -1462,19 +1473,19 @@ TEST_CASE("A reload failure that lands after a pause stores nothing (Aurora-ja76
   auto registry = makeRegistry(events);
   PipelineHost host(Pipeline::build(registry, videoConfig(), dir.path, {}), {});
 
-  // The failing build inits its outputs before it fails on the unknown
-  // input; a pause lands inside that window.
+  // A pause lands while the failing build opens its input.
   bool nested = false;
-  events->onOutputInit = [&]{
-    if(nested){ return; }
+  registry.registerInput("late-fail", [&]() -> std::unique_ptr<IVideoInput>{
     nested = true;
     REQUIRE(host.pause());
-  };
+    return nullptr;
+  });
 
   Config bad;
-  bad.setActiveInputName("nope");
+  bad.setActiveInputName("late-fail");
   std::string error;
   CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  REQUIRE(nested);
   CHECK(host.status().state == HostState::Paused);
   CHECK(host.status().errors.empty());
   host.shutdown();
@@ -1593,21 +1604,21 @@ TEST_CASE("A reload failure that lands after a concurrent successful build store
   auto registry = makeRegistry(events);
   PipelineHost host(nullptr, {});
 
-  // The failing build inits its outputs before it fails on the unknown
-  // input; a second reload succeeds inside that window.
+  // A second reload succeeds while the failing build opens its input.
   bool nested = false;
-  events->onOutputInit = [&]{
-    if(nested){ return; }
+  registry.registerInput("late-fail", [&]() -> std::unique_ptr<IVideoInput>{
     nested = true;
     std::string innerError;
     REQUIRE(host.reload(registry, videoConfig(), dir.path, innerError));
-  };
+    return nullptr;
+  });
 
   Config bad;
-  bad.setActiveInputName("nope");
+  bad.setActiveInputName("late-fail");
   std::string error;
   CHECK_FALSE(host.reload(registry, bad, dir.path, error));
-  CHECK(error == "Unknown input 'nope'");
+  REQUIRE(nested);
+  CHECK(error == "Unknown input 'late-fail'");
   CHECK(host.status().state == HostState::Running);
   CHECK(host.status().errors.empty());
   host.shutdown();
@@ -3444,6 +3455,129 @@ TEST_CASE("A failed switch shows the failure light on the same outputs until an 
   CHECK(events->lastFrame[0].color.toNormalized().g == 0.f);
   host.shutdown();
   CHECK(events->has("shutdown out-a final"));
+}
+
+
+TEST_CASE("A build that fails after output init gets a failure light on fresh outputs (Aurora-5q5h)", "[Effects]")
+{
+  ScopedTempDir dir("failure-light-taken-over");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+  REQUIRE(EffectStore(dir.path).write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  Config broken = config;
+  SECTION("effect error, which stops the failed build's outputs"){ broken.setActiveEffectId("gone-output"); }
+  bool initThrows = false;
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+  SECTION("other error, which does not")
+  {
+    broken.setActiveEffectId("builtin.audio");
+    broken.setActiveAudioInputName("fake-audio");
+    initThrows = true;
+  }
+#endif
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+
+  // The second round is a failed retry with the light already on.
+  for(int round = 0; round < 2; ++round){
+    events->lines.clear();
+    if(initThrows){ failNextOutputInit(*events); }
+    CHECK_FALSE(host.reload(registry, broken, dir.path, error));
+    REQUIRE(host.failureLightOn());
+    // The failed build's init, then the light's own.
+    CHECK(initCount(*events) == 2);
+    // No stop reaches the device after the light's init.
+    const auto lastInit = std::find(events->lines.rbegin(), events->lines.rend(), "init out-a");
+    CHECK(std::find(events->lines.rbegin(), lastInit, "shutdown out-a final") == lastInit);
+    CHECK(events->lines.back() == "shutdown out-a replacement");
+    const int before = events->sendCount;
+    host.tick();
+    CHECK(events->sendCount == before + 1);
+  }
+  host.shutdown();
+}
+
+
+TEST_CASE("A failed retry that took the outputs over rebuilds a startup failure light (Aurora-5q5h)", "[PipelineHost]")
+{
+  ScopedTempDir dir("failure-light-retry");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config bad = videoConfig();
+  bad.setActiveOutputNames({"out-a"});
+  PipelineHost host(nullptr, {}, std::make_exception_ptr(std::runtime_error("startup")));
+  REQUIRE(host.showFailureLight(registry, dir.path));
+  events->lines.clear();
+
+  std::string error;
+  failNextOutputInit(*events);
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.failureLightOn());
+  CHECK(initCount(*events) == 2);
+  // The stale light ran every output, in the registry's unspecified order.
+  CHECK(events->has("shutdown out-a replacement"));
+  CHECK(events->has("shutdown out-b replacement"));
+  host.shutdown();
+}
+
+
+TEST_CASE("A build whose input cannot open never touches the running outputs (Aurora-d5n4)", "[PipelineHost]")
+{
+  ScopedTempDir dir("input-before-output");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  registry.registerInput("throwing-video", []() -> std::unique_ptr<IVideoInput>{
+    throw std::runtime_error("capture denied");
+  });
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  Config bad = config;
+  SECTION("unknown video input"){ bad.setActiveInputName("nope"); }
+  SECTION("video input that throws"){ bad.setActiveInputName("throwing-video"); }
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  events->lines.clear();
+
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.status().state == HostState::Running);
+  // No init, no stop: the kept pipeline's stream is still its own.
+  CHECK(events->lines.empty());
+  const int before = events->sendCount;
+  host.tick();
+  CHECK(events->sendCount == before + 1);
+  host.shutdown();
+}
+
+
+TEST_CASE("A switch to an effect whose input cannot open lends the running outputs to the failure light (Aurora-d5n4)", "[Effects]")
+{
+  ScopedTempDir dir("input-before-output-switch");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  Config bad = config;
+  bad.setActiveEffectId("builtin.audio");
+  SECTION("unknown input"){ bad.setActiveAudioInputName("nope"); }
+  SECTION("no input of that kind")
+  {
+    registry = makeRegistry(events, /*withAudio*/ false);
+    const nlohmann::json graph = Graph::builtInAudioGraph({"out-a"});
+    std::string error;
+    REQUIRE(EffectStore(dir.path).write("needs-audio", graph, error));
+    bad.setActiveEffectId("needs-audio");
+  }
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  events->lines.clear();
+
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.status().state == HostState::Failed);
+  REQUIRE(host.failureLightOn());
+  CHECK(events->lines.empty());
+  host.shutdown();
 }
 
 
@@ -5638,6 +5772,260 @@ TEST_CASE("The preview summary leaves an open stream for the session alone (Auro
   CHECK(summary->status == 200);
   CHECK(reader.data().find("\"reason\":\"replaced\"") == std::string::npos);
   CHECK(h.tickUntil(reader, [](const nlohmann::json& p){ return !p["outputs"].empty(); }));
+}
+
+
+TEST_CASE("PipelineHost::shutdown is final: reload, resume and the failure light build nothing after it (Aurora-lyr3)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-shutdown-final");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+
+  SECTION("running")
+  {
+    PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+    const std::uint64_t epoch = host.buildEpoch();
+    host.shutdown();
+    CHECK(host.buildEpoch() > epoch);
+    events->lines.clear();
+
+    CHECK(host.reload(registry, config, dir.path, error));
+    CHECK_FALSE(host.pause());
+    CHECK(host.resume(registry, config, dir.path, error));
+    CHECK_FALSE(host.reloadInputs(registry, config, dir.path, nullptr, error));
+    host.shutdown();
+    CHECK(events->lines.empty());
+  }
+
+  SECTION("paused")
+  {
+    PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+    REQUIRE(host.pause());
+    host.shutdown();
+    events->lines.clear();
+
+    CHECK(host.resume(registry, config, dir.path, error));
+    CHECK(events->lines.empty());
+  }
+
+  SECTION("failed")
+  {
+    PipelineHost host(nullptr, {}, std::make_exception_ptr(std::runtime_error("boom")));
+    REQUIRE(host.status().state == HostState::Failed);
+    host.shutdown();
+
+    CHECK_FALSE(host.showFailureLight(registry, dir.path));
+    CHECK(host.setRunning(true, registry, dir.path, error));
+    CHECK(events->lines.empty());
+  }
+}
+
+
+TEST_CASE("A build in flight across PipelineHost::shutdown leaves no output without a final shutdown (Aurora-lyr3)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-shutdown-in-flight");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+  // Fails after output init: the graph names an output that is not there.
+  REQUIRE(EffectStore(dir.path).write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  Config bad = config;
+  bad.setActiveEffectId("gone-output");
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+
+  // shutdown() lands inside the new build's output init, after that init ran.
+  bool nested = false;
+  auto shutdownDuringBuild = [&]{
+    events->lines.clear();
+    events->onOutputInit = [&]{
+      if(nested){ return; }
+      nested = true;
+      host.shutdown();
+    };
+  };
+  const auto finalShutdowns = [&]{
+    return std::count(events->lines.begin(), events->lines.end(), "shutdown out-a final");
+  };
+
+  SECTION("reload")
+  {
+    shutdownDuringBuild();
+    CHECK(host.reload(registry, config, dir.path, error));
+  }
+
+  SECTION("resume")
+  {
+    REQUIRE(host.pause());
+    shutdownDuringBuild();
+    CHECK(host.resume(registry, config, dir.path, error));
+  }
+
+  SECTION("failing reload")
+  {
+    shutdownDuringBuild();
+    CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  }
+
+  SECTION("failing resume")
+  {
+    REQUIRE(host.pause());
+    shutdownDuringBuild();
+    CHECK_FALSE(host.resume(registry, bad, dir.path, error));
+  }
+
+  REQUIRE(nested);
+  // The last thing the output hears is a final shutdown, after the only init.
+  CHECK(initCount(*events) == 1);
+  REQUIRE_FALSE(events->lines.empty());
+  CHECK(events->lines.back() == "shutdown out-a final");
+  CHECK(finalShutdowns() >= 1);
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  CHECK_FALSE(host.failureLightOn());
+  CHECK_FALSE(host.graphJson().has_value());
+}
+
+
+TEST_CASE("A pause that lands during a build leaves no output without a final shutdown (Aurora-83k6)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-pause-in-flight");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+  // Fails after output init: the graph names an output that is not there.
+  REQUIRE(EffectStore(dir.path).write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  Config bad = config;
+  bad.setActiveEffectId("gone-output");
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+  events->lines.clear();
+
+  // pause() lands inside the new build's output init, after that init ran.
+  bool nested = false;
+  const auto pauseDuringBuild = [&]{
+    events->onOutputInit = [&]{
+      if(nested){ return; }
+      nested = true;
+      REQUIRE(host.pause());
+    };
+  };
+
+  SECTION("reload")
+  {
+    pauseDuringBuild();
+    CHECK(host.reload(registry, config, dir.path, error));
+    REQUIRE(nested);
+  }
+
+  SECTION("failing reload")
+  {
+    pauseDuringBuild();
+    CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+    REQUIRE(nested);
+  }
+
+  SECTION("failing resume")
+  {
+    REQUIRE(host.pause());
+    events->lines.clear();
+    CHECK_FALSE(host.resume(registry, bad, dir.path, error));
+  }
+
+  CHECK(host.isPaused());
+  CHECK(initCount(*events) == 1);
+  REQUIRE_FALSE(events->lines.empty());
+  CHECK(events->lines.back() == "shutdown out-a final");
+  CHECK_FALSE(events->has("shutdown out-a replacement"));
+  host.shutdown();
+}
+
+
+TEST_CASE("A reload that ends during a resume does not stop the resumed stream (Aurora-83k6)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-late-reload-resume");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+  // Fails after output init, on the path that stops the outputs itself.
+  REQUIRE(EffectStore(dir.path).write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  Config badEffect = config;
+  badEffect.setActiveEffectId("gone-output");
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+
+  Config reloadConfig = config;
+  SECTION("succeeding reload"){}
+  SECTION("failing reload"){ reloadConfig = badEffect; }
+
+  // The reload blocks in its output init, then the resume blocks in its own.
+  std::promise<void> reloadIn, releaseReload, resumeIn, releaseResume;
+  auto reloadReleased = releaseReload.get_future().share();
+  auto resumeReleased = releaseResume.get_future().share();
+  std::atomic<int> inits{0};
+  events->onOutputInit = [&]{
+    const int n = inits++;
+    if(n == 0){ reloadIn.set_value(); reloadReleased.wait(); }
+    if(n == 1){ resumeIn.set_value(); resumeReleased.wait(); }
+  };
+
+  std::string reloadError;
+  std::thread reloader([&]{ host.reload(registry, reloadConfig, dir.path, reloadError); });
+  const bool reloadBlocked = reloadIn.get_future().wait_for(5s) == std::future_status::ready;
+  const bool paused = host.pause();
+  events->lines.clear();
+  std::thread resumer([&]{ host.resume(registry, config, dir.path, error); });
+  const bool resumeBlocked = resumeIn.get_future().wait_for(5s) == std::future_status::ready;
+
+  // Time for the reload to finish while the resume is still building.
+  releaseReload.set_value();
+  std::this_thread::sleep_for(200ms);
+  releaseResume.set_value();
+  reloader.join();
+  resumer.join();
+
+  REQUIRE(reloadBlocked);
+  REQUIRE(paused);
+  REQUIRE(resumeBlocked);
+  CHECK(host.status().state == HostState::Running);
+  CHECK_FALSE(events->has("shutdown out-a final"));
+  host.shutdown();
+}
+
+
+TEST_CASE("A reload that fails after a pause and resume does not stop the resumed stream (Aurora-83k6)", "[PipelineHost]")
+{
+  ScopedTempDir dir("host-stale-failure-resumed");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+  REQUIRE(EffectStore(dir.path).write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  Config badEffect = config;
+  badEffect.setActiveEffectId("gone-output");
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+
+  bool nested = false;
+  events->onOutputInit = [&]{
+    if(nested){ return; }
+    nested = true;
+    REQUIRE(host.pause());
+    std::string innerError;
+    REQUIRE(host.resume(registry, config, dir.path, innerError));
+    events->lines.clear();
+  };
+
+  CHECK_FALSE(host.reload(registry, badEffect, dir.path, error));
+  REQUIRE(nested);
+  CHECK(host.status().state == HostState::Running);
+  CHECK_FALSE(events->has("shutdown out-a final"));
+  host.shutdown();
 }
 
 

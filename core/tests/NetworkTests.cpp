@@ -1,4 +1,5 @@
 #include "TempDirSuffix.hpp"
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <thread>
@@ -714,4 +715,69 @@ TEST_CASE("HttpServer rejects a stream past the cap and frees the slot on discon
 
   server.stop();
   serverThread.join();
+}
+
+
+TEST_CASE("HttpServer stop() waits for requests still in a handler (Aurora-i6zx)", "[HttpServer]")
+{
+  HttpServer server;
+  std::atomic<int> entered{0};
+  std::atomic<int> inside{0};
+  server.addRoute(HttpMethod::Get, "/slow", [&](const Request&, Response& res){
+    ++inside;
+    ++entered;
+    std::this_thread::sleep_for(100ms);
+    res.body = "done";
+    --inside;
+  });
+  server.setStreamLimits(4, 2);
+  const int port = server.bindToAnyPort("127.0.0.1");
+  REQUIRE(port > 0);
+  std::thread serverThread([&](){ server.listen(); });
+
+  std::atomic<bool> done{false};
+  std::vector<std::thread> clients;
+  for(int i = 0; i < 8; ++i){
+    clients.emplace_back([&](){
+      while(!done.load()){
+        httplib::Client client("127.0.0.1", port);
+        client.Get("/slow");
+      }
+    });
+  }
+  for(int attempt = 0; attempt < 500 && entered.load() < 4; ++attempt){
+    std::this_thread::sleep_for(10ms);
+  }
+  CHECK(entered.load() >= 4);
+
+  server.stop();
+  CHECK(inside.load() == 0);
+
+  done.store(true);
+  serverThread.join();
+  for(auto& client : clients){
+    client.join();
+  }
+}
+
+
+TEST_CASE("HttpServer stop() ends a listen() that has barely started (Aurora-i6zx)", "[HttpServer]")
+{
+  for(int round = 0; round < 200; ++round){
+    HttpServer server;
+    REQUIRE(server.bindToAnyPort("127.0.0.1") > 0);
+    std::thread serverThread([&](){ server.listen(); });
+    server.stop();
+    serverThread.join();
+  }
+}
+
+
+TEST_CASE("HttpServer listen() after stop() returns false (Aurora-i6zx)", "[HttpServer]")
+{
+  HttpServer server;
+  REQUIRE(server.bindToAnyPort("127.0.0.1") > 0);
+  CHECK(server.stop());
+  CHECK_FALSE(server.listen());
+  CHECK_FALSE(server.stop());
 }

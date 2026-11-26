@@ -9,6 +9,9 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `110-release-prep` | [log/2026-10-07-110-release-prep.md](log/2026-10-07-110-release-prep.md) | 1.1.0 release prep: audit, bump, docs, Aurora-07i, vendor sequencing |
 | `112-linux-verification` | [log/2026-10-18-112-linux-verification.md](log/2026-10-18-112-linux-verification.md) | v1.1.2 Linux verification |
 | `112-mac-verification` | [log/2026-10-19-112-mac-verification.md](log/2026-10-19-112-mac-verification.md) | v1.1.2 Mac verification |
+| `121-mac-release-r3` | [log/2026-11-25-121-mac-release-r3.md](log/2026-11-25-121-mac-release-r3.md) | 1.2.1 Mac release rebuild with the failure-light and input-order fixes |
+| `121-mac-release-retest` | [log/2026-11-25-121-mac-release-retest.md](log/2026-11-25-121-mac-release-retest.md) | 1.2.1 Mac release rebuild and retest: the quit, shutdown and pause fixes |
+| `121-mac-release-testing` | [log/2026-11-25-121-mac-release-testing.md](log/2026-11-25-121-mac-release-testing.md) | 1.2.1 Mac release build and testing: notarized zip, monitor passes, quit crash |
 | `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
 | `1fwk-edit-paste-popup-disabled-look` | [log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md](log/2026-11-16-1fwk-edit-paste-popup-disabled-look.md) | Graph editor: no Firefox Paste popup on Edit, disabled Test and Edit are greyed |
@@ -80,6 +83,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5ipy6-webui-pairing` | [log/2026-10-16-5ipy6-webui-pairing.md](log/2026-10-16-5ipy6-webui-pairing.md) | WebUI pairing screen (Aurora-5ipy.6) |
 | `5ipy7-global-brightness` | [log/2026-10-16-5ipy7-global-brightness.md](log/2026-10-16-5ipy7-global-brightness.md) | Aurora-5ipy.7: global brightness gain stage |
 | `5ipy8-coalesce-settings-reloads` | [log/2026-10-16-5ipy8-coalesce-settings-reloads.md](log/2026-10-16-5ipy8-coalesce-settings-reloads.md) | Coalesce settings-PUT reloads (Aurora-5ipy.8) |
+| `5q5h-failure-light-takeover` | [log/2026-11-25-5q5h-failure-light-takeover.md](log/2026-11-25-5q5h-failure-light-takeover.md) | The failure light opens its own stream when the failed build took the area over |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |
@@ -88,6 +92,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `7r3-audio-drift-reaches-output` | [log/2026-10-14-7r3-audio-drift-reaches-output.md](log/2026-10-14-7r3-audio-drift-reaches-output.md) | Audio drift reaches output (Aurora-7r3) |
 | `7r74-ptns-windows-ninja-core-tests` | [log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md](log/2026-11-24-7r74-ptns-windows-ninja-core-tests.md) | Windows Ninja and sccache, core tests folded into the app build |
 | `7ybx-dev-banner-errors` | [log/2026-10-07-dev-banner-errors.md](log/2026-10-07-dev-banner-errors.md) | Aurora-7ybx: dev banner-error injection tooling (closed) |
+| `83k6-pause-late-build` | [log/2026-11-25-83k6-pause-late-build.md](log/2026-11-25-83k6-pause-late-build.md) | A build that ends under a pause stops its stream |
 | `8ydf-step1-opt-measure` | [log/2026-10-21-8ydf-step1-opt-measure.md](log/2026-10-21-8ydf-step1-opt-measure.md) | 8ydf step 1 measured: rate cap at RelWithDebInfo on Framework |
 | `8ydf-wayland-rate-cap-review` | [log/2026-10-20-8ydf-wayland-rate-cap-review.md](log/2026-10-20-8ydf-wayland-rate-cap-review.md) | Aurora-8ydf step 1: Wayland rate-cap review + tests (motion run open) |
 | `91cj-zone-map-empty-save` | [log/2026-11-13-91cj-zone-map-empty-save.md](log/2026-11-13-91cj-zone-map-empty-save.md) | Zone maps: an output with no zone ids no longer overwrites its saved zone map |
@@ -124,6 +129,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d3ec-host-build-errors` | [log/2026-10-06-d3ec-host-build-errors.md](log/2026-10-06-d3ec-host-build-errors.md) | Aurora-d3ec: host holds build errors, GET /api/state reports state |
 | `d3ec-linux-verification` | [log/2026-10-06-d3ec-linux-verification.md](log/2026-10-06-d3ec-linux-verification.md) | Aurora-d3ec Linux verification (compile, Catch2, live failed-state cycle) |
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
+| `d5n4-inputs-before-outputs` | [log/2026-11-25-d5n4-inputs-before-outputs.md](log/2026-11-25-d5n4-inputs-before-outputs.md) | Inputs open before outputs, so a failed input leaves the running stream alone |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
 | `daaa-graph-editor-stage1` | [log/2026-11-08-daaa-graph-editor-stage1.md](log/2026-11-08-daaa-graph-editor-stage1.md) | Graph editor cleanup stage 1: back link and Aurora styles |
@@ -240,6 +246,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `hzjf-view-recipes-menu-item` | [log/2026-11-20-hzjf-view-recipes-menu-item.md](log/2026-11-20-hzjf-view-recipes-menu-item.md) | View recipes item in the Add node menu |
 | `i0sz-game-mode-probes` | [log/2026-11-22-i0sz-game-mode-probes.md](log/2026-11-22-i0sz-game-mode-probes.md) | Steam Deck Game Mode: the gamescope node is reachable from a background service and from the Distrobox (lights follow the game; audio untested) |
 | `i5hq-x11-idle-damage-source` | [log/2026-10-20-i5hq-x11-idle-damage-source.md](log/2026-10-20-i5hq-x11-idle-damage-source.md) | Aurora-i5hq: idle fullscreen X11 damage source + quiet-desktop CPU |
+| `i6zx-http-stop-join` | [log/2026-11-25-i6zx-http-stop-join.md](log/2026-11-25-i6zx-http-stop-join.md) | Quit segfault fixed: HTTP server `stop()` waits for its listen loop |
 | `id8j1-b0-float-trigger-ports` | [log/2026-10-16-id8j1-b0-float-trigger-ports.md](log/2026-10-16-id8j1-b0-float-trigger-ports.md) | B0: Float and Trigger port types (Aurora-id8j.1) |
 | `id8j10-b4-tuning-renders-controls` | [log/2026-10-16-id8j10-b4-tuning-renders-controls.md](log/2026-10-16-id8j10-b4-tuning-renders-controls.md) | B4: Tuning renders the active graph's controls (Aurora-id8j.10) |
 | `id8j11-b5-register-all-nodes` | [log/2026-10-16-id8j11-b5-register-all-nodes.md](log/2026-10-16-id8j11-b5-register-all-nodes.md) | B5: one registerAllNodes for runner, /api/nodes and tests (Aurora-id8j.11) |
@@ -340,6 +347,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `lswm-local-network-stale-entry` | [log/2026-11-23-lswm-local-network-stale-entry.md](log/2026-11-23-lswm-local-network-stale-entry.md) | Local Network stale entries: remove button verified, banner copy ruled out (closed) |
 | `lt66-output-link-monitor` | [log/2026-11-05-lt66-output-link-monitor.md](log/2026-11-05-lt66-output-link-monitor.md) | A dead or dropped Hue bridge raises a banner row and reconnects by itself |
 | `lut9-save-as-new-title` | [log/2026-10-29-lut9-save-as-new-title.md](log/2026-10-29-lut9-save-as-new-title.md) | Graph editor: Save as new picks a distinct title |
+| `lyr3-shutdown-final` | [log/2026-11-25-lyr3-shutdown-final.md](log/2026-11-25-lyr3-shutdown-final.md) | `PipelineHost::shutdown()` is final |
 | `lzj-embed-and-serving` | [log/2026-10-01-lzj-embed-and-serving.md](log/2026-10-01-lzj-embed-and-serving.md) | Aurora-lzj: toolchain spike investigated, change A (embed + serving) done; HA prep filed |
 | `lzw-github-ci` | [log/2026-10-01-lzw-github-ci.md](log/2026-10-01-lzw-github-ci.md) | Aurora-lzw: GitHub CI unblocked for weblings/Aurora |
 | `m0fy-top-tier-error-owners` | [log/2026-10-07-m0fy-top-tier-error-owners.md](log/2026-10-07-m0fy-top-tier-error-owners.md) | Aurora-m0fy: Dashboard inline errors get one owner per control (closed) |

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <map>
 #include <stdexcept>
@@ -178,6 +179,24 @@ namespace Aurora::Runtime
       return CodedBuildError(message, "input_unavailable", {{"inputKind", kind}, {"inputName", name}});
     }
 
+    // Releases a throwing build's outputs: the host's onFailure decides how,
+    // else they stop only when the failure asked for it.
+    struct FailedBuildGuard
+    {
+      Pipeline& pipeline;
+      const std::function<void(Pipeline&, bool)>& onFailure;
+      bool stopOutputs{false};
+      const int exceptions{std::uncaught_exceptions()};
+
+      ~FailedBuildGuard()
+      {
+        if(std::uncaught_exceptions() <= exceptions){ return; }
+        if(onFailure){ onFailure(pipeline, stopOutputs); }
+        else if(stopOutputs){ pipeline.shutdown(/*isReplacement*/ false); }
+      }
+    };
+
+
     constexpr std::uint8_t kUsesVideoInput = 1u << 0;
     constexpr std::uint8_t kUsesAudioInput = 1u << 1;
     constexpr std::uint8_t kSamplesZones = 1u << 2;
@@ -221,6 +240,8 @@ namespace Aurora::Runtime
     Config config = savedConfig;
 
     auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
+    // Declared after `pipeline`, so it runs while the outputs still exist.
+    FailedBuildGuard failedGuard{*pipeline, overrides.onFailure};
 
     // Aurora-o13 spike: presence-only flag, same convention as
     // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
@@ -262,7 +283,9 @@ namespace Aurora::Runtime
       outputNames = registry.outputNames(); // no explicit selection -- run everything available
     }
 
-    ScopedPhaseTimer outputsTimer(options, "outputs init");
+    // Created here, initialized only once the inputs are open.
+    std::vector<std::unique_ptr<Output::IOutput>> newOutputs;
+    std::vector<std::string> newOutputKeys;
     if(overrides.outputsFrom && overrides.outputsFrom->m_outputKeys == outputNames){
       pipeline->m_outputKeys = outputNames;
       pipeline->m_outputPtrs = overrides.outputsFrom->m_outputPtrs;
@@ -275,14 +298,12 @@ namespace Aurora::Runtime
           _log(options, LogLevel::Error, "Unknown output '" + name + "', skipping");
           continue;
         }
-        output->init();
-        pipeline->m_outputKeys.push_back(name);
-        pipeline->m_outputPtrs.push_back(output.get());
-        pipeline->m_outputs.push_back(std::move(output));
+        newOutputKeys.push_back(name);
+        newOutputs.push_back(std::move(output));
       }
     }
 
-    if(pipeline->m_outputPtrs.empty()){
+    if(pipeline->m_outputPtrs.empty() && newOutputs.empty()){
       throw CodedBuildError("No outputs available -- nothing to drive", "no_outputs");
     }
 
@@ -323,7 +344,6 @@ namespace Aurora::Runtime
         if(overrides.graph){
           throw std::runtime_error(plan.missing);
         }
-        pipeline->shutdown(/*isReplacement*/ false);
         throw _effectError(
           configRoot, customId, plan.missing, /*retryable*/ false, "input_not_configured", {{"inputKind", plan.missingKind}});
       }
@@ -363,20 +383,65 @@ namespace Aurora::Runtime
     // What the summary and the runners use, owned here or borrowed.
     Input::IVideoInput* videoInput = nullptr;
 
-    ScopedPhaseTimer captureTimer(options, "capture+graph init");
-    if(dualCapture){
+    // Every input opens before any output does: an output init takes its device
+    // over from the running pipeline, which a failed input must leave streaming.
+    std::unique_ptr<Input::IAudioInput> dualAudioInput;
+    std::unique_ptr<Input::IAudioInput> audioInput;
+    std::unique_ptr<Input::IVideoInput> input;
+    const std::string& inputName = config.activeInputName();
+    {
+      ScopedPhaseTimer captureTimer(options, "capture init");
+      const auto openAudio = [&]{
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        auto audio = registry.createAudioInput(config.activeAudioInputName());
+        if(!audio){
+          throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
+        }
+        return audio;
+#else
+        throw std::runtime_error(options.noAudioSupportMessage);
+        return std::unique_ptr<Input::IAudioInput>{};
+#endif
+      };
+
       // Audio first: on Mac its TCC prompt and SCK's are separate gates, and
       // the order shows which one blocks the other.
-      auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-      if(!audioInput){
-        throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
+      if(dualCapture){ dualAudioInput = openAudio(); }
+      if(useAudioMode){
+        if(!borrowedAudio){ audioInput = openAudio(); }
       }
+      else{
+        if(!borrowedVideo && !inputFree){
+          input = registry.createInput(inputName);
+          if(!input){
+            throw _inputUnavailable("Unknown input '" + inputName + "'", "video", inputName);
+          }
+          input->init();
+        }
+        videoInput = borrowedVideo ? borrowedVideo : input.get();
+        if(bothInputs && !borrowedAudio){ audioInput = openAudio(); }
+      }
+    }
+
+    if(!newOutputs.empty()){
+      ScopedPhaseTimer outputsTimer(options, "outputs init");
+      for(std::size_t i = 0; i < newOutputs.size(); ++i){
+        pipeline->m_openedOutputs = true;
+        newOutputs[i]->init();
+        pipeline->m_outputKeys.push_back(newOutputKeys[i]);
+        pipeline->m_outputPtrs.push_back(newOutputs[i].get());
+        pipeline->m_outputs.push_back(std::move(newOutputs[i]));
+      }
+    }
+
+    ScopedPhaseTimer graphTimer(options, "graph init");
+    if(dualCapture){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       pipeline->m_audioRunner.emplace(
-        *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        *dualAudioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
       pipeline->m_audioRunner->init();
-      pipeline->m_audioInput = std::move(audioInput);
+      pipeline->m_audioInput = std::move(dualAudioInput);
       pipeline->m_isDualCapture = true;
       _log(options, LogLevel::Info, "[dual-capture] audio input='" + config.activeAudioInputName() + "' up; building video too");
 #else
@@ -385,14 +450,6 @@ namespace Aurora::Runtime
     }
     if(useAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      std::unique_ptr<Input::IAudioInput> audioInput;
-      if(!borrowedAudio){
-        audioInput = registry.createAudioInput(config.activeAudioInputName());
-        if(!audioInput){
-          throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
-        }
-      }
-
       pipeline->m_audioRunner.emplace(
         borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
@@ -412,26 +469,8 @@ namespace Aurora::Runtime
 #endif
     }
     else{
-      const std::string& inputName = config.activeInputName();
-      std::unique_ptr<Input::IVideoInput> input;
-      if(!borrowedVideo && !inputFree){
-        input = registry.createInput(inputName);
-        if(!input){
-          throw _inputUnavailable("Unknown input '" + inputName + "'", "video", inputName);
-        }
-        input->init();
-      }
-      videoInput = borrowedVideo ? borrowedVideo : input.get();
-
       if(bothInputs){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-        std::unique_ptr<Input::IAudioInput> audioInput;
-        if(!borrowedAudio){
-          audioInput = registry.createAudioInput(config.activeAudioInputName());
-          if(!audioInput){
-            throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
-          }
-        }
         pipeline->m_videoRunner.emplace(
           *videoInput, borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
         );
@@ -522,7 +561,7 @@ namespace Aurora::Runtime
         pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
       }
       else{
-        pipeline->shutdown(/*isReplacement*/ false);
+        failedGuard.stopOutputs = true;
         const Graph::LoadIssue& issue = primary.customIssue();
         std::map<std::string, std::string> detail;
         if(!issue.node.empty()){ detail["node"] = issue.node; }
@@ -1058,24 +1097,28 @@ namespace Aurora::Runtime
     const Registry& registry,
     const Config& config,
     const std::filesystem::path& configRoot,
+    bool outputsTakenOver,
     const std::string& code,
     const std::map<std::string, std::string>& detail
   )
   {
     std::unique_ptr<Pipeline> previous;
+    std::unique_ptr<Pipeline> staleLight;
     bool lightReplaces = false;
     {
       // Pause, swaps and the epoch all take m_changeMutex, so they hold still
       // while the light builds against the running pipeline's outputs.
       std::lock_guard<std::mutex> change(m_changeMutex);
-      if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+      if(m_closed.load() || m_paused.load() || m_buildEpoch.load() != epoch){ return; }
       std::unique_ptr<Pipeline> light;
-      if(m_pipeline || !m_failureLight){
-        light = _buildFailureLight(registry, config, configRoot, m_pipeline.get());
+      if(m_pipeline || !m_failureLight || outputsTakenOver){
+        light = _buildFailureLight(registry, config, configRoot, outputsTakenOver ? nullptr : m_pipeline.get());
       }
 
       std::lock_guard<std::mutex> lock(m_mutex);
       previous = std::move(m_pipeline);
+      // A light on taken-over outputs shows nothing; dropped even with no new one.
+      if(outputsTakenOver){ staleLight = std::move(m_failureLight); }
       if(light){
         // Taking the outputs over means no Hue stop and re-handshake between the two.
         if(light->borrowsOutputs()){ light->adoptOutputsFrom(*previous); }
@@ -1095,6 +1138,7 @@ namespace Aurora::Runtime
     // Outside the lock, like pause(): Hue's disableStreaming blocks. A light on
     // fresh outputs is a replacement, so the bridge is not told to stop.
     if(previous){ previous->shutdown(/*isReplacement*/ lightReplaces); }
+    if(staleLight){ staleLight->shutdown(/*isReplacement*/ lightReplaces); }
   }
 
 
@@ -1127,21 +1171,28 @@ namespace Aurora::Runtime
 
 
   bool PipelineHost::_ensureFailureLight(
-    const Registry& registry, const Config& config, const std::filesystem::path& configRoot)
+    const Registry& registry, const Config& config, const std::filesystem::path& configRoot, bool outputsTakenOver)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
+    if(m_closed.load()){ return false; }
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      if(m_failureLight){ return true; }
+      if(m_failureLight && !outputsTakenOver){ return true; }
       // Every writer of m_status holds m_mutex, and the ones that could leave
       // Failed also hold m_changeMutex, so this stays true through the build.
       if(m_paused.load() || m_pipeline || m_status.state != HostState::Failed){ return false; }
     }
     auto light = _buildFailureLight(registry, config, configRoot, nullptr);
-    if(!light){ return false; }
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_failureLight = std::move(light);
-    return true;
+    std::unique_ptr<Pipeline> staleLight;
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      // Without a new light the stale one still goes, so a later retry builds one.
+      staleLight = std::move(m_failureLight);
+      m_failureLight = std::move(light);
+    }
+    const bool on = failureLightOn();
+    if(staleLight){ staleLight->shutdown(/*isReplacement*/ on); }
+    return on;
   }
 
 
@@ -1164,7 +1215,7 @@ namespace Aurora::Runtime
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     std::lock_guard<std::mutex> lock(m_mutex);
-    if(m_paused.load() || m_buildEpoch.load() != epoch){ return; }
+    if(m_closed.load() || m_paused.load() || m_buildEpoch.load() != epoch){ return; }
     _setBuildErrorLocked(source, message, true, code, detail);
   }
 
@@ -1527,17 +1578,28 @@ namespace Aurora::Runtime
   )
   {
     // Paused: the config is already on disk and applies on resume.
-    if(m_paused){ return true; }
+    if(m_closed || m_paused){ return true; }
 
     ScopedPhaseTimer reloadTimer(m_options, "reload total");
     const std::uint64_t epoch = m_buildEpoch.load();
     std::unique_ptr<Pipeline> next;
+    bool outputsTakenOver = false;
     try{
-      next = Pipeline::build(registry, config, configRoot, m_options);
+      PipelineBuildOverrides overrides;
+      overrides.onFailure = [this, epoch, &outputsTakenOver](Pipeline& failed, bool stopOutputs){
+        outputsTakenOver = failed.openedOutputs();
+        std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
+        // A newer build may be streaming to the same place: leave it alone.
+        if(m_closed || m_paused || (stopOutputs && m_buildEpoch.load() == epoch)){
+          failed.shutdown(/*isReplacement*/ false);
+        }
+      };
+      next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const EffectBuildError& e){
       errorOut = e.what();
-      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot, e.code, e.detail);
+      _failEffect(
+        e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot, outputsTakenOver, e.code, e.detail);
       return false;
     }
     catch(const std::exception& e){
@@ -1555,12 +1617,12 @@ namespace Aurora::Runtime
         detail["effectTitle"] = effectInfo(configRoot, requested).title;
         _failEffect(
           requested, errorOut, /*retryable*/ true, effectInputs(configRoot, requested), epoch, registry, config, configRoot,
-          _codeOf(e), detail);
+          outputsTakenOver, _codeOf(e), detail);
       }
       else{
         _recordFailure("reload", errorOut, epoch, _codeOf(e), _detailOf(e));
         // A failed retry of a failed host whose light could not show before.
-        _ensureFailureLight(registry, config, configRoot);
+        _ensureFailureLight(registry, config, configRoot, outputsTakenOver);
       }
       return false;
     }
@@ -1571,8 +1633,8 @@ namespace Aurora::Runtime
     {
       std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
-      // A pause() that landed during the build wins.
-      if(m_paused){
+      // A shutdown() or pause() that landed during the build wins.
+      if(m_closed || m_paused){
         discardNext = true;
       }
       else{
@@ -1585,7 +1647,12 @@ namespace Aurora::Runtime
       }
     }
     if(discardNext){
-      if(next){ next->shutdown(/*isReplacement*/ true); }
+      if(next){
+        // Waits out a resume() in progress. If one ran, it owns the stream now,
+        // so only a host still paused or closed stops it.
+        std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
+        next->shutdown(/*isReplacement*/ !(m_closed || m_paused));
+      }
       return true;
     }
     // previous is null on the first successful reload after a fresh
@@ -1725,12 +1792,15 @@ namespace Aurora::Runtime
   )
   {
     std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
-    if(!m_paused){ return true; }
+    if(m_closed || !m_paused){ return true; }
 
     ScopedPhaseTimer resumeTimer(m_options, "resume total");
     std::unique_ptr<Pipeline> next;
     try{
-      next = Pipeline::build(registry, config, configRoot, m_options);
+      PipelineBuildOverrides overrides;
+      // The host stays paused or closed, so nothing may keep streaming.
+      overrides.onFailure = [](Pipeline& failed, bool){ failed.shutdown(/*isReplacement*/ false); };
+      next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const std::exception& e){
       errorOut = _describeBuildError(e);
@@ -1742,24 +1812,41 @@ namespace Aurora::Runtime
       return false;
     }
 
-    std::lock_guard<std::mutex> change(m_changeMutex);
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_pipeline = std::move(next);
-    _storeCapabilities(m_pipeline.get());
-    m_pausedMonitors.clear();
-    m_pausedZones = {};
-    m_paused = false;
-    ++m_buildEpoch;
-    _publishBuiltLocked();
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      if(!m_closed){
+        m_pipeline = std::move(next);
+        _storeCapabilities(m_pipeline.get());
+        m_pausedMonitors.clear();
+        m_pausedZones = {};
+        m_paused = false;
+        ++m_buildEpoch;
+        _publishBuiltLocked();
+      }
+    }
+    // Still held only when shutdown() landed during the build.
+    if(next){ next->shutdown(/*isReplacement*/ false); }
     return true;
   }
 
 
   void PipelineHost::shutdown()
   {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if(m_pipeline){ m_pipeline->shutdown(/*isReplacement*/ false); }
-    if(m_failureLight){ m_failureLight->shutdown(/*isReplacement*/ false); }
+    m_closed = true;
+
+    std::unique_ptr<Pipeline> previous;
+    std::unique_ptr<Pipeline> light;
+    {
+      std::lock_guard<std::mutex> change(m_changeMutex);
+      std::lock_guard<std::mutex> lock(m_mutex);
+      previous = std::move(m_pipeline);
+      light = std::move(m_failureLight);
+      // Open preview streams and a running light test see their pipeline gone.
+      ++m_buildEpoch;
+    }
+    if(previous){ previous->shutdown(/*isReplacement*/ false); }
+    if(light){ light->shutdown(/*isReplacement*/ false); }
   }
 
 
