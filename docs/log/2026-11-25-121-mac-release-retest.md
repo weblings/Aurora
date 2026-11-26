@@ -68,11 +68,42 @@ delayed the bridge's `/clip/v2/resource` reply by 0.3 s, so a reload took about
   pre-routing handler, as in `Aurora-i6zx`, and one in the state route's
   `PipelineHost::status()`.
 
+## Real Hue bridge
+
+BSB002, API 1.78.0, a 6-channel entertainment area. The extracted zip ran from a
+new folder under `~/Applications`, started with `open` and `AURORA_CONFIG_DIR`
+pointing at a copy of the owner's settings; the originals were not changed. It
+captured the built-in display under its own Screen Recording grant.
+
+- The bridge had moved to another address since the saved pairing. At launch the
+  app was `running` with the "can't reach your lights" condition, and still used
+  the old address about 12 s later. The owner reconnected in the web UI the
+  usual way and did not see the banner.
+- Scripted: pause then resume 3 of 3; pause during a reload 15 of 15 ended
+  paused with the area released; pause then resume during a reload 15 of 15
+  ended running and streaming. In 14 of each 15 the pause was answered before
+  the reload. No errors or conditions. Owner: the lights looked right.
+- Owner, tray menu: Pause and Resume worked; Stop worked. Afterwards the process
+  had exited, the area was released and there was no new crash report.
+
+### Failed effect switch (`Aurora-5q5h`, reproduced)
+
+An effect file with an unknown node type, added to the settings copy and chosen
+with `PUT /api/effects`:
+
+- The app went to `failed` and logged "Failure light on."
+- The bridge reported the area released at 0.5 s and still at 30 s.
+- Owner: the lights stayed on orange, not the purple failure light. Choosing
+  Screen colors brought them back.
+- An `output_link` condition showed beside the effect error and had cleared by
+  5 s, with the area still released.
+- The error text lists every registered node type. Its look in the web UI was
+  not checked.
+- 1.2.0 was not tried.
+
 ## Not verified
 
-- Real Hue lights, so `Aurora-5q5h` is still unreproduced.
-- Tray menu, audio capture, phone pairing, first-open dialog of a quarantined
-  download.
+- Audio capture, phone pairing, first-open dialog of a quarantined download.
 - Display add, remove and mirroring: skipped because `core/` is the only code
   changed since the build that passed them.
 - Linux and Windows.
