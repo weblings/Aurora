@@ -3470,12 +3470,14 @@ TEST_CASE("A build that fails after output init gets a failure light on fresh ou
   Config broken = config;
   SECTION("effect error, which stops the failed build's outputs"){ broken.setActiveEffectId("gone-output"); }
   bool initThrows = false;
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
   SECTION("other error, which does not")
   {
     broken.setActiveEffectId("builtin.audio");
     broken.setActiveAudioInputName("fake-audio");
     initThrows = true;
   }
+#endif
   PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
 
   // The second round is a failed retry with the light already on.
