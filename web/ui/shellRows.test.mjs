@@ -139,7 +139,7 @@ const pairing = renderRow(orderRows({ pairings: [{ ref: 'r<1', name: 'Phone', sc
 assert.ok(pairing.includes('data-action="approve"') && pairing.includes('data-action="deny"'));
 assert.ok(pairing.includes('Access:</span> Apply.') && pairing.includes('From:</span> 10.0.0.2'));
 assert.ok(pairing.includes('id="shell-pairing-approve-r&lt;1"'));
-assert.ok(pairing.includes('shell-pairing-title"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device'), 'a request carries the circled-info, like the light test');
+assert.ok(pairing.includes('shell-pairing-title"><span class="shell-mark shell-mark-info" aria-hidden="true"></span> Pair a device'), 'a request carries the square chat, like the light test');
 // The toggle: one id, aria-expanded, label swaps; marks and tones per part.
 const closedBar = renderRow(toggleOf(mixed, collapsibleKeys(mixed)), ctx);
 assert.ok(closedBar.startsWith('<button type="button" class="shell-banner-summary" id="shell-banner-toggle" aria-expanded="false" data-action="toggle" data-key="toggle">'));
@@ -147,7 +147,7 @@ assert.ok(closedBar.includes('<span class="shell-count"><span class="shell-mark 
 const openBar = renderRow(toggleOf(mixed, null), ctx);
 assert.ok(openBar.includes('id="shell-banner-toggle" aria-expanded="true"') && openBar.includes('shell-banner-quiet') && openBar.includes('Show less'));
 assert.ok(!renderRow(toggleOf(problems(1), collapsibleKeys(problems(1))), ctx).includes('notice'), 'a zero part is omitted');
-// Open rows carry the marks: error rows the circled-exclamation, the light test the circled-info.
+// Open rows carry the marks: error rows the circled-exclamation, the light test the square chat.
 assert.ok(renderRow(mixed.find((row) => row.kind === 'error'), ctx).includes('shell-mark-error') && !renderRow(mixed.find((row) => row.kind === 'error'), ctx).includes('warn-glyph'));
 assert.ok(renderRow(mixed.find((row) => row.kind === 'light-test'), ctx).includes('shell-mark-info'));
 assert.ok(renderRow(mixed.find((row) => row.kind === 'note'), ctx).includes('shell-mark-error'));

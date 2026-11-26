@@ -9,6 +9,7 @@
 #include <Aurora/Input/IVideoInput.hpp>
 #include <Aurora/Input/MonitorData.hpp>
 #include <Aurora/Input/Linux/X11Damage.hpp>
+#include <Aurora/Input/Linux/X11GrabGlitchFilter.hpp>
 
 #include <X11/extensions/Xdamage.h>
 #include <X11/extensions/Xrandr.h>
@@ -193,6 +194,7 @@ namespace Aurora::Input::Linux
     Damage m_damage{None};
     int m_damageEventBase{0};
     X11GrabGate m_grabGate;
+    X11GrabGlitchFilter m_glitchFilter; // drops one-grab bad frames (Aurora-1juz)
     std::uint64_t m_frameSerial{0};
     std::uint64_t m_grabbedSerial{0};
   };

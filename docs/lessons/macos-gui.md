@@ -483,7 +483,7 @@ Applies-when: you need the Local Network prompt to appear again, or a "reset all
 
 macOS 27.2 changes this: TN3179 (rev. 2026-10-06) says the System Settings > Privacy & Security > Local Network list gains +/- buttons, and removing an app resets it. Earlier 27.x (this Mac was 27.0.1 in Aurora-dwvu) has no reset.
 
-**Fix:** on 27.2+, remove the app from the list. Before that, `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first (or pass `--fresh`). Ad-hoc copies show two dialogs where a shipped build shows one; see the notarized-build entry before counting prompts.
+**Fix:** on 27.2+, remove the app from the list (verified on 27.2.1, Aurora-lswm: after removing a throwaway signed app with the minus button, its next launch raised the prompt again; `tools/mac/remove-entry-test.sh grant|relaunch` runs it). Before that, `tools/mac/make-fresh-localnet-copy.sh [--launch]` copies the built app, sets a new bundle ID and `LC_UUID`, re-signs ad hoc, and launches it. Each run is a never-seen app and raises the prompt. The copy shares the original's config folder and port, so quit the original first (or pass `--fresh`). Ad-hoc copies show two dialogs where a shipped build shows one; see the notarized-build entry before counting prompts.
 
 ---
 
@@ -504,3 +504,53 @@ Applies-when: adding an "Open Settings" link for a privacy pane, or a `?Privacy_
 `x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork` (and the `com.apple.settings.PrivacySecurity.extension` variants, with or without `.privacy-localnetwork`) all land on the Privacy & Security page on macOS 27. Apple calls these URLs unsupported. The anchors that do work (`Privacy_ScreenCapture`, `Privacy_AudioCapture`) are keys in `/System/Library/ExtensionKit/Extensions/SecurityPrivacyExtension.appex/Contents/Resources/en.lproj/PrivacySecurity.searchTerms`; Local Network is not there, because its row is a code-driven service (`PrivacyLocalNetworkService` in `TCCServiceList.plist`), not an indexed one.
 
 **Fix:** list the real anchors with `grep -o "Privacy_[A-Za-z]*" .../PrivacySecurity.searchTerms | sort -u` before writing a link. When the pane has none, link the parent page and name the last click in the copy ("In Settings, click Local Network and allow Aurora."). Re-check after a macOS update.
+
+---
+
+## A Developer ID app keeps its Local Network grant across an executable UUID change and a reboot; test that with two copies under one throwaway bundle ID, not the real one
+Tags: macos, local-network, lc-uuid, developer-id, update, reboot, testing
+Applies-when: a Mac user reports the Local Network banner after an app update, or you need to know whether a rebuild or release keeps the grant
+
+TN3179 says Local Network privacy tracks code signature and uses the main executable UUID, and says nothing about a new UUID under the same bundle ID and Team. Apple forum threads split on it. On macOS 27.2.1 (Aurora-lswm, Aurora-e2j4) two copies of one build, same throwaway bundle ID, different patched `LC_UUID`, both signed with the Developer ID identity, behaved the same: after Allow on copy A, copy B swapped in at the same path had the host's `local_network` condition clear on every read, with no prompt; the same held after a real reboot, for A alone and then for B. Ad-hoc copies drop identity and look like a new app each time, so they cannot show this. Notarization was not needed for a local run.
+
+**Fix:** use `tools/mac/update-grant-test.sh [--reboot]`: it builds both copies, reads `GET /api/state` for the `local_network` condition, and with `--reboot` finishes after login through a login agent. Remove the throwaway entries in System Settings afterward (27.2+ remove button). One run on one machine; a different install path, a quarantined first launch and the real updater were not tried. A user who sees the banner after an update most likely has a stale entry from an earlier ad-hoc or dev build.
+
+---
+
+## A launchd job that boots itself out is killed before its next line runs; delete the plist and notify first
+Tags: macos, launchd, launchagent, bootout, shell
+Applies-when: a script run by a LaunchAgent cleans itself up with `launchctl bootout` at the end
+
+`update-grant-test.sh --after-reboot` ended with `launchctl bootout gui/<uid>/<label>` and then `rm -f` of its own plist and a notification. The result file was written, but bootout stopped the running job, so the `rm` and the notification never ran and the plist stayed in `~/Library/LaunchAgents`, ready to rerun at the next login.
+
+**Fix:** do the notification and `rm` of the plist first and `bootout` last, or let the job exit and have a separate step unload it.
+
+---
+
+## Display reconfiguration callbacks and the screen-parameters notification arrive only under an AppKit event pump, not a bare run-loop pump; the removed display's UUID is already gone in the callback
+Tags: macos, cgdisplay, reconfiguration-callback, runloop, nsapplication, virtual-display, hotplug
+Applies-when: reacting to a display being added or removed with `CGDisplayRegisterReconfigurationCallback` or `NSApplicationDidChangeScreenParametersNotification`, or testing that without a second monitor
+
+A probe that registered both and then pumped with `CFRunLoopRunInMode` or `[NSRunLoop runUntilDate:]` got neither signal across three runs, in the Claude Code shell and in Terminal.app, while the virtual display itself came and went. Under `[NSApp run]`, and under Aurora's own `TrayIcon::pump` shape (`finishLaunching` once, then `nextEventMatchingMask` plus `sendEvent`), both fired (Aurora-h06o). Observed on macOS 27.2.1: each display first gets `BeginConfiguration` (0x1), then an add is 0x111a (`Moved|SetMode|Add|Enabled|DesktopShapeChanged`) on the new display and 0x1000 on the others; a remove is 0x1220 (`Remove|Disabled|DesktopShapeChanged`) with a second screen-parameters notification. In the remove callback `CGDisplayCreateUUIDFromDisplayID` already returns null, so the removed monitor cannot be named by key there. Calling the notification by itself "hotplug" is wrong: it also fires for non-membership changes, so compare identities.
+
+**Fix:** register the callback in an app that pumps like `TrayIcon::pump`; treat the callback as a trigger only (`displayReconfigurationMayChangeMonitors`, no `BeginConfiguration`, a membership bit) and re-enumerate and diff `monitorIdentities`. To test without a second monitor, `tools/mac/virtual-display-probe.m` creates and removes a private `CGVirtualDisplay` (same vendor, product and serial keeps the same display UUID on re-add, only the display id changes); it is a private API and may break on a macOS update.
+
+---
+
+## A Developer ID re-sign of a dev build must leave hardened runtime off, or the Homebrew dylibs fail library validation; `tccutil` says "No such bundle identifier" for an ID macOS never saw
+Tags: macos, codesign, hardened-runtime, library-validation, developer-id, tccutil, dev-build
+Applies-when: signing a `build/mac-app` dev build with the Developer ID identity to test under a stable identity, or resetting Screen Recording for a bundle ID
+
+`codesign --options runtime --sign "Developer ID Application: ..."` on a copy of the dev build made `Aurora` exit at launch: dyld refused `/opt/homebrew/opt/aubio/lib/libaubio.5.dylib` ("mapping process and mapped file (non-platform) have different Team IDs"). The dev build links Homebrew libraries that carry no Team ID of this developer; release builds bundle and re-sign their own dylibs (`bundle-dylibs.sh`) and so pass. Signing the same copy without `--options runtime` launched fine. Separately, `tccutil reset ScreenCapture <id>` printed `No such bundle identifier ... (OSStatus error -10814)` for a throwaway ID whose launch never raised a Screen Recording prompt: macOS had made no entry for it. The same command succeeded for `com.aurora.app`, which is the ID release builds use, so running it clears that grant for them too.
+
+**Fix:** for a stable-identity dev run, sign with the identity and no `--options runtime` (hardened runtime only on the bundled, notarized path). Treat a `tccutil` "No such bundle identifier" as "no entry was ever made", not as a typo, and avoid `tccutil reset` on a shared bundle ID unless a release grant may be lost. See [[h06o-mac-monitor-reconfiguration]].
+
+---
+
+## A permission banner gets a hint variant only for a state the app can detect and a fix that works on every supported macOS; Local Network's stale-entry case is neither
+Tags: macos, local-network, banner, copy, permission-recovery, errno-65, tn3179
+Applies-when: adding a "still blocked" or "already on" sentence to a Mac permission banner, or deciding whether a new banner state is worth a separate message
+
+`renderLocalNetworkBanner` has one message and the other Mac permission banners follow the same shape: a bold problem sentence and one action that works. The Screen Recording banner does carry a second variant ("fully quit Aurora and reopen it"), because the app can tell that case apart. For Local Network (Aurora-lswm, Aurora-e2j4) it cannot: the probe's UDP send fails with errno 65 for the toggle off, a stale entry from another binary, and a prompt not yet answered, so a stale-entry message could only be a combined guess. Its remedy, the remove (-) button in the Local Network list, exists only on macOS 27.2+; 27.0 and 27.1 have no reset, and the README calls older macOS untested, so the hint would point some users at a button that is not there. Notarized (Developer ID) updates and reboots kept the grant in testing, which makes a stale entry mainly a developer-build condition.
+
+**Fix:** keep the single banner and put the stale-entry remedy in docs and lessons (the remove button on 27.2+, `tools/mac/make-fresh-localnet-copy.sh` before that). Add a banner variant only when the host can tell the state apart and the instruction works on every supported version. See [[lswm-local-network-stale-entry]].

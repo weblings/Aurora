@@ -29,34 +29,48 @@ on:
       - CMakePresets.json
       - .github/workflows/linux.yml
 
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      # Mirror stalls have eaten 23 min before. Only the download is capped
+      # and retried: killing apt mid-unpack leaves dpkg interrupted and every
+      # retry then fails. The install itself reads local files only.
       - name: Install deps
-        run: >
-          sudo apt-get update &&
-          sudo apt-get install -y cmake ninja-build
-          libx11-dev libxext-dev libxrandr-dev libxdamage-dev libxrender-dev
-          libpipewire-0.3-dev libglib2.0-dev
-          libaubio-dev libopencv-dev
-          libcurl4-openssl-dev libmbedtls-dev
-          libsecret-1-dev
+        timeout-minutes: 12
+        run: |
+          pkgs="cmake ninja-build libx11-dev libxext-dev libxrandr-dev libxdamage-dev libxrender-dev libpipewire-0.3-dev libglib2.0-dev libaubio-dev libopencv-dev libcurl4-openssl-dev libmbedtls-dev libsecret-1-dev"
+          for attempt in 1 2 3; do
+            sudo timeout 240 apt-get update &&
+            sudo timeout 240 apt-get install -y --download-only $pkgs && break
+            echo "apt download attempt $attempt failed"
+            [ "$attempt" = 3 ] && exit 1
+          done
+          sudo apt-get install -y $pkgs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: linux
       - name: Configure
-        run: cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
+        run: |
+          cmake --preset linux-app -DAURORA_ENABLE_GRAPH_EDITOR=ON \
+            -DAURORA_BUILD_CORE_TESTS=ON \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build
+        env:
+          CCACHE_BASEDIR: ${{ github.workspace }}
         run: cmake --build build/linux-app
       - name: Test
-        run: ctest --test-dir build/linux-app --output-on-failure
-      # Core's suite (incl. Parity) is not part of any app preset: it only
-      # builds when core/ is configured standalone (core/CMakeLists.txt).
-      - name: Core tests (incl. Parity)
-        run: |
-          cmake -S core -B build/core-test
-          cmake --build build/core-test
-          ctest --test-dir build/core-test --output-on-failure --timeout 120
+        run: ctest --test-dir build/linux-app --output-on-failure --timeout 120

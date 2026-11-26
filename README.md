@@ -17,8 +17,16 @@ Philips' official app.
 - Locate the latest [GitHub Release](https://github.com/weblings/Aurora/releases) and download the zip for your platform. Keep the contents of the folder together so the app can work correctly.
 - Dependencies:
   - **Windows:** Try launching Aurora. If you get an error saying "The code execution cannot proceed because VCRUNTIME140.dll was not found", then you need: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist). If not, it's already installed and you're good to go.
-  - **Linux (Debian/Ubuntu):** `sudo apt install libx11-6 libxext6 libxrandr2 libxdamage1 libxrender1 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libmbedtls14t64` (ffmpeg and GL pieces arrive automatically as dependencies of those; on other releases the curl/opencv/mbedtls package names differ slightly — e.g. `libopencv-core410` / `libmbedtls21` — and a missing-`.so` error on launch names its package).
-    - **Compiling from source on Linux?** You need the `-dev` variants instead — see [docs/Building.md](docs/Building.md#prerequisites).
+  - **Linux:** support depends on your distro:
+
+    | System | Status | How to get Aurora |
+    |---|---|---|
+    | Ubuntu 22.04 | Supported from source | [Build from source](docs/Building.md#prerequisites) (needs CMake 3.24+) |
+    | Ubuntu 24.04 | Supported | Download the zip, then install the packages below |
+    | SteamOS / Steam Deck (tested on 3.9.5) | Supported | No download; build with the setup script, see [docs/SteamOS.md](docs/SteamOS.md) |
+    | Other Linux | Untested | [Build from source](docs/Building.md#prerequisites) |
+
+  - **Ubuntu 24.04 packages:** `sudo apt install libx11-6 libxext6 libxrandr2 libxdamage1 libxrender1 pipewire libaubio5 libcurl4t64 libopencv-core406t64 libopencv-imgproc406t64 libmbedtls14t64`
   - **Mac (Apple silicon, macOS 27 is the supported target) older macOS is untested, Intel is not supported:** Drag `Aurora.app` into your Applications folder (this also lets Spotlight find it), and open it. macOS may ask you to confirm opening an app downloaded from the internet; choose Open. Grant Screen Recording (and Local Network, so Aurora can reach your bridge) when prompted.
 
 
@@ -76,7 +84,8 @@ Processing (source to effects handling), or Output (color / effects) module
 
 ## Art
 - The aurora SVG in the logo is modified from <a href="https://www.vecteezy.com/vector-art/88906-free-northern-lights-vector-series"> Kaitlyn Parker's Northern Lights Series</a> on <a href="https://www.vecteezy.com/free-vector/nature">Nature Vectors by Vecteezy</a>
-- Power icon from <a href="https://github.com/32pixelsCo/zest-icons/blob/master/packages/zest-free/LICENSE.md?ref=svgrepo.com" target="_blank">Zest</a> in MIT License via <a href="https://www.svgrepo.com/" target="_blank">SVG Repo</a>
+- Power icon adapted from <a href="https://openmoji.org/library/emoji-23FB/">OpenMoji</a> (CC BY-SA 4.0), via <a href="https://github.com/weblings/GrilleDS">Grille</a>
+- Notice (chat bubble) icon from Zest Free, via <a href="https://github.com/weblings/GrilleDS">Grille</a>
 - Other icon svgs are from <a href="https://vidstack.io/icons/?lib=react">Vidstack</a>
 - Full copyright and licence text for Vidstack, Zest and the other third-party material: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 - For demo assets see: <a href="./web/demo/README.md">its README</a>

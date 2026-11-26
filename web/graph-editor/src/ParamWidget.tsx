@@ -2,7 +2,7 @@ import { TapHint } from './TapHint'
 import { useContext, useRef, type CSSProperties } from 'react'
 import { ReadOnlyContext } from './EditorContext'
 import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
-import { Button, Icon, dotIcon, minusIcon } from '@weblings/grille'
+import { Button, Icon, dotIcon, minusIcon } from '@weblings_things/grille'
 import type { GradientStop, ParamInfo, ParamValue } from './graph/types'
 
 const MAX_STOPS = 16

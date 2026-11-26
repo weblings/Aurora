@@ -15,6 +15,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <filesystem>
+#include <system_error>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -88,6 +89,17 @@ namespace
   void handleStopSignal(int)
   {
     g_stopRequested = 1;
+  }
+
+
+  // Aurora-xg8z: the Game Mode launcher unit is installed (home is shared with
+  // the Distrobox, so this sees the host's unit). Settings shows its toggle only then.
+  bool gameModeLauncherInstalled()
+  {
+    const char* home = std::getenv("HOME");
+    std::error_code ec;
+    return home && std::filesystem::exists(
+      std::filesystem::path(home) / ".config" / "systemd" / "user" / "aurora-gamemode.service", ec);
   }
 
 
@@ -540,7 +552,7 @@ if(!instanceLock.held()){
   auto accessGuard = std::make_shared<Aurora::Network::Http::Server::AccessGuard>(pairingService);
   Aurora::Network::Http::Server::registerPairingRoutes(httpServer, pairingService, *accessGuard);
   httpServer.setAccessGuard(accessGuard);
-  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "linux", kHueCompiledIn, canSelectMonitorOnLinux());
+  Aurora::Runtime::registerCapabilitiesRoute(httpServer, registry, pipelineHost, "linux", kHueCompiledIn, canSelectMonitorOnLinux(), gameModeLauncherInstalled());
   Aurora::Runtime::registerVersionRoute(httpServer, AURORA_VERSION);
 
   // Tooltip descriptors (docs/TooltipsAnalysis.md): every layer

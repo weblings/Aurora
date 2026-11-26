@@ -32,7 +32,7 @@ import { Toast, useToast } from './Toast'
 import { Announcer, useAnnouncer } from './Announcer'
 import { NameDialog } from './NameDialog'
 import { renameEffectSpec, saveAsSpec } from './graph/naming'
-import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings/grille'
+import { Icon, addIcon, arrowLeftIcon, chevronDownIcon } from '@weblings_things/grille'
 import { COMPACT_BAR, DOCK_BOTTOM, useMedia } from './useMedia'
 import { stageAttrs, useBarStage } from './barStage'
 import { TitleMenu, UNSAVED_TEXT, type TitleMenuAction } from './TitleMenu'
@@ -53,6 +53,10 @@ import { isMenuKey, isNativeField, swallowKeyContextMenu } from './paramMenu'
 import { positionsFor, tidyPositions } from './graph/layout'
 import { addEdge, addNode, copySelection, joinEndpoint, moveNodes, parseClip, pasteNote, pasteSelection, removeEdge, removeNodes, setParam } from './graph/doc'
 import { EditMenu, type EditAction } from './EditMenu'
+import { downloadText, exportFile } from './graph/exportGraph'
+import { NOT_GRAPH, importFile } from './graph/importGraph'
+import { useFileDrop } from './useFileDrop'
+import { DropFrame } from './DropFrame'
 import { hints, mod } from './graph/keys'
 import { editorReducer, emptyEditor, sameDoc } from './graph/history'
 import { changeIsEdit, lightsInUse, pickStatus, quietEndToast, stopAnnounced, stopLabel, stopName, testFailureToast, testOutcome } from './graph/status'
@@ -512,7 +516,8 @@ export function App() {
       if (target.kind === 'node') {
         const id = target.id
         const info = nodes.find((n) => n.id === id)?.data.info
-        target = { ...target, tip: info?.tip, params: (info?.params.length ?? 0) > 0 }
+        // Tuning controls is a single-node action, so a multi-selection menu omits it.
+        target = { ...target, tip: info?.tip, params: (target.count ?? 1) === 1 && (info?.params.length ?? 0) > 0 }
       }
       if (target.kind === 'node' || target.kind === 'param') {
         setNodeView((view) => {
@@ -633,6 +638,15 @@ export function App() {
   // Where the pointer last was over the canvas, for Ctrl+V.
   const pointer = useRef<{ x: number; y: number } | null>(null)
   const countOf = (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`
+
+  const exportCurrent = () => {
+    const current = docRef.current
+    if (!current) return
+    const positions = Object.fromEntries(nodes.map((n) => [n.id, n.position]))
+    const file = exportFile(current, shownTitle || effectId, positions)
+    downloadText(file.name, file.text)
+    announce(`Exported ${countOf(current.nodes.length)}`)
+  }
 
   const copyPicked = async (cut: boolean) => {
     const current = docRef.current
@@ -972,6 +986,39 @@ export function App() {
     fetchEffectGraph(id).then((graph) => openCopy(graph, listed)).catch((e: Error) => loadFailed(e, id))
   }
 
+  // New or Open > From file (Aurora-dzsd): the file opens as a new unsaved effect, the open graph is untouched.
+  const fileInput = useRef<HTMLInputElement>(null)
+  const openFile = (file: File) => {
+    if (!catalog) return showToast('Still loading, try again in a moment')
+    file.text().then(
+      (text) => {
+        const got = importFile(text, file.name, catalog, effects.map((e) => e.title || e.id))
+        if (!got.ok) return showToast(got.error)
+        const id = newEffectId()
+        seeds.current.set(id, got.doc)
+        setEffectId(id)
+        if (got.note) showToast(got.note)
+        else announce(`Imported ${countOf(got.added)}`)
+      },
+      () => showToast("Couldn't read that file"),
+    )
+  }
+
+  // A file dropped on the window (Aurora-dzsd): merged into the open graph at the drop point like a paste,
+  // or opened as a new effect when nothing is open.
+  const dropFiles = (files: File[], at: { x: number; y: number }) => {
+    if (files.length > 1) return showToast('Drop one file at a time')
+    if (!docRef.current) return openFile(files[0])
+    if (!catalog) return showToast('Still loading, try again in a moment')
+    files[0].text().then(
+      (text) => {
+        if (!pasteText(text, at)) showToast(NOT_GRAPH)
+      },
+      () => showToast("Couldn't read that file"),
+    )
+  }
+  const dropping = useFileDrop(dropFiles)
+
   // Revert to saved: the saved graph goes back in as one edit (Undo reaches the edits),
   // the kept copy goes with it.
   const revertToSaved = () => {
@@ -1076,10 +1123,24 @@ export function App() {
             else if (action === 'save-and-apply') void write('apply')
             else if (action === 'duplicate') { if (doc) openCopy(doc, shownTitle) }
             else if (action === 'revert') revertToSaved()
+            else if (action === 'export') exportCurrent()
             else setNaming({ kind: 'rename', initial: title })
           }}
           onOpenEffect={(id) => openEffect(id, 'here')}
           onNewEffect={startFrom}
+          onFromFile={() => fileInput.current?.click()}
+        />
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          aria-label="Graph file to import"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) openFile(file)
+          }}
         />
         <EditMenu
           isOpen={editOpen}
@@ -1178,6 +1239,11 @@ export function App() {
             onNodeContextMenu={(e, node) => {
               e.preventDefault()
               openMenu({ kind: 'node', id: node.id, x: e.clientX, y: e.clientY })
+            }}
+            onSelectionContextMenu={(e, picked) => {
+              e.preventDefault()
+              if (picked.length === 0) return
+              openMenu({ kind: 'node', id: picked[0].id, count: picked.length, x: e.clientX, y: e.clientY })
             }}
             onEdgeContextMenu={(e, edge) => {
               e.preventDefault()
@@ -1298,6 +1364,14 @@ export function App() {
         }}
         onHold={holdToast}
       />
+      {dropping ? (
+        <div className="editor-drop" aria-hidden="true">
+          <div className="editor-drop-box">
+            <DropFrame />
+            <span className="editor-drop-hint">Drop to import</span>
+          </div>
+        </div>
+      ) : null}
       <Announcer text={announced} />
     </div>
   )

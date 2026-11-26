@@ -89,7 +89,7 @@ during one applies, then reverts, because apply alone leaves the test running
 (the revert rebuilds the just-applied effect from disk).
 
 The title menu is one `Menu`: Save, Save as new, Save and apply, Rename, Duplicate,
-Revert to saved, then New and Open submenus (`TitleMenu.tsx`). New lists the dashboard's
+Revert to saved, Export graph (the whole graph as the clip JSON that paste accepts, downloaded by `graph/exportGraph.ts`, `Aurora-vtm5`), then New and Open submenus (`TitleMenu.tsx`), each ending in From file..., which opens a picked graph file as a new unsaved effect (`graph/importGraph.ts`, `Aurora-dzsd`). A graph file dropped on the window merges into the open graph at the drop point, or opens as a new effect when nothing is open (`useFileDrop.ts`, `DropFrame.tsx`). New lists the dashboard's
 Start from choices flat; `graph/titleMenu.ts` `startPoints()` copies the rule of
 `startPoints()` in `web/ui/EffectPanelModel.js` (keep in sync). Custom and Hidden
 sub-menus follow (`startGroups()`, from the dashboard's `buildGroups`; Hidden holds hidden
@@ -109,14 +109,13 @@ pane drag, Esc, focus return). Use it for any new menu.
 
 ## Icons (`Aurora-s1t7.5`)
 
-Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings/grille`, `0.1.0-dev.13`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
+Every icon in the editor is Grille's (`Icon` plus the `*Icon` data exports from `@weblings_things/grille`, `0.1.0-dev.13`), at `size="sm"`; nothing imports `web/ui/icons` or draws a Unicode glyph. This replaces the `Aurora-daaa.33` audit (2026-11-10/11), whose findings are all closed.
 
 | Icon | Where |
 | --- | --- |
 | `arrowLeftIcon` | Back link |
 | `chevronDownIcon` (Grille flips it while `aria-expanded`) | Title menu, View menu, Zones header, Test split caret |
 | `playIcon` / `stopIcon` | Test split button (Test/Take over, Stop) |
-| `undoIcon` / `redoIcon` | Top bar: icon buttons at every width, named by `aria-label`, so there is no More menu any more |
 | `addIcon` | Add node button |
 | `menuHorizontalIcon` | Node menu button |
 | `warningIcon` | Problems chip, node badge, problem lists, port mark, param problems. Grille's warning is Zest's triangle-exclamation; Aurora's own `web/ui/icons/warning.svg` is not used by the editor |

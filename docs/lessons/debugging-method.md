@@ -1273,3 +1273,105 @@ Applies-when: an agent writes source files through `cat <<'EOF'` in the Bash too
 Four times in one session a heredoc write was cut off or rejected: `RecipesApp.tsx` ended at `{state === 'copied' ? 'Copied. Paste it in the graph editor with Ctrl+V.' : '`, `main.tsx` was never created, and `unexpected EOF while looking for matching` appeared with no obvious unbalanced quote. A batch of edits sent as one call applied none of them, and the next build failed on a file the call had reported nothing about.
 
 **Fix:** write source files with the Write tool, or write a script file first and run it. After any heredoc write, read the tail or run the typecheck before building on it.
+
+## A background build wrapper reports exit 0 when its own last command succeeds, so read the log's EXIT and FAILED lines
+Tags: agent, shell, background, exit-code, verification, ninja
+Applies-when: an agent runs a long build in the background as `sh -c "build > log; echo EXIT=$? >> log"`, or ends the wrapper with `tail` or `grep`, and trusts the "completed (exit code 0)" notice
+
+Aurora-uai1: three completion notices read "exit code 0" while `ninja` had stopped at a `FAILED` step and the log ended `EXIT=1`. The wrapper's last command (`echo`, `tail`) is what the notice reports, and it always succeeded.
+
+**Fix:** after any completion notice, `tail` the log for `EXIT=` and grep it for `FAILED` before saying the build passed. Or end the wrapper with `exit $rc` so the notice carries the build's status.
+
+## `pkill -f <pattern>` inside a wrapper shell can match its own command line
+Tags: agent, shell, pkill, process, verification
+Applies-when: stopping a process by pattern in a command whose own text contains the pattern, such as `flatpak-spawn --host sh -c 'pkill -f "bin/Aurora --fresh"; ...'`
+
+Aurora-uai1: `pkill -f "bin/Aurora --fresh"` matched the `sh -c` wrapper that carried that string and killed the launcher itself (exit 144) before the dev stack started. Nothing ran, and the output never named `pkill`.
+
+**Fix:** match the exact process name (`pkill -x Aurora`), or list pids with `pgrep -af` and kill those.
+
+## A bead or doc saying a bug is open can be stale, so check the bead status and the source first
+Tags: beads, verification, stale-docs, planning, linux
+Applies-when: a plan or research note repeats a bug from a bead description or planning doc (Aurora-uai1 repeating Aurora-w6no)
+
+Aurora-uai1's research described Aurora-w6no as "portal restore token is never stored", citing `main.cpp` registering the grabber with no `IRestoreTokenStore`. `bd show Aurora-w6no` said CLOSED since 2026-10-21, `main.cpp:114-119` created a `FileRestoreTokenStore`, and a live run wrote `portal-restore-token` and replayed it silently. The bead text described the code as of its filing date, and FutureSteamOSSupport.md already disagreed with it.
+
+**Fix:** before relying on a bead's claim, run `bd show <id>` for the status and updated date, grep the source for the current state, and where a real run is cheap, run it.
+
+---
+
+## A `timeout`-ed `distrobox enter` leaves the app running inside the container, and the next launch only says it is already running
+Tags: debugging, linux, distrobox, process, timeout
+Applies-when: a repeat run of a containerized app prints "already running" or an empty log, or a measurement loop launches the app more than once
+
+Aurora-vijc: two trace runs of `Aurora` in the Distrobox used `timeout 40 distrobox enter aurora-dev -- ./Aurora`. `timeout` killed the wrapper but not the container child, so the next run logged only `Aurora is already running -- opening http://127.0.0.1:8215/ instead` and the grep for trace lines counted 0. The first run's callbacks were still printing into the old log.
+
+**Fix:** between runs, `pkill -x Aurora` (exact name, so it cannot match its own wrapper) and check `pgrep -x Aurora` is empty before relaunching; an empty trace or a one-line log is a launch problem first, a result second.
+
+---
+
+## A flash too short to see: record the output next to an independent capture of the truth, then trace inside the path and dump the bad frame
+Tags: debugging, evidence, timing, flicker, tap, correlation, x11
+Applies-when: someone reports brief flashes or dips in lights or video that a log line cannot explain, or you are about to blame the network, the hardware or a recent change for a glitch you have not measured
+
+Aurora-1juz: pink and black flashes of ~50 ms, intermittent, in bursts of 10 to 20 s minutes apart. The first theories (Hue link, PipeWire, fullscreen VLC, a stale-refresh path, post-release rebuilds) each fell to one measurement. What worked, in order: (1) record every frame of the output (`AURORA_DEV_LIGHT_TAP` over UDP) and read the shape of the glitch: duration in frames (3 frames = one 20 fps grab), colors (identical every time), neighbours (steady, so not a fade); (2) record the real screen at the same time with an independent grab (ffmpeg x11grab scaled to 96x54) and match events by timestamp: output pink with no pink on screen puts the fault in the grabber; (3) add an env-gated trace line inside the grab and dump the bad frame to PPM, then look at it: it was the magnified wallpaper, which named the magnifier. Dead ends worth skipping: `XDG_SESSION_TYPE` was x11, so the PipeWire theory cost a turn (check the session type first); a standalone reproduction of the suspect code did not reproduce it (the fault needed the app's own grab pattern); a watcher started after the burst saw nothing (bursts are short, keep the recorder and watcher running before asking the owner to try); a background job started with `nohup ... &` inside a background command reports "completed" when the launcher exits, not the watcher (check `pgrep`).
+
+**Fix:** keep the tap logger running for the whole session, run the independent capture only in short windows around a report, and put the trace and frame dump behind an env var that is removed after the cause is known. Judge the result by what reaches the output (tap), not by the trace.
+
+---
+
+## Read a baseline with `git show` or a worktree, since an interrupted `git stash pop` leaves a half-restored tree
+Tags: git, stash, baseline, interrupt, index-lock, recovery
+Applies-when: comparing a failing test against HEAD with uncommitted changes present, or finding `.git/index.lock` and deleted files after a stopped command
+
+Aurora-ghh3: a one-line `git stash`, test, `git stash pop` was stopped while running. It left an empty `.git/index.lock`, a changed file showing as deleted, and the stash entry still holding every change.
+
+**Fix:** for a baseline, read the old file with `git show HEAD:path` or use a separate worktree. To recover: check no git process is running, remove the lock, `git checkout stash@{0} -- <file>`, and drop the stash only after `git diff --quiet stash@{0}` passes.
+
+---
+
+## A Mac's maintenance sleep fails unattended checks with page-load timeouts
+Tags: mac, sleep, caffeinate, timeout, unattended, browser-check
+Applies-when: a long unattended run on a Mac starts timing out, or a check that passed earlier now takes many minutes
+
+2026-11-25: reruns of two browser checks took 7 to 16 minutes each and failed in `page.goto` after 30 s. The same app and scripts had run in seconds. `pmset -g log` showed "Maintenance Sleep" during the runs, on AC power.
+
+**Fix:** run long checks under `caffeinate -is`, and read `pmset -g log` before debugging a timeout in an unattended run.
+
+---
+
+## A race test against a fake needs the fake's slow step on the path under test
+Tags: fake-bridge, race, concurrency, stress, oracle, control
+Applies-when: stress-testing a race against a fake server, or reading a stress run with no failures as proof of a fix
+
+2026-11-25: a reload against the fake Hue bridge took 10 ms. `--stall-light` did not lengthen it, since a reload reads no single light. Delaying the `/clip/v2/resource` reply by 0.3 s (a temporary edit, under the client's 1 s timeout) made a reload take 0.34 s, and a pause during it left the old build streaming in 60 of 60 runs.
+
+**Fix:** time the operation to confirm the delay reaches it, and run the same stress on the build without the fix. A clean run counts only if the old build fails it.
+
+---
+
+## A test hook inside a shared build phase also fires from builds the test did not aim at
+Tags: tests, hooks, concurrency, deadlock, ctest
+Applies-when: injecting a race or failure through a callback in a fake, or changing the order of a build's steps
+
+Aurora-d5n4: a host test ran a nested reload from the fake output's init, meant
+to fire inside a failing build. After inputs moved ahead of output init, that
+build never reached it. The failure light's build did, while the host held its
+change lock, so the nested reload deadlocked and `ctest` hung with no output.
+
+**Fix:** hook the step the targeted build alone reaches (its input factory),
+assert the hook ran, and run `ctest` with `--timeout`.
+
+---
+
+## A redirected app log can stay empty until the app exits
+Tags: logging, stdout, buffering, macos, verification
+Applies-when: reading a running app's redirected stdout as evidence
+
+2026-11-25: the Mac app launched with `open --stdout` showed an empty log through
+a whole bridge check. After it quit, the file held every line, including
+`Failure light on.` Block buffering is the inferred cause.
+
+**Fix:** check live state through the API or the device, and read the log after
+the app exits before concluding that a line never happened.
+

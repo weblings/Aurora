@@ -51,6 +51,9 @@ namespace Aurora::Network::Http::Server
 
     bool listen();
 
+    // Returns once listen() has returned and every handler has finished. A
+    // listen() that starts afterwards returns false at once. Never call it
+    // from a handler.
     bool stop();
 
     void addRoute(

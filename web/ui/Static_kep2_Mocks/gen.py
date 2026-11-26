@@ -36,7 +36,7 @@ def top(paused=False, failed=False):
         <h1 class="top-bar-title"><img src="../icons/aurora-logo.png" alt="Aurora" class="top-bar-logo" /></h1>
         <div class="top-bar-trailing">
           {pause}
-          <button type="button" class="btn btn-secondary btn-icon top-bar-power-btn" aria-label="Stop"><img src="../icons/power-svgrepo-com.svg" alt="" class="top-bar-trailing-icon" /></button>
+          <button type="button" class="btn btn-secondary btn-icon top-bar-power-btn" aria-label="Stop"><img src="../icons/power.svg" alt="" class="top-bar-trailing-icon" /></button>
         </div>
       </div>
     </div>'''

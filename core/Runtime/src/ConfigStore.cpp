@@ -84,7 +84,8 @@ namespace Aurora::Runtime
         {"audioCentroidRangeHz", data.audioCentroidRangeHz},
         {"audioBrightnessSmoothTime", data.audioBrightnessSmoothTime},
         {"audioTargetSinkName", data.audioTargetSinkName},
-        {"nuxCompleted", data.nuxCompleted}
+        {"nuxCompleted", data.nuxCompleted},
+        {"gameModeAutostart", data.gameModeAutostart}
       };
     }
 
@@ -141,6 +142,7 @@ namespace Aurora::Runtime
       data.audioBrightnessSmoothTime = json.value("audioBrightnessSmoothTime", defaults.audioBrightnessSmoothTime);
       data.audioTargetSinkName = json.value("audioTargetSinkName", defaults.audioTargetSinkName);
       data.nuxCompleted = json.value("nuxCompleted", defaults.nuxCompleted);
+      data.gameModeAutostart = json.value("gameModeAutostart", defaults.gameModeAutostart);
 
       return data;
     }

@@ -1,3 +1,9 @@
+v1.2.1:
+- SteamOS - Works in Desktop and Game Mode (via Auto Launch option in Settings). Use the setup script to build (docs/SteamOS.md)
+- Graph editor - You can now export and import graphs (supports drag + drop), Tidy added to context menu of multi-selections of nodes
+- Mac - Capture now adjusts when displays are added, removed or mirrored
+- Linux - X11 - Fix - Lights no longer flash while the GNOME magnifier is on
+
 v1.2.0:
 - Graph editor - (Beta, the UX will likely shift around in 1.2.x versions) Build and edit your own effects as node graphs! The recipes or MCP can help get your started.
 - Built-In Effects Renamed - Video is now "Screen Colors" and Audio is now "Music Pulse"

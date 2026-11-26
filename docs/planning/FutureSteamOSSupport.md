@@ -130,6 +130,24 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
 (Flatpak's node generator or an AUR npm cache can feed it), and
 `AURORA_GRAPH_EDITOR_DIST` accepts a prebuilt bundle.
 
+## Decision for 1.2.1 (2026-11-22)
+
+Ship a scripted Distrobox path with a Game Mode launcher unit, controlled from a
+paired phone. Flatpak stays the end-user target and Decky the Deck-only control
+option, both in 1.2.2. See [[i0sz-game-mode-probes]].
+
+1. Desktop Mode: one script creates `aurora-dev`, installs the packages, builds
+   Aurora and installs the launcher unit (`tools/steamos/setup-aurora.sh`, `Aurora-hvxd`;
+   guide: [[steamos-user-guide]]). CI builds only on Ubuntu and publishes no
+   binary, so Aurora is built on the Deck.
+2. Desktop Mode: launch Aurora once, set up Hue and capture, pair the phone from
+   the local UI at `127.0.0.1:8215` (pairing needs a trusted local UI), quit Aurora.
+3. Game Mode: the `systemd --user` unit waits for `gamescope-wl`, exports
+   `GAMESCOPE_WAYLAND_DISPLAY` from `/run/user/<uid>/gamescope-environment`, runs
+   Aurora, stops it when gamescope exits (`Aurora-mjk0`).
+4. Control from the phone at `http://<deck-ip>:8215/` on the same Wi-Fi
+   (`Aurora-dl5b` for a stable address).
+
 ## Open questions / next steps
 
 - No Flatpak manifest exists yet — next concrete step if this is pursued is
@@ -149,9 +167,27 @@ package: committed lockfile, exact pins, no install scripts, plain `npm ci`
   `--socket=pipewire` granted (expected to work per Flatpak's permission
   model, matches how OBS Studio's Flatpak does Gamescope capture, but
   unconfirmed on real hardware).
-- Distrobox path is untested end-to-end on a real Deck; assumed low-risk
-  since it doesn't sandbox capture at all, but worth a real run before
-  documenting it as a supported path.
+- Distrobox path: **verified in Desktop Mode on a real Deck** (2026-11-22,
+  Aurora-uai1, SteamOS 3.9.5, KDE Plasma Wayland, Arch container). Build, 204
+  of 204 tests, portal capture and token replay all work; the exact package
+  list is in [Building.md](../Building.md). Findings that differ from the
+  earlier assumptions:
+  - Arch's `mbedtls` is 4.x and `mbedtls2` no longer exists; `mbedtls3`
+    (3.6.x) works with `PKG_CONFIG_PATH=/usr/lib/mbedtls3/pkgconfig`.
+  - `aubio` ships its `.pc` file, so there is no gap there.
+  - PipeWire does work from the container (host PipeWire 1.6.8 behind the
+    PulseAudio shim), contrary to the old Distrobox guide. The container does
+    need the `pipewire` package for `client.conf`, or Aurora crashes.
+  - Game Mode (`Aurora-i0sz`, in progress): the `gamescope` PipeWire node
+    (`Video/Source`) is visible from a `systemd --user` service and from
+    inside the box; a service must read `GAMESCOPE_WAYLAND_DISPLAY` from
+    `/run/user/<uid>/gamescope-environment` because it does not inherit it.
+    See [[i0sz-game-mode-probes]]. Lights follow the game (including the boot
+    video) with Aurora run from such a service. Audio there also works (`builtin.audio`
+    linked to the speaker sink, lights follow the sound, `Aurora-ch0g`). The launcher
+    unit (`tools/steamos/`, `Aurora-mjk0`) starts and stops Aurora with gamescope;
+    verified by a mode switch and a cold boot ([[mjk0-game-mode-launcher]]). Still
+    unverified: a long Game Mode video run's frame rate.
 - Decky plugin path is unverified on two fronts: whether Steam's embedded
   CEF panel can iframe a localhost server without CSP/CORS issues, and
   whether Decky Store review would accept a root-privileged plugin bundling

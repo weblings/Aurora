@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict'
 import { launch } from '../lib/browser.mjs'
 import { withEditorStack } from '../lib/stack.mjs'
+import { settle } from '../lib/waits.mjs'
 
 await withEditorStack(async ({ editorUrl }) => {
   const browser = await launch()
@@ -17,6 +18,9 @@ await withEditorStack(async ({ editorUrl }) => {
   try {
     await page.goto(`${editorUrl}?effect=builtin.video`)
     await page.waitForSelector('.aurora-node')
+    // The open-time tidy (Aurora-y8ku) and its fit animation move nodes from under a still pointer.
+    await page.locator('.editor-title-menu[data-unsaved="true"]').waitFor()
+    await settle(page)
 
     const titled = await page.locator('.aurora-node [title], .editor-header [title], .editor-add-node[title], .react-flow__panel [title]').evaluateAll((els) => els.map((e) => `${e.tagName}.${e.className}: ${e.title}`))
     assert.deepEqual(titled, [], 'no title= on nodes, ports, params or toolbar buttons')

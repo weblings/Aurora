@@ -379,3 +379,19 @@ bug, not a test typo.
 
 **Fix:** build pairs explicitly: `nlohmann::json::array({nlohmann::json::array({"a.x", "b.y"})})`.
 With two or more edges the init-list form works, so a one-edge test is where it bites.
+
+---
+
+## cpp-httplib's `Server::stop()` neither waits for the listen loop nor works before it starts
+Tags: cpp, httplib, threads, shutdown, lifetime
+Applies-when: stopping or destroying an `httplib::Server` whose `listen` runs on another thread
+
+Aurora-i6zx: `stop()` only closes the listen socket. The listen thread then joins
+the workers, so destroying the server right after `stop()` leaves a worker inside
+a handler on a dead object (a segfault on quit). It is also a no-op until
+`is_running()` is true, so a stop that beats a just-spawned listen thread is lost
+and the join hangs. Destroying the server early had hidden that second case.
+
+**Fix:** have your own `stop()` wait until the server is running (or `listen` will
+never start), call `stop()` once, wait for `listen` to return, and destroy the
+server only in the destructor. Never call it from a handler.

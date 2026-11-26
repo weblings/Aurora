@@ -997,3 +997,63 @@ Applies-when: DuplicateOutput/DuplicateOutput1 fails on every retry on one machi
 Aurora-8u3p: on a multi-GPU desktop (Intel UHD 770 + RTX 3080 Ti + Meta Virtual Monitor) `DuplicateOutput1` returned 0x887A0004 on every retry while `D3D11CreateDevice` on the output's adapter succeeded. The grabber treated it as transient, so `/api/state` showed running with no errors and nothing streamed.
 
 **Fix:** `app/windows/app.manifest` (and `input/windows/tests/tests.manifest`) declares PerMonitorV2. Any new host of `WindowsGrabber` needs the same manifest. A failure that persists past 3 s now surfaces as a `video_capture` state error via `IVideoInput::captureError()`.
+
+## Arch's `libpipewire` has no `client.conf`, and Aurora segfaulted two seconds after the portal picker was approved
+Tags: input, linux, pipewire, arch, steamos, distrobox, crash
+Applies-when: Aurora starts Linux capture in an Arch container or minimal image, logs `can't load config client.conf`, and exits with SIGSEGV
+
+Aurora-uai1: in an Arch Distrobox with `libpipewire` only, `devstack.py up --input live` showed the screen-share picker, the approval wrote `portal-restore-token`, and Aurora logged `pw.conf ... can't load config client.conf: No such file or directory` twice. `coredumpctl` then listed a SIGSEGV two seconds later, and the dev stack died with `RemoteDisconnected`. After `pacman -S pipewire` (which owns `/usr/share/pipewire/client.conf`) the same run stayed up and reached `running`. No backtrace was taken, so why the missing config becomes a crash instead of an error is not investigated and is tracked as `Aurora-j0w4`.
+
+**Fix:** install `pipewire` as well as `libpipewire` on Arch. When capture dies right after approval, read the first `pw.conf` lines of the log before suspecting the portal.
+
+---
+
+## On the Steam Deck the mmapped LINEAR DMA-BUF read cost about 200x the memfd copy, with the sync ioctls near zero
+Tags: input, linux, pipewire, dmabuf, steamos, amd, kde, performance
+Applies-when: Linux capture on a PipeWire stream delivers only 1 to 2 buffers per second, or the app is on a non-Intel GPU with DMA-BUF on by default
+
+Aurora-vijc: on the Deck (KDE Wayland, AMD APU, Arch Distrobox) the default DMA-BUF stream gave 1 to 2 callbacks per second, every one a changed frame on a moving fullscreen source, and the lights changed about every 1 to 2 s. `AURORA_PW_DMABUF=0` gave 18 to 19 per second. Per-stage timing in `_onStreamProcess` put it on the copy out of the mmapped buffer: 677 ms average vs 3.3 ms for memfd, while `DMA_BUF_IOCTL_SYNC` cost 0.25 ms and a bulk hash 2.7 ms. About 6 MB/s fits a CPU read of an uncached or write-combined GPU mapping; the memory heap was not measured. PipeWire's docs warn about exactly this and WebRTC moved to EGL import for it. The 1t1 default (DMA-BUF) was verified on one Intel GNOME laptop, where it was not costlier, and memfd's fullscreen freeze did not appear under `ffplay` fullscreen on KDE. See `docs/log/2026-11-22-vijc-deck-dmabuf-slow-capture.md`.
+
+**Fix:** `SlowReadWatch` times the copy and renegotiates shared memory after 3 reads over 100 ms; the Deck went from 1.5 to 18 to 19 callbacks/s with no env var. `AURORA_PW_DMABUF=0` still forces it. Other platforms were not yet re-verified. Next: EGL import with a GPU downscale (`Aurora-x0tw`). When a capture rate is low, time each stage of the callback before blaming the container, the CPU or the portal.
+
+---
+
+## A Steam non-Steam shortcut is the wrong launcher for a background capture process on the Deck; a `systemd-run --user` service survives the mode switch and sees the gamescope node
+Tags: input, linux, pipewire, gamescope, steamos, systemd
+Applies-when: Aurora (or any capture helper) must run beside a Game Mode game, or a probe script prints Steam `LD_PRELOAD` errors into parsed output.
+
+Aurora-i0sz: a shortcut to a window-less script showed Steam's spinner and gets a Stop button, and Steam's reaper cleans up its children, so it behaves as a foreground game. A transient `systemd-run --user` service started in Desktop Mode stayed active through Desktop to Game Mode to Desktop, and saw the `gamescope` node (`Video/Source`) from the host and from the Distrobox. It does not inherit `GAMESCOPE_WAYLAND_DISPLAY`; `/run/user/<uid>/gamescope-environment` (rewritten at each Game Mode start) holds it. Inside a Steam-launched process `pw-dump` stdout was unparseable because the overlay's `LD_PRELOAD` errors landed in it.
+
+**Fix:** launch from a user service, export `GAMESCOPE_WAYLAND_DISPLAY` from that file only while `gamescope-wl` runs, match the node by name and class (ids are reused), and run `pw-dump` with `unset LD_PRELOAD` and `2>/dev/null`.
+
+
+---
+
+## A user unit does not own Aurora when it runs through `distrobox enter`; stop it by name, and evict a stale copy first
+Tags: input, linux, steamos, systemd, distrobox
+Applies-when: writing or changing the Game Mode launcher unit, or any service that wraps a process started with `distrobox enter`.
+
+Aurora-mjk0: the process lives in the `aurora-dev` podman scope, not the unit's cgroup, so `systemctl --user stop` and `KillMode` never reach it. A `TERM` trap that runs `pkill -x Aurora` (SIGKILL after a timeout) does, and the same call before each start removes a Desktop Mode copy holding `aurora.lock`, which would otherwise print "already running" and exit.
+
+**Fix:** `tools/steamos/aurora-gamemode.sh` traps `TERM`/`INT` and calls `stop_aurora` at start and when gamescope exits.
+
+---
+
+## Mac monitor set: re-read it from CoreGraphics on a reconfiguration callback; a mirrored display leaves the list, and mode or primary changes leave `/api/monitors` stale until the next rebuild
+Tags: mac, screencapturekit, monitors, hotplug, mirroring, virtual-display, takeMonitorsChanged
+Applies-when: changing how the Mac grabber notices displays coming and going, or testing monitor hotplug without a second monitor
+
+`ScreenCaptureKitGrabber::takeMonitorsChanged` (Aurora-h06o) compares `CGGetActiveDisplayList` identities (key, else name) against a baseline taken when the list was built, triggered by the filtered `CGDisplayRegisterReconfigurationCallback`; `SCShareableContent` is not used there, so no Screen Recording is needed and no cross-process wait blocks the tick thread. Observed with a private `CGVirtualDisplay` and the dev build run from Terminal.app (input `mac`), reading `source.video.monitor` in `/api/state`: add shows in `/api/monitors` in about 2 s; removing the captured display falls back to the primary and re-adding it with the same serial is captured again by its saved key; a mirrored display drops out of the list and returns on unmirror; display sleep and wake change nothing; a display added while paused is picked up by the rebuild on resume; a burst of add/remove collapses to one rebuild by the 1 s debounce; a mode change or a primary change causes no rebuild, so the listed size and the `PRIMARY` label stay stale until the next rebuild; with two virtual displays, removing the selected one falls back to the primary, not the other. The list order changes when a display is added.
+
+**Fix:** keep the trigger cheap (filter the flags, then compare identities) and never key off list position or the `PRIMARY` label. To test, build `tools/mac/virtual-display-probe.m` (`--hold`, `--mirror 1`, `--mode-change 1`, `--primary-change 1`, `--fast 1`) and run it in Terminal.app against the app launched from Terminal; an app launched with `open` under a dev identity got no Screen Recording prompt. See [[h06o-mac-monitor-reconfiguration]].
+
+---
+
+## The X11 XRender chain can return the compositor's bare layer for one grab: hold one-grab jumps, don't drop the chain
+Tags: input, linux, x11, xrender, gnome, magnifier, glitch, stale-frame
+Applies-when: X11 lights flash a wrong color (a pink wallpaper, black) for one capture sample, or changing X11Grabber's chain, frame cache or frame serial
+
+Aurora-1juz: on GNOME with the screen magnifier on (2x), the 1.1.3 chain (root picture with `IncludeInferiors`, chained 2x composites, then `XShmGetImage` of the last pixmap) returned about 2% of its grabs as the magnifier's zoomed view of the bare wallpaper, no windows, panned with the mouse. Each was one grab with a normal grab on each side, so the lights flashed pink for ~50 ms. A plain root `XShmGetImage` of the same screen (ffmpeg x11grab, and Aurora with the chain off) never showed it, but costs about 42% of a core at 4K. A standalone program doing the same chain composite did not reproduce it, and a quiet or fullscreen screen was not the trigger (root damage fires nearly every tick here, lesson i5hq).
+
+**Fix:** `X11GrabGlitchFilter` holds a grab whose mean color moves more than 20 from the last published frame and re-serves the old one (serial not bumped); it publishes when the next grab lands within 8 of the held one (a real cut, one grab late) or after 2 holds in a row. Keep the chain: do not trade 4% CPU for 42% to hide a one-grab fault. Test the sequence (steady, bad, steady; cut; fade; strobe), not the per-grab decision. The root cause stays open: if glitches ever outlast 2 grabs, read the composited output instead (XComposite overlay window, or the GNOME screen-cast over PipeWire on X11, untested). See [[1juz-x11-pink-flashes]].
+

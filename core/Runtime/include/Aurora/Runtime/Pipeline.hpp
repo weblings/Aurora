@@ -179,6 +179,11 @@ namespace Aurora::Runtime
     // screen capture is not reopened (a Wayland picker, a Mac stream start).
     // Same borrow-then-adopt handover as outputsFrom, via adoptInputsFrom().
     const Pipeline* inputsFrom{nullptr};
+
+    // Runs when the build throws, while its outputs still exist, since nothing
+    // outside build() can reach them. `stopOutputs` is true for a failure that
+    // would stop them itself; when set, this replaces that stop.
+    std::function<void(Pipeline&, bool stopOutputs)> onFailure;
   };
 
 
@@ -223,6 +228,13 @@ namespace Aurora::Runtime
 
     // True while this pipeline only borrows the outputs of `overrides.outputsFrom`.
     bool borrowsOutputs() const { return m_borrowedOutputs; }
+
+    // True once build() began initializing outputs of its own, which it does
+    // only after the inputs are open. An init takes
+    // its device over (Hue restarts the entertainment area), so outputs opened
+    // earlier for the same target can no longer be relied on, even if the build
+    // then fails.
+    bool openedOutputs() const { return m_openedOutputs; }
 
     // Takes ownership of `previous`'s outputs, which this pipeline borrowed at
     // build time, leaving it with none to shut down. The host calls it under
@@ -380,6 +392,7 @@ namespace Aurora::Runtime
     std::vector<std::unique_ptr<Output::IOutput>> m_outputs;
     std::vector<Output::IOutput*> m_outputPtrs;
     bool m_borrowedOutputs{false};
+    bool m_openedOutputs{false};
     // The runners already point at these inputs, still owned by the pipeline
     // they came from until adoptInputsFrom().
     bool m_borrowedVideo{false};
@@ -571,6 +584,11 @@ namespace Aurora::Runtime
       std::string& errorOut
     );
 
+    // Final, for quit: shuts the pipeline and failure light down for good.
+    // Afterwards reload() and resume() succeed without building, nothing else
+    // installs a pipeline, and a build already in flight shuts its own outputs
+    // down when it finishes. Waits for reloadInputs() or a failure light that
+    // is mid-build.
     void shutdown();
 
     // The failure light (Aurora-dh1p): a dim magenta on the configured outputs
@@ -717,10 +735,12 @@ namespace Aurora::Runtime
     // Caller holds m_mutex.
     void _setErrorLocked(const std::string& source, const std::string& message);
 
-    // A failed effect switch: stops the running pipeline the way pause does
-    // and holds the "effect" error, so state reads failed with the pick still
+    // A failed effect switch: replaces the running pipeline with the failure
+    // light and holds the "effect" error, so state reads failed with the pick still
     // saved. Stores nothing when a pause or a newer successful build landed
     // since `epoch`. `inputs` is what the requested effect needs, for /api/state.
+    // `outputsTakenOver`: the failed build opened outputs, so the light opens
+    // fresh ones instead of borrowing or keeping older ones.
     void _failEffect(
       const std::string& effectId,
       const std::string& message,
@@ -730,6 +750,7 @@ namespace Aurora::Runtime
       const Registry& registry,
       const Config& config,
       const std::filesystem::path& configRoot,
+      bool outputsTakenOver,
       const std::string& code = {},
       const std::map<std::string, std::string>& detail = {}
     );
@@ -739,8 +760,10 @@ namespace Aurora::Runtime
     std::unique_ptr<Pipeline> _buildFailureLight(
       const Registry& registry, const Config& config, const std::filesystem::path& configRoot, const Pipeline* outputsFrom);
 
-    // Builds and installs the light when the host is Failed with none. Takes the locks itself.
-    bool _ensureFailureLight(const Registry& registry, const Config& config, const std::filesystem::path& configRoot);
+    // Builds and installs the light when the host is Failed with none, or with
+    // `outputsTakenOver` replaces the one it has. Takes the locks itself.
+    bool _ensureFailureLight(
+      const Registry& registry, const Config& config, const std::filesystem::path& configRoot, bool outputsTakenOver = false);
 
     // A build failure ("startup", "resume", "reload", "effect"): a newer attempt at the
     // same build, so it supersedes the earlier build entries instead of
@@ -781,12 +804,16 @@ namespace Aurora::Runtime
     std::atomic<std::uint64_t> m_buildEpoch{0};
 
     // Taken first, serializes pause()/resume() so two resumes cannot open
-    // two capture-portal dialogs (Aurora-5t2).
+    // two capture-portal dialogs (Aurora-5t2). A reload that discards or
+    // abandons its build takes it too, so it cannot stop a resume's stream.
     std::mutex m_pauseMutex;
 
     // Set under m_mutex. reload() while set succeeds without building, so a
     // settings save, /api/reload or Hue pairing cannot silently resume.
     std::atomic<bool> m_paused{false};
+    // Set once by shutdown(), before it takes the locks; checked under them
+    // before anything is built or installed.
+    std::atomic<bool> m_closed{false};
     Input::Monitors m_pausedMonitors;
     ZoneListResult m_pausedZones;
 

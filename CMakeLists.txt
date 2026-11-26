@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.14)
 # /api/version route. Agents: bump the version only when asked, and never
 # edit CHANGELOG.txt -- its entries are the maintainer's own notes, and
 # nothing enforces the mirror.
-project(AuroraMonorepo VERSION 1.2.0)
+project(AuroraMonorepo VERSION 1.2.1)
 
 # Thin superbuild: selects slices, forwards nothing. Each slice pulls core/
 # itself via FetchContent (SOURCE_DIR into this tree), so this file never
@@ -14,8 +14,9 @@ project(AuroraMonorepo VERSION 1.2.0)
 # blocks are guarded by NOT TARGET for the same reason: when this file adds
 # a plugin dir below, the app reuses the already-built target.
 #
-# Core's own test suite is NOT part of any superbuild preset (slices force
-# core BUILD_TESTS off when they fetch it). Build it standalone:
+# Core's own test suite is off by default (slices set core BUILD_TESTS from
+# AURORA_BUILD_CORE_TESTS when they fetch it). CI turns it on so core compiles
+# once: -DAURORA_BUILD_CORE_TESTS=ON. Standalone still works:
 #   cmake -S core -B build-core-test
 # Plugin-focused work likewise configures the plugin dir directly
 # (cmake -S input/windows); presets below cover the full-app builds.

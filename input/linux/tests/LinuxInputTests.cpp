@@ -5,6 +5,7 @@
 #include <Aurora/Input/Linux/DummyGrabber.hpp>
 #include <Aurora/Input/Linux/SessionDispatch.hpp>
 #include <Aurora/Input/Linux/X11Damage.hpp>
+#include <Aurora/Input/Linux/X11GrabGlitchFilter.hpp>
 
 using namespace Aurora::Input;
 using namespace Aurora::Input::Linux;
@@ -197,4 +198,75 @@ TEST_CASE("X11GrabGate reset forces the next grab and clears the latch", "[X11Da
   gate.markGrabbed(1011);
   // The pre-reset damage didn't survive into the new monitor's cache.
   CHECK_FALSE(gate.shouldGrab(false, 1100));
+}
+
+
+namespace
+{
+  // Mean colors (any channel order) as the grabber sees them.
+  GrabVerdict judgeGray(X11GrabGlitchFilter& filter, float level)
+  {
+    return filter.judge(level, level, level);
+  }
+}
+
+
+TEST_CASE("X11GrabGlitchFilter drops a one-grab pink frame and keeps the lights steady", "[X11GlitchFilter]")
+{
+  // The Aurora-1juz capture: steady gray, one magnified-wallpaper grab, gray again.
+  X11GrabGlitchFilter filter;
+  REQUIRE(filter.judge(25, 24, 24) == GrabVerdict::Publish);
+  REQUIRE(filter.judge(25, 24, 24) == GrabVerdict::Publish);
+  REQUIRE(filter.judge(87, 40, 125) == GrabVerdict::Hold);
+  REQUIRE(filter.judge(26, 25, 24) == GrabVerdict::Publish);
+  REQUIRE(filter.judge(87, 40, 125) == GrabVerdict::Hold);
+  REQUIRE(filter.judge(25, 24, 24) == GrabVerdict::Publish);
+}
+
+
+TEST_CASE("X11GrabGlitchFilter publishes a real cut one grab late", "[X11GlitchFilter]")
+{
+  X11GrabGlitchFilter filter;
+  REQUIRE(judgeGray(filter, 25) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 130) == GrabVerdict::Hold);
+  // The next grab agrees with the held one, so the change was real.
+  REQUIRE(judgeGray(filter, 132) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 133) == GrabVerdict::Publish);
+}
+
+
+TEST_CASE("X11GrabGlitchFilter publishes a fade to black without holding it", "[X11GlitchFilter]")
+{
+  // 67 -> 5 -> 6 -> 7 -> 9: the real fade-to-black from the investigation.
+  X11GrabGlitchFilter filter;
+  REQUIRE(judgeGray(filter, 67) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 5) == GrabVerdict::Hold);
+  REQUIRE(judgeGray(filter, 6) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 7) == GrabVerdict::Publish);
+}
+
+
+TEST_CASE("X11GrabGlitchFilter never freezes on strobing content", "[X11GlitchFilter]")
+{
+  X11GrabGlitchFilter filter;
+  REQUIRE(judgeGray(filter, 10) == GrabVerdict::Publish);
+  // Alternating dark and bright never agrees with the held grab: at most
+  // maxHolds (2) consecutive holds, then the grab is published regardless.
+  REQUIRE(judgeGray(filter, 200) == GrabVerdict::Hold);
+  REQUIRE(judgeGray(filter, 10) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 200) == GrabVerdict::Hold);
+  REQUIRE(judgeGray(filter, 90) == GrabVerdict::Hold);
+  REQUIRE(judgeGray(filter, 200) == GrabVerdict::Publish);
+}
+
+
+TEST_CASE("X11GrabGlitchFilter accepts a normal drift and the first grab after reset", "[X11GlitchFilter]")
+{
+  X11GrabGlitchFilter filter;
+  REQUIRE(judgeGray(filter, 25) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 40) == GrabVerdict::Publish);
+  REQUIRE(judgeGray(filter, 55) == GrabVerdict::Publish);
+  filter.reset();
+  // A monitor switch can land anywhere; the first grab is trusted.
+  REQUIRE(judgeGray(filter, 200) == GrabVerdict::Publish);
 }

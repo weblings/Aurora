@@ -935,3 +935,104 @@ With `CPU_BASELINE` and `CPU_DISPATCH` empty, OpenCV 4.12 still compiles `intrin
 **Fix:** link `libopencv_imgproc.a`, `libopencv_core.a` and `opencv4/3rdparty/libzlib.a` from the install prefix directly, as `core/Wasm/WasmDeps.cmake` does.
 
 Confirmed natively (Aurora-51nv.7, 2026-11-18): the gcc build of the same core+imgproc install for the parity reference failed `find_package(OpenCV)` on the CI runner the same way (`liblibtiff.a`). Turning the codec and IO backends off (`WITH_TIFF`, `WITH_PNG`, `WITH_JPEG`, `WITH_WEBP` and the rest, see `core/Wasm/build-deps.sh`) leaves only core, imgproc and zlib in the install, and `find_package` works. On Windows that build also needs `BUILD_WITH_STATIC_CRT=OFF` to link with the project's `/MD` runtime, and consumers need `-DOpenCV_STATIC=ON`.
+
+## Arch ships Mbed TLS 4.x as `mbedtls`, so build against `mbedtls3` with a `PKG_CONFIG_PATH`
+Tags: arch, steamos, mbedtls, pkg-config, linux, distrobox
+Applies-when: configuring on Arch, Manjaro or an Arch Distrobox (SteamOS) and the Hue plugin cannot find or compile against Mbed TLS
+
+Aurora-uai1: Arch's `mbedtls` is 4.2.0, whose API `output/hue/src/MbedTlsImpl.hpp` (ctr_drbg, entropy, net_sockets, timing) does not match, and `mbedtls2` no longer exists. The `mbedtls3` package (3.6.7) keeps the 3.x headers under `/usr/include/mbedtls3` and its `.pc` files under `/usr/lib/mbedtls3/pkgconfig`, so a default pkg-config search does not see it. With the path set, `pkg_check_modules(MBEDTLS ...)` in `output/hue/CMakeLists.txt` resolves and the full `linux-app` build passed 204 of 204 tests.
+
+**Fix:** install `mbedtls3`, not `mbedtls`, and `export PKG_CONFIG_PATH=/usr/lib/mbedtls3/pkgconfig` before `cmake --preset linux-app`. The package list is in `docs/Building.md`.
+
+## npm 12 refuses URL tarball dependencies by default (`EALLOWREMOTE`)
+Tags: npm, node, cmake, lockfile, arch, graph-editor
+Applies-when: `npm ci` fails with `EALLOWREMOTE` ("Fetching packages of type remote have been disabled"), or the CMake graph-editor step fails on a distro that ships npm 12
+
+Aurora-uai1: Arch's npm 12.2.3 defaults `allow-remote` to `none`, so `npm ci` in `web/graph-editor` refused `@weblings/grille` pinned to a GitHub release tarball, even with the lockfile's integrity hash. `npm ci --allow-remote=all` installs, but the CMake target runs its own plain `npm ci` and fails again (a hand install does not help, see the Ninja stamp entry). Debian and Ubuntu's older npm never enforced this.
+
+**Fix:** keep dependencies on a registry. The editor now uses `@weblings_things/grille` from public npm, and plain `npm ci` works. Do not put `allow-remote` in `~/.npmrc` when the home directory is shared with a host, such as a Distrobox.
+
+## Touching a custom command's stamp file does not stop Ninja from rerunning it
+Tags: ninja, cmake, stamp, custom-command, build
+Applies-when: a CMake `add_custom_command` stamp (for example `graph-editor-npm-ci.stamp`) keeps rerunning after you did its work by hand and touched the file
+
+Aurora-uai1: after installing `node_modules` by hand, `touch build/linux-app/app/linux/graph-editor-npm-ci.stamp` still reran `npm ci` on the next build. Ninja treats an output with no `.ninja_log` entry as dirty however new its mtime, and a command that has never succeeded under Ninja has no entry (`grep -c graph-editor-npm-ci.stamp .ninja_log` printed 0).
+
+**Fix:** make the command succeed once under Ninja by fixing its cause, or configure the feature off (`-DAURORA_ENABLE_GRAPH_EDITOR=OFF`). Do not hand-satisfy the stamp.
+
+## An agent in the VS Code Flatpak reaches the host through `flatpak-spawn --host`, and `/tmp` is not shared
+Tags: flatpak, vscode, steamos, agent, shell, paths
+Applies-when: Claude Code runs in the VS Code Flatpak on a Steam Deck or another Flatpak desktop and needs host tools (distrobox, podman, pacman, bd), or hands a file to a host command
+
+Aurora-uai1: the Bash tool ran in the Freedesktop SDK runtime, with no pacman, npm or distrobox (`os-release` said "Freedesktop SDK"). `flatpak-spawn --host sh -c '...'` runs on SteamOS itself. The sandbox's `/tmp`, including the session scratchpad, is private: `paplay` on the host answered "No such file" for a wav written there, so the test tone never played and the first audio check proved nothing. The home directory is shared by both.
+
+**Fix:** run host tools as `flatpak-spawn --host sh -c '...'`, and put any file a host command must read under `$HOME/.cache`, deleting it afterwards.
+
+---
+
+## Decky's installer fails as `sh install_release.sh` and a store plugin can crash on a newer loader
+Tags: decky, steamos, sudo, plugins, journalctl
+Applies-when: updating Decky Loader from a terminal on a Steam Deck, or a Decky plugin panel shows only a spinner
+
+Aurora-wsyo: the script starts with `[ "$UID" -eq 0 ] || exec sudo "$0" "$@"`. Run as `sh install_release.sh`, `$0` is a bare name, so `sudo` reports "command not found". The Deck had Decky v3.1.6 while v3.3.1 was current. After the update the store plugin Web Browser 1.4.3 installed and showed a spinner forever: `journalctl -u plugin_loader` had `ModuleNotFoundError: No module named 'injector'`, the plugin backend importing a Decky internal that v3.x does not provide.
+
+**Fix:** run `sudo sh install_release.sh` (it needs a password, so a person types it), read the loader version in `~/homebrew/services/.loader.version`, and for a spinner read `journalctl -u plugin_loader` before blaming Steam or the page. A crashed third-party plugin says nothing about the question it was meant to test.
+
+
+## A Vite entry with no HTML page gets no stylesheet links, so the entry adds its own
+Tags: vite, islands, css, build-output, grille
+Applies-when: adding a JS-only Vite entry (`rollupOptions.input`) that another page loads by URL, such as `islands.js` for the main page
+
+Aurora-4nqt.3: `islands.js` imported Grille's `ui.css`, and the build put the CSS in a shared chunk with a hashed name that only the editor's `index.html` linked. The island mounted with no styles on the main page. A fixed `assetFileNames` for the entry did not help, since the CSS belongs to the shared chunk.
+
+**Fix:** import the stylesheets with `?url` (`import uiCss from '@weblings_things/grille/ui.css?url'`) and append `<link rel="stylesheet">` elements from the entry. With `base: './'` the URL resolves against `import.meta.url`, so it works under any mount. Only the entry's JS keeps a fixed name (`entryFileNames`).
+
+---
+
+## A fixed actions/cache key never re-saves, so a vcpkg binary cache can "hit" and restore nothing
+Tags: ci, vcpkg, actions-cache, windows
+Applies-when: caching vcpkg's binary cache (or any tool cache keyed by an ABI hash) with actions/cache
+
+Aurora-7r74: the key `vcpkg-Windows-v1` hit on every run, yet vcpkg logged `Restored 0 package(s)` and rebuilt curl and mbedtls (Install vcpkg deps 1:30-1:52). The entry dated from 2026-10-08. actions/cache never overwrites an existing key, and a runner image update had changed vcpkg's compiler hash, so the stored packages no longer matched.
+
+**Fix:** put `${{ env.ImageVersion }}` in the key (`vcpkg-${{ runner.os }}-${{ env.ImageVersion }}-v2`). Each new image misses once, rebuilds and saves. After the change the install step took 12 s. Read the vcpkg log line, not the cache step's "hit", to judge a vcpkg cache.
+
+---
+
+## Forcing a core option from a slice needs every slice that can fetch core to take it
+Tags: cmake, fetchcontent, superbuild, tests
+Applies-when: adding a switch for what `core/` builds (tests, tools) that slices currently force off
+
+Aurora-ptns: each slice sets `BUILD_TESTS FALSE CACHE FORCE` before `FetchContent_MakeAvailable(AuroraCore)`. In the superbuild `input/*` and `output/hue` fetch core before the app does, and FetchContent dedups by name, so only the first fetcher's value counts. Changing just the app slices would leave the core tests silently off.
+
+**Fix:** declare `AURORA_BUILD_CORE_TESTS` (default OFF) in the root and in every slice and set `BUILD_TESTS ${AURORA_BUILD_CORE_TESTS}` in all seven (app and input per platform, plus output/hue). A configure-only trial shows the Catch2 and nlohmann_json fetches dedup cleanly with the apps' own tests.
+
+---
+
+## The Visual Studio generator ignores compiler launchers, so sccache on Windows needs Ninja
+Tags: ci, windows, sccache, ninja, msvc
+Applies-when: adding sccache or ccache to a Windows build that uses `cmake --preset` with no generator
+
+Aurora-7r74: `CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` are honored only by Makefile and Ninja generators. The `windows-app` preset sets none, so CI used the Visual Studio generator and sccache would never have run. This reverses the advice in "Installing Visual Studio's C++ workload doesn't put its own tools on PATH" for CI.
+
+**Fix:** run `ilammy/msvc-dev-cmd` so `cl.exe` is on PATH, then configure with `-G Ninja -DCMAKE_BUILD_TYPE=Release`. Output moves from `bin/Release/` to `bin/`. Release has no `/Zi`, so sccache works without `/Z7`.
+
+---
+
+## On Windows a running Vite dev server makes the graph editor's npm ci fail with EPERM
+Tags: windows, vite, npm-ci, cmake, eperm, background-process
+Applies-when: rebuilding the app after a `web/graph-editor` dependency change, or after stopping a background dev server
+
+Aurora-7p8f: after a Grille pin change the app build failed (`npm error code: 'EPERM'`, MSB8066) because the Vite dev server still held files in `node_modules`. Stopping the background `npm run dev` task left its child `node ... vite.js` listening on 5173. A browser check run in the same command then passed against the old `Aurora.exe`.
+
+**Fix:** stop the process that owns the port (`Get-NetTCPConnection -LocalPort 5173`), rebuild, and check the exe's timestamp before trusting a browser check.
+
+---
+
+## A GitHub tarball dependency pin brings back npm 12's refusal, and a release check that nothing runs does not stop it
+Tags: npm, dependencies, grille, release, steamos, tarball
+Applies-when: pinning `web/graph-editor` to a dev tarball of Grille, preparing a release, or an `npm ci` fails with `EALLOWREMOTE`
+
+Aurora-uai1 moved Grille to the npm registry because npm 12 refused the GitHub tarball and CMake's own `npm ci` step failed on SteamOS. A later dev pin (`v0.2.2-dev.5`, Aurora-7p8f) brought the tarball back. The Windows install and builds kept passing, and `grille -- check` is not run by CI or a hook.
+
+**Fix:** before a release run `npm run grille -- check` in `web/graph-editor`. If it fails, publish Grille to npm and run `npm run grille -- release <version>`.

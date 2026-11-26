@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { MiniMap, Panel, useReactFlow, useStore } from '@xyflow/react'
-import { Dialog, Icon, Menu, MenuItem, chevronDownIcon } from '@weblings/grille'
+import { Dialog, Icon, Menu, MenuItem, chevronDownIcon } from '@weblings_things/grille'
 import { EditorPopup } from './EditorPopup'
 
 // Zoom, fit and the minimap, in one menu in place of React Flow's controls.

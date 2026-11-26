@@ -350,6 +350,31 @@ TEST_CASE("DmabufReadFallback resets on a successful read", "[PipewireDmabuf]")
 }
 
 
+TEST_CASE("SlowReadWatch fires once after consecutive slow reads", "[PipewireDmabuf]")
+{
+  SlowReadWatch watch(100.0);
+  for(int i = 1; i < SlowReadWatch::kMaxConsecutiveSlow; ++i){
+    CHECK_FALSE(watch.onReadTimed(680.0));
+  }
+  CHECK(watch.onReadTimed(680.0));
+  CHECK(watch.disabled());
+  CHECK_FALSE(watch.onReadTimed(680.0));  // reported once only
+}
+
+
+TEST_CASE("SlowReadWatch resets on a fast read and treats the budget as fast", "[PipewireDmabuf]")
+{
+  SlowReadWatch watch(100.0);
+  for(int round = 0; round < 3; ++round){
+    for(int i = 1; i < SlowReadWatch::kMaxConsecutiveSlow; ++i){
+      CHECK_FALSE(watch.onReadTimed(200.0));
+    }
+    CHECK_FALSE(watch.onReadTimed(100.0));  // == budget is not slow
+  }
+  CHECK_FALSE(watch.disabled());
+}
+
+
 TEST_CASE("StaleFrameWatch reports a stall once, after the threshold", "[PipewireDmabuf]")
 {
   StaleFrameWatch watch(3.0);

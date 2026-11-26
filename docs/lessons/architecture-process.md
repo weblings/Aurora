@@ -1334,3 +1334,89 @@ Applies-when: filing an epic with several children and dependencies in one scrip
 With about 750 beads each state-changing `bd` command printed "auto-export wrote 751 issues in 7s". One script that converted a task to an epic, created six children and added five dependencies passed the 120 s foreground timeout and was moved to the background, with the later commands still running. A second copy would have created duplicate children. This adds to the debounce lesson above: the export is slow, not only late.
 
 **Fix:** run a filing script with `run_in_background` and wait for its notification instead of starting it again, or batch the writes into fewer commands. Afterwards check the result with `bd show <epic>` (children and dependencies) before committing.
+
+---
+
+## A paired phone controls the Game Mode Aurora, but the pairing happens in Desktop Mode, and a stale Desktop copy holds the lock
+Tags: steamos, pairing, lan, single-instance, game-mode
+Applies-when: planning how a user controls Aurora on a Steam Deck in Game Mode, or starting Aurora from a launcher while another copy may exist
+
+Aurora-wsyo: Game Mode has no browser overlay, so the working control surface is a phone on the same Wi-Fi. LAN pairing (closed 2026-10-16) trusts loopback and gives each other device a token, approved from the local UI, so the phone must be paired in Desktop Mode, where `127.0.0.1:8215` is reachable; the token sits in `~/.config/aurora` and works in Game Mode afterwards. A planning note that said "no auth" was older than that work. One instance per config folder: a copy left from Desktop Mode keeps `aurora.lock`, captures through the portal and makes a Game Mode launch exit with "already running".
+
+**Fix:** pair in Desktop Mode through `http://steamdeck.local:8215/` (the token is a cookie bound to the host name used, so an IP-paired phone must re-pair when the IP changes), check the closed beads before quoting a planning doc's "today" line, and have the Game Mode launcher stop any running Aurora (`pkill -x Aurora`, wait for the lock) before it starts its own.
+
+---
+
+## Removing a beads label or dependency does not mark the bead as newer
+Tags: beads, import, jsonl, branches, labels
+Applies-when: relabelling or unlinking beads while branches carry different `.beads/issues.jsonl` exports
+
+`bd import` skips rows older than the live bead, so closes and notes survive an old export. `bd label remove` and `bd dep remove` leave `updated_at` alone, so the old row is not stale and restores what was removed (Aurora-b665, bd 1.3.1).
+
+**Fix:** after a removal, `bd update <id> --append-notes "<why>"`, then export. Never use `--allow-stale` on another branch's file.
+
+---
+
+## Reverting a commit that a long-lived branch builds on deletes that work at the next merge
+Tags: git, revert, branches, merge, release-scope
+Applies-when: pulling a feature out of a release while another branch keeps developing it
+
+Aurora-b665 reverted the island bundle (`Aurora-4nqt.3`) for 1.2.1. `feat/ReactPort` already contains that commit and builds on it, so merging the release branch into it applies the revert there: unchanged files are deleted and edited ones conflict.
+
+**Fix:** record it where the other branch's owner will look (the planning doc and the bead). When merging, revert the revert on that branch and check its files are back.
+
+---
+
+## A host's shutdown must refuse later builds, not just stop what is installed
+Tags: shutdown, lifetime, threads, reload, outputs
+Applies-when: adding a teardown to an object that other threads can still ask to rebuild
+
+Aurora-lyr3: `PipelineHost::shutdown()` shut the installed outputs down while the
+web server still served, so a later or in-flight reload installed new ones and
+started streaming again. A build that threw after output init leaked the same way:
+nothing outside `build` could reach its outputs.
+
+**Fix:** set a closed flag first, check it under the same lock that installs, and
+hand it to the build so a late success or throw releases what it opened.
+
+---
+
+## Releasing a discarded build can stop a newer one's stream
+Tags: shutdown, threads, reload, pause, outputs
+Applies-when: tearing down a build that lost a race, when builds share an external resource
+
+Aurora-83k6: a Hue stop is addressed to the entertainment area, not to the
+instance that sends it. A reload discarded under a pause had to stop the area,
+but the same stop sent during or after a resume would kill the resumed stream.
+
+**Fix:** decide the kind of teardown under the lock that serializes pause and
+resume, and hold it through the teardown. Skip the stop if a newer build was
+installed.
+
+---
+
+## Initializing a second output instance ends the first one's session
+Tags: outputs, reload, hue, failure, borrowing
+Applies-when: reusing a running output after another build initialized one for the same target
+
+Aurora-5q5h: `HueOutput::init()` stops and restarts the entertainment area, so a
+build that fails afterwards has already ended the running pipeline's stream. The
+failure light borrowed those outputs and sent into nothing. The fake output in
+tests had no such side effect, so the borrow test passed.
+
+**Fix:** record that a build began output init, and open fresh outputs after it
+fails. Borrow only when the build never touched them.
+
+---
+
+## Open everything that can fail before taking over a shared device
+Tags: outputs, reload, hue, ordering, failure
+Applies-when: ordering the steps of a rebuild that replaces a running pipeline
+
+Aurora-d5n4: output init ran first, so a capture that then failed had already cut
+the stream of the pipeline the host kept as its fallback. Tests had also come to
+use that order, injecting failures and races through a bad input.
+
+**Fix:** acquire the fallible, non-exclusive resources first and the exclusive
+one last.
+

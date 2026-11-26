@@ -293,4 +293,6 @@ namespace Aurora::Runtime
 
   bool Config::nuxCompleted() const { return m_data.nuxCompleted; }
   void Config::setNuxCompleted(bool completed) { m_data.nuxCompleted = completed; }
+  bool Config::gameModeAutostart() const { return m_data.gameModeAutostart; }
+  void Config::setGameModeAutostart(bool autostart) { m_data.gameModeAutostart = autostart; }
 }

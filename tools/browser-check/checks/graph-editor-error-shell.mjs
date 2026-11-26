@@ -79,7 +79,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     assert.equal(await slot.evaluate((el) => getComputedStyle(el).position), 'sticky')
     assert.equal(await toggle().getAttribute('aria-expanded'), 'true')
     assert.equal(await toggleText(), 'Show less', 'a lone row is open and can collapse')
-    assert.equal(await markColor(rows.first().locator('.shell-mark-error')), RED, 'the open error row carries the red circled-exclamation')
+    assert.equal(await markColor(rows.first().locator('.ui-message-row-mark')), RED, 'the open error row carries the red circled-exclamation')
     await shot('a-one-row')
     step('a host-state error shows as one open row above the bar, with the red mark and Show less')
 
@@ -145,8 +145,9 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
 
     // Dismiss goes through the daemon: it clears the row everywhere.
     await toggle().click()
-    await slot.locator('#shell-banner-dismiss-dev-1').click()
-    await page.waitForFunction(() => !document.querySelector('#shell-banner-dismiss-dev-1'), null, { timeout: 8000 })
+    const dismissDev1 = '.shell-banner-row[data-key^="error:dev-1:"] [aria-label="Dismiss"]'
+    await slot.locator(dismissDev1).click()
+    await page.waitForFunction((sel) => !document.querySelector(sel), dismissDev1, { timeout: 8000 })
     assert.deepEqual((await errors()).map((e) => e.source), ['dev-2'], 'dismissed on the daemon')
     const dash = await browser.newPage()
     await dash.goto(`${aurora}/`)
@@ -205,7 +206,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     // Already pending at load, with another row: baseline, so 2 rows start collapsed and nothing re-opens.
     await expectCollapsed('1 notice 1 error')
     assert.equal(await rows.count(), 0)
-    assert.equal(await markColor(toggle().locator('.shell-mark-info')), WHITE, 'the request counts under the default-colour circled-info')
+    assert.equal(await markColor(toggle().locator('.shell-mark-info')), WHITE, 'the request counts under the default-colour square chat')
     await shot('p-collapsed')
     await page.setViewportSize({ width: 400, height: 800 })
     assert.ok((await slot.evaluate((el) => el.scrollWidth - el.clientWidth)) <= 0, 'the collapsed bar fits at 400 wide')
@@ -215,7 +216,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     await expectCollapsed('1 notice 1 error')
     step('a request already pending at load is baseline: it starts collapsed with the error and polls never re-open it')
 
-    // Open it: the row carries the code the requester holds, a circled-info and both buttons.
+    // Open it: the row carries the code the requester holds, a square chat mark and both buttons.
     await toggle().click()
     await expectOpen()
     assert.equal(await rows.count(), 2)
@@ -224,7 +225,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     assert.match(await loadRow.innerText(), new RegExp(`Device: ${loaded.name}`))
     assert.match(await loadRow.innerText(), new RegExp(`Code: ${loaded.code}`), "the row shows the requester's code")
     assert.match(await loadRow.innerText(), /Access: Read\. View only\./)
-    assert.equal(await markColor(loadRow.locator('.shell-mark-info')), WHITE)
+    assert.equal(await markColor(loadRow.locator('.ui-message-row-mark')), WHITE)
     await shot('p-open')
     await page.setViewportSize({ width: 400, height: 800 })
     assert.ok((await slot.evaluate((el) => el.scrollWidth - el.clientWidth)) <= 0, 'the open request fits at 400 wide')
@@ -406,7 +407,7 @@ await finish('graph-editor error shell', withEditorStack(async ({ editorUrl, aur
     const keepAgent = setInterval(() => void api('POST', '/api/graph/test/heartbeat', { session: 'agent-1' }).catch(() => {}), 1000)
     await page.locator('#shell-light-test-time').waitFor({ timeout: 8000 })
     await expectOpen()
-    assert.equal(await markColor(rows.first().locator('.shell-mark-info')), WHITE, 'the light-test row carries the default-colour circled-info')
+    assert.equal(await markColor(rows.first().locator('.ui-message-row-mark')), WHITE, 'the light-test row carries the default-colour square chat')
     await shot('e-notice-and-error-open')
     await toggle().click()
     await expectCollapsed('1 notice 1 error')

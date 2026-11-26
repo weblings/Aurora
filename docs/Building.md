@@ -22,7 +22,8 @@ cmake --install build/linux-app # registers launcher + tray icon (Linux)
 
 Per-slice presets live in `CMakePresets.json`; the root `CMakeLists.txt` is a
 thin superbuild (each slice pulls `core/` itself via `FetchContent`). Core's
-own suite is not part of any preset — build it standalone with
+own suite is off by default; add `-DAURORA_BUILD_CORE_TESTS=ON` to any app
+preset to build it in the same tree (CI does), or build it standalone with
 `cmake -S core`.
 
 ## Prerequisites
@@ -69,6 +70,43 @@ imgproc)`).
   libsecret-1-dev`. Without `libsecret-1-dev`, configure warns and core's
   `AuroraSecrets` builds a stub that reports every secret store as
   unavailable (`-DAURORA_SECRETS_ENABLE_LIBSECRET=OFF` silences the warning).
+- **Linux (Arch, and SteamOS via an Arch Distrobox):** verified 2026-11-22 on a
+  Steam Deck (SteamOS 3.9.5, KDE Plasma Wayland) inside a Distrobox, with
+  all 204 tests passing. Do not install onto the SteamOS root: it is
+  read-only, pacman is pinned to Valve's snapshot, and updates wipe changes
+  (see [FutureSteamOSSupport.md](planning/FutureSteamOSSupport.md)).
+  ```
+  distrobox create --name aurora-dev --image docker.io/library/archlinux:latest
+  distrobox enter aurora-dev
+  sudo pacman -Sy --needed base-devel cmake ninja git pkgconf nodejs npm opencv \
+    curl libx11 libxext libxrandr libxdamage libxrender glib2 libpipewire \
+    pipewire aubio libsecret mbedtls3
+  export PKG_CONFIG_PATH=/usr/lib/mbedtls3/pkgconfig
+  cmake --preset linux-app -G Ninja && cmake --build build/linux-app -j6
+  ```
+  Three Arch specifics:
+  - **`mbedtls3`, not `mbedtls`.** Arch's `mbedtls` is 4.x, whose API the Hue
+    DTLS code cannot use. `mbedtls3` (3.6.x) installs under
+    `/usr/lib/mbedtls3` and `/usr/include/mbedtls3`, so configure needs the
+    `PKG_CONFIG_PATH` above or it finds no Mbed TLS.
+  - **`pipewire` as well as `libpipewire`.** `libpipewire` has no
+    `client.conf`; without the `pipewire` package Aurora logs
+    `can't load config client.conf` and crashes with SIGSEGV about two
+    seconds after you approve the screen-share picker.
+  - **Plain `npm ci` works** on Arch's npm 12 (`@weblings_things/grille` comes
+    from public npm). Older checkouts that pinned a GitHub release tarball
+    fail with `EALLOWREMOTE`, because npm 12 defaults `allow-remote` to
+    `none`.
+
+  `tools/steamos/setup-aurora.sh` does all of this in one run (box, packages,
+  build, Game Mode unit, menu entry); the user guide is [[steamos-user-guide]].
+
+  Run it with `distrobox enter aurora-dev -- build/linux-app/bin/Aurora`; the
+  container shares the host's Wayland and PipeWire sockets, so portal capture
+  and audio need no extra setup. The first start shows the screen-share
+  picker once, then the stored token replays silently. A first configure
+  needs network (glm, nlohmann_json, cpp-httplib and Catch2 come via
+  FetchContent).
 - **macOS (Apple Silicon, experimental):** Xcode CLT + Homebrew — full setup
   (packages, `mbedtls@3` pin, `mac-app` preset) lives in
   [CONTRIBUTING.md](../CONTRIBUTING.md#platform-notes).

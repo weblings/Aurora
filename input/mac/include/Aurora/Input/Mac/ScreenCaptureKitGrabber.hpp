@@ -88,6 +88,12 @@ namespace Aurora::Input::Mac
 
     void selectMonitor(unsigned monitorId) override;
 
+    // True once after a display reconfiguration that added, removed, enabled,
+    // disabled or (un)mirrored a display changed which monitors exist
+    // (Aurora-h06o). The callback needs the app's AppKit event pump
+    // (TrayIcon::pump) to be delivered; mode and position changes do not count.
+    bool takeMonitorsChanged() override;
+
     // Reconfigures the live stream (SCStream updateConfiguration) to
     // deliver a GPU-scaled frame: a 2x oversample of width, at least 256px,
     // never above the display's pixel size. 0 restores full size. Applies
