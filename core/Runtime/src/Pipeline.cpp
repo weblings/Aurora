@@ -296,6 +296,7 @@ namespace Aurora::Runtime
           _log(options, LogLevel::Error, "Unknown output '" + name + "', skipping");
           continue;
         }
+        pipeline->m_openedOutputs = true;
         output->init();
         pipeline->m_outputKeys.push_back(name);
         pipeline->m_outputPtrs.push_back(output.get());
@@ -1079,11 +1080,13 @@ namespace Aurora::Runtime
     const Registry& registry,
     const Config& config,
     const std::filesystem::path& configRoot,
+    bool outputsTakenOver,
     const std::string& code,
     const std::map<std::string, std::string>& detail
   )
   {
     std::unique_ptr<Pipeline> previous;
+    std::unique_ptr<Pipeline> staleLight;
     bool lightReplaces = false;
     {
       // Pause, swaps and the epoch all take m_changeMutex, so they hold still
@@ -1091,12 +1094,14 @@ namespace Aurora::Runtime
       std::lock_guard<std::mutex> change(m_changeMutex);
       if(m_closed.load() || m_paused.load() || m_buildEpoch.load() != epoch){ return; }
       std::unique_ptr<Pipeline> light;
-      if(m_pipeline || !m_failureLight){
-        light = _buildFailureLight(registry, config, configRoot, m_pipeline.get());
+      if(m_pipeline || !m_failureLight || outputsTakenOver){
+        light = _buildFailureLight(registry, config, configRoot, outputsTakenOver ? nullptr : m_pipeline.get());
       }
 
       std::lock_guard<std::mutex> lock(m_mutex);
       previous = std::move(m_pipeline);
+      // A light on taken-over outputs shows nothing; dropped even with no new one.
+      if(outputsTakenOver){ staleLight = std::move(m_failureLight); }
       if(light){
         // Taking the outputs over means no Hue stop and re-handshake between the two.
         if(light->borrowsOutputs()){ light->adoptOutputsFrom(*previous); }
@@ -1116,6 +1121,7 @@ namespace Aurora::Runtime
     // Outside the lock, like pause(): Hue's disableStreaming blocks. A light on
     // fresh outputs is a replacement, so the bridge is not told to stop.
     if(previous){ previous->shutdown(/*isReplacement*/ lightReplaces); }
+    if(staleLight){ staleLight->shutdown(/*isReplacement*/ lightReplaces); }
   }
 
 
@@ -1148,22 +1154,28 @@ namespace Aurora::Runtime
 
 
   bool PipelineHost::_ensureFailureLight(
-    const Registry& registry, const Config& config, const std::filesystem::path& configRoot)
+    const Registry& registry, const Config& config, const std::filesystem::path& configRoot, bool outputsTakenOver)
   {
     std::lock_guard<std::mutex> change(m_changeMutex);
     if(m_closed.load()){ return false; }
     {
       std::lock_guard<std::mutex> lock(m_mutex);
-      if(m_failureLight){ return true; }
+      if(m_failureLight && !outputsTakenOver){ return true; }
       // Every writer of m_status holds m_mutex, and the ones that could leave
       // Failed also hold m_changeMutex, so this stays true through the build.
       if(m_paused.load() || m_pipeline || m_status.state != HostState::Failed){ return false; }
     }
     auto light = _buildFailureLight(registry, config, configRoot, nullptr);
-    if(!light){ return false; }
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_failureLight = std::move(light);
-    return true;
+    std::unique_ptr<Pipeline> staleLight;
+    {
+      std::lock_guard<std::mutex> lock(m_mutex);
+      // Without a new light the stale one still goes, so a later retry builds one.
+      staleLight = std::move(m_failureLight);
+      m_failureLight = std::move(light);
+    }
+    const bool on = failureLightOn();
+    if(staleLight){ staleLight->shutdown(/*isReplacement*/ on); }
+    return on;
   }
 
 
@@ -1554,9 +1566,11 @@ namespace Aurora::Runtime
     ScopedPhaseTimer reloadTimer(m_options, "reload total");
     const std::uint64_t epoch = m_buildEpoch.load();
     std::unique_ptr<Pipeline> next;
+    bool outputsTakenOver = false;
     try{
       PipelineBuildOverrides overrides;
-      overrides.onFailure = [this, epoch](Pipeline& failed, bool stopOutputs){
+      overrides.onFailure = [this, epoch, &outputsTakenOver](Pipeline& failed, bool stopOutputs){
+        outputsTakenOver = failed.openedOutputs();
         std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
         // A newer build may be streaming to the same place: leave it alone.
         if(m_closed || m_paused || (stopOutputs && m_buildEpoch.load() == epoch)){
@@ -1567,7 +1581,8 @@ namespace Aurora::Runtime
     }
     catch(const EffectBuildError& e){
       errorOut = e.what();
-      _failEffect(e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot, e.code, e.detail);
+      _failEffect(
+        e.effectId, errorOut, e.retryable, e.inputs, epoch, registry, config, configRoot, outputsTakenOver, e.code, e.detail);
       return false;
     }
     catch(const std::exception& e){
@@ -1585,12 +1600,12 @@ namespace Aurora::Runtime
         detail["effectTitle"] = effectInfo(configRoot, requested).title;
         _failEffect(
           requested, errorOut, /*retryable*/ true, effectInputs(configRoot, requested), epoch, registry, config, configRoot,
-          _codeOf(e), detail);
+          outputsTakenOver, _codeOf(e), detail);
       }
       else{
         _recordFailure("reload", errorOut, epoch, _codeOf(e), _detailOf(e));
         // A failed retry of a failed host whose light could not show before.
-        _ensureFailureLight(registry, config, configRoot);
+        _ensureFailureLight(registry, config, configRoot, outputsTakenOver);
       }
       return false;
     }

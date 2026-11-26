@@ -82,6 +82,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `5ipy6-webui-pairing` | [log/2026-10-16-5ipy6-webui-pairing.md](log/2026-10-16-5ipy6-webui-pairing.md) | WebUI pairing screen (Aurora-5ipy.6) |
 | `5ipy7-global-brightness` | [log/2026-10-16-5ipy7-global-brightness.md](log/2026-10-16-5ipy7-global-brightness.md) | Aurora-5ipy.7: global brightness gain stage |
 | `5ipy8-coalesce-settings-reloads` | [log/2026-10-16-5ipy8-coalesce-settings-reloads.md](log/2026-10-16-5ipy8-coalesce-settings-reloads.md) | Coalesce settings-PUT reloads (Aurora-5ipy.8) |
+| `5q5h-failure-light-takeover` | [log/2026-11-25-5q5h-failure-light-takeover.md](log/2026-11-25-5q5h-failure-light-takeover.md) | The failure light opens its own stream when the failed build took the area over |
 | `5y0-nan-state-self-heal` | [log/2026-10-01-5y0-nan-state-self-heal.md](log/2026-10-01-5y0-nan-state-self-heal.md) | Aurora-5y0: 9ca follow-up — NaN state self-heal, one float→Color cast |
 | `6v36-brightness-floor` | [log/2026-10-16-6v36-brightness-floor.md](log/2026-10-16-6v36-brightness-floor.md) | Brightness floor stage (Aurora-6v36) |
 | `7gwg-http-listen-backlog` | [log/2026-11-14-7gwg-http-listen-backlog.md](log/2026-11-14-7gwg-http-listen-backlog.md) | HTTP server: listen backlog raised from cpp-httplib's 5 to 128 |

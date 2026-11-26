@@ -3447,6 +3447,64 @@ TEST_CASE("A failed switch shows the failure light on the same outputs until an 
 }
 
 
+TEST_CASE("A build that fails after output init gets a failure light on fresh outputs (Aurora-5q5h)", "[Effects]")
+{
+  ScopedTempDir dir("failure-light-taken-over");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config config = videoConfig();
+  config.setActiveOutputNames({"out-a"});
+  std::string error;
+  REQUIRE(EffectStore(dir.path).write("gone-output", Graph::builtInVideoGraph({"removed-out"}), error));
+  Config broken = config;
+  SECTION("effect error, which stops the failed build's outputs"){ broken.setActiveEffectId("gone-output"); }
+  SECTION("other error, which does not")
+  {
+    broken.setActiveEffectId("builtin.audio");
+    broken.setActiveAudioInputName("nope");
+  }
+  PipelineHost host(Pipeline::build(registry, config, dir.path, {}), {});
+
+  // The second round is a failed retry with the light already on.
+  for(int round = 0; round < 2; ++round){
+    events->lines.clear();
+    CHECK_FALSE(host.reload(registry, broken, dir.path, error));
+    REQUIRE(host.failureLightOn());
+    // The failed build's init, then the light's own.
+    CHECK(initCount(*events) == 2);
+    // No stop reaches the device after the light's init.
+    const auto lastInit = std::find(events->lines.rbegin(), events->lines.rend(), "init out-a");
+    CHECK(std::find(events->lines.rbegin(), lastInit, "shutdown out-a final") == lastInit);
+    CHECK(events->lines.back() == "shutdown out-a replacement");
+    const int before = events->sendCount;
+    host.tick();
+    CHECK(events->sendCount == before + 1);
+  }
+  host.shutdown();
+}
+
+
+TEST_CASE("A failed retry that took the outputs over rebuilds a startup failure light (Aurora-5q5h)", "[PipelineHost]")
+{
+  ScopedTempDir dir("failure-light-retry");
+  auto events = std::make_shared<Events>();
+  auto registry = makeRegistry(events);
+  Config bad = videoConfig();
+  bad.setActiveOutputNames({"out-a"});
+  bad.setActiveInputName("nope");
+  PipelineHost host(nullptr, {}, std::make_exception_ptr(std::runtime_error("startup")));
+  REQUIRE(host.showFailureLight(registry, dir.path));
+  events->lines.clear();
+
+  std::string error;
+  CHECK_FALSE(host.reload(registry, bad, dir.path, error));
+  CHECK(host.failureLightOn());
+  CHECK(initCount(*events) == 2);
+  CHECK(events->lines.back() == "shutdown out-a replacement");
+  host.shutdown();
+}
+
+
 TEST_CASE("A failed startup shows the failure light, an idle or running host does not (Aurora-dh1p)", "[Effects]")
 {
   ScopedTempDir dir("failure-light-startup");

@@ -1392,3 +1392,18 @@ but the same stop sent during or after a resume would kill the resumed stream.
 **Fix:** decide the kind of teardown under the lock that serializes pause and
 resume, and hold it through the teardown. Skip the stop if a newer build was
 installed.
+
+---
+
+## Initializing a second output instance ends the first one's session
+Tags: outputs, reload, hue, failure, borrowing
+Applies-when: reusing a running output after another build initialized one for the same target
+
+Aurora-5q5h: `HueOutput::init()` stops and restarts the entertainment area, so a
+build that fails afterwards has already ended the running pipeline's stream. The
+failure light borrowed those outputs and sent into nothing. The fake output in
+tests had no such side effect, so the borrow test passed.
+
+**Fix:** record that a build began output init, and open fresh outputs after it
+fails. Borrow only when the build never touched them.
+

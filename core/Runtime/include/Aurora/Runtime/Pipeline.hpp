@@ -229,6 +229,12 @@ namespace Aurora::Runtime
     // True while this pipeline only borrows the outputs of `overrides.outputsFrom`.
     bool borrowsOutputs() const { return m_borrowedOutputs; }
 
+    // True once build() began initializing outputs of its own. An init takes
+    // its device over (Hue restarts the entertainment area), so outputs opened
+    // earlier for the same target can no longer be relied on, even if the build
+    // then fails.
+    bool openedOutputs() const { return m_openedOutputs; }
+
     // Takes ownership of `previous`'s outputs, which this pipeline borrowed at
     // build time, leaving it with none to shut down. The host calls it under
     // its lock, at the swap, so the old pipeline ticks them until then.
@@ -385,6 +391,7 @@ namespace Aurora::Runtime
     std::vector<std::unique_ptr<Output::IOutput>> m_outputs;
     std::vector<Output::IOutput*> m_outputPtrs;
     bool m_borrowedOutputs{false};
+    bool m_openedOutputs{false};
     // The runners already point at these inputs, still owned by the pipeline
     // they came from until adoptInputsFrom().
     bool m_borrowedVideo{false};
@@ -727,10 +734,12 @@ namespace Aurora::Runtime
     // Caller holds m_mutex.
     void _setErrorLocked(const std::string& source, const std::string& message);
 
-    // A failed effect switch: stops the running pipeline the way pause does
-    // and holds the "effect" error, so state reads failed with the pick still
+    // A failed effect switch: replaces the running pipeline with the failure
+    // light and holds the "effect" error, so state reads failed with the pick still
     // saved. Stores nothing when a pause or a newer successful build landed
     // since `epoch`. `inputs` is what the requested effect needs, for /api/state.
+    // `outputsTakenOver`: the failed build opened outputs, so the light opens
+    // fresh ones instead of borrowing or keeping older ones.
     void _failEffect(
       const std::string& effectId,
       const std::string& message,
@@ -740,6 +749,7 @@ namespace Aurora::Runtime
       const Registry& registry,
       const Config& config,
       const std::filesystem::path& configRoot,
+      bool outputsTakenOver,
       const std::string& code = {},
       const std::map<std::string, std::string>& detail = {}
     );
@@ -749,8 +759,10 @@ namespace Aurora::Runtime
     std::unique_ptr<Pipeline> _buildFailureLight(
       const Registry& registry, const Config& config, const std::filesystem::path& configRoot, const Pipeline* outputsFrom);
 
-    // Builds and installs the light when the host is Failed with none. Takes the locks itself.
-    bool _ensureFailureLight(const Registry& registry, const Config& config, const std::filesystem::path& configRoot);
+    // Builds and installs the light when the host is Failed with none, or with
+    // `outputsTakenOver` replaces the one it has. Takes the locks itself.
+    bool _ensureFailureLight(
+      const Registry& registry, const Config& config, const std::filesystem::path& configRoot, bool outputsTakenOver = false);
 
     // A build failure ("startup", "resume", "reload", "effect"): a newer attempt at the
     // same build, so it supersedes the earlier build entries instead of
