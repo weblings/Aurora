@@ -1407,3 +1407,16 @@ tests had no such side effect, so the borrow test passed.
 **Fix:** record that a build began output init, and open fresh outputs after it
 fails. Borrow only when the build never touched them.
 
+---
+
+## Open everything that can fail before taking over a shared device
+Tags: outputs, reload, hue, ordering, failure
+Applies-when: ordering the steps of a rebuild that replaces a running pipeline
+
+Aurora-d5n4: output init ran first, so a capture that then failed had already cut
+the stream of the pipeline the host kept as its fallback. Tests had also come to
+use that order, injecting failures and races through a bad input.
+
+**Fix:** acquire the fallible, non-exclusive resources first and the exclusive
+one last.
+

@@ -229,7 +229,8 @@ namespace Aurora::Runtime
     // True while this pipeline only borrows the outputs of `overrides.outputsFrom`.
     bool borrowsOutputs() const { return m_borrowedOutputs; }
 
-    // True once build() began initializing outputs of its own. An init takes
+    // True once build() began initializing outputs of its own, which it does
+    // only after the inputs are open. An init takes
     // its device over (Hue restarts the entertainment area), so outputs opened
     // earlier for the same target can no longer be relied on, even if the build
     // then fails.

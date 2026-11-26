@@ -283,7 +283,9 @@ namespace Aurora::Runtime
       outputNames = registry.outputNames(); // no explicit selection -- run everything available
     }
 
-    ScopedPhaseTimer outputsTimer(options, "outputs init");
+    // Created here, initialized only once the inputs are open.
+    std::vector<std::unique_ptr<Output::IOutput>> newOutputs;
+    std::vector<std::string> newOutputKeys;
     if(overrides.outputsFrom && overrides.outputsFrom->m_outputKeys == outputNames){
       pipeline->m_outputKeys = outputNames;
       pipeline->m_outputPtrs = overrides.outputsFrom->m_outputPtrs;
@@ -296,15 +298,12 @@ namespace Aurora::Runtime
           _log(options, LogLevel::Error, "Unknown output '" + name + "', skipping");
           continue;
         }
-        pipeline->m_openedOutputs = true;
-        output->init();
-        pipeline->m_outputKeys.push_back(name);
-        pipeline->m_outputPtrs.push_back(output.get());
-        pipeline->m_outputs.push_back(std::move(output));
+        newOutputKeys.push_back(name);
+        newOutputs.push_back(std::move(output));
       }
     }
 
-    if(pipeline->m_outputPtrs.empty()){
+    if(pipeline->m_outputPtrs.empty() && newOutputs.empty()){
       throw CodedBuildError("No outputs available -- nothing to drive", "no_outputs");
     }
 
@@ -345,7 +344,6 @@ namespace Aurora::Runtime
         if(overrides.graph){
           throw std::runtime_error(plan.missing);
         }
-        failedGuard.stopOutputs = true;
         throw _effectError(
           configRoot, customId, plan.missing, /*retryable*/ false, "input_not_configured", {{"inputKind", plan.missingKind}});
       }
@@ -385,20 +383,65 @@ namespace Aurora::Runtime
     // What the summary and the runners use, owned here or borrowed.
     Input::IVideoInput* videoInput = nullptr;
 
-    ScopedPhaseTimer captureTimer(options, "capture+graph init");
-    if(dualCapture){
+    // Every input opens before any output does: an output init takes its device
+    // over from the running pipeline, which a failed input must leave streaming.
+    std::unique_ptr<Input::IAudioInput> dualAudioInput;
+    std::unique_ptr<Input::IAudioInput> audioInput;
+    std::unique_ptr<Input::IVideoInput> input;
+    const std::string& inputName = config.activeInputName();
+    {
+      ScopedPhaseTimer captureTimer(options, "capture init");
+      const auto openAudio = [&]{
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
+        auto audio = registry.createAudioInput(config.activeAudioInputName());
+        if(!audio){
+          throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
+        }
+        return audio;
+#else
+        throw std::runtime_error(options.noAudioSupportMessage);
+        return std::unique_ptr<Input::IAudioInput>{};
+#endif
+      };
+
       // Audio first: on Mac its TCC prompt and SCK's are separate gates, and
       // the order shows which one blocks the other.
-      auto audioInput = registry.createAudioInput(config.activeAudioInputName());
-      if(!audioInput){
-        throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
+      if(dualCapture){ dualAudioInput = openAudio(); }
+      if(useAudioMode){
+        if(!borrowedAudio){ audioInput = openAudio(); }
       }
+      else{
+        if(!borrowedVideo && !inputFree){
+          input = registry.createInput(inputName);
+          if(!input){
+            throw _inputUnavailable("Unknown input '" + inputName + "'", "video", inputName);
+          }
+          input->init();
+        }
+        videoInput = borrowedVideo ? borrowedVideo : input.get();
+        if(bothInputs && !borrowedAudio){ audioInput = openAudio(); }
+      }
+    }
+
+    if(!newOutputs.empty()){
+      ScopedPhaseTimer outputsTimer(options, "outputs init");
+      for(std::size_t i = 0; i < newOutputs.size(); ++i){
+        pipeline->m_openedOutputs = true;
+        newOutputs[i]->init();
+        pipeline->m_outputKeys.push_back(newOutputKeys[i]);
+        pipeline->m_outputPtrs.push_back(newOutputs[i].get());
+        pipeline->m_outputs.push_back(std::move(newOutputs[i]));
+      }
+    }
+
+    ScopedPhaseTimer graphTimer(options, "graph init");
+    if(dualCapture){
+#ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
       pipeline->m_audioRunner.emplace(
-        *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
+        *dualAudioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
       pipeline->m_audioRunner->init();
-      pipeline->m_audioInput = std::move(audioInput);
+      pipeline->m_audioInput = std::move(dualAudioInput);
       pipeline->m_isDualCapture = true;
       _log(options, LogLevel::Info, "[dual-capture] audio input='" + config.activeAudioInputName() + "' up; building video too");
 #else
@@ -407,14 +450,6 @@ namespace Aurora::Runtime
     }
     if(useAudioMode){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-      std::unique_ptr<Input::IAudioInput> audioInput;
-      if(!borrowedAudio){
-        audioInput = registry.createAudioInput(config.activeAudioInputName());
-        if(!audioInput){
-          throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
-        }
-      }
-
       pipeline->m_audioRunner.emplace(
         borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
       );
@@ -434,26 +469,8 @@ namespace Aurora::Runtime
 #endif
     }
     else{
-      const std::string& inputName = config.activeInputName();
-      std::unique_ptr<Input::IVideoInput> input;
-      if(!borrowedVideo && !inputFree){
-        input = registry.createInput(inputName);
-        if(!input){
-          throw _inputUnavailable("Unknown input '" + inputName + "'", "video", inputName);
-        }
-        input->init();
-      }
-      videoInput = borrowedVideo ? borrowedVideo : input.get();
-
       if(bothInputs){
 #ifdef AURORA_RUNTIME_AUDIO_AVAILABLE
-        std::unique_ptr<Input::IAudioInput> audioInput;
-        if(!borrowedAudio){
-          audioInput = registry.createAudioInput(config.activeAudioInputName());
-          if(!audioInput){
-            throw _inputUnavailable("Unknown audio input '" + config.activeAudioInputName() + "'", "audio", config.activeAudioInputName());
-          }
-        }
         pipeline->m_videoRunner.emplace(
           *videoInput, borrowedAudio ? *borrowedAudio : *audioInput, pipeline->m_outputPtrs, config, ZoneMapStore(configRoot)
         );

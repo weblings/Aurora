@@ -128,6 +128,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `d3ec-host-build-errors` | [log/2026-10-06-d3ec-host-build-errors.md](log/2026-10-06-d3ec-host-build-errors.md) | Aurora-d3ec: host holds build errors, GET /api/state reports state |
 | `d3ec-linux-verification` | [log/2026-10-06-d3ec-linux-verification.md](log/2026-10-06-d3ec-linux-verification.md) | Aurora-d3ec Linux verification (compile, Catch2, live failed-state cycle) |
 | `d3ec-windows-verification` | [log/2026-10-06-d3ec-windows-verification.md](log/2026-10-06-d3ec-windows-verification.md) | Aurora-d3ec Windows verification (compile, Catch2, live failed-state cycle) |
+| `d5n4-inputs-before-outputs` | [log/2026-11-25-d5n4-inputs-before-outputs.md](log/2026-11-25-d5n4-inputs-before-outputs.md) | Inputs open before outputs, so a failed input leaves the running stream alone |
 | `d6i7-config-writer-race` | [log/2026-10-02-d6i7-config-writer-race.md](log/2026-10-02-d6i7-config-writer-race.md) | Aurora-d6i7: config.json writer race (Pipeline::build vs the settings PUT) |
 | `d7s-dashboard-output-section` | [log/2026-10-16-d7s-dashboard-output-section.md](log/2026-10-16-d7s-dashboard-output-section.md) | Dashboard Output section (Aurora-d7s) |
 | `daaa-graph-editor-stage1` | [log/2026-11-08-daaa-graph-editor-stage1.md](log/2026-11-08-daaa-graph-editor-stage1.md) | Graph editor cleanup stage 1: back link and Aurora styles |
