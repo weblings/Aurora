@@ -12,6 +12,7 @@ every run. Human lookup for `[[id]]` citations elsewhere in `docs/`.
 | `121-mac-release-r3` | [log/2026-11-25-121-mac-release-r3.md](log/2026-11-25-121-mac-release-r3.md) | 1.2.1 Mac release rebuild with the failure-light and input-order fixes |
 | `121-mac-release-retest` | [log/2026-11-25-121-mac-release-retest.md](log/2026-11-25-121-mac-release-retest.md) | 1.2.1 Mac release rebuild and retest: the quit, shutdown and pause fixes |
 | `121-mac-release-testing` | [log/2026-11-25-121-mac-release-testing.md](log/2026-11-25-121-mac-release-testing.md) | 1.2.1 Mac release build and testing: notarized zip, monitor passes, quit crash |
+| `121-ubuntu-release` | [log/2026-11-25-121-ubuntu-release.md](log/2026-11-25-121-ubuntu-release.md) | 1.2.1 Ubuntu release build and testing |
 | `121-windows-release` | [log/2026-11-25-121-windows-release.md](log/2026-11-25-121-windows-release.md) | 1.2.1 Windows release build and testing, including a real Hue bridge |
 | `16i9-takeover-test-temp-dir` | [log/2026-11-17-16i9-takeover-test-temp-dir.md](log/2026-11-17-16i9-takeover-test-temp-dir.md) | Flaky takeover test: two tests shared one temp dir |
 | `1cmx-mock-circle-sockets-converters` | [log/2026-11-11-1cmx-mock-circle-sockets-converters.md](log/2026-11-11-1cmx-mock-circle-sockets-converters.md) | Grille mock: circle sockets and Float/Angle converters |
