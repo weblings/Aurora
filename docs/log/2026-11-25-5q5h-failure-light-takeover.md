@@ -36,6 +36,10 @@ code), so failures without the final stop were affected too.
 `Aurora-d5n4`: a failed device change keeps a pipeline whose stream the failed build
 may have ended. Read from code. Open.
 
+## Later check
+
+Passed on a real Hue bridge with the notarized rebuild: [[121-mac-release-r3]].
+
 ## Lessons
 
 - Initializing a second output instance ends the first one's session ([[lesson-architecture-process]])

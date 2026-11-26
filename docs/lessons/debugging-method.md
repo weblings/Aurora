@@ -1347,3 +1347,31 @@ Applies-when: stress-testing a race against a fake server, or reading a stress r
 2026-11-25: a reload against the fake Hue bridge took 10 ms. `--stall-light` did not lengthen it, since a reload reads no single light. Delaying the `/clip/v2/resource` reply by 0.3 s (a temporary edit, under the client's 1 s timeout) made a reload take 0.34 s, and a pause during it left the old build streaming in 60 of 60 runs.
 
 **Fix:** time the operation to confirm the delay reaches it, and run the same stress on the build without the fix. A clean run counts only if the old build fails it.
+
+---
+
+## A test hook inside a shared build phase also fires from builds the test did not aim at
+Tags: tests, hooks, concurrency, deadlock, ctest
+Applies-when: injecting a race or failure through a callback in a fake, or changing the order of a build's steps
+
+Aurora-d5n4: a host test ran a nested reload from the fake output's init, meant
+to fire inside a failing build. After inputs moved ahead of output init, that
+build never reached it. The failure light's build did, while the host held its
+change lock, so the nested reload deadlocked and `ctest` hung with no output.
+
+**Fix:** hook the step the targeted build alone reaches (its input factory),
+assert the hook ran, and run `ctest` with `--timeout`.
+
+---
+
+## A redirected app log can stay empty until the app exits
+Tags: logging, stdout, buffering, macos, verification
+Applies-when: reading a running app's redirected stdout as evidence
+
+2026-11-25: the Mac app launched with `open --stdout` showed an empty log through
+a whole bridge check. After it quit, the file held every line, including
+`Failure light on.` Block buffering is the inferred cause.
+
+**Fix:** check live state through the API or the device, and read the log after
+the app exits before concluding that a line never happened.
+

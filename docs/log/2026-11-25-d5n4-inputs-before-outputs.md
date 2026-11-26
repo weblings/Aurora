@@ -56,6 +56,10 @@ exercises neither bead's reload path.
 - A graph or runner failure after output init still ends the older stream; the
   failure light covers an effect switch, a kept pipeline is not covered.
 
+## Later check
+
+Passed on a real Hue bridge with the notarized rebuild: [[121-mac-release-r3]].
+
 ## Lessons
 
 - Open everything that can fail before taking over a shared device ([[lesson-architecture-process]])

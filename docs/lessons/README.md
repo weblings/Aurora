@@ -22,7 +22,7 @@ Aurora's own module boundaries instead of RockyRoad's. `rendering-apis.md` vs.
 | [build-toolchain.md](build-toolchain.md) | CMake, vcpkg, compilers, WSL2, dev deps | 73 | build/tooling specific |
 | [windows-env.md](windows-env.md) | processes, installers, ACLs, probing | 31 | Windows-environment specific |
 | [macos-gui.md](macos-gui.md) | AppKit, tray/status-item, run-loop pumping, ObjC++ interop | 37 | macOS GUI/AppKit specific |
-| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 102 | debugging/verification method |
+| [debugging-method.md](debugging-method.md) | evidence, verification, oracles, timing | 104 | debugging/verification method |
 | [architecture-process.md](architecture-process.md) | splits, duplication, reload, presence | 92 | architecture or process decision |
 | [web-testing.md](web-testing.md) | jsdom, live tests, routes, settings | 29 | web testing specific |
 | [agent-coordination.md](agent-coordination.md) | fan-out, briefs, shared stack, monitoring, verify and commit | 19 | coordinating several agents on beads |
