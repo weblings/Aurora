@@ -3516,7 +3516,9 @@ TEST_CASE("A failed retry that took the outputs over rebuilds a startup failure 
   CHECK_FALSE(host.reload(registry, bad, dir.path, error));
   CHECK(host.failureLightOn());
   CHECK(initCount(*events) == 2);
-  CHECK(events->lines.back() == "shutdown out-a replacement");
+  // The stale light ran every output, in the registry's unspecified order.
+  CHECK(events->has("shutdown out-a replacement"));
+  CHECK(events->has("shutdown out-b replacement"));
   host.shutdown();
 }
 
