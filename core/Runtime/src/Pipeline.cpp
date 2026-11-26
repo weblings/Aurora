@@ -179,18 +179,20 @@ namespace Aurora::Runtime
       return CodedBuildError(message, "input_unavailable", {{"inputKind", kind}, {"inputName", name}});
     }
 
-    // Shuts a throwing build's outputs down for good when the host has closed.
-    struct ClosedBuildGuard
+    // Releases a throwing build's outputs: the host's onFailure decides how,
+    // else they stop only when the failure asked for it.
+    struct FailedBuildGuard
     {
       Pipeline& pipeline;
-      const std::atomic<bool>* hostClosed;
+      const std::function<void(Pipeline&, bool)>& onFailure;
+      bool stopOutputs{false};
       const int exceptions{std::uncaught_exceptions()};
 
-      ~ClosedBuildGuard()
+      ~FailedBuildGuard()
       {
-        if(std::uncaught_exceptions() > exceptions && hostClosed && hostClosed->load()){
-          pipeline.shutdown(/*isReplacement*/ false);
-        }
+        if(std::uncaught_exceptions() <= exceptions){ return; }
+        if(onFailure){ onFailure(pipeline, stopOutputs); }
+        else if(stopOutputs){ pipeline.shutdown(/*isReplacement*/ false); }
       }
     };
 
@@ -239,7 +241,7 @@ namespace Aurora::Runtime
 
     auto pipeline = std::unique_ptr<Pipeline>(new Pipeline());
     // Declared after `pipeline`, so it runs while the outputs still exist.
-    const ClosedBuildGuard closedGuard{*pipeline, overrides.hostClosed};
+    FailedBuildGuard failedGuard{*pipeline, overrides.onFailure};
 
     // Aurora-o13 spike: presence-only flag, same convention as
     // AURORA_DEV_LIGHT_TAP. Builds both inputs when both names are set;
@@ -342,7 +344,7 @@ namespace Aurora::Runtime
         if(overrides.graph){
           throw std::runtime_error(plan.missing);
         }
-        pipeline->shutdown(/*isReplacement*/ false);
+        failedGuard.stopOutputs = true;
         throw _effectError(
           configRoot, customId, plan.missing, /*retryable*/ false, "input_not_configured", {{"inputKind", plan.missingKind}});
       }
@@ -541,7 +543,7 @@ namespace Aurora::Runtime
         pipeline->m_summary.graphInputs = PipelineSummary::GraphInputs{needs.video, needs.audio};
       }
       else{
-        pipeline->shutdown(/*isReplacement*/ false);
+        failedGuard.stopOutputs = true;
         const Graph::LoadIssue& issue = primary.customIssue();
         std::map<std::string, std::string> detail;
         if(!issue.node.empty()){ detail["node"] = issue.node; }
@@ -1554,7 +1556,13 @@ namespace Aurora::Runtime
     std::unique_ptr<Pipeline> next;
     try{
       PipelineBuildOverrides overrides;
-      overrides.hostClosed = &m_closed;
+      overrides.onFailure = [this, epoch](Pipeline& failed, bool stopOutputs){
+        std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
+        // A newer build may be streaming to the same place: leave it alone.
+        if(m_closed || m_paused || (stopOutputs && m_buildEpoch.load() == epoch)){
+          failed.shutdown(/*isReplacement*/ false);
+        }
+      };
       next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const EffectBuildError& e){
@@ -1590,13 +1598,11 @@ namespace Aurora::Runtime
     std::unique_ptr<Pipeline> previous;
     std::unique_ptr<Pipeline> light;
     bool discardNext = false;
-    bool closed = false;
     {
       std::lock_guard<std::mutex> change(m_changeMutex);
       std::lock_guard<std::mutex> lock(m_mutex);
       // A shutdown() or pause() that landed during the build wins.
-      closed = m_closed;
-      if(closed || m_paused){
+      if(m_closed || m_paused){
         discardNext = true;
       }
       else{
@@ -1609,7 +1615,12 @@ namespace Aurora::Runtime
       }
     }
     if(discardNext){
-      if(next){ next->shutdown(/*isReplacement*/ !closed); }
+      if(next){
+        // Waits out a resume() in progress. If one ran, it owns the stream now,
+        // so only a host still paused or closed stops it.
+        std::lock_guard<std::mutex> pauseLock(m_pauseMutex);
+        next->shutdown(/*isReplacement*/ !(m_closed || m_paused));
+      }
       return true;
     }
     // previous is null on the first successful reload after a fresh
@@ -1755,7 +1766,8 @@ namespace Aurora::Runtime
     std::unique_ptr<Pipeline> next;
     try{
       PipelineBuildOverrides overrides;
-      overrides.hostClosed = &m_closed;
+      // The host stays paused or closed, so nothing may keep streaming.
+      overrides.onFailure = [](Pipeline& failed, bool){ failed.shutdown(/*isReplacement*/ false); };
       next = Pipeline::build(registry, config, configRoot, m_options, overrides);
     }
     catch(const std::exception& e){

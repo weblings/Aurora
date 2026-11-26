@@ -1378,3 +1378,17 @@ nothing outside `build` could reach its outputs.
 
 **Fix:** set a closed flag first, check it under the same lock that installs, and
 hand it to the build so a late success or throw releases what it opened.
+
+---
+
+## Releasing a discarded build can stop a newer one's stream
+Tags: shutdown, threads, reload, pause, outputs
+Applies-when: tearing down a build that lost a race, when builds share an external resource
+
+Aurora-83k6: a Hue stop is addressed to the entertainment area, not to the
+instance that sends it. A reload discarded under a pause had to stop the area,
+but the same stop sent during or after a resume would kill the resumed stream.
+
+**Fix:** decide the kind of teardown under the lock that serializes pause and
+resume, and hold it through the teardown. Skip the stop if a newer build was
+installed.

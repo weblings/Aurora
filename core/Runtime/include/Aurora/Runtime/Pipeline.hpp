@@ -180,9 +180,10 @@ namespace Aurora::Runtime
     // Same borrow-then-adopt handover as outputsFrom, via adoptInputsFrom().
     const Pipeline* inputsFrom{nullptr};
 
-    // The host's closed flag. A build that throws while it is set shuts down
-    // the outputs it opened: no later final shutdown will reach them.
-    const std::atomic<bool>* hostClosed{nullptr};
+    // Runs when the build throws, while its outputs still exist, since nothing
+    // outside build() can reach them. `stopOutputs` is true for a failure that
+    // would stop them itself; when set, this replaces that stop.
+    std::function<void(Pipeline&, bool stopOutputs)> onFailure;
   };
 
 
@@ -790,7 +791,8 @@ namespace Aurora::Runtime
     std::atomic<std::uint64_t> m_buildEpoch{0};
 
     // Taken first, serializes pause()/resume() so two resumes cannot open
-    // two capture-portal dialogs (Aurora-5t2).
+    // two capture-portal dialogs (Aurora-5t2). A reload that discards or
+    // abandons its build takes it too, so it cannot stop a resume's stream.
     std::mutex m_pauseMutex;
 
     // Set under m_mutex. reload() while set succeeds without building, so a
