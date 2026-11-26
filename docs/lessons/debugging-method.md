@@ -1327,3 +1327,23 @@ Applies-when: comparing a failing test against HEAD with uncommitted changes pre
 Aurora-ghh3: a one-line `git stash`, test, `git stash pop` was stopped while running. It left an empty `.git/index.lock`, a changed file showing as deleted, and the stash entry still holding every change.
 
 **Fix:** for a baseline, read the old file with `git show HEAD:path` or use a separate worktree. To recover: check no git process is running, remove the lock, `git checkout stash@{0} -- <file>`, and drop the stash only after `git diff --quiet stash@{0}` passes.
+
+---
+
+## A Mac's maintenance sleep fails unattended checks with page-load timeouts
+Tags: mac, sleep, caffeinate, timeout, unattended, browser-check
+Applies-when: a long unattended run on a Mac starts timing out, or a check that passed earlier now takes many minutes
+
+2026-11-25: reruns of two browser checks took 7 to 16 minutes each and failed in `page.goto` after 30 s. The same app and scripts had run in seconds. `pmset -g log` showed "Maintenance Sleep" during the runs, on AC power.
+
+**Fix:** run long checks under `caffeinate -is`, and read `pmset -g log` before debugging a timeout in an unattended run.
+
+---
+
+## A race test against a fake needs the fake's slow step on the path under test
+Tags: fake-bridge, race, concurrency, stress, oracle, control
+Applies-when: stress-testing a race against a fake server, or reading a stress run with no failures as proof of a fix
+
+2026-11-25: a reload against the fake Hue bridge took 10 ms. `--stall-light` did not lengthen it, since a reload reads no single light. Delaying the `/clip/v2/resource` reply by 0.3 s (a temporary edit, under the client's 1 s timeout) made a reload take 0.34 s, and a pause during it left the old build streaming in 60 of 60 runs.
+
+**Fix:** time the operation to confirm the delay reaches it, and run the same stress on the build without the fix. A clean run counts only if the old build fails it.
